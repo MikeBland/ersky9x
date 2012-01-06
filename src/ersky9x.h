@@ -34,7 +34,7 @@
 #define PROGMEM	 const unsigned char
 #define strcpy_P(a,b)	strcpy(a,b)
 #define strncpy_P(a,b,c)	strncpy(a,b,c)
-
+#define pgm_read_byte(p)	(*p)
 
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
@@ -285,6 +285,9 @@ void    popMenu(bool uppermost=false);
 
 
 
+extern bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
+extern int8_t *TrimPtr[] ;
+extern uint8_t g_vbat100mV ;
 
 
 

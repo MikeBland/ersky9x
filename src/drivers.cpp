@@ -23,6 +23,7 @@
 
 #include "ersky9x.h"
 #include "debug.h"
+#include "drivers.h"
 
 extern uint32_t Eeprom_image_updated ;
 

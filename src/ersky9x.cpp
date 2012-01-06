@@ -48,10 +48,11 @@
 #include "myeeprom.h"
 #include "s9xsplash.lbm"
 #include "drivers.h"
+#include "file.h"
+#include "menus.h"
 
 
 #include "debug.h"
-#include "file.h"
 
 
 #define TRUE	1
@@ -122,7 +123,6 @@ void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ;//, bool nc) ;
 const char *get_switches_string( void ) ;
 bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
-void doMainScreenGrphics( void ) ;
 void perOut( int16_t *chanOut, uint8_t att ) ;
 
 
@@ -149,6 +149,7 @@ uint8_t sysFlags = 0 ;
 
 uint32_t Lcd_analog_display ;
 uint32_t Per10ms_action ;
+uint32_t Permenu_action ;
 
 
 EEGeneral  g_eeGeneral;
@@ -168,14 +169,13 @@ uint8_t  g_menuStackPtr = 0;
 
 // Temporary to allow compile
 uint8_t g_vbat100mV = 98 ;
-int16_t calibratedStick[7] ;
-int16_t g_chans512[NUM_CHNOUT] ;
+//int16_t calibratedStick[7] ;
+//int16_t g_chans512[NUM_CHNOUT] ;
 uint8_t heartbeat ;
 
 uint8_t Timer2_running = 0 ;
 uint8_t Timer2_pre = 0 ;
 uint16_t Timer2 = 0 ;
-
 
 
 
@@ -186,15 +186,16 @@ uint16_t Timer2 = 0 ;
     lcd_vline(x+w/2,y-w/2,w);  \
     lcd_hline(x-w/2,y-w/2,w);}
 
-#define DO_CROSS(xx,yy,ww)          \
-    lcd_vline(xx,yy-ww/2,ww);  \
-    lcd_hline(xx-ww/2,yy,ww);  \
+/*
+//#define DO_CROSS(xx,yy,ww)          \
+//    lcd_vline(xx,yy-ww/2,ww);  \
+//    lcd_hline(xx-ww/2,yy,ww);  \
 
-#define V_BAR(xx,yy,ll)       \
-    lcd_vline(xx-1,yy-ll,ll); \
-    lcd_vline(xx  ,yy-ll,ll); \
-    lcd_vline(xx+1,yy-ll,ll); \
-
+//#define V_BAR(xx,yy,ll)       \
+//    lcd_vline(xx-1,yy-ll,ll); \
+//    lcd_vline(xx  ,yy-ll,ll); \
+//    lcd_vline(xx+1,yy-ll,ll); \
+	*/
 
 
 /*=========================================================================*/
@@ -290,6 +291,7 @@ int main (void)
 	__enable_irq() ;
 
 //  g_menuStack[0] =  menuProc0;
+  g_menuStack[0] =  menuProcStatistic2 ;
 
 	start_sound() ;
 	
@@ -315,7 +317,8 @@ int main (void)
 //	modelDefault( 0 ) ;
 
 //  pushMenu(menuProcModelSelect);
-//  popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
+  pushMenu(menuProcStatistic2);
+  popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
 
 	lcd_clear() ;
 	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
@@ -378,9 +381,12 @@ int main (void)
 				Tenms = 0 ;
 				 per10ms() ;				
 			}
-			lcd_clear() ;
-			screen0() ;
-			refreshDisplay() ;
+			if ( Permenu_action == 0 )
+			{
+				lcd_clear() ;
+				screen0() ;
+				refreshDisplay() ;
+			}
 		}
 
 		pioptr = PIOC ;
@@ -506,7 +512,7 @@ void perMain()
 
   eeCheck();
 
-//    lcd_clear();
+  lcd_clear();
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
 
@@ -531,13 +537,22 @@ void perMain()
 //      p1valdiff = 0 ;			
 //   	}
 
-//    g_menuStack[g_menuStackPtr](evt);
-//    refreshDiplay();
+	if ( Permenu_action )
+	{
+    g_menuStack[g_menuStackPtr](evt);
+//		menuProcStatistic2(evt) ;		
+    refreshDisplay();
+	}
+
+
 //    if(checkSlaveMode()) {
 //        PORTG &= ~(1<<OUT_G_SIM_CTL); // 0=ppm out
 //    }else{
 //        PORTG |=  (1<<OUT_G_SIM_CTL); // 1=ppm-in
 //    }
+
+		
+
 
   switch( get_tmr10ms() & 0x1f )
 	{ //alle 10ms*32
@@ -1185,8 +1200,6 @@ void screen0()
   for( i=a; i<(a+3); i++) lcd_putsnAtt(2*FW-2 ,(i-a)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
   for( i=b; i<(b+3); i++) lcd_putsnAtt(17*FW-1,(i-b)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
 
-	doMainScreenGrphics() ;
-
 }
 
 
@@ -1392,42 +1405,6 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
 }
 
-
-void doMainScreenGrphics()
-{
-#define BOX_WIDTH     23
-#define BAR_HEIGHT    (BOX_WIDTH-1l)
-#define MARKER_WIDTH  5
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT 64
-#define BOX_LIMIT     (BOX_WIDTH-MARKER_WIDTH)
-#define LBOX_CENTERX  (  SCREEN_WIDTH/4 + 10)
-#define LBOX_CENTERY  (SCREEN_HEIGHT-9-BOX_WIDTH/2)
-#define RBOX_CENTERX  (3*SCREEN_WIDTH/4 - 10)
-#define RBOX_CENTERY  (SCREEN_HEIGHT-9-BOX_WIDTH/2)
-
-    DO_SQUARE(LBOX_CENTERX,LBOX_CENTERY,BOX_WIDTH);
-    DO_SQUARE(RBOX_CENTERX,RBOX_CENTERY,BOX_WIDTH);
-
-    DO_CROSS(LBOX_CENTERX,LBOX_CENTERY,3);
-    DO_CROSS(RBOX_CENTERX,RBOX_CENTERY,3);
-    DO_SQUARE(LBOX_CENTERX+(calibratedStick[0]*BOX_LIMIT/(2*RESX)), LBOX_CENTERY-(calibratedStick[1]*BOX_LIMIT/(2*RESX)), MARKER_WIDTH);
-    DO_SQUARE(RBOX_CENTERX+(calibratedStick[3]*BOX_LIMIT/(2*RESX)), RBOX_CENTERY-(calibratedStick[2]*BOX_LIMIT/(2*RESX)), MARKER_WIDTH);
-
-    //    V_BAR(SCREEN_WIDTH/2-5,SCREEN_HEIGHT-10,((calibratedStick[4]+RESX)*BAR_HEIGHT/(RESX*2))+1l) //P1
-    //    V_BAR(SCREEN_WIDTH/2  ,SCREEN_HEIGHT-10,((calibratedStick[5]+RESX)*BAR_HEIGHT/(RESX*2))+1l) //P2
-    //    V_BAR(SCREEN_WIDTH/2+5,SCREEN_HEIGHT-10,((calibratedStick[6]+RESX)*BAR_HEIGHT/(RESX*2))+1l) //P3
-
-    // Optimization by Mike Blandford
-    {
-        uint8_t x, y, len ;			// declare temporary variables
-        for( x = -5, y = 4 ; y < 7 ; x += 5, y += 1 )
-        {
-            len = ((calibratedStick[y]+RESX)*BAR_HEIGHT/(RESX*2))+1l ;  // calculate once per loop
-            V_BAR(SCREEN_WIDTH/2+x,SCREEN_HEIGHT-8, len )
-        }
-    }
-}
 
 
 

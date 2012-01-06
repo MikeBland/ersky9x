@@ -54,6 +54,7 @@
 extern uint16_t Volume ;
 extern uint32_t Lcd_analog_display ;
 extern uint32_t Per10ms_action ;
+extern uint32_t Permenu_action ;
 extern EEGeneral  g_eeGeneral;
 extern ModelData  g_model;
 extern PROGMEM s9xsplash[] ;
@@ -270,14 +271,12 @@ void init_eeprom()
 	{
 		if ( y )
 		{ // Both blank
-			txmit('c') ;
 			Other_eeprom_block_blank = 1 ;
 			Current_eeprom_block = 1 ;
 			Eeprom_sequence_no = 0 ;
 		}
 		else
 		{ // Block 1 is active, 0 is blank
-			txmit('d') ;
 			Other_eeprom_block_blank = 1 ;
 			Current_eeprom_block = 1 ;
 			Eeprom_sequence_no = E_images[1].sequence_no ;
@@ -287,7 +286,6 @@ void init_eeprom()
 	{
 		if ( y )
 		{ // Block 0 is active, 1 is blank
-			txmit('e') ;
 			Other_eeprom_block_blank = 1 ;
 			Current_eeprom_block = 0 ;
 			Eeprom_sequence_no = E_images[0].sequence_no ;
@@ -295,7 +293,6 @@ void init_eeprom()
 		}
 		else
 		{ // Check sequence number and erase other block
-			txmit('f') ;
 			Other_eeprom_block_blank = 0 ;
 			x = E_images[0].sequence_no ;
 			y = E_images[1].sequence_no ;
@@ -327,7 +324,7 @@ void init_eeprom()
 	{
 		*q++ = *p++ ;			
 	}
-	disp_256( (uint32_t)eeprom, 6 ) ;
+//	disp_256( (uint32_t)eeprom, 6 ) ;
 	Eeprom_process_state = E_IDLE ;
 }
 
@@ -449,6 +446,8 @@ uint32_t unprotect_eeprom()
 
 
 
+uint32_t Mem_address ;
+uint32_t Memaddmode ;
 
 void handle_serial()
 {
@@ -459,7 +458,49 @@ void handle_serial()
 		return ;
 	}
 	// Got a char, what to do with it?
-	
+
+	if ( Memaddmode )
+	{
+		rxchar = toupper( rxchar ) ;
+		if ( ( ( rxchar >= '0' ) && ( rxchar <= '9' ) ) || ( ( rxchar >= 'A' ) && ( rxchar <= 'F' ) ) )
+		{
+			txmit( rxchar ) ;
+			rxchar -= '0' ;
+			if ( rxchar > 9 )
+			{
+				rxchar -= 7 ;				
+			}
+			Mem_address <<= 4 ;
+			Mem_address |= rxchar ;			
+		}
+		else if ( rxchar == 13 )
+		{
+			crlf() ;
+			disp_256( Mem_address, 4 ) ;
+			Memaddmode = 0 ;				
+		}
+		else if ( rxchar == 8 )
+		{
+			txmit( rxchar ) ;
+			txmit( rxchar ) ;
+			txmit( rxchar ) ;
+			Mem_address >>= 4 ;			
+		}
+		else if ( rxchar == 27 )
+		{
+			crlf() ;
+			Memaddmode = 0 ;				
+		}		
+
+	}
+	 
+	if ( rxchar == '?' )
+	{
+		Memaddmode = 1 ;
+		Mem_address = 0 ;
+		txmit( '>' ) ;
+	}
+
 	if ( rxchar == 'V' )
 	{
 		uputs( (char *)VERSION ) ;
@@ -468,14 +509,15 @@ void handle_serial()
 
 	if ( rxchar == 'A' )
 	{
-		register Adc *padc ;
-
-		padc = ADC ;
-		p8hex( padc->ADC_CDR1 ) ;
-		crlf() ;
-//		padc->ADC_RPR = (uint32_t)Adc_data ;
-//		padc->ADC_RCR = 8 ;
-		read_8_adc() ;
+		if ( Permenu_action )
+		{
+			Permenu_action = 0 ;			
+		}
+		else
+		{
+			Permenu_action = 1 ;
+		}
+		
 	}
 
 	if ( rxchar == 'B' )

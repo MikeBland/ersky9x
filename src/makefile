@@ -86,6 +86,7 @@ CPPSRC = drivers.cpp \
          file.cpp \
          templates.cpp \
          pers.cpp \
+         menus.cpp \
          ersky9x.cpp
 
 # List ASM source files here
