@@ -23,7 +23,22 @@
 #define wdt_reset()
 
 
-#define VERSION	"V0.23"
+#define VERSION	"V0.24"
+
+#define DATE_STR "xx.xx.2012"
+#define TIME_STR "xx:xx:xx"
+#define SUB_VERS VERSION
+#define SVN_VERS "trunk-rxxx"
+#define MOD_VERS "Normal"
+
+//#define STR2(s) #s
+//#define DEFNUMSTR(s)  STR2(s)
+
+const char stamp1[] = "VERS: "SUB_VERS ;
+const char stamp2[] = "DATE: " DATE_STR;
+const char stamp3[] = "TIME: " TIME_STR;
+const char stamp4[] = " SVN: " SVN_VERS;
+const char stamp5[] = " MOD: " MOD_VERS;
 
 #define CPU_INT		int32_t
 #define CPU_UINT	uint32_t
@@ -214,6 +229,25 @@ extern uint8_t sysFlags;
 const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.";
 #define NUMCHARS (sizeof(s_charTab)-1)
 
+#define NUM_PPM     8
+//number of real outputchannels CH1-CH16
+#define NUM_CHNOUT  16
+///number of real input channels (1-9) plus virtual input channels X1-X4
+#define PPM_BASE    MIX_CYC3
+#define CHOUT_BASE  (PPM_BASE+NUM_PPM)
+
+#ifdef FRSKY
+#define NUM_TELEMETRY 2
+#define TELEMETRY_CHANNELS "AD1 AD2 "
+#else
+#define NUM_TELEMETRY 0
+#define TELEMETRY_CHANNELS ""
+#endif
+
+#define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT+NUM_TELEMETRY) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
+///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
+#define NUM_XCHNOUT (NUM_CHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
+
 const char modn12x3[]= {
     1, 2, 3, 4,
     1, 3, 2, 4,
@@ -236,7 +270,20 @@ extern const uint8_t chout_ar[] ;
 typedef void (*MenuFuncP)(uint8_t event);
 
 
+extern bool    checkIncDec_Ret;//global helper vars
+extern uint8_t s_editMode;     //global editmode
 
+int16_t checkIncDec16(uint8_t event, int16_t i_pval, int16_t i_min, int16_t i_max, uint8_t i_flags);
+int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
+int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
+int8_t checkIncDec_vm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
+int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
+
+#define CHECK_INCDEC_H_GENVAR( event, var, min, max)     \
+    var = checkIncDec_hg(event,var,min,max)
+
+#define CHECK_INCDEC_H_MODELVAR( event, var, min, max)     \
+    var = checkIncDec_hm(event,var,min,max)
 
 extern uint8_t heartbeat ;
 extern int16_t            g_chans512[NUM_CHNOUT];
@@ -263,6 +310,7 @@ extern void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att) ;
 extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
 extern const char *get_switches_string( void ) ;
+extern uint16_t anaIn(uint8_t chan) ;
 
 void eeWaitComplete( void ) ;
 void eeDirty(uint8_t msk);
@@ -272,6 +320,8 @@ void eeReadAll( void ) ;
 extern char idx2char(uint8_t idx) ;
 extern uint8_t char2idx(char c) ;
 
+extern int16_t            g_ppmIns[8];
+extern uint8_t ppmInState ; //0=unsync 1..8= wait for value i-1
 
 /// goto given Menu, but substitute current menu in menuStack
 extern void    chainMenu(MenuFuncP newMenu);
@@ -288,6 +338,7 @@ void    popMenu(bool uppermost=false);
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
 extern int8_t *TrimPtr[] ;
 extern uint8_t g_vbat100mV ;
+extern uint16_t Timer2 ;
 
 
 

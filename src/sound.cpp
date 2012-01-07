@@ -104,7 +104,7 @@ void set_frequency( uint32_t frequency )
 	register uint32_t timer ;
 
 	Frequency = frequency ;
-	timer = Master_frequency / (800 * frequency) - 1 ;		// MCK/8 and 100 000 Hz
+	timer = Master_frequency / (800 * frequency) ;		// MCK/8 and 100 000 Hz
 	if ( timer > 65535 )
 	{
 		timer = 65535 ;		
@@ -131,7 +131,7 @@ void start_timer1()
 	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x01000000L ;		// Enable peripheral clock to TC1
   
-	timer = Master_frequency / 800000 - 1 ;		// MCK/8 and 100 000 Hz
+	timer = Master_frequency / 800000 ;		// MCK/8 and 100 000 Hz
 	ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
 	ptc->TC_BMR = 0 ;

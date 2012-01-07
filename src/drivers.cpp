@@ -24,6 +24,7 @@
 #include "ersky9x.h"
 #include "debug.h"
 #include "drivers.h"
+#include "myeeprom.h"
 
 extern uint32_t Eeprom_image_updated ;
 
@@ -917,16 +918,31 @@ void read_8_adc()
 
 }
 
+
+// Settings for mode register ADC_MR
+// USEQ off - silicon problem, doesn't work
+// TRANSFER = 1
+// TRACKTIM = 4 (5 clock periods)
+// ANACH = 0
+// SETTLING = 1 (not used if ANACH = 0)
+// STARTUP = 1 (8 clock periods)
+// PRESCAL = 3.6 MHz clock (between 1 and 20MHz)
+// FREERUN = 0
+// FWUP = 0
+// SLEEP = 0
+// LOWRES = 0
+// TRGSEL = 0
+// TRGEN = 0 (software trigger only)
 void init_adc()
 {
 	register Adc *padc ;
 	register uint32_t timer ;
 
-	timer = ( Master_frequency / (3600000*2) - 1 ) << 8 ;
+	timer = ( Master_frequency / (3600000*2) ) << 8 ;
 	// Enable peripheral clock ADC = bit 29
   PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 	padc = ADC ;
-	padc->ADC_MR = 0x12110000 | timer ;  // 0001 0002 0001 0001 xxxx xxxx 0000 0000
+	padc->ADC_MR = 0x14110000 | timer ;  // 0001 0100 0001 0001 xxxx xxxx 0000 0000
 	padc->ADC_CHER = 0x0000623E ;  // channels 1,2,3,4,5,9,13,14
 	padc->ADC_CGR = 0 ;  // Gain = 1, all channels
 	padc->ADC_COR = 0 ;  // Single ended, 0 offset, all channels
@@ -960,5 +976,115 @@ void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, regis
 	}
 }
 
+
+// Start TIMER3 for input capture
+void start_timer3()
+{
+  register Tc *ptc ;
+	register Pio *pioptr ;
+
+	pioptr = PIOC ;
+
+	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
+  PMC->PMC_PCER0 |= 0x04000000L ;		// Enable peripheral clock to TC3
+
+  ptc = TC1 ;		// Tc block 1 (TC3-5)
+	ptc->TC_BCR = 0 ;			// No sync
+	ptc->TC_BMR = 2 ;
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00000000 ;	// Capture mode
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, b fall
+	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+
+  pioptr->PIO_ABCDSR[0] |= 0x00800000 ;		// Peripheral B = TIOA3
+  pioptr->PIO_ABCDSR[1] &= ~0x00800000 ;	// Peripheral B
+	pioptr->PIO_PDR = 0x00800000L ;		// Disable bit C23 (TIOA3) Assign to peripheral
+	NVIC_SetPriority( TC3_IRQn, 15 ) ; // Low ppiority interrupt
+	NVIC_EnableIRQ(TC3_IRQn) ;
+	ptc->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;
+}
+
+// Start Timer4 to provide 0.5uS clock for input capture
+void start_timer4()
+{
+  register Tc *ptc ;
+	register uint32_t timer ;
+
+	timer = Master_frequency / (2*2000000) ;		// MCK/2 and 2MHz
+
+	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
+  PMC->PMC_PCER0 |= 0x08000000L ;		// Enable peripheral clock to TC4
+
+  ptc = TC1 ;		// Tc block 1 (TC3-5)
+	ptc->TC_BCR = 0 ;			// No sync
+	ptc->TC_BMR = 0 ;
+	ptc->TC_CHANNEL[1].TC_CMR = 0x00008000 ;	// Waveform mode
+	ptc->TC_CHANNEL[1].TC_RC = timer ;
+	ptc->TC_CHANNEL[1].TC_RA = timer >> 1 ;
+	ptc->TC_CHANNEL[1].TC_CMR = 0x0009C000 ;	// 0000 0000 0000 1001 1100 0000 0100 0000
+																						// MCK/2, set @ RA, Clear @ RC waveform
+	ptc->TC_CHANNEL[1].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+}
+
+void start_ppm_capture()
+{
+	start_timer4() ;
+	start_timer3() ;
+}
+
+void end_ppm_capture()
+{
+	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;
+	NVIC_DisableIRQ(TC3_IRQn) ;
+}
+
+
+// Timer3 used for PPM_IN pulse width capture. Counter running at 16MHz / 8 = 2MHz
+// equating to one count every half millisecond. (2 counts = 1ms). Control channel
+// count delta values thus can range from about 1600 to 4400 counts (800us to 2200us),
+// corresponding to a PPM signal in the range 0.8ms to 2.2ms (1.5ms at center).
+// (The timer is free-running and is thus not reset to zero at each capture interval.)
+// Timer 4 generates the 2MHz clock to clock Timer 3
+
+uint16_t Temp_captures[8] ;
+
+extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
+{
+  uint16_t capture ;
+  static uint16_t lastCapt ;
+  uint16_t val ;
+	
+	capture = TC1->TC_CHANNEL[0].TC_RA ;
+	(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
+  
+//	cli();
+//  ETIMSK &= ~(1<<TICIE3); //stop reentrance
+//  sei();
+
+  val = (capture - lastCapt) / 2 ;
+  lastCapt = capture;
+
+  // We prcoess g_ppmInsright here to make servo movement as smooth as possible
+  //    while under trainee control
+  if(ppmInState && ppmInState<=8){
+    if(val>800 && val<2200)
+		{
+			Temp_captures[ppmInState - 1] = capture ;
+      g_ppmIns[ppmInState++ - 1] =
+        (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
+
+    }else{
+      ppmInState=0; // not triggered
+    }
+  }else{
+    if(val>4000 && val < 16000)
+    {
+      ppmInState=1; // triggered
+    }
+  }
+
+//  cli();
+//  ETIMSK |= (1<<TICIE3);
+//  sei();
+}
 
 

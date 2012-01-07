@@ -151,6 +151,9 @@ uint32_t Lcd_analog_display ;
 uint32_t Per10ms_action ;
 uint32_t Permenu_action ;
 
+int16_t g_ppmIns[8];
+uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
+
 
 EEGeneral  g_eeGeneral;
 ModelData  g_model;
@@ -161,6 +164,12 @@ ModelData  g_model;
                                 3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
                                 4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
 
+
+const char modi12x3[]=
+  "RUD ELE THR AIL "
+  "RUD THR ELE AIL "
+  "AIL ELE THR RUD "
+  "AIL THR ELE RUD ";
 
 MenuFuncP g_menuStack[5];
 
@@ -237,6 +246,8 @@ int main (void)
 {
 	register uint32_t i ;
 	register Pio *pioptr ;
+	// Debug variable
+	uint32_t both_on ;
 
 	WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
 
@@ -290,8 +301,7 @@ int main (void)
 
 	__enable_irq() ;
 
-//  g_menuStack[0] =  menuProc0;
-  g_menuStack[0] =  menuProcStatistic2 ;
+  g_menuStack[0] =  menuProc0 ;
 
 	start_sound() ;
 	
@@ -317,7 +327,7 @@ int main (void)
 //	modelDefault( 0 ) ;
 
 //  pushMenu(menuProcModelSelect);
-  pushMenu(menuProcStatistic2);
+  pushMenu(menuProc0) ;
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
 
 	lcd_clear() ;
@@ -325,8 +335,9 @@ int main (void)
 	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
 	
 	refreshDisplay() ;
+	start_ppm_capture() ;
 
-
+	both_on = 0 ;
   while (1)
   {
 //	  PMC->PMC_PCER0 = 0x1800 ;				// Enable clocks to PIOB and PIOA
@@ -338,14 +349,42 @@ int main (void)
 //		PIOA->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
-		// EXT3 controlled by MENU key
+		// EXT3 controlled by MENU key for testing/debug
 		if ( PIOB->PIO_PDSR & 0x40 )
 		{
 			PIOA->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
+			both_on = 0 ;
 		}
 		else
 		{
 			PIOA->PIO_CODR = 0x00200000L ;	// Clear bit A21 OFF
+			if ( ( PIOA->PIO_PDSR & 0x80000000L ) == 0 )	// EXIT and MENU ON together
+			{
+				if ( ! both_on )
+				{
+					both_on = 1 ;
+					if ( Per10ms_action )
+					{
+						Per10ms_action = 0 ;			
+					}
+					else
+					{
+						Per10ms_action = 1 ;
+					}
+					if ( Permenu_action )
+					{
+						Permenu_action = 0 ;			
+					}
+					else
+					{
+						Permenu_action = 1 ;
+					}
+				}
+			}
+			else
+			{
+				both_on = 0 ;
+			}
 		}
 
 
@@ -439,6 +478,7 @@ int main (void)
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
+	end_ppm_capture() ;
 	end_spi() ;
 	end_sound() ;
 	TC0->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;
@@ -647,7 +687,7 @@ void start_timer2()
   PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
 	pioptr = PIOA ;
-	timer = Master_frequency / 12800 - 1 ;		// MCK/128 and 100 Hz
+	timer = Master_frequency / 12800 ;		// MCK/128 and 100 Hz
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
@@ -679,7 +719,7 @@ void start_timer0()
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
-	ptc->TC_BMR = 0 ;
+	ptc->TC_BMR = 2 ;
 	ptc->TC_CHANNEL[0].TC_CMR = 0x00008000 ;	// Waveform mode
 	ptc->TC_CHANNEL[0].TC_RC = 0xFFF0 ;
 	ptc->TC_CHANNEL[0].TC_RA = 0 ;
@@ -1231,15 +1271,15 @@ void putsVBat(uint8_t x,uint8_t y,uint8_t att)
   putsVolts(x, y, g_vbat100mV, att);
 }
 
-//void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
-//{
-//  if(idx==0)
-//    lcd_putsnAtt(x,y,PSTR("----"),4,att);
-//  else if(idx<=4)
-//    lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
-//  else if(idx<=NUM_XCHNRAW)
-//    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  MAX FULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"TELEMETRY_CHANNELS)+4*(idx-5),4,att);
-//}
+void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
+{
+  if(idx==0)
+    lcd_putsnAtt(x,y,PSTR("----"),4,att);
+  else if(idx<=4)
+    lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
+  else if(idx<=NUM_XCHNRAW)
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  MAX FULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"TELEMETRY_CHANNELS)+4*(idx-5),4,att);
+}
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
 {
@@ -1618,6 +1658,97 @@ void pushMenu(MenuFuncP newMenu)
 }
 
 
+//global helper vars
+bool    checkIncDec_Ret;
+int16_t p1val;
+int16_t p1valdiff;
+
+int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
+{
+  int16_t newval = val;
+  uint8_t kpl=KEY_RIGHT, kmi=KEY_LEFT, kother = -1;
+
+  if(event & _MSK_KEY_DBL){
+    uint8_t hlp=kpl;
+    kpl=kmi;
+    kmi=hlp;
+    event=EVT_KEY_FIRST(EVT_KEY_MASK & event);
+  }
+  if(event==EVT_KEY_FIRST(kpl) || event== EVT_KEY_REPT(kpl) || (s_editMode && (event==EVT_KEY_FIRST(KEY_UP) || event== EVT_KEY_REPT(KEY_UP))) ) {
+    newval++;
+
+		audioDefevent(AUDIO_KEYPAD_UP);
+
+    kother=kmi;
+  }else if(event==EVT_KEY_FIRST(kmi) || event== EVT_KEY_REPT(kmi) || (s_editMode && (event==EVT_KEY_FIRST(KEY_DOWN) || event== EVT_KEY_REPT(KEY_DOWN))) ) {
+    newval--;
+
+		audioDefevent(AUDIO_KEYPAD_DOWN);
+
+    kother=kpl;
+  }
+  if((kother != (uint8_t)-1) && keyState((EnumKeys)kother)){
+    newval=-val;
+    killEvents(kmi);
+    killEvents(kpl);
+  }
+  if(i_min==0 && i_max==1 && event==EVT_KEY_FIRST(KEY_MENU))
+  {
+      s_editMode = false;
+      newval=!val;
+      killEvents(event);
+  }
+
+  //change values based on P1
+  newval -= p1valdiff;
+
+  if(newval>i_max)
+  {
+    newval = i_max;
+    killEvents(event);
+    audioDefevent(AUDIO_KEYPAD_UP);
+  }
+  else if(newval < i_min)
+  {
+    newval = i_min;
+    killEvents(event);
+    audioDefevent(AUDIO_KEYPAD_DOWN);
+
+  }
+  if(newval != val) {
+    if(newval==0) {
+      pauseEvents(event);
+  
+		if (newval>val){
+			audioDefevent(AUDIO_KEYPAD_UP);
+		} else {
+			audioDefevent(AUDIO_KEYPAD_DOWN);
+		}		
+
+    }
+    eeDirty(i_flags & (EE_GENERAL|EE_MODEL));
+    checkIncDec_Ret = true;
+  }
+  else {
+    checkIncDec_Ret = false;
+  }
+  return newval;
+}
+
+int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
+{
+  return checkIncDec16(event,i_val,i_min,i_max,i_flags);
+}
+
+int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+{
+  return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
+}
+
+int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+{
+  return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
+}
 
 
 /*

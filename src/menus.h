@@ -77,7 +77,7 @@ struct MState2
   void check_submenu_simple(uint8_t event, uint8_t maxrow);
 };
 
-//void evalOffset(int8_t sub, uint8_t max);
+void evalOffset(int8_t sub, uint8_t max);
 
 //typedef PROGMEM void (*MenuFuncP_PROGMEM)(uint8_t event);
 typedef const void (*MenuFunc)(uint8_t event) ;
@@ -87,17 +87,18 @@ typedef const void (*MenuFunc)(uint8_t event) ;
 #define TITLE(str)   TITLEP(str)
 
 
-/*
-//#define MENU(title, tab, menu, lines_count, lines...) \
-//TITLE(title); \
-//static MState2 mstate2; \
-//static prog_uint8_t APM mstate_tab[] = lines; \
-//mstate2.check(event,menu,tab,DIM(tab),mstate_tab,DIM(mstate_tab)-1,lines_count-1)
+#define SIMPLE_MENU(title, tab, menu, lines_count) \
+TITLE(title); \
+static MState2 mstate2; \
+mstate2.check_simple(event,menu,tab,DIM(tab),lines_count-1)
 
-//#define SIMPLE_MENU(title, tab, menu, lines_count) \
-//TITLE(title); \
-//static MState2 mstate2; \
-//mstate2.check_simple(event,menu,tab,DIM(tab),lines_count-1)
+#define MENU(title, tab, menu, lines_count, lines...) \
+TITLE(title); \
+static MState2 mstate2; \
+static const uint8_t mstate_tab[] = lines; \
+mstate2.check(event,menu,tab,DIM(tab),mstate_tab,DIM(mstate_tab)-1,lines_count-1)
+
+/*
 
 //#define SUBMENU(title, lines_count, lines...) \
 //TITLE(title); \
