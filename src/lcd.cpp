@@ -38,7 +38,7 @@
 
 
 // Compile time options for LCD version
-#define OPTREX_LCD 0
+//#define OPTREX_LCD 0
 
 
 // Local data
@@ -619,7 +619,7 @@ void refreshDisplay()
 	pioptr = PIOC ;
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
   for( y=0; y < 8; y++) {
-#if OPTREX_LCD
+#ifdef OPTREX_LCD
     lcdSendCtl(0x00);
 #else
     lcdSendCtl(0x04);

@@ -19,6 +19,7 @@
 TRGT = arm-none-eabi-
 CC   = $(TRGT)gcc
 CP   = $(TRGT)objcopy
+CLSS = $(TRGT)objdump
 AS   = $(TRGT)gcc -x assembler-with-cpp
 BIN  = $(CP) -O ihex 
 BINX = $(CP) -O binary 
@@ -42,6 +43,9 @@ DLIBDIR =
 
 # List all default libraries here
 DLIBS = 
+
+
+EXT = STD
 
 #
 # End of default section
@@ -121,6 +125,14 @@ else
 DEFS    = $(DDEFS) $(UDEFS) -DRUN_FROM_FLASH=1
 endif
 
+
+# If FRSKY-Support is enabled
+ifeq ($(EXT), OPTREX)
+ CPPDEFS = -DOPTREX_LCD
+endif
+
+
+
 ADEFS   = $(DADEFS) $(UADEFS)
 OBJS    = $(ASRC:.s=.o) $(SRC:.c=.o) $(CPPSRC:.cpp=.o)
 LIBS    = $(DLIBS) $(ULIBS)
@@ -130,6 +142,8 @@ ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.s=.lst) $(ADEFS)
 CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
 LDFLAGS = $(MCFLAGS) -mthumb -nostartfiles -T$(LDSCRIPT) -Wl,-Map=$(FULL_PRJ).map,--cref,--no-warn-mismatch $(LIBDIR)
 CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.cpp=.lst) $(DEFS)
+
+CPPFLAGS += $(CPPDEFS)
 
 # Generate dependency information
 CPFLAGS += -MD -MP -MF .dep/$(@F).d
@@ -157,9 +171,7 @@ all: $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin
   
 # Create extended listing file from ELF output file.
 %.lss: %.elf
-	@echo
-	@echo $(MSG_EXTENDED_LISTING) $@
-	arm-none-eabi-objdump -h -S $< > $@
+	$(CLSS) -h -S $< > $@
 
 %hex: %elf
 	$(BIN) $< $@

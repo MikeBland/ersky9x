@@ -23,7 +23,7 @@
 #define wdt_reset()
 
 
-#define VERSION	"V0.24"
+#define VERSION	"V0.25"
 
 #define DATE_STR "xx.xx.2012"
 #define TIME_STR "xx:xx:xx"
@@ -206,6 +206,9 @@ enum EnumKeys {
 #define DSW_SWB   20
 #define DSW_SWC   21
 
+#define INACTIVITY_THRESHOLD 256
+
+#define IS_THROTTLE(x)  (((2-(g_eeGeneral.stickMode&1)) == x) && (x<4))
 
 extern uint8_t Ee_lock ;
 
@@ -216,6 +219,33 @@ extern uint8_t Ee_lock ;
 #define EE_GENERAL 1
 #define EE_MODEL   2
 #define EE_TRIM    4           // Store model because of trim
+
+
+#define TMR_VAROFS  16
+
+#define TMRMODE_NONE     0
+#define TMRMODE_ABS      1
+#define TMRMODE_THR      2
+#define TMRMODE_THR_REL  3
+#define MAX_ALERT_TIME   60
+
+#define PROTO_PPM        0
+#define PROTO_PXX        1
+#define PROTO_DSM2       2
+#define PROT_MAX         2
+#define PROT_STR "PPM   PXX   DSM2  "
+#define PROT_STR_LEN     6
+#define DSM2_STR "LP4/LP5  DSM2only DSM2/DSMX"
+#define DSM2_STR_LEN   9
+#define LPXDSM2          0
+#define DSM2only         1
+#define DSM2_DSMX        2
+
+
+#define FLASH_DURATION 50
+
+extern uint16_t g_LightOffCounter;
+
 
 template<class t> inline t min(t a, t b){ return a<b?a:b; }
 template<class t> inline t max(t a, t b){ return a>b?a:b; }
@@ -248,6 +278,24 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
 #define NUM_XCHNOUT (NUM_CHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
 
+
+inline int32_t calc100toRESX(register int8_t x)
+{
+  return (((uint32_t)x*168) - (uint32_t)x)>>6 ;
+}
+
+inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat MacKenzie
+{
+    register int32_t y = x>>5;
+    x+=y;
+    y=y>>2;
+    x-=y;
+    return x+(y>>2);
+    //  return x + x/32 - x/128 + x/512;
+}
+
+
+
 const char modn12x3[]= {
     1, 2, 3, 4,
     1, 3, 2, 4,
@@ -255,6 +303,10 @@ const char modn12x3[]= {
     4, 3, 2, 1 };
 
 extern const uint8_t chout_ar[] ;
+
+//convert from mode 1 to mode g_eeGeneral.stickMode
+//NOTICE!  =>  1..4 -> 1..4
+extern uint8_t convert_mode_helper(uint8_t x) ;
 
 #define CONVERT_MODE(x)  (((x)<=4) ? convert_mode_helper(x) : (x))
 #define CHANNEL_ORDER(x) (chout_ar[g_eeGeneral.templateSetup*4 + (x)-1])
@@ -286,7 +338,7 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
     var = checkIncDec_hm(event,var,min,max)
 
 extern uint8_t heartbeat ;
-extern int16_t            g_chans512[NUM_CHNOUT];
+extern int16_t g_chans512[NUM_CHNOUT];
 extern uint8_t eeprom[4096] ;
 
 uint8_t char2idx(char c);
@@ -300,7 +352,13 @@ extern uint32_t Master_frequency ;
 
 extern void alert(const char * s, bool defaults=false);
 extern void message(const char * s);
-extern void resetTimer2( void ) ;
+
+void resetTimer();
+
+
+extern uint8_t Timer2_running ;
+extern uint16_t Timer2 ;
+void resetTimer2( void ) ;
 
 extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
@@ -309,13 +367,26 @@ extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 extern void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att) ;
 extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
+extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr);
 extern const char *get_switches_string( void ) ;
+
+extern int16_t intpol(int16_t x, uint8_t idx);
+
 extern uint16_t anaIn(uint8_t chan) ;
+
+extern int16_t ex_chans[NUM_CHNOUT];
+
 
 void eeWaitComplete( void ) ;
 void eeDirty(uint8_t msk);
 void eeCheck(bool immediately=false ) ;
 void eeReadAll( void ) ;
+void eeLoadModelName(uint8_t id,char*buf,uint8_t len);
+//uint16_t eeFileSize(uint8_t id);
+void eeLoadModel(uint8_t id);
+//void eeSaveModel(uint8_t id);
+bool eeDuplicateModel(uint8_t id);
+bool eeModelExists(uint8_t id);
 
 extern char idx2char(uint8_t idx) ;
 extern uint8_t char2idx(char c) ;
@@ -333,12 +404,17 @@ extern MenuFuncP lastPopMenu();
 /// if uppermost is set true, thenmenu return to uppermost menu in menustack
 void    popMenu(bool uppermost=false);
 
+#define NO_TRAINER 0x01
+#define NO_INPUT   0x02
 
 
-extern bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
+extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
 extern int8_t *TrimPtr[] ;
 extern uint8_t g_vbat100mV ;
 extern uint16_t Timer2 ;
+extern void doSplash( void ) ;
+
+
 
 
 

@@ -75,6 +75,7 @@ extern uint32_t read_trims( void ) ;
 
 
 void mainSequence( void ) ;
+void doSplash( void ) ;
 void perMain( void ) ;
 void generalDefault( void ) ;
 void modelDefault( uint8_t id ) ;
@@ -104,7 +105,6 @@ uint32_t hextoi( uint8_t *string ) ;
 //uint32_t gets( uint8_t *string, uint32_t maxcount ) ;
 void setup_switches( void ) ;
 uint32_t read_trims( void ) ;
-uint32_t read_switch( enum EnumKeys enuk ) ;
 extern uint32_t read_keys( void ) ;
 void hello( void ) ;
 void dbl9x( void ) ;
@@ -123,7 +123,7 @@ void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ;//, bool nc) ;
 const char *get_switches_string( void ) ;
 bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
-void perOut( int16_t *chanOut, uint8_t att ) ;
+//void perOut( int16_t *chanOut, uint8_t att ) ;
 
 
 
@@ -131,7 +131,7 @@ void perOut( int16_t *chanOut, uint8_t att ) ;
 /*  DEFINE: Definition of all local Data                                   */
 /*=========================================================================*/
 
-uint16_t Pulses[12] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0 } ;
+uint16_t Pulses[18] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0,0,0,0,0,0, 0 } ;
 volatile uint32_t Pulses_index = 0 ;		// Modified in interrupt routine
 
 
@@ -141,6 +141,8 @@ uint32_t Master_frequency ;
 volatile uint32_t Timer2_count ;		// Modified in interrupt routine
 volatile uint32_t Tenms ;						// Modified in interrupt routine
 volatile uint8_t tick10ms = 0 ;
+uint16_t g_LightOffCounter ;
+
 uint16_t S_anaFilt[8] ;				// Analog inputs after filtering
 uint16_t Volume ;
 
@@ -329,6 +331,8 @@ int main (void)
 //  pushMenu(menuProcModelSelect);
   pushMenu(menuProc0) ;
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
+
+	doSplash() ;
 
 	lcd_clear() ;
 	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
@@ -531,6 +535,65 @@ void mainSequence()
 //#endif
 }
 
+inline uint8_t keyDown()
+{
+    return ~read_keys() & 0x7E ;
+}
+
+void clearKeyEvents()
+{
+    while(keyDown())
+		{
+			  // loop until all keys are up
+			if ( PIOC->PIO_PDSR & 0x02000000 )
+			{
+				// Detected USB
+				break ;
+			}
+		}	
+    putEvent(0);
+}
+
+
+
+void doSplash()
+{
+	lcd_clear();
+  lcd_img(0, 0, s9xsplash,0,0);
+  lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+  lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
+  refreshDisplay();
+
+//  uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
+  uint16_t tgtime = get_tmr10ms() + 150 ;  
+  while(tgtime != get_tmr10ms())
+  {
+
+		
+		//Temporary, until per10ms actioned from interrupt routine		 
+			if ( Tenms )
+			{
+				Tenms = 0 ;
+				 per10ms() ;				
+			}
+
+
+//            getADC_filt();
+//            uint16_t tsum = 0;
+//            for(uint8_t i=0; i<4; i++)
+//               tsum += anaIn(i)/INAC_DEVISOR;
+
+//            if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
+    if(keyDown() )   return;  //wait for key release
+
+//            if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff)
+//                BACKLIGHT_ON;
+//            else
+//                BACKLIGHT_OFF;
+  }
+}
+
+
 void perMain()
 {
   static uint16_t lastTMR;
@@ -642,51 +705,17 @@ void perMain()
 
 }
 
-//void generalDefault()
-//{
-//	register int i ;
-//  register int16_t sum=0 ;
-
-//  memset(&g_eeGeneral,0,sizeof(g_eeGeneral));
-//  g_eeGeneral.myVers   =  MDVERS;
-//  g_eeGeneral.currModel=  0 ;
-//  g_eeGeneral.contrast = 25 ;
-//  g_eeGeneral.vBatWarn = 65 ;
-//  g_eeGeneral.stickMode=  1 ;
-//  for (int i = 0; i < 7; ++i) {
-//    g_eeGeneral.calibMid[i]     = 0x200;
-//    g_eeGeneral.calibSpanNeg[i] = 0x180;
-//    g_eeGeneral.calibSpanPos[i] = 0x180;
-//  }
-//  strcpy(g_eeGeneral.ownerName,"ME        ");
-//  for( i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
-//  g_eeGeneral.chkSum = sum;
-//}
-
-//void modelDefault(uint8_t id)
-//{
-//  memset(&g_model, 0, sizeof(ModelData));
-//  strcpy(g_model.name,"MODEL     ");
-//  g_model.name[5]='0'+(id+1)/10;
-//  g_model.name[6]='0'+(id+1)%10;
-//  g_model.mdVers = MDVERS;
-
-////  applyTemplate(0); //default 4 channel template
-//}
-
-
-
-// Test, starts TIMER2 at 100Hz, drives TIOA2 (A26, EXT2) out
+// Starts TIMER2 at 100Hz,  commentd out drive of TIOA2 (A26, EXT2) out
 void start_timer2()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
   register Tc *ptc ;
 	register uint32_t timer ;
 
 	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
-	pioptr = PIOA ;
+//	pioptr = PIOA ;
 	timer = Master_frequency / 12800 ;		// MCK/128 and 100 Hz
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
@@ -698,9 +727,9 @@ void start_timer2()
 	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
 																						// MCK/128, set @ RA, Clear @ RC waveform
 
-  pioptr->PIO_ABCDSR[0] |= 0x04000000 ;		// Peripheral B = TIOA2
-  pioptr->PIO_ABCDSR[1] &= ~0x04000000 ;	// Peripheral B
-	pioptr->PIO_PDR = 0x04000000L ;		// Disable bit A26 (EXT2) Assign to peripheral
+//  pioptr->PIO_ABCDSR[0] |= 0x04000000 ;		// Peripheral B = TIOA2
+//  pioptr->PIO_ABCDSR[1] &= ~0x04000000 ;	// Peripheral B
+//	pioptr->PIO_PDR = 0x04000000L ;		// Disable bit A26 (EXT2) Assign to peripheral
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
 	NVIC_EnableIRQ(TC2_IRQn) ;
@@ -736,6 +765,13 @@ extern "C" void TC2_IRQHandler()
   dummy = TC0->TC_CHANNEL[2].TC_SR;
 	(void) dummy ;		// Discard value - prevents compiler warning
 	Tenms |= 1 ;			// 10 mS has passed
+	if ( Buzzer_count )
+	{
+		if ( --Buzzer_count == 0 )
+		{
+			buzzer_off() ;			
+		}
+	}
 
 	if ( ++pre_scale >= 10 )
 	{
@@ -891,7 +927,6 @@ void init_pwm()
 	pwmptr->PWM_ENA = PWM_ENA_CHID3 ;						// Enable channel 3
 
 	NVIC_EnableIRQ(PWM_IRQn) ;
-//	pwmptr->PWM_IER1 = PWM_IER1_CHID0 ;
 	pwmptr->PWM_IER1 = PWM_IER1_CHID3 ;
 
 
@@ -905,6 +940,37 @@ extern "C" void PWM_IRQHandler (void)
 		if ( Pulses[Pulses_index] == 0 )
 		{
 			Pulses_index = 0 ;
+
+			// Now set up pulses
+#define PPM_CENTER 1500*2
+    	int16_t PPM_range = g_model.extendedLimits ? 640*2 : 512*2;   //range of 0.7..1.7msec
+
+    	//Total frame length = 22.5msec
+    	//each pulse is 0.7..1.7ms long with a 0.3ms stop tail
+    	//The pulse ISR is 2mhz that's why everything is multiplied by 2
+    	uint16_t *ptr ;
+    	ptr = Pulses ;
+    	uint8_t p=8+g_model.ppmNCH*2; //Channels *2
+    
+	//		uint16_t q=(g_model.ppmDelay*50+300)*2; //Stoplen *2
+    
+			uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
+    	rest += (int16_t(g_model.ppmFrameLength))*1000;
+    	//    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
+    	for(uint8_t i=0;i<p;i++){ //NUM_CHNOUT
+    	    int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
+    	    rest-=(v);
+	//        *ptr++ = q;      //moved down two lines
+    	    //        pulses2MHz[j++] = q;
+    	    *ptr++ = v ; /* as Pat MacKenzie suggests */
+    	    //        pulses2MHz[j++] = v - q + 600; /* as Pat MacKenzie suggests */
+	//        *ptr++ = q;      //to here
+    	}
+	//    *ptr=q;       //reverse these two assignments
+	//    *(ptr+1)=rest;
+    	 *ptr = rest;
+    	 *(ptr+1) = 0;
+
 		}
 	}
 }
@@ -1077,40 +1143,17 @@ void setup_switches()
 }
 
 
-
-
-//uint32_t get_switches()
-//{
-//	uint32_t x ;
-
-//	x = 0 ; 
-//	if ( read_switch( SW_ElevDR ) )
-//	{
-//		x |= 1 ;
-//	}
-//	if ( read_switch( SW_AileDR ) )
-//	{
-//		x |= 2 ;
-//	}
-
-
-//// Need to add more here
-
-
-//	return x ;
-//}
-
-// Free pins
-// PA16, PA23, PA24, PA25, PB7, PB13
+// Free pins (PA16 is stock buzzer)
+// PA23, PA24, PA25, PB7, PB13
 // PC20, PC21(labelled 17), PC22, PC24
 void config_free_pins()
 {
 	register Pio *pioptr ;
 	
 	pioptr = PIOA ;
-	pioptr->PIO_PER = 0x03810000L ;		// Enable bits A25,24,23,16
-	pioptr->PIO_ODR = 0x03810000L ;		// Set as input
-	pioptr->PIO_PUER = 0x03810000L ;	// Enable pullups
+	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
+	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
+	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
 
 	pioptr = PIOB ;
 	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
@@ -1299,19 +1342,49 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
   lcd_putsnAtt(x+FW,y,get_switches_string()+3*(abs(idx1)-1),3,att);
 }
 
+void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr)
+{
+  int8_t tm = g_model.tmrMode;
+  if(abs(tm)<TMR_VAROFS) {
+    lcd_putsnAtt(  x, y, PSTR("OFFABSRUsRU%ELsEL%THsTH%ALsAL%P1 P1%P2 P2%P3 P3%")+3*abs(tm),3,attr);
+    if(tm<(-TMRMODE_ABS)) lcd_putcAtt(x-1*FW,  y,'!',attr);
+    return;
+  }
+
+  if(abs(tm)<(TMR_VAROFS+MAX_DRSWITCH-1)) { //normal on-off
+    putsDrSwitches( x-1*FW,y,tm>0 ? tm-(TMR_VAROFS-1) : tm+(TMR_VAROFS-1),attr);
+    return;
+  }
+
+  putsDrSwitches( x-1*FW,y,tm>0 ? tm-(TMR_VAROFS+MAX_DRSWITCH-1-1) : tm+(TMR_VAROFS+MAX_DRSWITCH-1-1),attr);//momentary on-off
+  lcd_putcAtt(x+3*FW,  y,'m',attr);
+}
 
 const char *get_switches_string()
 {
   return PSTR(SWITCHES_STR)	;
 }	
 
+inline int16_t getValue(uint8_t i)
+{
+  if(i<PPM_BASE) return calibratedStick[i];//-512..512
+  else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
+  else if(i<CHOUT_BASE) return g_ppmIns[i-PPM_BASE]*2;
+  else if(i<CHOUT_BASE+NUM_CHNOUT) return ex_chans[i-CHOUT_BASE];
+#ifdef FRSKY
+  else if(i<CHOUT_BASE+NUM_CHNOUT+NUM_TELEMETRY) return frskyTelemetry[i-CHOUT_BASE-NUM_CHNOUT].value;
+#endif
+  else return 0;
+}
+
+
 
 bool Last_switch[NUM_CSW] ;
 
 bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 {
-//  bool ret_value ;
-//  uint8_t cs_index ;
+  bool ret_value ;
+  uint8_t cs_index ;
   
 	if(level>5) return FALSE ; //prevent recursive loop going too deep
 
@@ -1329,119 +1402,118 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
 	return FALSE ;
 
-//  //custom switch, Issue 78
-//  //use putsChnRaw
-//  //input -> 1..4 -> sticks,  5..8 pots
-//  //MAX,FULL - disregard
-//  //ppm
-//  cs_index = abs(swtch)-(MAX_DRSWITCH-NUM_CSW);
-//  CSwData &cs = g_model.customSw[cs_index];
-//  if(!cs.func) return false;
+  //use putsChnRaw
+  //input -> 1..4 -> sticks,  5..8 pots
+  //MAX,FULL - disregard
+  //ppm
+  cs_index = abs(swtch)-(MAX_DRSWITCH-NUM_CSW);
+  CSwData &cs = g_model.customSw[cs_index];
+  if(!cs.func) return false;
 
-//  if ( level>4 )
-//  {
-//    ret_value = Last_switch[cs_index] ;
-//    return swtch>0 ? ret_value : !ret_value ;
-//  }
+  if ( level>4 )
+  {
+    ret_value = Last_switch[cs_index] ;
+    return swtch>0 ? ret_value : !ret_value ;
+  }
 
-//  int8_t a = cs.v1;
-//  int8_t b = cs.v2;
-//  int16_t x = 0;
-//  int16_t y = 0;
+  int8_t a = cs.v1;
+  int8_t b = cs.v2;
+  int16_t x = 0;
+  int16_t y = 0;
 
-//  // init values only if needed
-//  uint8_t s = CS_STATE(cs.func);
+  // init values only if needed
+  uint8_t s = CS_STATE(cs.func);
 
-//  if(s == CS_VOFS)
-//  {
-//      x = getValue(cs.v1-1);
-//#ifdef FRSKY
-//      if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
-//        y = 125+cs.v2;
-//      else
-//#endif
-//      y = calc100toRESX(cs.v2);
-//  }
-//  else if(s == CS_VCOMP)
-//  {
-//      x = getValue(cs.v1-1);
-//      y = getValue(cs.v2-1);
-//  }
+  if(s == CS_VOFS)
+  {
+      x = getValue(cs.v1-1);
+#ifdef FRSKY
+      if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
+        y = 125+cs.v2;
+      else
+#endif
+      y = calc100toRESX(cs.v2);
+  }
+  else if(s == CS_VCOMP)
+  {
+      x = getValue(cs.v1-1);
+      y = getValue(cs.v2-1);
+  }
 
-//  switch (cs.func) {
-//  case (CS_VPOS):
-//      ret_value = (x>y);
-//      break;
-//  case (CS_VNEG):
-//      ret_value = (x<y) ;
-//      break;
-//  case (CS_APOS):
-//  {
-//      ret_value = (abs(x)>y) ;
-//  }
-////      return swtch>0 ? (abs(x)>y) : !(abs(x)>y);
-//      break;
-//  case (CS_ANEG):
-//  {
-//      ret_value = (abs(x)<y) ;
-//  }
-////      return swtch>0 ? (abs(x)<y) : !(abs(x)<y);
-//      break;
+  switch (cs.func) {
+  case (CS_VPOS):
+      ret_value = (x>y);
+      break;
+  case (CS_VNEG):
+      ret_value = (x<y) ;
+      break;
+  case (CS_APOS):
+  {
+      ret_value = (abs(x)>y) ;
+  }
+//      return swtch>0 ? (abs(x)>y) : !(abs(x)>y);
+      break;
+  case (CS_ANEG):
+  {
+      ret_value = (abs(x)<y) ;
+  }
+//      return swtch>0 ? (abs(x)<y) : !(abs(x)<y);
+      break;
 
-////  case (CS_AND):
-////      return (getSwitch(a,0,level+1) && getSwitch(b,0,level+1));
-////      break;
-////  case (CS_OR):
-////      return (getSwitch(a,0,level+1) || getSwitch(b,0,level+1));
-////      break;
-////  case (CS_XOR):
-////      return (getSwitch(a,0,level+1) ^ getSwitch(b,0,level+1));
-////      break;
 //  case (CS_AND):
+//      return (getSwitch(a,0,level+1) && getSwitch(b,0,level+1));
+//      break;
 //  case (CS_OR):
+//      return (getSwitch(a,0,level+1) || getSwitch(b,0,level+1));
+//      break;
 //  case (CS_XOR):
-//  {
-//    bool res1 = getSwitch(a,0,level+1) ;
-//    bool res2 = getSwitch(b,0,level+1) ;
-//    if ( cs.func == CS_AND )
-//    {
-//      ret_value = res1 && res2 ;
-//    }
-//    else if ( cs.func == CS_OR )
-//    {
-//      ret_value = res1 || res2 ;
-//    }
-//    else  // CS_XOR
-//    {
-//      ret_value = res1 ^ res2 ;
-//    }
-//  }
-//  break;
+//      return (getSwitch(a,0,level+1) ^ getSwitch(b,0,level+1));
+//      break;
+  case (CS_AND):
+  case (CS_OR):
+  case (CS_XOR):
+  {
+    bool res1 = getSwitch(a,0,level+1) ;
+    bool res2 = getSwitch(b,0,level+1) ;
+    if ( cs.func == CS_AND )
+    {
+      ret_value = res1 && res2 ;
+    }
+    else if ( cs.func == CS_OR )
+    {
+      ret_value = res1 || res2 ;
+    }
+    else  // CS_XOR
+    {
+      ret_value = res1 ^ res2 ;
+    }
+  }
+  break;
 
-//  case (CS_EQUAL):
-//      ret_value = (x==y);
-//      break;
-//  case (CS_NEQUAL):
-//      ret_value = (x!=y);
-//      break;
-//  case (CS_GREATER):
-//      ret_value = (x>y);
-//      break;
-//  case (CS_LESS):
-//      ret_value = (x<y);
-//      break;
-//  case (CS_EGREATER):
-//      ret_value = (x>=y);
-//      break;
-//  case (CS_ELESS):
-//      ret_value = (x<=y);
-//      break;
-//  default:
-//      ret_value = false;
-//      break;
-//  }
-//	Last_switch[cs_index] = ret_value ;
-//	return swtch>0 ? ret_value : !ret_value ;
+  case (CS_EQUAL):
+      ret_value = (x==y);
+      break;
+  case (CS_NEQUAL):
+      ret_value = (x!=y);
+      break;
+  case (CS_GREATER):
+      ret_value = (x>y);
+      break;
+  case (CS_LESS):
+      ret_value = (x<y);
+      break;
+  case (CS_EGREATER):
+      ret_value = (x>=y);
+      break;
+  case (CS_ELESS):
+      ret_value = (x<=y);
+      break;
+  default:
+      ret_value = false;
+      break;
+  }
+	Last_switch[cs_index] = ret_value ;
+	return swtch>0 ? ret_value : !ret_value ;
 
 }
 
@@ -1449,8 +1521,8 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
 
 
-void perOut(int16_t *chanOut, uint8_t att)
-{
+//void perOut(int16_t *chanOut, uint8_t att)
+//{
 //    int16_t  trimA[4];
 //    uint8_t  anaCenter = 0;
 //    uint16_t d = 0;
@@ -1490,21 +1562,21 @@ void perOut(int16_t *chanOut, uint8_t att)
 //                d = isqrt32(v);
 //        }
 //        //===========Swash Ring================
-	register uint32_t i ;
+//	register uint32_t i ;
         
-				for( i=0;i<7;i++)
-				{        // calc Sticks
+//				for( i=0;i<7;i++)
+//				{        // calc Sticks
 
-            //Normalization  [0..2048] ->   [-1024..1024]
+//            //Normalization  [0..2048] ->   [-1024..1024]
 
-            int16_t v = anaIn(i);
+//            int16_t v = anaIn(i);
 //            v -= g_eeGeneral.calibMid[i];
-						v -= 1024 ;
+//						v -= 1024 ;
 //            v  =  v * (int32_t)RESX /  (max((int16_t)100,(v>0 ?
 //                                                              g_eeGeneral.calibSpanPos[i] :
 //                                                              g_eeGeneral.calibSpanNeg[i])));
-            if(v <= -RESX) v = -RESX ;
-            if(v >=  RESX) v =  RESX ;
+//            if(v <= -RESX) v = -RESX ;
+//            if(v >=  RESX) v =  RESX ;
 //	  				if ( g_eeGeneral.throttleReversed )
 //						{
 //							if ( i == THR_STICK )
@@ -1512,34 +1584,15 @@ void perOut(int16_t *chanOut, uint8_t att)
 //								v = -v ;
 //							}
 //						}
-            calibratedStick[i] = v; //for show in expo
-				}
-}
+//            calibratedStick[i] = v; //for show in expo
+//				}
+//}
 
 void resetTimer2()
 {
   Timer2_pre = 0 ;
   Timer2 = 0 ;
   Timer2_running = 0 ;   // Stop and clear throttle started flag
-}
-
-inline uint8_t keyDown()
-{
-    return ~read_keys() & 0x7E ;
-}
-
-void clearKeyEvents()
-{
-    while(keyDown())
-		{
-			  // loop until all keys are up
-			if ( PIOC->PIO_PDSR & 0x02000000 )
-			{
-				// Detected USB
-				break ;
-			}
-		}	
-    putEvent(0);
 }
 
 
@@ -1749,45 +1802,6 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
 {
   return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
 }
-
-
-/*
-
- Test code
-
-inline int32_t calc100toRESX(register int8_t x)
-{
-  return (((uint32_t)x*168) - (uint32_t)x)>>6 ;
-}
-
-inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat MacKenzie
-{
-    register int32_t y = x>>5;
-    x+=y;
-    y=y>>2;
-    x-=y;
-    return x+(y>>2);
-    //  return x + x/32 - x/128 + x/512;
-}
-
-
-
-int32_t test_calc( register int8_t x )
-{
-	return calc100toRESX( x ) ;	
-}
-
-int32_t test_calc1( register int16_t x )
-{
-	return calc1000toRESX(x) ;
-}
-
-int32_t test_calc2( register int16_t x )
-{
-	return (int32_t) x *256 / 25 ;
-}
-
- */
 
 
 

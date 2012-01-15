@@ -99,7 +99,7 @@ uint8_t	Eeprom_writing_block_no ;
 void handle_serial( void ) ;
 //void hello( void ) ;
 //void dbl9x( void ) ;
-uint32_t read_switch( enum EnumKeys enuk ) ;
+//uint32_t read_switch( enum EnumKeys enuk ) ;
 uint32_t read_eeprom_block( uint32_t block_no, uint32_t immediate ) ;
 uint32_t write_eeprom_block( uint32_t block_no, uint32_t sub_no, uint32_t size, uint32_t immediate ) ;
 uint32_t eeprom_image_blank( uint32_t image_index ) ;
@@ -563,34 +563,34 @@ void handle_serial()
 	if ( rxchar == 'S' )
 	{
 		txmit( 'E' ) ;
-		p2hex( read_switch( SW_ElevDR ) ) ;
+		p2hex( keyState( SW_ElevDR ) ) ;
 		crlf() ;
 		txmit( 'A' ) ;
-		p2hex( read_switch( SW_AileDR ) ) ;
+		p2hex( keyState( SW_AileDR ) ) ;
 		crlf() ;
 		txmit( 'R' ) ;
-		p2hex( read_switch( SW_RuddDR ) ) ;
+		p2hex( keyState( SW_RuddDR ) ) ;
 		crlf() ;
 		txmit( 'G' ) ;
-		p2hex( read_switch( SW_Gear ) ) ;
+		p2hex( keyState( SW_Gear ) ) ;
 		crlf() ;
 		txmit( 'C' ) ;
-		p2hex( read_switch( SW_ThrCt ) ) ;
+		p2hex( keyState( SW_ThrCt ) ) ;
 		crlf() ;
 		txmit( 'T' ) ;
-		p2hex( read_switch( SW_Trainer ) ) ;
+		p2hex( keyState( SW_Trainer ) ) ;
 		crlf() ;
 		txmit( '0' ) ;
 		txmit( ' ' ) ;
-		p2hex( read_switch( SW_ID0 ) ) ;
+		p2hex( keyState( SW_ID0 ) ) ;
 		crlf() ;
 		txmit( '1' ) ;
 		txmit( ' ' ) ;
-		p2hex( read_switch( SW_ID1 ) ) ;
+		p2hex( keyState( SW_ID1 ) ) ;
 		crlf() ;
 		txmit( '2' ) ;
 		txmit( ' ' ) ;
-		p2hex( read_switch( SW_ID2 ) ) ;
+		p2hex( keyState( SW_ID2 ) ) ;
 		crlf() ;
 	}
 
@@ -667,10 +667,10 @@ void handle_serial()
 	if ( rxchar == 'Y' )
 	{
 		lcd_clear();
-    lcd_img(0, 0, s9xsplash,0,0);
-    lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
-    lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-    refreshDisplay();
+  	lcd_img(0, 0, s9xsplash,0,0);
+  	lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+  	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
+		refreshDisplay();
 	}
 
 	if ( rxchar == 'W' )
@@ -1108,50 +1108,50 @@ void handle_serial()
 //}
 
 
-uint32_t read_switch( enum EnumKeys enuk )
-{
-  register uint32_t xxx = 0 ;
+//uint32_t read_switch( enum EnumKeys enuk )
+//{
+//  register uint32_t xxx = 0 ;
 
-  switch((uint8_t)enuk)
-	{
-    case SW_ElevDR : xxx = PIOA->PIO_PDSR & 0x00000100 ;	// ELE_DR   PA8
-    break ;
+//  switch((uint8_t)enuk)
+//	{
+//    case SW_ElevDR : xxx = PIOA->PIO_PDSR & 0x00000100 ;	// ELE_DR   PA8
+//    break ;
     
-    case SW_AileDR : xxx = PIOA->PIO_PDSR & 0x00000004 ;	// AIL-DR  PA2
-    break ;
+//    case SW_AileDR : xxx = PIOA->PIO_PDSR & 0x00000004 ;	// AIL-DR  PA2
+//    break ;
 
-    case SW_RuddDR : xxx = PIOA->PIO_PDSR & 0x00008000 ;	// RUN_DR   PA15
-    break ;
-      //     INP_G_ID1 INP_E_ID2
-      // id0    0        1
-      // id1    1        1
-      // id2    1        0
-    case SW_ID0    : xxx = ~PIOC->PIO_PDSR & 0x00004000 ;	// SW_IDL1     PC14
-    break ;
-    case SW_ID1    : xxx = (PIOC->PIO_PDSR & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
-    break ;
-    case SW_ID2    : xxx = ~PIOC->PIO_PDSR & 0x00000800 ;	// SW_IDL2     PC11
-    break ;
+//    case SW_RuddDR : xxx = PIOA->PIO_PDSR & 0x00008000 ;	// RUN_DR   PA15
+//    break ;
+//      //     INP_G_ID1 INP_E_ID2
+//      // id0    0        1
+//      // id1    1        1
+//      // id2    1        0
+//    case SW_ID0    : xxx = ~PIOC->PIO_PDSR & 0x00004000 ;	// SW_IDL1     PC14
+//    break ;
+//    case SW_ID1    : xxx = (PIOC->PIO_PDSR & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
+//    break ;
+//    case SW_ID2    : xxx = ~PIOC->PIO_PDSR & 0x00000800 ;	// SW_IDL2     PC11
+//    break ;
 
     
-		case SW_Gear   : xxx = PIOC->PIO_PDSR & 0x00010000 ;	// SW_GEAR     PC16
-    break ;
-    //case SW_ThrCt  : return PINE & (1<<INP_E_ThrCt);
+//		case SW_Gear   : xxx = PIOC->PIO_PDSR & 0x00010000 ;	// SW_GEAR     PC16
+//    break ;
+//    //case SW_ThrCt  : return PINE & (1<<INP_E_ThrCt);
 
-    case SW_ThrCt  : xxx = PIOA->PIO_PDSR & 0x10000000 ;	// SW_TCUT     PA28
-    break ;
+//    case SW_ThrCt  : xxx = PIOA->PIO_PDSR & 0x10000000 ;	// SW_TCUT     PA28
+//    break ;
 
-    case SW_Trainer: xxx = PIOC->PIO_PDSR & 0x00000100 ;	// SW-TRAIN    PC8
-    break ;
-    default:;
-  }
-  if ( xxx )
-  {
-    return 1 ;
-  }
-  return 0;
+//    case SW_Trainer: xxx = PIOC->PIO_PDSR & 0x00000100 ;	// SW-TRAIN    PC8
+//    break ;
+//    default:;
+//  }
+//  if ( xxx )
+//  {
+//    return 1 ;
+//  }
+//  return 0;
 
-}
+//}
 
 
 void disp_mem( register uint32_t address )

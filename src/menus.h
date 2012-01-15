@@ -98,18 +98,20 @@ static MState2 mstate2; \
 static const uint8_t mstate_tab[] = lines; \
 mstate2.check(event,menu,tab,DIM(tab),mstate_tab,DIM(mstate_tab)-1,lines_count-1)
 
+
+
+#define SUBMENU(title, lines_count, lines...) \
+TITLE(title); \
+static MState2 mstate2; \
+static const uint8_t mstate_tab[] = lines; \
+mstate2.check(event,0,NULL,0,mstate_tab,DIM(mstate_tab)-1,lines_count-1)
+
+
+#define SIMPLE_SUBMENU_NOTITLE(lines_count) \
+static MState2 mstate2; \
+mstate2.check_submenu_simple(event,lines_count-1)
+
 /*
-
-//#define SUBMENU(title, lines_count, lines...) \
-//TITLE(title); \
-//static MState2 mstate2; \
-//static prog_uint8_t APM mstate_tab[] = lines; \
-//mstate2.check(event,0,NULL,0,mstate_tab,DIM(mstate_tab)-1,lines_count-1)
-
-//#define SIMPLE_SUBMENU_NOTITLE(lines_count) \
-//static MState2 mstate2; \
-//mstate2.check_submenu_simple(event,lines_count-1)
-
 //#define SIMPLE_SUBMENU(title, lines_count) \
 //TITLE(title); \
 //SIMPLE_SUBMENU_NOTITLE(lines_count-1)
@@ -121,7 +123,9 @@ extern int16_t g_chans512[NUM_CHNOUT];
 
 extern void doMainScreenGrphics( void ) ;
 extern void menuProcStatistic2(uint8_t event) ;
+extern void menuProcStatistic(uint8_t event) ;
 extern void menuProc0(uint8_t event) ;
+extern void perOut( int16_t *chanOut, uint8_t att ) ;
 
 
 #endif

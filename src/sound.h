@@ -58,11 +58,15 @@
 #define AUDIO_TX_BATTERY_LOW (19)
 
 
-
-
 #define NUM_VOL_LEVELS	24
 
+extern volatile uint8_t Buzzer_count ;
+
+
 extern void start_sound( void ) ;
+extern void buzzer_on( void ) ;
+extern void buzzer_off( void ) ;
+extern void buzzer_sound( uint8_t time ) ;
 extern void set_frequency( uint32_t frequency ) ;
 extern void start_timer1( void ) ;
 extern void init_dac( void ) ;

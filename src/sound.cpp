@@ -42,6 +42,9 @@
 #include "sound.h"
 
 void start_sound( void ) ;
+void buzzer_on( void ) ;
+void buzzer_off( void ) ;
+void buzzer_sound( uint8_t time ) ;
 void start_timer1( void ) ;
 void init_dac( void ) ;
 extern "C" void DAC_IRQHandler( void ) ;
@@ -58,6 +61,7 @@ void audioDefevent( uint8_t e ) ;
 extern uint32_t Master_frequency ;
 
 volatile uint32_t Tone_timer ;		// Modified in interrupt routine
+volatile uint8_t Buzzer_count ;
 
 // Must NOT be in flash, PDC needs a RAM source.
 uint16_t Sine_values[] =
@@ -91,10 +95,34 @@ uint16_t Sine_values64[] =
 
 void start_sound()
 {
+	register Pio *pioptr ;
+	
 	start_timer1() ;
 	init_dac() ;
 	init_twi() ;
+
+	pioptr = PIOA ;
+	pioptr->PIO_CODR = 0x00010000L ;	// Set bit A16 OFF
+	pioptr->PIO_PER = 0x00010000L ;		// Enable bit A16 (Stock buzzer)
+	pioptr->PIO_OER = 0x00010000L ;		// Set bit A16 as output
 }
+
+void buzzer_on()
+{
+	PIOA->PIO_SODR = 0x00010000L ;	// Set bit A16 ON
+}
+
+void buzzer_off()
+{
+	PIOA->PIO_CODR = 0x00010000L ;	// Set bit A16 ON
+}
+
+void buzzer_sound( uint8_t time )
+{
+	buzzer_on() ;
+	Buzzer_count = time ;
+}
+
 
 static uint32_t Frequency ;
 
@@ -119,7 +147,6 @@ void set_frequency( uint32_t frequency )
 	ptc->TC_CHANNEL[1].TC_RA = timer >> 1 ;
 	ptc->TC_CHANNEL[1].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 }
-
 
 
 // Start TIMER1 at 100000Hz, used for DACC trigger
