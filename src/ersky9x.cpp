@@ -112,7 +112,7 @@ void dbl9x( void ) ;
 void config_free_pins( void ) ;
 
 uint8_t checkTrim(uint8_t event) ;
-void screen0( void ) ;
+//void screen0( void ) ;
 
 void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
@@ -342,6 +342,10 @@ int main (void)
 	start_ppm_capture() ;
 
 	both_on = 0 ;
+	
+	Per10ms_action = 1 ;		// Run immediately
+	Permenu_action = 1 ;
+
   while (1)
   {
 //	  PMC->PMC_PCER0 = 0x1800 ;				// Enable clocks to PIOB and PIOA
@@ -424,12 +428,12 @@ int main (void)
 				Tenms = 0 ;
 				 per10ms() ;				
 			}
-			if ( Permenu_action == 0 )
-			{
-				lcd_clear() ;
-				screen0() ;
-				refreshDisplay() ;
-			}
+//			if ( Permenu_action == 0 )
+//			{
+//				lcd_clear() ;
+//				screen0() ;
+//				refreshDisplay() ;
+//			}
 		}
 
 		pioptr = PIOC ;
@@ -1221,69 +1225,69 @@ uint8_t checkTrim(uint8_t event)
 }
 
 
-void screen0()
-{
-  register  uint8_t x=FW*2;
-  register uint8_t att = (g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0) | DBLSIZE;
-  register uint32_t i ;
+//void screen0()
+//{
+//  register  uint8_t x=FW*2;
+//  register uint8_t att = (g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0) | DBLSIZE;
+//  register uint32_t i ;
 
-	for( i=0 ; i<sizeof(g_model.name);i++)
-	{
-    lcd_putcAtt(x+i*2*FW-i-2, 0*FH, g_model.name[i],DBLSIZE);
-//    lcd_putcAtt( x+i*2*FW-i-2, 0*FH, "MODEL1   "[i], DBLSIZE ) ;
-	}
-
-  putsVBat(x+4*FW, 2*FH, att|NO_UNIT ) ;
-  lcd_putc( x+4*FW, 3*FH, 'V' ) ;
-
-//  if(s_timerState != TMR_OFF)
+//	for( i=0 ; i<sizeof(g_model.name);i++)
 //	{
-//      uint8_t att = DBLSIZE | (s_timerState==TMR_BEEPING ? BLINK : 0);
-//      putsTime(x+14*FW-2, FH*2, s_timerVal, att,att);
-//      putsTmrMode(x+7*FW-FW/2,FH*3,0);
+//    lcd_putcAtt(x+i*2*FW-i-2, 0*FH, g_model.name[i],DBLSIZE);
+////    lcd_putcAtt( x+i*2*FW-i-2, 0*FH, "MODEL1   "[i], DBLSIZE ) ;
+//	}
+
+//  putsVBat(x+4*FW, 2*FH, att|NO_UNIT ) ;
+//  lcd_putc( x+4*FW, 3*FH, 'V' ) ;
+
+////  if(s_timerState != TMR_OFF)
+////	{
+////      uint8_t att = DBLSIZE | (s_timerState==TMR_BEEPING ? BLINK : 0);
+////      putsTime(x+14*FW-2, FH*2, s_timerVal, att,att);
+////      putsTmrMode(x+7*FW-FW/2,FH*3,0);
+////  }
+
+//  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*g_model.trimInc,3, 0);
+//  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*g_model.thrTrim,3, 0);
+////  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*1,3, 0);
+////  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*1,3, 0);
+
+//  //trim sliders
+//  for( i=0 ; i<4 ; i++ )
+//  {
+//#define TL 27
+//    //                        LH LV RV RH
+//    static uint8_t x[4]    = {128*1/4+2, 4, 128-4, 128*3/4-2};
+//    static uint8_t vert[4] = {0,1,1,0};
+//    register uint8_t xm, ym ;
+//    xm=x[i] ;
+//    register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(*TrimPtr[i]/4)));
+////		register int8_t val = 0 ;
+//    if(vert[i])
+//		{
+//      ym=31;
+//      lcd_vline(xm,   ym-TL, TL*2);
+
+////        if(((g_eeGeneral.stickMode&1) != (i&1)) || !(g_model.thrTrim)){
+//            lcd_vline(xm-1, ym-1,  3);
+//            lcd_vline(xm+1, ym-1,  3);
+////        }
+//        ym -= val;
+//    }else{
+//      ym=59;
+//      lcd_hline(xm-TL,ym,    TL*2);
+//      lcd_hline(xm-1, ym-1,  3);
+//      lcd_hline(xm-1, ym+1,  3);
+//      xm += val;
+//    }
+//    DO_SQUARE(xm,ym,7)
 //  }
+//  register uint32_t a = 0 ; // (view == e_inputs1) ? 0 : 9+(view-3)*6;
+//  register uint32_t b = 6 ; // (view == e_inputs1) ? 6 : 12+(view-3)*6;
+//  for( i=a; i<(a+3); i++) lcd_putsnAtt(2*FW-2 ,(i-a)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
+//  for( i=b; i<(b+3); i++) lcd_putsnAtt(17*FW-1,(i-b)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
 
-  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*g_model.trimInc,3, 0);
-  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*g_model.thrTrim,3, 0);
-//  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*1,3, 0);
-//  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*1,3, 0);
-
-  //trim sliders
-  for( i=0 ; i<4 ; i++ )
-  {
-#define TL 27
-    //                        LH LV RV RH
-    static uint8_t x[4]    = {128*1/4+2, 4, 128-4, 128*3/4-2};
-    static uint8_t vert[4] = {0,1,1,0};
-    register uint8_t xm, ym ;
-    xm=x[i] ;
-    register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(*TrimPtr[i]/4)));
-//		register int8_t val = 0 ;
-    if(vert[i])
-		{
-      ym=31;
-      lcd_vline(xm,   ym-TL, TL*2);
-
-//        if(((g_eeGeneral.stickMode&1) != (i&1)) || !(g_model.thrTrim)){
-            lcd_vline(xm-1, ym-1,  3);
-            lcd_vline(xm+1, ym-1,  3);
-//        }
-        ym -= val;
-    }else{
-      ym=59;
-      lcd_hline(xm-TL,ym,    TL*2);
-      lcd_hline(xm-1, ym-1,  3);
-      lcd_hline(xm-1, ym+1,  3);
-      xm += val;
-    }
-    DO_SQUARE(xm,ym,7)
-  }
-  register uint32_t a = 0 ; // (view == e_inputs1) ? 0 : 9+(view-3)*6;
-  register uint32_t b = 6 ; // (view == e_inputs1) ? 6 : 12+(view-3)*6;
-  for( i=a; i<(a+3); i++) lcd_putsnAtt(2*FW-2 ,(i-a)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-  for( i=b; i<(b+3); i++) lcd_putsnAtt(17*FW-1,(i-b)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-
-}
+//}
 
 
 
@@ -1652,24 +1656,6 @@ void message(const char * s)
   lcd_puts_P(0,4*FW,s);
   refreshDisplay();
 //  lcdSetRefVolt(g_eeGeneral.contrast);
-}
-
-
-
-uint8_t char2idx(char c)
-{
-	int8_t ret ;
-    for(ret=0;;ret++)
-    {
-        char cc= s_charTab[ret] ;
-        if(cc==c) return ret;
-        if(cc==0) return 0;
-    }
-}
-char idx2char(uint8_t idx)
-{
-    if(idx < NUMCHARS) return s_charTab[idx] ;
-    return ' ';
 }
 
 

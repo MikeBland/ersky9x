@@ -81,6 +81,7 @@ void lcd_putsn_P(uint8_t x,uint8_t y,const char * s,uint8_t len) ;
 void lcd_clear( void ) ;
 void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mode ) ;
 uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode ) ;
+void lcd_puts_Pleft( uint8_t y, const char *s ) ;
 void lcd_puts_P( uint8_t x, uint8_t y, const char *s ) ;
 void lcd_outhex4(uint8_t x,uint8_t y,uint16_t val) ;
 void lcd_outdez( uint8_t x, uint8_t y, int16_t val ) ;
@@ -245,6 +246,11 @@ uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode )
 		if ((size)&& (c!=0x2E)) x+=FW ; //check for decimal point
   }
   return x;
+}
+
+void lcd_puts_Pleft( uint8_t y, const char *s )
+{
+  lcd_putsAtt( 0, y, s, 0);
 }
 
 void lcd_puts_P( uint8_t x, uint8_t y, const char *s )

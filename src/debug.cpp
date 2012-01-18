@@ -1024,12 +1024,12 @@ void handle_serial()
 		}
 	}
 
-	if ( rxchar == 'M' )
-	{
-		lcd_clear() ;
-		screen0() ;
-		refreshDisplay() ;
-	}
+//	if ( rxchar == 'M' )
+//	{
+//		lcd_clear() ;
+//		screen0() ;
+//		refreshDisplay() ;
+//	}
 
 	if ( rxchar == '(' )
 	{

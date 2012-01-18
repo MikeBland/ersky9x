@@ -85,6 +85,9 @@ enum EnumKeys {
 #define CURV_STR "---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16"
 #define CURVE_BASE 7
 
+#define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 "
+#define CSW_LEN_FUNC 7
+
 
 #define CS_OFF       0
 #define CS_VPOS      1  //v>offset
@@ -409,7 +412,6 @@ void    popMenu(bool uppermost=false);
 
 
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
-extern int8_t *TrimPtr[] ;
 extern uint8_t g_vbat100mV ;
 extern uint16_t Timer2 ;
 extern void doSplash( void ) ;
