@@ -610,27 +610,6 @@ void handle_serial()
 		crlf() ;
 	}
 		 
-//	if ( rxchar == 'P' )
-//	{
-//		register volatile uint32_t *pword ;
-//		register uint32_t i ;
-//		register uint32_t j ;
-
-//		pword = &PWM->PWM_CLK ;
-//		txmit( 'P' ) ;
-//		crlf() ;
-//		for ( i = 0 ; i < 20 ; i += 1 )
-//		{
-//			p4hex( i*16 ) ;
-//			for ( j = 0 ; j < 4 ; j += 1 )
-//			{
-//				txmit( ' ' ) ;
-//				p8hex( *pword++ ) ;
-//			}
-//			crlf() ;
-//		}
-//	}
-	
 	if ( rxchar == 'L' )
 	{
 		lcd_clear() ;
@@ -639,17 +618,6 @@ void handle_serial()
 		refreshDisplay() ;
 	}
 
-//	if ( rxchar == 'H' )
-//	{
-//		hello() ;
-//		refreshDisplay() ;
-//	}
-
-//	if ( rxchar == 'I' )
-//	{
-//		dbl9x() ;
-//		refreshDisplay() ;
-//	}
 
 	if ( rxchar == 'D' )
 	{
@@ -1024,13 +992,6 @@ void handle_serial()
 		}
 	}
 
-//	if ( rxchar == 'M' )
-//	{
-//		lcd_clear() ;
-//		screen0() ;
-//		refreshDisplay() ;
-//	}
-
 	if ( rxchar == '(' )
 	{
 		set_frequency( 100 ) ;
@@ -1075,83 +1036,6 @@ void handle_serial()
 
 
 }
-
-
-//void hello()
-//{
-//  register uint8_t *p ;
-//  register uint32_t x ;
-	   
-//	p = (uint8_t *) Hello ;
-//	x = 18 ;
-
-//	while ( *p )
-//	{
-//		lcd_putc( x, 24, *p++ ) ;
-//		x += 6 ;
-//	}
-//}
-
-//void dbl9x()
-//{
-//  register uint8_t *p ;
-//  register uint32_t x ;
-	   
-//	p = (uint8_t *) Ersky9x ;
-//	x = 12 ;
-
-//	while ( *p )
-//	{
-//		lcd_putcAtt( x, 48, *p++, DBLSIZE ) ;
-//		x += 12 ;
-//	}
-//}
-
-
-//uint32_t read_switch( enum EnumKeys enuk )
-//{
-//  register uint32_t xxx = 0 ;
-
-//  switch((uint8_t)enuk)
-//	{
-//    case SW_ElevDR : xxx = PIOA->PIO_PDSR & 0x00000100 ;	// ELE_DR   PA8
-//    break ;
-    
-//    case SW_AileDR : xxx = PIOA->PIO_PDSR & 0x00000004 ;	// AIL-DR  PA2
-//    break ;
-
-//    case SW_RuddDR : xxx = PIOA->PIO_PDSR & 0x00008000 ;	// RUN_DR   PA15
-//    break ;
-//      //     INP_G_ID1 INP_E_ID2
-//      // id0    0        1
-//      // id1    1        1
-//      // id2    1        0
-//    case SW_ID0    : xxx = ~PIOC->PIO_PDSR & 0x00004000 ;	// SW_IDL1     PC14
-//    break ;
-//    case SW_ID1    : xxx = (PIOC->PIO_PDSR & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
-//    break ;
-//    case SW_ID2    : xxx = ~PIOC->PIO_PDSR & 0x00000800 ;	// SW_IDL2     PC11
-//    break ;
-
-    
-//		case SW_Gear   : xxx = PIOC->PIO_PDSR & 0x00010000 ;	// SW_GEAR     PC16
-//    break ;
-//    //case SW_ThrCt  : return PINE & (1<<INP_E_ThrCt);
-
-//    case SW_ThrCt  : xxx = PIOA->PIO_PDSR & 0x10000000 ;	// SW_TCUT     PA28
-//    break ;
-
-//    case SW_Trainer: xxx = PIOC->PIO_PDSR & 0x00000100 ;	// SW-TRAIN    PC8
-//    break ;
-//    default:;
-//  }
-//  if ( xxx )
-//  {
-//    return 1 ;
-//  }
-//  return 0;
-
-//}
 
 
 void disp_mem( register uint32_t address )

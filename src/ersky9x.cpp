@@ -110,6 +110,7 @@ void hello( void ) ;
 void dbl9x( void ) ;
 //uint32_t get_switches( void ) ;
 void config_free_pins( void ) ;
+void checkTHR( void ) ;
 
 uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
@@ -244,6 +245,7 @@ uint16_t Timer2 = 0 ;
 // The stock Beeper is on PA16.
 
 
+
 int main (void)
 {
 	register uint32_t i ;
@@ -333,6 +335,8 @@ int main (void)
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
 
 	doSplash() ;
+  getADC_single();
+  checkTHR();
 
 	lcd_clear() ;
 	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
@@ -568,10 +572,24 @@ void doSplash()
   lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
   refreshDisplay();
 
-//  uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
-  uint16_t tgtime = get_tmr10ms() + 150 ;  
+  clearKeyEvents();
+
+  for(uint8_t i=0; i<32; i++)
+    getADC_filt(); // init ADC array
+
+
+#define INAC_DEVISOR 256   // Issue 206 - bypass splash screen with stick movement
+  uint16_t inacSum = 0;
+  for(uint8_t i=0; i<4; i++)
+    inacSum += anaIn(i)/INAC_DEVISOR;
+
+  uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
   while(tgtime != get_tmr10ms())
   {
+    getADC_filt();
+    uint16_t tsum = 0;
+    for(uint8_t i=0; i<4; i++)
+       tsum += anaIn(i)/INAC_DEVISOR;
 
 		
 		//Temporary, until per10ms actioned from interrupt routine		 
@@ -587,14 +605,106 @@ void doSplash()
 //            for(uint8_t i=0; i<4; i++)
 //               tsum += anaIn(i)/INAC_DEVISOR;
 
-//            if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
-    if(keyDown() )   return;  //wait for key release
+    if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
 
 //            if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff)
 //                BACKLIGHT_ON;
 //            else
 //                BACKLIGHT_OFF;
   }
+}
+
+
+//global helper vars
+bool    checkIncDec_Ret;
+int16_t p1val;
+int16_t p1valdiff;
+
+int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
+{
+  int16_t newval = val;
+  uint8_t kpl=KEY_RIGHT, kmi=KEY_LEFT, kother = -1;
+
+  if(event & _MSK_KEY_DBL){
+    uint8_t hlp=kpl;
+    kpl=kmi;
+    kmi=hlp;
+    event=EVT_KEY_FIRST(EVT_KEY_MASK & event);
+  }
+  if(event==EVT_KEY_FIRST(kpl) || event== EVT_KEY_REPT(kpl) || (s_editMode && (event==EVT_KEY_FIRST(KEY_UP) || event== EVT_KEY_REPT(KEY_UP))) ) {
+    newval++;
+
+		audioDefevent(AUDIO_KEYPAD_UP);
+
+    kother=kmi;
+  }else if(event==EVT_KEY_FIRST(kmi) || event== EVT_KEY_REPT(kmi) || (s_editMode && (event==EVT_KEY_FIRST(KEY_DOWN) || event== EVT_KEY_REPT(KEY_DOWN))) ) {
+    newval--;
+
+		audioDefevent(AUDIO_KEYPAD_DOWN);
+
+    kother=kpl;
+  }
+  if((kother != (uint8_t)-1) && keyState((EnumKeys)kother)){
+    newval=-val;
+    killEvents(kmi);
+    killEvents(kpl);
+  }
+  if(i_min==0 && i_max==1 && event==EVT_KEY_FIRST(KEY_MENU))
+  {
+      s_editMode = false;
+      newval=!val;
+      killEvents(event);
+  }
+
+  //change values based on P1
+  newval -= p1valdiff;
+
+  if(newval>i_max)
+  {
+    newval = i_max;
+    killEvents(event);
+    audioDefevent(AUDIO_KEYPAD_UP);
+  }
+  else if(newval < i_min)
+  {
+    newval = i_min;
+    killEvents(event);
+    audioDefevent(AUDIO_KEYPAD_DOWN);
+
+  }
+  if(newval != val) {
+    if(newval==0) {
+      pauseEvents(event);
+  
+		if (newval>val){
+			audioDefevent(AUDIO_KEYPAD_UP);
+		} else {
+			audioDefevent(AUDIO_KEYPAD_DOWN);
+		}		
+
+    }
+    eeDirty(i_flags & (EE_GENERAL|EE_MODEL));
+    checkIncDec_Ret = true;
+  }
+  else {
+    checkIncDec_Ret = false;
+  }
+  return newval;
+}
+
+int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
+{
+  return checkIncDec16(event,i_val,i_min,i_max,i_flags);
+}
+
+int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+{
+  return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
+}
+
+int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+{
+  return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
 }
 
 
@@ -632,17 +742,17 @@ void perMain()
 //        BACKLIGHT_OFF;
 
 
-//    static int16_t p1valprev;
-//    p1valdiff = (p1val-calibratedStick[6])/32;
-//    if(p1valdiff) {
-//        p1valdiff = (p1valprev-calibratedStick[6])/2;
-//        p1val = calibratedStick[6];
-//    }
-//    p1valprev = calibratedStick[6];
-//   if ( g_eeGeneral.disablePotScroll )
-//   {
-//      p1valdiff = 0 ;			
-//   	}
+    static int16_t p1valprev;
+    p1valdiff = (p1val-calibratedStick[6])/32;
+    if(p1valdiff) {
+        p1valdiff = (p1valprev-calibratedStick[6])/2;
+        p1val = calibratedStick[6];
+    }
+    p1valprev = calibratedStick[6];
+   if ( g_eeGeneral.disablePotScroll )
+   {
+      p1valdiff = 0 ;			
+   	}
 
 	if ( Permenu_action )
 	{
@@ -1642,6 +1752,12 @@ void alert(const char * s, bool defaults)
 					break ;
 				}
 
+		//Temporary, until per10ms actioned from interrupt routine		 
+			if ( Tenms )
+			{
+				Tenms = 0 ;
+				 per10ms() ;				
+			}
 //        if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
 //            BACKLIGHT_ON;
 //        else
@@ -1657,6 +1773,49 @@ void message(const char * s)
   refreshDisplay();
 //  lcdSetRefVolt(g_eeGeneral.contrast);
 }
+
+void checkTHR()
+{
+  if(g_eeGeneral.disableThrottleWarning) return;
+
+  int thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
+
+  int16_t lowLim = THRCHK_DEADBAND + g_eeGeneral.calibMid[thrchn] - g_eeGeneral.calibSpanNeg[thrchn];// + g_eeGeneral.calibSpanNeg[thrchn]/8;
+
+  getADC_single();   // if thr is down - do not display warning at all
+  int16_t v      = anaIn(thrchn);
+  if((v<=lowLim) || (keyDown()))
+  {
+      return;
+  }
+
+  // first - display warning
+  alertMessages( PSTR("Throttle not idle"), PSTR("Reset throttle") ) ;
+  
+	//loop until all switches are reset
+  while (1)
+  {
+      getADC_single();
+      int16_t v      = anaIn(thrchn);
+      if((v<=lowLim) || (keyDown()))
+      {
+          return;
+      }
+
+		//Temporary, until per10ms actioned from interrupt routine		 
+			if ( Tenms )
+			{
+				Tenms = 0 ;
+				 per10ms() ;				
+			}
+
+//      if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff)
+//          BACKLIGHT_ON;
+//      else
+//          BACKLIGHT_OFF;
+  }
+}
+
 
 
 MenuFuncP lastPopMenu()
@@ -1696,98 +1855,6 @@ void pushMenu(MenuFuncP newMenu)
   (*newMenu)(EVT_ENTRY);
 }
 
-
-//global helper vars
-bool    checkIncDec_Ret;
-int16_t p1val;
-int16_t p1valdiff;
-
-int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
-{
-  int16_t newval = val;
-  uint8_t kpl=KEY_RIGHT, kmi=KEY_LEFT, kother = -1;
-
-  if(event & _MSK_KEY_DBL){
-    uint8_t hlp=kpl;
-    kpl=kmi;
-    kmi=hlp;
-    event=EVT_KEY_FIRST(EVT_KEY_MASK & event);
-  }
-  if(event==EVT_KEY_FIRST(kpl) || event== EVT_KEY_REPT(kpl) || (s_editMode && (event==EVT_KEY_FIRST(KEY_UP) || event== EVT_KEY_REPT(KEY_UP))) ) {
-    newval++;
-
-		audioDefevent(AUDIO_KEYPAD_UP);
-
-    kother=kmi;
-  }else if(event==EVT_KEY_FIRST(kmi) || event== EVT_KEY_REPT(kmi) || (s_editMode && (event==EVT_KEY_FIRST(KEY_DOWN) || event== EVT_KEY_REPT(KEY_DOWN))) ) {
-    newval--;
-
-		audioDefevent(AUDIO_KEYPAD_DOWN);
-
-    kother=kpl;
-  }
-  if((kother != (uint8_t)-1) && keyState((EnumKeys)kother)){
-    newval=-val;
-    killEvents(kmi);
-    killEvents(kpl);
-  }
-  if(i_min==0 && i_max==1 && event==EVT_KEY_FIRST(KEY_MENU))
-  {
-      s_editMode = false;
-      newval=!val;
-      killEvents(event);
-  }
-
-  //change values based on P1
-  newval -= p1valdiff;
-
-  if(newval>i_max)
-  {
-    newval = i_max;
-    killEvents(event);
-    audioDefevent(AUDIO_KEYPAD_UP);
-  }
-  else if(newval < i_min)
-  {
-    newval = i_min;
-    killEvents(event);
-    audioDefevent(AUDIO_KEYPAD_DOWN);
-
-  }
-  if(newval != val) {
-    if(newval==0) {
-      pauseEvents(event);
-  
-		if (newval>val){
-			audioDefevent(AUDIO_KEYPAD_UP);
-		} else {
-			audioDefevent(AUDIO_KEYPAD_DOWN);
-		}		
-
-    }
-    eeDirty(i_flags & (EE_GENERAL|EE_MODEL));
-    checkIncDec_Ret = true;
-  }
-  else {
-    checkIncDec_Ret = false;
-  }
-  return newval;
-}
-
-int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
-{
-  return checkIncDec16(event,i_val,i_min,i_max,i_flags);
-}
-
-int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
-{
-  return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
-}
-
-int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
-{
-  return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
-}
 
 
 

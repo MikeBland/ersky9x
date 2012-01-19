@@ -209,7 +209,10 @@ enum EnumKeys {
 #define DSW_SWB   20
 #define DSW_SWC   21
 
+#define SCROLL_TH 64
 #define INACTIVITY_THRESHOLD 256
+#define THRCHK_DEADBAND 16
+#define SPLASH_TIMEOUT  (4*100)  //400 msec - 4 seconds
 
 #define IS_THROTTLE(x)  (((2-(g_eeGeneral.stickMode&1)) == x) && (x<4))
 
@@ -284,7 +287,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 
 inline int32_t calc100toRESX(register int8_t x)
 {
-  return (((uint32_t)x*168) - (uint32_t)x)>>6 ;
+  return ((uint32_t)x*655)>>6 ;
 }
 
 inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat MacKenzie
