@@ -308,6 +308,7 @@ extern "C" void TWI0_IRQHandler()
 
 void audioDefevent(uint8_t e)
 {
+	buzzer_sound( 4 ) ;
 //	audio.event(e,BEEP_DEFAULT_FREQ);
 }
 

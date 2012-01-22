@@ -445,7 +445,7 @@ uint32_t unprotect_eeprom()
 }
 
 
-
+#ifdef	DEBUG
 uint32_t Mem_address ;
 uint32_t Memaddmode ;
 
@@ -1062,7 +1062,7 @@ void disp_256( register uint32_t address, register uint32_t lines )
 	}
 }
 
-
+#endif
 
 
 

@@ -386,7 +386,6 @@ void per10ms()
     keys[enuk].input(in & i,(EnumKeys)enuk);
     ++enuk;
   }
-	eeprom_process() ;
 }
 
 

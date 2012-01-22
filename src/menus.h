@@ -125,6 +125,7 @@ extern void doMainScreenGrphics( void ) ;
 extern void menuProcStatistic2(uint8_t event) ;
 extern void menuProcStatistic(uint8_t event) ;
 extern void menuProc0(uint8_t event) ;
+extern void menuProcModelSelect(uint8_t event) ;
 extern void perOut( int16_t *chanOut, uint8_t att ) ;
 
 

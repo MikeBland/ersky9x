@@ -71,6 +71,8 @@
 
 extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
+extern uint16_t g_timeMain;
+extern void eeprom_process( void ) ;
 
 
 
@@ -101,7 +103,7 @@ void read_8_adc( void ) ;
 void init_adc( void ) ;
 void init_pwm( void ) ;
 //void poll_pwm( void ) ;
-uint32_t hextoi( uint8_t *string ) ;
+//uint32_t hextoi( uint8_t *string ) ;
 //uint32_t gets( uint8_t *string, uint32_t maxcount ) ;
 void setup_switches( void ) ;
 uint32_t read_trims( void ) ;
@@ -111,6 +113,7 @@ void dbl9x( void ) ;
 //uint32_t get_switches( void ) ;
 void config_free_pins( void ) ;
 void checkTHR( void ) ;
+void checkSwitches( void ) ;
 
 uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
@@ -143,6 +146,7 @@ volatile uint32_t Timer2_count ;		// Modified in interrupt routine
 volatile uint32_t Tenms ;						// Modified in interrupt routine
 volatile uint8_t tick10ms = 0 ;
 uint16_t g_LightOffCounter ;
+uint8_t  stickMoved = 0;
 
 uint16_t S_anaFilt[8] ;				// Analog inputs after filtering
 uint16_t Volume ;
@@ -189,6 +193,7 @@ uint8_t Timer2_running = 0 ;
 uint8_t Timer2_pre = 0 ;
 uint16_t Timer2 = 0 ;
 
+uint8_t pxxFlag = 0;
 
 
 #define DO_SQUARE(xx,yy,ww)         \
@@ -248,10 +253,10 @@ uint16_t Timer2 = 0 ;
 
 int main (void)
 {
-	register uint32_t i ;
+//	register uint32_t i ;
 	register Pio *pioptr ;
 	// Debug variable
-	uint32_t both_on ;
+//	uint32_t both_on ;
 
 	WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
 
@@ -319,7 +324,7 @@ int main (void)
 
 	set_volume( Volume = 2 ) ;
 
-	i = Timer2_count ;
+//	i = Timer2_count ;
 
 	txmit( 'E' ) ;
 	crlf() ;
@@ -330,13 +335,13 @@ int main (void)
 //	generalDefault() ;
 //	modelDefault( 0 ) ;
 
-//  pushMenu(menuProcModelSelect);
-  pushMenu(menuProc0) ;
+  pushMenu(menuProcModelSelect);
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
 
 	doSplash() ;
   getADC_single();
   checkTHR();
+  checkSwitches();
 
 	lcd_clear() ;
 	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
@@ -345,10 +350,10 @@ int main (void)
 	refreshDisplay() ;
 	start_ppm_capture() ;
 
-	both_on = 0 ;
+//	both_on = 0 ;
 	
-	Per10ms_action = 1 ;		// Run immediately
-	Permenu_action = 1 ;
+//	Per10ms_action = 1 ;		// Run immediately
+//	Permenu_action = 1 ;
 
   while (1)
   {
@@ -362,108 +367,77 @@ int main (void)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 		// EXT3 controlled by MENU key for testing/debug
-		if ( PIOB->PIO_PDSR & 0x40 )
-		{
-			PIOA->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
-			both_on = 0 ;
-		}
-		else
-		{
-			PIOA->PIO_CODR = 0x00200000L ;	// Clear bit A21 OFF
-			if ( ( PIOA->PIO_PDSR & 0x80000000L ) == 0 )	// EXIT and MENU ON together
-			{
-				if ( ! both_on )
-				{
-					both_on = 1 ;
-					if ( Per10ms_action )
-					{
-						Per10ms_action = 0 ;			
-					}
-					else
-					{
-						Per10ms_action = 1 ;
-					}
-					if ( Permenu_action )
-					{
-						Permenu_action = 0 ;			
-					}
-					else
-					{
-						Permenu_action = 1 ;
-					}
-				}
-			}
-			else
-			{
-				both_on = 0 ;
-			}
-		}
-
-
-		// EXT2 (A26) driven by Timer 2 TIOA
-		if ( i != Timer2_count )
-		{
-			i = Timer2_count ;
-			if ( Lcd_analog_display )
-			{
-				register uint32_t j ;
-
-//				read_8_adc() ;
-				getADC_osmp() ;
-				lcd_clear() ;
-
-    		for( j=0; j<8; j++)
-  	  	{
-      	  uint8_t y=j*FH;
-      	  lcd_putc( 4*FW, y, 'A' ) ;
-      	  lcd_putc( 5*FW, y, '1'+j ) ;
-      	  //        lcd_putsn_P( 4*FW, y,PSTR("A1A2A3A4A5A6A7A8")+2*i,2);
-      	  lcd_outhex4( 7*FW, y,Analog_values[j]);
-      	  lcd_outhex4( 13*FW, y,S_anaFilt[j]);
-	    	}
-				refreshDisplay() ;
-			}
-		}
-		
-		if ( Per10ms_action )
-		{
-			if ( Tenms )
-			{
-				Tenms = 0 ;
-				 per10ms() ;				
-			}
-//			if ( Permenu_action == 0 )
-//			{
-//				lcd_clear() ;
-//				screen0() ;
-//				refreshDisplay() ;
-//			}
-		}
-
-		pioptr = PIOC ;
-		// Toggle bits BACKLIGHT and EXT1, Backlight now on PWM
-//		if ( i & 1 )
+//		if ( PIOB->PIO_PDSR & 0x40 )
 //		{
-//			pioptr->PIO_CODR = 0x00040000L ;	// Set bit C18 OFF
+//			PIOA->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
+//			both_on = 0 ;
 //		}
 //		else
 //		{
-//			pioptr->PIO_SODR = 0x00040000L ;	// Set bit C18 ON
+//			PIOA->PIO_CODR = 0x00200000L ;	// Clear bit A21 OFF
+			
+//			if ( ( PIOA->PIO_PDSR & 0x80000000L ) == 0 )	// EXIT and MENU ON together
+//			{
+//				if ( ! both_on )
+//				{
+//					both_on = 1 ;
+//					if ( Per10ms_action )
+//					{
+//						Per10ms_action = 0 ;			
+//					}
+//					else
+//					{
+//						Per10ms_action = 1 ;
+//					}
+//					if ( Permenu_action )
+//					{
+//						Permenu_action = 0 ;			
+//					}
+//					else
+//					{
+//						Permenu_action = 1 ;
+//					}
+//				}
+//			}
+//			else
+//			{
+//				both_on = 0 ;
+//			}
 //		}
 
-		if ( Timer2_count & 4 )
-		{
-			pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31 ON
-		}
-		else
-		{
-			pioptr->PIO_CODR = 0x80000000L ;	// Set bit C31 OFF
-		}
+
+		// EXT2 (A26) driven by Timer 2 TIOA
+//		if ( i != Timer2_count )
+//		{
+//			i = Timer2_count ;
+//			if ( Lcd_analog_display )
+//			{
+//				register uint32_t j ;
+
+//				read_8_adc() ;
+//				getADC_osmp() ;
+//				lcd_clear() ;
+
+//    		for( j=0; j<8; j++)
+//  	  	{
+//      	  uint8_t y=j*FH;
+//      	  lcd_putc( 4*FW, y, 'A' ) ;
+//      	  lcd_putc( 5*FW, y, '1'+j ) ;
+//      	  //        lcd_putsn_P( 4*FW, y,PSTR("A1A2A3A4A5A6A7A8")+2*i,2);
+//      	  lcd_outhex4( 7*FW, y,Analog_values[j]);
+//      	  lcd_outhex4( 13*FW, y,S_anaFilt[j]);
+//	    	}
+//				refreshDisplay() ;
+//			}
+//		}
+		
 
 
-
+#ifdef	DEBUG
 		handle_serial() ;
+#endif
 
+		pioptr = PIOC ;
 		if ( pioptr->PIO_PDSR & 0x02000000 )
 		{
 			// Detected USB
@@ -514,23 +488,46 @@ int main (void)
   return(0);
 }
 
-
+uint16_t getTmr2MHz()
+{
+	return TC1->TC_CHANNEL[0].TC_CV ;
+}
 
 void mainSequence()
 {
-//      uint16_t t0 = getTmr16KHz();
-	getADC_osmp() ;	//      getADC[g_eeGeneral.filterInput]();
-//      ADMUX=0x1E|ADC_VREF_TYPE;   // Select bandgap
+  uint16_t t0 = getTmr2MHz();
+	
+	//      getADC[g_eeGeneral.filterInput]();
+	if ( g_eeGeneral.filterInput == 1 )
+	{
+		getADC_osmp() ;
+	}
+	else if ( g_eeGeneral.filterInput == 2 )
+	{
+		getADC_filt() ;
+	}
+	else
+	{
+		getADC_single() ;
+	}
+
 	perMain();      // Give bandgap plenty of time to settle
-//      getADC_bandgap() ;
-//      //while(get_tmr10ms()==old10ms) sleep_mode();
+
 //      if(heartbeat == 0x3)
 //      {
 //          wdt_reset();
 //          heartbeat = 0;
 //      }
-//      t0 = getTmr16KHz() - t0;
-//      if ( t0 > g_timeMain ) g_timeMain = t0 ;
+  
+	t0 = getTmr2MHz() - t0;
+  if ( t0 > g_timeMain ) g_timeMain = t0 ;
+
+
+	if ( Tenms )
+	{
+		Tenms = 0 ;
+		eeprom_process() ;
+	}
 
 
 //#ifdef FRSKY
@@ -563,6 +560,14 @@ void clearKeyEvents()
 }
 
 
+void check_backlight()
+{
+  if(getSwitch(g_eeGeneral.lightSw,0) || g_LightOffCounter)
+    BACKLIGHT_ON;
+  else
+    BACKLIGHT_OFF;
+}
+
 
 void doSplash()
 {
@@ -574,7 +579,7 @@ void doSplash()
 
   clearKeyEvents();
 
-  for(uint8_t i=0; i<32; i++)
+  for(uint32_t i=0; i<32; i++)
     getADC_filt(); // init ADC array
 
 
@@ -590,27 +595,12 @@ void doSplash()
     uint16_t tsum = 0;
     for(uint8_t i=0; i<4; i++)
        tsum += anaIn(i)/INAC_DEVISOR;
+    
+		if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
 
-		
-		//Temporary, until per10ms actioned from interrupt routine		 
-			if ( Tenms )
-			{
-				Tenms = 0 ;
-				 per10ms() ;				
-			}
+		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
 
-
-//            getADC_filt();
-//            uint16_t tsum = 0;
-//            for(uint8_t i=0; i<4; i++)
-//               tsum += anaIn(i)/INAC_DEVISOR;
-
-    if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
-
-//            if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff)
-//                BACKLIGHT_ON;
-//            else
-//                BACKLIGHT_OFF;
+		check_backlight() ;
   }
 }
 
@@ -733,14 +723,15 @@ void perMain()
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
 
-//    if(g_LightOffCounter) g_LightOffCounter--;
-//    if(evt) g_LightOffCounter = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
+    uint16_t a = 0;
+    uint16_t b = 0;
+    if(g_LightOffCounter) g_LightOffCounter--;
+    if(evt) a = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
+    if(stickMoved) b = g_eeGeneral.lightOnStickMove*500;
+    if(a>g_LightOffCounter) g_LightOffCounter = a;
+    if(b>g_LightOffCounter) g_LightOffCounter = b;
 
-//    if(getSwitch(g_eeGeneral.lightSw,0) || g_LightOffCounter)
-//        BACKLIGHT_ON;
-//    else
-//        BACKLIGHT_OFF;
-
+		check_backlight() ;
 
     static int16_t p1valprev;
     p1valdiff = (p1val-calibratedStick[6])/32;
@@ -754,12 +745,11 @@ void perMain()
       p1valdiff = 0 ;			
    	}
 
-	if ( Permenu_action )
-	{
+//	if ( Permenu_action )
+//	{
     g_menuStack[g_menuStackPtr](evt);
-//		menuProcStatistic2(evt) ;		
     refreshDisplay();
-	}
+//	}
 
 
 //    if(checkSlaveMode()) {
@@ -789,13 +779,13 @@ void perMain()
         ab /= 55296  ;
         g_vbat100mV = (ab + g_vbat100mV + 1) >> 1 ;  // Filter it a bit => more stable display
 
-//        static uint8_t s_batCheck;
-//        s_batCheck+=32;
-//        if((s_batCheck==0) && (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49)){
+        static uint8_t s_batCheck;
+        s_batCheck+=32;
+        if((s_batCheck==0) && (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49)){
 
-//            audioDefevent(AUDIO_TX_BATTERY_LOW);
-//            if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
-//        }
+            audioDefevent(AUDIO_TX_BATTERY_LOW);
+            if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
+        }
     break ;
 
 //    case 3:
@@ -892,6 +882,9 @@ extern "C" void TC2_IRQHandler()
 		Timer2_count += 1 ;
 		pre_scale = 0 ;
 	}
+  per10ms();
+  
+//	heartbeat |= HEART_TIMER10ms;
 }
 
 
@@ -1036,8 +1029,8 @@ void init_pwm()
 	pwmptr->PWM_CH_NUM[3].PWM_CMR = 0x0000000B ;	// CLKA
 	pwmptr->PWM_CH_NUM[3].PWM_CPDR = 3000 ;			// Period in half uS
 	pwmptr->PWM_CH_NUM[3].PWM_CPDRUPD = 3000 ;	// Period in half uS
-	pwmptr->PWM_CH_NUM[3].PWM_CDTY = 400 ;			// Duty in half uS
-	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = 400 ;		// Duty in half uS
+	pwmptr->PWM_CH_NUM[3].PWM_CDTY = 600 ;			// Duty in half uS
+	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = 600 ;		// Duty in half uS
 	pwmptr->PWM_ENA = PWM_ENA_CHID3 ;						// Enable channel 3
 
 	NVIC_EnableIRQ(PWM_IRQn) ;
@@ -1048,9 +1041,12 @@ void init_pwm()
 
 extern "C" void PWM_IRQHandler (void)
 {
-	if ( PWM->PWM_ISR1 & PWM_ISR1_CHID3 )
+	register Pwm *pwmptr ;
+	
+	pwmptr = PWM ;
+	if ( pwmptr->PWM_ISR1 & PWM_ISR1_CHID3 )
 	{
-		PWM->PWM_CH_NUM[3].PWM_CPDRUPD = Pulses[Pulses_index++] ;	// Period in half uS
+		pwmptr->PWM_CH_NUM[3].PWM_CPDRUPD = Pulses[Pulses_index++] ;	// Period in half uS
 		if ( Pulses[Pulses_index] == 0 )
 		{
 			Pulses_index = 0 ;
@@ -1064,14 +1060,14 @@ extern "C" void PWM_IRQHandler (void)
     	//The pulse ISR is 2mhz that's why everything is multiplied by 2
     	uint16_t *ptr ;
     	ptr = Pulses ;
-    	uint8_t p=8+g_model.ppmNCH*2; //Channels *2
+    	uint32_t p=8+g_model.ppmNCH*2; //Channels *2
     
-	//		uint16_t q=(g_model.ppmDelay*50+300)*2; //Stoplen *2
+			pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
     
 			uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
     	rest += (int16_t(g_model.ppmFrameLength))*1000;
     	//    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
-    	for(uint8_t i=0;i<p;i++){ //NUM_CHNOUT
+    	for(uint32_t i=0;i<p;i++){ //NUM_CHNOUT
     	    int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
     	    rest-=(v);
 	//        *ptr++ = q;      //moved down two lines
@@ -1090,52 +1086,37 @@ extern "C" void PWM_IRQHandler (void)
 }
 
 
-//void poll_pwm()
-//{
-//	if ( PWM->PWM_ISR1 & PWM_ISR1_CHID3 )
-//	{
-//		PWM->PWM_CH_NUM[3].PWM_CPDRUPD = Pulses[Pulses_index++] ;	// Period in half uS
-//		if ( Pulses[Pulses_index] == 0 )
-//		{
-//			Pulses_index = 0 ;
-//		}
-//	}
-//}
-
-
-
-
 /*-------------------------------------------------------------------*/
 /* Convert hex string to internal long value */
 
-uint32_t hextoi( uint8_t *string )
-{
-	register uint8_t *p ;
-  register uint32_t value ;
-  register uint8_t c ;
+//uint32_t hextoi( uint8_t *string )
+//{
+//	register uint8_t *p ;
+//  register uint32_t value ;
+//  register uint8_t c ;
 
-  p = string ;
-  value = 0 ;
-  while( ( c = toupper( *p ) ) != 0 )
-  {
-    if ( c < '0' || c > 'F' || ( c < 'A' && c > '9') )
-    {
-      break ;
-    }
-    else
-    {
-      value <<= 4 ;
-      c -= (c > '9') ? '7' : '0' ;
-      value += c ;
-    }
-    p++ ;
-  }
-  if ( p == string )
-  {
-    value = 0xFFFFFFFF ;
-  }
-  return value ;
-}
+//  p = string ;
+//  value = 0 ;
+//  while( ( c = toupper( *p ) ) != 0 )
+//  {
+//    if ( c < '0' || c > 'F' || ( c < 'A' && c > '9') )
+//    {
+//      break ;
+//    }
+//    else
+//    {
+//      value <<= 4 ;
+//      c -= (c > '9') ? '7' : '0' ;
+//      value += c ;
+//    }
+//    p++ ;
+//  }
+//  if ( p == string )
+//  {
+//    value = 0xFFFFFFFF ;
+//  }
+//  return value ;
+//}
 
 /*-------------------------------------------------------------------*/
 /* Get a string from the serial port into *string */
@@ -1310,95 +1291,31 @@ uint8_t checkTrim(uint8_t event)
     if(((x==0)  ||  ((x>=0) != (tm>=0))) && (!thro) && (tm!=0)){
       *TrimPtr[idx]=0;
       killEvents(event);
-//      audioDefevent(AUDIO_TRIM_MIDDLE);
+      audioDefevent(AUDIO_TRIM_MIDDLE);
 
     } else if(x>-125 && x<125){
       *TrimPtr[idx] = (int8_t)x;
-//      STORE_MODELVARS_TRIM;
+      STORE_MODELVARS_TRIM;
       //if(event & _MSK_KEY_REPT) warble = true;
-//			if(x <= 125 && x >= -125){
+			if(x <= 125 && x >= -125){
+				audioDefevent(AUDIO_TRIM_MOVE);
 //				audio.event(AUDIO_TRIM_MOVE,(abs(x)/4)+60);
-//			}	
+			}	
     }
     else
     {
       *TrimPtr[idx] = (x>0) ? 125 : -125;
-//      STORE_MODELVARS_TRIM;
-//			if(x <= 125 && x >= -125){
+      STORE_MODELVARS_TRIM;
+			if(x <= 125 && x >= -125){
+				audioDefevent(AUDIO_TRIM_MOVE);
 //				audio.event(AUDIO_TRIM_MOVE,(-abs(x)/4)+60);
-//			}	
+			}	
     }
 
     return 0;
   }
   return event;
 }
-
-
-//void screen0()
-//{
-//  register  uint8_t x=FW*2;
-//  register uint8_t att = (g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0) | DBLSIZE;
-//  register uint32_t i ;
-
-//	for( i=0 ; i<sizeof(g_model.name);i++)
-//	{
-//    lcd_putcAtt(x+i*2*FW-i-2, 0*FH, g_model.name[i],DBLSIZE);
-////    lcd_putcAtt( x+i*2*FW-i-2, 0*FH, "MODEL1   "[i], DBLSIZE ) ;
-//	}
-
-//  putsVBat(x+4*FW, 2*FH, att|NO_UNIT ) ;
-//  lcd_putc( x+4*FW, 3*FH, 'V' ) ;
-
-////  if(s_timerState != TMR_OFF)
-////	{
-////      uint8_t att = DBLSIZE | (s_timerState==TMR_BEEPING ? BLINK : 0);
-////      putsTime(x+14*FW-2, FH*2, s_timerVal, att,att);
-////      putsTmrMode(x+7*FW-FW/2,FH*3,0);
-////  }
-
-//  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*g_model.trimInc,3, 0);
-//  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*g_model.thrTrim,3, 0);
-////  lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*1,3, 0);
-////  lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*1,3, 0);
-
-//  //trim sliders
-//  for( i=0 ; i<4 ; i++ )
-//  {
-//#define TL 27
-//    //                        LH LV RV RH
-//    static uint8_t x[4]    = {128*1/4+2, 4, 128-4, 128*3/4-2};
-//    static uint8_t vert[4] = {0,1,1,0};
-//    register uint8_t xm, ym ;
-//    xm=x[i] ;
-//    register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(*TrimPtr[i]/4)));
-////		register int8_t val = 0 ;
-//    if(vert[i])
-//		{
-//      ym=31;
-//      lcd_vline(xm,   ym-TL, TL*2);
-
-////        if(((g_eeGeneral.stickMode&1) != (i&1)) || !(g_model.thrTrim)){
-//            lcd_vline(xm-1, ym-1,  3);
-//            lcd_vline(xm+1, ym-1,  3);
-////        }
-//        ym -= val;
-//    }else{
-//      ym=59;
-//      lcd_hline(xm-TL,ym,    TL*2);
-//      lcd_hline(xm-1, ym-1,  3);
-//      lcd_hline(xm-1, ym+1,  3);
-//      xm += val;
-//    }
-//    DO_SQUARE(xm,ym,7)
-//  }
-//  register uint32_t a = 0 ; // (view == e_inputs1) ? 0 : 9+(view-3)*6;
-//  register uint32_t b = 6 ; // (view == e_inputs1) ? 6 : 12+(view-3)*6;
-//  for( i=a; i<(a+3); i++) lcd_putsnAtt(2*FW-2 ,(i-a)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-//  for( i=b; i<(b+3); i++) lcd_putsnAtt(17*FW-1,(i-b)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-
-//}
-
 
 
 void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
@@ -1632,76 +1549,6 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 }
 
 
-
-
-
-//void perOut(int16_t *chanOut, uint8_t att)
-//{
-//    int16_t  trimA[4];
-//    uint8_t  anaCenter = 0;
-//    uint16_t d = 0;
-
-//    if(tick10ms) {
-//        if(s_noHi) s_noHi--;
-//        if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49)) {
-//            if (++inacPrescale > 15 )
-//            {
-//                inacCounter++;
-//                inacPrescale = 0 ;
-//            }
-//            uint16_t tsum = 0;
-//            for(uint8_t i=0;i<4;i++) tsum += anas[i];
-//            if(abs(int16_t(tsum-inacSum))>INACTIVITY_THRESHOLD){
-//                inacSum = tsum;
-//                inacCounter=0;
-//            }
-//            if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
-//                if((inacCounter&0x3)==1) {
-//                    audioDefevent(AUDIO_INACTIVITY);
-//                }
-//        }
-//    }
-//    {
-//        uint8_t ele_stick, ail_stick ;
-//        ele_stick = ELE_STICK ;
-//        ail_stick = AIL_STICK ;
-//        //===========Swash Ring================
-//        if(g_model.swashRingValue)
-//        {
-//            uint32_t v = (int32_t(calibratedStick[ele_stick])*calibratedStick[ele_stick] +
-//                          int32_t(calibratedStick[ail_stick])*calibratedStick[ail_stick]);
-//            uint32_t q = int32_t(RESX)*g_model.swashRingValue/100;
-//            q *= q;
-//            if(v>q)
-//                d = isqrt32(v);
-//        }
-//        //===========Swash Ring================
-//	register uint32_t i ;
-        
-//				for( i=0;i<7;i++)
-//				{        // calc Sticks
-
-//            //Normalization  [0..2048] ->   [-1024..1024]
-
-//            int16_t v = anaIn(i);
-//            v -= g_eeGeneral.calibMid[i];
-//						v -= 1024 ;
-//            v  =  v * (int32_t)RESX /  (max((int16_t)100,(v>0 ?
-//                                                              g_eeGeneral.calibSpanPos[i] :
-//                                                              g_eeGeneral.calibSpanNeg[i])));
-//            if(v <= -RESX) v = -RESX ;
-//            if(v >=  RESX) v =  RESX ;
-//	  				if ( g_eeGeneral.throttleReversed )
-//						{
-//							if ( i == THR_STICK )
-//							{
-//								v = -v ;
-//							}
-//						}
-//            calibratedStick[i] = v; //for show in expo
-//				}
-//}
-
 void resetTimer2()
 {
   Timer2_pre = 0 ;
@@ -1733,7 +1580,7 @@ void alert(const char * s, bool defaults)
     refreshDisplay();
     lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
 
-//    audioDefevent(AUDIO_ERROR);
+    audioDefevent(AUDIO_ERROR);
     clearKeyEvents();
     while(1)
     {
@@ -1752,16 +1599,11 @@ void alert(const char * s, bool defaults)
 					break ;
 				}
 
-		//Temporary, until per10ms actioned from interrupt routine		 
-			if ( Tenms )
-			{
-				Tenms = 0 ;
-				 per10ms() ;				
-			}
-//        if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
-//            BACKLIGHT_ON;
-//        else
-//            BACKLIGHT_OFF;
+		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+        if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
+            BACKLIGHT_ON;
+        else
+            BACKLIGHT_OFF;
     }
 }
 
@@ -1802,20 +1644,48 @@ void checkTHR()
           return;
       }
 
-		//Temporary, until per10ms actioned from interrupt routine		 
-			if ( Tenms )
-			{
-				Tenms = 0 ;
-				 per10ms() ;				
-			}
+		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
 
-//      if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff)
-//          BACKLIGHT_ON;
-//      else
-//          BACKLIGHT_OFF;
+		check_backlight() ;
   }
 }
 
+
+
+void checkSwitches()
+{
+  if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
+
+  // first - display warning
+  alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
+  
+  uint8_t x = g_eeGeneral.switchWarningStates & SWP_IL5;
+  if(x==SWP_IL1 || x==SWP_IL2 || x==SWP_IL3 || x==SWP_IL4 || x==SWP_IL5) //illegal states for ID0/1/2
+  {
+      g_eeGeneral.switchWarningStates &= ~SWP_IL5; // turn all off, make sure only one is on
+      g_eeGeneral.switchWarningStates |=  SWP_ID0B;
+  }
+	
+	//loop until all switches are reset
+  while (1)
+  {
+    uint8_t i = 0;
+    for(uint8_t j=0; j<8; j++)
+    {
+        bool t=keyState((EnumKeys)(SW_BASE_DIAG+j));
+        i |= t<<j;
+    }
+
+    if((i==g_eeGeneral.switchWarningStates) || (keyDown())) // check state against settings
+    {
+        return;  //wait for key release
+    }
+
+		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+
+		check_backlight() ;
+  }
+}
 
 
 MenuFuncP lastPopMenu()

@@ -109,7 +109,7 @@ ULIBDIR =
 ULIBS = 
 
 # Define optimisation level here
-OPT = -O1
+OPT = -O2
 
 #
 # End of user defines

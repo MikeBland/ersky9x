@@ -114,6 +114,20 @@ enum EnumKeys {
 #define SW_BASE_DIAG SW_ThrCt
 #define MAX_DRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_CSW)
 
+#define SWP_ID0 (SW_ID0-SW_BASE)
+#define SWP_ID1 (SW_ID1-SW_BASE)
+#define SWP_ID2 (SW_ID2-SW_BASE)
+#define SWP_ID0B (1<<SWP_ID0)
+#define SWP_ID1B (1<<SWP_ID1)
+#define SWP_ID2B (1<<SWP_ID2)
+
+//Switch Position Illigal states
+#define SWP_IL1 (0)
+#define SWP_IL2 (SWP_ID0B | SWP_ID1B)
+#define SWP_IL3 (SWP_ID0B | SWP_ID2B)
+#define SWP_IL4 (SWP_ID1B | SWP_ID2B)
+#define SWP_IL5 (SWP_ID0B | SWP_ID1B | SWP_ID2B)
+
 #define SWITCHES_STR "THR""RUD""ELE""ID0""ID1""ID2""AIL""GEA""TRN""SW1""SW2""SW3""SW4""SW5""SW6""SW7""SW8""SW9""SWA""SWB""SWC"
 #define NUM_CSW  12 //number of custom switches
 
@@ -238,8 +252,9 @@ extern uint8_t Ee_lock ;
 #define PROTO_PPM        0
 #define PROTO_PXX        1
 #define PROTO_DSM2       2
-#define PROT_MAX         2
-#define PROT_STR "PPM   PXX   DSM2  "
+#define PROTO_PPM16			 3
+#define PROT_MAX         3
+#define PROT_STR "PPM   PXX   DSM2  PPM16 "
 #define PROT_STR_LEN     6
 #define DSM2_STR "LP4/LP5  DSM2only DSM2/DSMX"
 #define DSM2_STR_LEN   9
@@ -247,6 +262,11 @@ extern uint8_t Ee_lock ;
 #define DSM2only         1
 #define DSM2_DSMX        2
 
+#define PXX_SEND_RXNUM     0x01
+#define PXX_SEND_FAILSAFE  0x02
+
+extern uint8_t pxxFlag;
+extern uint8_t stickMoved;
 
 #define FLASH_DURATION 50
 
@@ -324,6 +344,8 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define STORE_MODELVARS_TRIM   eeDirty(EE_MODEL|EE_TRIM)
 #define STORE_MODELVARS   eeDirty(EE_MODEL)
 #define STORE_GENERALVARS eeDirty(EE_GENERAL)
+#define BACKLIGHT_ON    (PWM->PWM_CH_NUM[0].PWM_CDTY = 40)
+#define BACKLIGHT_OFF   (PWM->PWM_CH_NUM[0].PWM_CDTY = 100)
 
 typedef void (*MenuFuncP)(uint8_t event);
 

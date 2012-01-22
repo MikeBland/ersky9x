@@ -33,7 +33,8 @@
 #define MDVERS_r261 6
 #define MDVERS_r352 7
 #define MDVERS_r365 8
-#define MDVERS      9
+#define MDVERS_r668 9
+#define MDVERS      10
 
 //OBSOLETE - USE ONLY MDVERS NOW
 //#define GENERAL_MYVER_r261 3
@@ -104,17 +105,18 @@ typedef struct t_EEGeneral {
   uint8_t   lightAutoOff;
   uint8_t   templateSetup;  //RETA order according to chout_ar array 
   int8_t    PPM_Multiplier;
-  //uint8_t   respre[2]; //mike please check these are correct
   uint8_t	FRSkyYellow:4;
   uint8_t	FRSkyOrange:4;
   uint8_t	FRSkyRed:4;  //mike please check these are correct
-	uint8_t spare:4;
+  uint8_t   hideNameOnSplash:1;
+  uint8_t   spare:3;
   uint8_t   speakerPitch;
   uint8_t	hapticStrength;
   uint8_t	speakerMode;
-  uint8_t   res[1];
-//  uint8_t	FRSkyRed;  //mike please check these are correct
+  uint8_t   lightOnStickMove;
   char      ownerName[GENERAL_OWNER_NAME_LEN];
+    uint8_t   switchWarningStates;
+    uint8_t   res[4];
 } __attribute__((packed)) EEGeneral;
 
 
@@ -194,7 +196,7 @@ typedef struct t_ModelData {
   uint8_t   t2throttle:1 ;  // Start timer2 using throttle
   uint8_t   FrSkyUsrProto:2 ;  // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
   uint8_t   FrSkyImperial:1 ;  // Convert FrSky values to imperial units
-  uint8_t   spare:2;
+  uint8_t   FrSkyAltWarn:2;
   uint16_t  tmrVal;
   uint8_t   protocol;
   int8_t    ppmNCH;
@@ -231,6 +233,15 @@ typedef struct t_ModelData {
 
 extern EEGeneral g_eeGeneral;
 extern ModelData g_model;
+
+
+
+
+
+
+
+
+
 
 
 #endif
