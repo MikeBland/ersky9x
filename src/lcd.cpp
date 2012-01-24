@@ -75,7 +75,7 @@ void lcdSendCtl(uint8_t val) ;
 void refreshDisplay( void ) ;
 uint32_t read_keys( void ) ;
 void lcd_putc(uint8_t x,uint8_t y,const char c ) ;
-void lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
+uint8_t lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
 void lcd_putsnAtt(uint8_t x,uint8_t y,const char * s,uint8_t len,uint8_t mode) ;
 void lcd_putsn_P(uint8_t x,uint8_t y,const char * s,uint8_t len) ;
 void lcd_clear( void ) ;
@@ -120,31 +120,42 @@ void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mo
 /// invers: 0 no 1=yes 2=blink
 void lcd_putc(uint8_t x,uint8_t y,const char c )
 {
-	register uint32_t i ;
-  register uint8_t *p    = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
-  //uint8_t *pmax = &displayBuf[ DISPLAY_H/8 * DISPLAY_W ];
+  lcd_putcAtt(x,y,c,0);
+//	register uint32_t i ;
+//  register uint8_t *p    = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
+//  //uint8_t *pmax = &displayBuf[ DISPLAY_H/8 * DISPLAY_W ];
 
-  register uint8_t *q ;
+//  register uint8_t *q ;
 	
-	q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5];
+//	q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5];
 
-  for( i=5; i!=0; i--)
-	{
-    register uint8_t b = *q++ ;
-    if(p<DISPLAY_END) *p++ = b ;
-	}
+//  for( i=5; i!=0; i--)
+//	{
+//    register uint8_t b = *q++ ;
+//    if(p<DISPLAY_END) *p++ = b ;
+//	}
 }
 
-void lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
+uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 {
 	register int32_t i ;
 	register uint8_t *p    = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
     //uint8_t *pmax = &displayBuf[ DISPLAY_H/8 * DISPLAY_W ];
-
+	if ( c < 23 )		// Move to specific x position (c-1)*FW
+	{
+		x = c*FW ;
+  	if(mode&DBLSIZE)
+		{
+			x += x ;
+		}
+		return x ;
+	}
+	x += FW ;
   register uint8_t    *q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5] ;
   register uint32_t   inv = (mode & INVERS) ? TRUE : (mode & BLINK ? BLINK_ON_PHASE : FALSE);
   if(mode&DBLSIZE)
   {
+		if ( (c!=0x2E)) x+=FW; //check for decimal point
 	/* each letter consists of ten top bytes followed by
 	 * five bottom by ten bottom bytes (20 bytes per 
 	 * char) */
@@ -196,6 +207,7 @@ void lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 		{
       *p++ = inv ? ~0 : 0;
       condense=1;
+    	x += FW-FWNUM ;
 		}
 
     for( i=5 ; i!=0 ; i-- )
@@ -210,18 +222,19 @@ void lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
     }
     if(p<DISPLAY_END) *p++ = inv ? ~0 : 0;
   }
+	return x ;
 }
 
 void lcd_putsnAtt(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 {
 	register char c ;
-	register uint8_t size ;
-	size = mode & DBLSIZE ;
+//	register uint8_t size ;
+//	size = mode & DBLSIZE ;
   while(len!=0) {
     c = *s++ ;
-    lcd_putcAtt(x,y,c,mode);
-    x+=FW;
-		if ((size)&& (c!=0x2E)) x+=FW; //check for decimal point
+    x = lcd_putcAtt(x,y,c,mode);
+//    x+=FW;
+//		if ((size)&& (c!=0x2E)) x+=FW; //check for decimal point
     len--;
   }
 }
@@ -233,17 +246,17 @@ void lcd_putsn_P(uint8_t x,uint8_t y,const char * s,uint8_t len)
 
 uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode )
 {
-	register uint8_t size ;
+//	register uint8_t size ;
 
-	size = mode & DBLSIZE ;
+//	size = mode & DBLSIZE ;
   //while(char c=pgm_read_byte(s++)) {
   while(1)
 	{
     char c = *s++ ;
     if(!c) break ;
-    lcd_putcAtt(x,y,c,mode) ;
-    x+=FW ;
-		if ((size)&& (c!=0x2E)) x+=FW ; //check for decimal point
+    x = lcd_putcAtt(x,y,c,mode) ;
+//    x+=FW ;
+//		if ((size)&& (c!=0x2E)) x+=FW ; //check for decimal point
   }
   return x;
 }

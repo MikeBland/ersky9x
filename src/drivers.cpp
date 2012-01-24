@@ -298,14 +298,14 @@ uint32_t read_trims()
 
 	trims = 0 ;
 
-// TRIM_LH_DOWN    PB4
-	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
+// TRIM_LH_DOWN    PA7
+	if ( ( PIOA->PIO_PDSR & 0x0080 ) == 0 )
 	{
 		trims |= 1 ;
 	}
     
-// TRIM_LH_UP PA7
-	if ( ( PIOA->PIO_PDSR & 0x0080 ) == 0 )
+// TRIM_LH_UP PB4
+	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
 	{
 		trims |= 2 ;
 	}

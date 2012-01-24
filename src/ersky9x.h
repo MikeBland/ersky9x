@@ -49,7 +49,7 @@ const char stamp5[] = " MOD: " MOD_VERS;
 #define PROGMEM	 const unsigned char
 #define strcpy_P(a,b)	strcpy(a,b)
 #define strncpy_P(a,b,c)	strncpy(a,b,c)
-#define pgm_read_byte(p)	(*p)
+#define pgm_read_byte(p)	(*(p))
 
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
