@@ -145,6 +145,11 @@ CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverb
 
 CPPFLAGS += $(CPPDEFS)
 
+# If REVB board
+ifeq ($(REVB), 1)
+ CPPDEFS += -DREVB
+endif
+
 # Generate dependency information
 CPFLAGS += -MD -MP -MF .dep/$(@F).d
 CPPFLAGS += -MD -MP -MF .dep/$(@F).d

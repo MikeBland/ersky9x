@@ -173,7 +173,7 @@ void start_timer1()
 
 
 
-// Configure DAC1
+// Configure DAC1 (or DAC0 for REVB)
 // Not sure why PB14 has not be allocated to the DAC, although it is an EXTRA function
 // So maybe it is automatically done
 void init_dac()
@@ -182,8 +182,16 @@ void init_dac()
 
   PMC->PMC_PCER0 |= 0x40000000L ;		// Enable peripheral clock to DAC
 	dacptr = DACC ;
+#ifdef REVB
+	dacptr->DACC_MR = 0x0B000215L ;			// 0000 1011 0000 0001 0000 0010 0001 0101
+#else
 	dacptr->DACC_MR = 0x0B010215L ;			// 0000 1011 0000 0001 0000 0010 0001 0101
+#endif
+#ifdef REVB
+	dacptr->DACC_CHER	= 1 ;							// Enable channel 0
+#else
 	dacptr->DACC_CHER	= 2 ;							// Enable channel 1
+#endif
 	dacptr->DACC_CDR = 2048 ;						// Half amplitude
 // Data for PDC must NOT be in flash, PDC needs a RAM source.
 	dacptr->DACC_TPR = (uint32_t) Sine_values ;

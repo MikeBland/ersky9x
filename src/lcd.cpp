@@ -48,6 +48,8 @@ uint8_t DisplayBuf[1024] ;
 
 
 // Lookup table for prototype board
+#ifdef REVB
+#else
 const uint8_t Lcd_lookup[] =
 {
 0x00,0x01,0x80,0x81,0x40,0x41,0xC0,0xC1,0x20,0x21,0xA0,0xA1,0x60,0x61,0xE0,0xE1,
@@ -67,6 +69,7 @@ const uint8_t Lcd_lookup[] =
 0x0E,0x0F,0x8E,0x8F,0x4E,0x4F,0xCE,0xCF,0x2E,0x2F,0xAE,0xAF,0x6E,0x6F,0xEE,0xEF,
 0x1E,0x1F,0x9E,0x9F,0x5E,0x5F,0xDE,0xDF,0x3E,0x3F,0xBE,0xBF,0x7E,0x7F,0xFE,0xFF
 } ;
+#endif 
 
 // prototypes
 void lcd_init( void ) ;
@@ -520,7 +523,11 @@ void lcd_clear()
 // LCD_D7      PC1
 
 #define LCD_DATA	0x000000FFL
+#ifdef REVB
+#define LCD_A0    0x00000080L
+#else 
 #define LCD_A0    0x00008000L
+#endif 
 #define LCD_RnW   0x00002000L
 #define LCD_E     0x00001000L
 #define LCD_CS1   0x04000000L
@@ -531,11 +538,27 @@ void lcd_init()
 	register Pio *pioptr ;
   // /home/thus/txt/datasheets/lcd/KS0713.pdf
   // ~/txt/flieger/ST7565RV17.pdf  from http://www.glyn.de/content.asp?wdid=132&sid=
+
+#ifdef REVB
+	pioptr = PIOA ;
+	pioptr->PIO_PER = 0x00000080 ;		// Enable bit 7 (LCD-A0)
+	pioptr->PIO_CODR = LCD_A0 ;
+	pioptr->PIO_OER = 0x00000080L ;		// Set bit 7 output
+#endif 
+	 
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x0C00B0FFL ;		// Enable bits 27,26,15,13,12,7-0
+#ifdef REVB
+	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
+#else 
 	pioptr->PIO_CODR = LCD_E | LCD_RnW | LCD_A0 ;
+#endif 
 	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
+#ifdef REVB
+	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,13,12,7-0 output
+#else 
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
+#endif 
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
 
 	pioptr->PIO_CODR = LCD_RES ;		// Reset LCD
@@ -564,9 +587,15 @@ void lcd_init()
   lcdSendCtl(0xAF); //DON = 1: display ON
  // g_eeGeneral.contrast = 0x22;
 
+#ifdef REVB
+	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
+#else
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
+#endif 
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
+
 }
 
 
@@ -584,8 +613,13 @@ void lcdSetRefVolt(uint8_t val)
 	}
   lcdSendCtl(val);
 	
+#ifdef REVB
+	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
+#else
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
+#endif 
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 }
 
@@ -608,7 +642,11 @@ void lcdSendCtl(uint8_t val)
 //	{
 //		x |= 1 ;		
 //	}
+#ifdef REVB
+	pioptr->PIO_ODSR = val ;
+#else
 	pioptr->PIO_ODSR = Lcd_lookup[val] ;
+#endif 
 	pioptr->PIO_SODR = LCD_E ;			// Start E pulse
 	// Need a delay here (250nS)
 	TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
@@ -617,7 +655,7 @@ void lcdSendCtl(uint8_t val)
 		// Wait
 	}
 	pioptr->PIO_CODR = LCD_E ;			// End E pulse
-	pioptr->PIO_SODR = LCD_A0 ;			// Data
+	PIOA->PIO_SODR = LCD_A0 ;			// Data
 	pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
 }
 
@@ -629,14 +667,26 @@ void refreshDisplay()
 	register uint32_t y ;
 	register uint32_t x ;
 	register uint32_t z ;
-  register uint8_t *lookup ;
 	register uint32_t ebit ;
-	
+#ifdef REVB
+#else
+  register uint8_t *lookup ;
 	lookup = (uint8_t *)Lcd_lookup ;
+#endif 
 	ebit = LCD_E ;
 
+#ifdef REVB
+	pioptr = PIOA ;
+	pioptr->PIO_PER = 0x00000080 ;		// Enable bit 7 (LCD-A0)
+	pioptr->PIO_OER = 0x00000080 ;		// Set bit 7 output
+#endif 
+
 	pioptr = PIOC ;
+#ifdef REVB
+	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,15,13,12,7-0 output
+#else
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
+#endif 
   for( y=0; y < 8; y++) {
 #ifdef OPTREX_LCD
     lcdSendCtl(0x00);
@@ -647,10 +697,14 @@ void refreshDisplay()
     lcdSendCtl( y | 0xB0); //page addr y
     
 		pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
-		pioptr->PIO_SODR = LCD_A0 ;			// Data
+		PIOA->PIO_SODR = LCD_A0 ;			// Data
 		pioptr->PIO_CODR = LCD_RnW ;		// Write
 		
+#ifdef REVB
+		x =	*p ;
+#else 
 		x =	lookup[*p] ;
+#endif 
     for( z=0; z<128; z+=1)
 		{
 
@@ -667,7 +721,11 @@ void refreshDisplay()
 			pioptr->PIO_SODR = ebit ;			// Start E pulse
 			// Need a delay here (250nS)
 			p += 1 ;
-			x =	lookup[*p] ;
+#ifdef REVB
+		x =	*p ;
+#else 
+		x =	lookup[*p] ;
+#endif 
 //			TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
 //			while ( TC0->TC_CHANNEL[0].TC_CV < 3 )		// Value depends on MCK/2 (used 6MHz)
 //			{
@@ -677,8 +735,13 @@ void refreshDisplay()
     }
 		pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
   }
+#ifdef REVB
+	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
+#else
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
+#endif 
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 }
 

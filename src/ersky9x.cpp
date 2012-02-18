@@ -247,7 +247,7 @@ uint8_t pxxFlag = 0;
 // RF-power-in			PC17
 // PPM-jack-in			PC19
 
-// The stock Beeper is on PA16.
+// The stock Beeper is on PA16 on the prototype board, use PA25 (LCD_CS2) on REVB.
 
 
 
@@ -268,8 +268,8 @@ int main (void)
 	pioptr->PIO_OER = 0x00200000L ;		// Set bit A21 as output
 	pioptr->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
 
-	pioptr->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
-	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
+//	pioptr->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
+//	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x82000000L ;		// Enable bit C31 (EXT1), C25 (USB-detect)
@@ -568,40 +568,56 @@ void check_backlight()
     BACKLIGHT_OFF;
 }
 
+uint16_t stickMoveValue()
+{
+#define INAC_DEVISOR 256   // Issue 206 - bypass splash screen with stick movement
+    uint16_t sum = 0;
+    for(uint8_t i=0; i<4; i++)
+        sum += anaIn(i)/INAC_DEVISOR;
+    return sum ;
+}
 
 void doSplash()
 {
-	lcd_clear();
-  lcd_img(0, 0, s9xsplash,0,0);
-  lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
-  lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-  refreshDisplay();
-
-  clearKeyEvents();
-
-  for(uint32_t i=0; i<32; i++)
-    getADC_filt(); // init ADC array
-
-
-#define INAC_DEVISOR 256   // Issue 206 - bypass splash screen with stick movement
-  uint16_t inacSum = 0;
-  for(uint8_t i=0; i<4; i++)
-    inacSum += anaIn(i)/INAC_DEVISOR;
-
-  uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
-  while(tgtime != get_tmr10ms())
+  if(!g_eeGeneral.disableSplashScreen)
   {
-    getADC_filt();
-    uint16_t tsum = 0;
-    for(uint8_t i=0; i<4; i++)
-       tsum += anaIn(i)/INAC_DEVISOR;
+
+
+    	check_backlight() ;
+
+	  	lcd_clear();
+    	lcd_img(0, 0, s9xsplash,0,0);
+    	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
+    	if(!g_eeGeneral.hideNameOnSplash)
+    	  lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+
+  	refreshDisplay();
+    	    lcdSetRefVolt(g_eeGeneral.contrast);
+
+  	clearKeyEvents();
+
+  	for(uint32_t i=0; i<32; i++)
+    	getADC_filt(); // init ADC array
+
+  	uint16_t inacSum = stickMoveValue();
+    	    //        for(uint8_t i=0; i<4; i++)
+    	    //           inacSum += anaIn(i)/INAC_DEVISOR;
+
+  	uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
+  	while(tgtime != get_tmr10ms())
+  	{
+    	getADC_filt();
+    	uint16_t tsum = stickMoveValue();
+	//    for(uint8_t i=0; i<4; i++)
+	//       tsum += anaIn(i)/INAC_DEVISOR;
     
-		if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
+			if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
 
-		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+			if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
 
-		check_backlight() ;
-  }
+			check_backlight() ;
+  	}
+	}
 }
 
 
@@ -978,7 +994,7 @@ void getADC_filt()
 // PWM used for PPM generation, and LED Backlight
 // Output pin PB5 not used, PA17 used as PWMH3 peripheral C
 // PWM peripheral ID = 31 (0x80000000)
-// Ensure PB5 is three state/input
+// Ensure PB5 is three state/input, used on REVB for MENU KEY
 
 // configure PWM3 as PPM drive, PWM0 will become LED backlight PWM on PWMH0
 // This is PC18 peripheral B
@@ -994,9 +1010,12 @@ void init_pwm()
 	MATRIX->CCFG_SYSIO |= 0x00000020L ;				// Disable TDO let PB5 work!
 	
 	/* Configure PIO */
+#ifdef REVB
+#else
 	pioptr = PIOB ;
 	pioptr->PIO_PER = 0x00000020L ;		// Enable bit B5
 	pioptr->PIO_ODR = 0x00000020L ;		// set as input
+#endif
 
 	pioptr = PIOA ;
   pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;		// Peripheral C
@@ -1186,14 +1205,14 @@ extern "C" void PWM_IRQHandler (void)
 
 // Switch input pins
 // AIL-DR  PA2
-// TRIM_LH_UP PA7
-// ELE_DR   PA8
+// TRIM_LH_DOWN PA7 (PA23)
+// ELE_DR   PA8 (PC31)
 // RUN_DR   PA15
-// TRIM_LV_DOWN  PA27
-// SW_TCUT     PA28
-// TRIM_RH_DOWN    PA29
-// TRIM_RV_UP    PA30
-// TRIM_LH_DOWN    PB4
+// TRIM_LV_DOWN  PA27 (PA24)
+// SW_TCUT     PA28 (PC20)
+// TRIM_RH_DOWN    PA29 (PA0)
+// TRIM_RV_UP    PA30 (PA1)
+// TRIM_LH_UP    PB4
 // SW-TRAIN    PC8
 // TRIM_RH_UP   PC9
 // TRIM_RV_DOWN   PC10
@@ -1202,17 +1221,20 @@ extern "C" void PWM_IRQHandler (void)
 // SW_GEAR     PC16
 // TRIM_LV_UP   PC28
 
-// KEY_MENU    PB6
-// KEY_EXIT    PA31
+// KEY_MENU    PB6 (PB5)
+// KEY_EXIT    PA31 (PC24)
 // Shared with LCD data
 // KEY_DOWN  LCD5  PC3
 // KEY_UP    LCD6  PC2
 // KEY_RIGHT LCD4  PC4
 // KEY_LEFT  LCD3  PC5
 
-// PORTA 0111 1000 0000 0000 1000 0001 1000 0100 = 0x78008184
-// PORTB 0000 0000 0001 0000										 = 0x0010
-// PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900
+// PORTA 1111 1000 0000 0000 1000 0001 1000 0100 = 0xF8008184 proto
+// PORTA 0000 0001 1000 0000 1000 0000 0000 0111 = 0x01808087 REVB
+// PORTB 0000 0000 0001 0000										 = 0x0010     proto
+// PORTB 0000 0000 0010 0000										 = 0x0020     REVB
+// PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900 proto
+// PORTC 1001 0001 0001 0001 0100 1001 0000 0000 = 0x91114900 REVB
 
 
 // Assumes PMC has already enabled clocks to ports
@@ -1221,19 +1243,36 @@ void setup_switches()
 	register Pio *pioptr ;
 
 	pioptr = PIOA ;
-	pioptr->PIO_PER = 0x78008184 ;		// Enable bits
-	pioptr->PIO_ODR = 0x78008184 ;		// Set bits input
-	pioptr->PIO_PUER = 0x78008184 ;		// Set bits with pullups
-
+#ifdef REVB
+	pioptr->PIO_PER = 0x01808087 ;		// Enable bits
+	pioptr->PIO_ODR = 0x01808087 ;		// Set bits input
+	pioptr->PIO_PUER = 0x01808087 ;		// Set bits with pullups
+#else 
+	pioptr->PIO_PER = 0xF8008184 ;		// Enable bits
+	pioptr->PIO_ODR = 0xF8008184 ;		// Set bits input
+	pioptr->PIO_PUER = 0xF8008184 ;		// Set bits with pullups
+#endif 
 	pioptr = PIOB ;
+#ifdef REVB
+	pioptr->PIO_PER = 0x00000020 ;		// Enable bits
+	pioptr->PIO_ODR = 0x00000020 ;		// Set bits input
+	pioptr->PIO_PUER = 0x00000020 ;		// Set bits with pullups
+#else 
 	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
 	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
 	pioptr->PIO_PUER = 0x00000010 ;		// Set bits with pullups
+#endif 
 
 	pioptr = PIOC ;
+#ifdef REVB
+	pioptr->PIO_PER = 0x91114900 ;		// Enable bits
+	pioptr->PIO_ODR = 0x91114900 ;		// Set bits input
+	pioptr->PIO_PUER = 0x91114900 ;		// Set bits with pullups
+#else 
 	pioptr->PIO_PER = 0x10014900 ;		// Enable bits
 	pioptr->PIO_ODR = 0x10014900 ;		// Set bits input
 	pioptr->PIO_PUER = 0x10014900 ;		// Set bits with pullups
+#endif 
 
 }
 
@@ -1652,6 +1691,11 @@ void checkTHR()
 
 
 
+void putWarnSwitch( uint8_t x, const char * s )
+{
+  lcd_putsnAtt( x, 2*FH, s, 3, 0) ;
+}
+
 void checkSwitches()
 {
   if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
@@ -1672,9 +1716,45 @@ void checkSwitches()
     uint8_t i = 0;
     for(uint8_t j=0; j<8; j++)
     {
-        bool t=keyState((EnumKeys)(SW_BASE_DIAG+j));
-        i |= t<<j;
+        bool t=keyState((EnumKeys)(SW_BASE_DIAG+7-j));
+				i <<= 1 ;
+        i |= t;
     }
+//        alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
+
+
+        //show the difference between i and switch?
+        //show just the offending switches.
+        //first row - THR, GEA, AIL, ELE, ID0/1/2
+        uint8_t x = i ^ g_eeGeneral.switchWarningStates;
+
+        lcd_putsnAtt(0*FW, 2*FH, PSTR("                      "), 22, 0);
+
+        if(x & SWP_THRB)
+            putWarnSwitch(2 + 0*FW, get_switches_string() );
+        if(x & SWP_RUDB)
+            putWarnSwitch(2 + 3*FW + FW/2, get_switches_string()+3 );
+        if(x & SWP_ELEB)
+            putWarnSwitch(2 + 7*FW, get_switches_string()+6 );
+
+        if(x & SWP_IL5)
+        {
+            if(i & SWP_ID0B)
+                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+9 );
+            if(i & SWP_ID1B)
+                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+12 );
+            if(i & SWP_ID2B)
+                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+15 );
+        }
+
+        if(x & SWP_AILB)
+            putWarnSwitch(2 + 14*FW, get_switches_string()+18 );
+        if(x & SWP_GEAB)
+            putWarnSwitch(2 + 17*FW + FW/2, get_switches_string()+21 );
+
+
+        refreshDisplay();
+
 
     if((i==g_eeGeneral.switchWarningStates) || (keyDown())) // check state against settings
     {

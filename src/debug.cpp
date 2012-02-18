@@ -106,6 +106,91 @@ uint32_t eeprom_image_blank( uint32_t image_index ) ;
 
 void eeprom_process( void ) ;
 
+// New file system
+
+// Start with 16 model memories
+// Blocks 0 and 1, general
+// Blocks 2 and 3, model 1
+// Blocks 4 and 5, model 2 etc
+// Blocks 32 and 33, model 16
+
+uint8_t Current_general_block ;		// 0 or 1 is active block
+uint8_t Other_general_block_blank ;
+
+// Structure of data in a block
+struct t_eeprom_block
+{
+	uint32_t sequence_no ;
+	uint16_t data_size ;
+	uint16_t spare ;
+	union
+	{
+		uint8_t bytes[4088] ;
+		uint32_t words[1022] ;
+	} data ;
+} ;
+
+//struct t_eeprom_block E_images[2] ;
+
+// Check all 4096 bytes of an image to see if they are blank
+//uint32_t eeprom_image_blank( uint32_t image_index )
+//{
+//	register uint32_t x ;
+//	register uint32_t *p ;
+
+//	p = &E_images[image_index].sequence_no ;
+
+//	for ( x = 0 ; x < 1024 ; x += 1 )
+//	{
+//		if ( *p++ != 0xFFFFFFFF )
+//		{
+//			return 0 ;
+//		}		
+//	}
+//	return 1 ;
+//}
+
+
+// Read eeprom data starting at a 4096 byte block boundary
+//uint32_t read_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate )
+//{
+//	register uint8_t *p ;
+//	register uint32_t x ;
+
+////	p = E_images[block_no].spi_command ;
+//	*p = 3 ;		// Read command
+//	*(p+1) = 0 ;
+//	*(p+2) = block_no << 4 ;
+//	*(p+3) = 0 ;		// 3 bytes address
+//	spi_PDC_action( p, 0, buffer, 4, size + 4 ) ;
+
+//	if ( immediate )
+//	{
+//		return 0 ;		
+//	}
+//	for ( x = 0 ; x < 100000 ; x += 1  )
+//	{
+//		if ( Spi_complete )
+//		{
+//			break ;				
+//		}        			
+//	}
+//	return x ; 
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Temporary eeprom handling - hence it's here
 
@@ -119,6 +204,12 @@ struct t_eeprom_image
 		uint32_t words[512] ;
 	} image ;
 	uint32_t sequence_no ;	
+	uint32_t filler[3] ;	
+	union
+	{
+		uint8_t bytes[2016] ;
+		uint32_t words[504] ;
+	} imagex ;
 } ;
 
 // storage declaration

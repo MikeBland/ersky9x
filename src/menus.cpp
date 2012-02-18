@@ -3286,6 +3286,7 @@ void menuProc0(uint8_t event)
         else
         {
 #endif
+		        scroll_disabled = 1;
             pushMenu(lastPopMenu());
             killEvents(event);
 #ifdef FRSKY
@@ -3293,6 +3294,7 @@ void menuProc0(uint8_t event)
 #endif
         break;
     case EVT_KEY_LONG(KEY_RIGHT):
+        scroll_disabled = 1;
         pushMenu(menuProcModelSelect);
         killEvents(event);
         break;
@@ -3315,6 +3317,7 @@ void menuProc0(uint8_t event)
         break;
 #endif
     case EVT_KEY_LONG(KEY_LEFT):
+        scroll_disabled = 1;
         pushMenu(menuProcSetup);
         killEvents(event);
         break;

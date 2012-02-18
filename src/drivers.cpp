@@ -205,7 +205,11 @@ extern uint32_t keyState(EnumKeys enuk)
 
   switch((uint8_t)enuk)
 	{
+#ifdef REVB
+    case SW_ElevDR : xxx = PIOC->PIO_PDSR & 0x80000000 ;	// ELE_DR   PC31
+#else 
     case SW_ElevDR : xxx = PIOA->PIO_PDSR & 0x00000100 ;	// ELE_DR   PA8
+#endif 
     break ;
     
     case SW_AileDR : xxx = PIOA->PIO_PDSR & 0x00000004 ;	// AIL-DR  PA2
@@ -227,9 +231,12 @@ extern uint32_t keyState(EnumKeys enuk)
     
 		case SW_Gear   : xxx = PIOC->PIO_PDSR & 0x00010000 ;	// SW_GEAR     PC16
     break ;
-    //case SW_ThrCt  : return PINE & (1<<INP_E_ThrCt);
 
+#ifdef REVB
+    case SW_ThrCt  : xxx = PIOC->PIO_PDSR & 0x00100000 ;	// SW_TCUT     PC20
+#else 
     case SW_ThrCt  : xxx = PIOA->PIO_PDSR & 0x10000000 ;	// SW_TCUT     PA28
+#endif 
     break ;
 
     case SW_Trainer: xxx = PIOC->PIO_PDSR & 0x00000100 ;	// SW-TRAIN    PC8
@@ -258,18 +265,35 @@ void killEvents(uint8_t event)
 
 
 // keys:
-// KEY_EXIT    PA31
-// KEY_MENU    PB6
-// KEY_DOWN  LCD5  PC3
-// KEY_UP    LCD6  PC2
-// KEY_RIGHT LCD4  PC4
-// KEY_LEFT  LCD3  PC5
+// KEY_EXIT    PA31 (PC24)
+// KEY_MENU    PB6 (PB5)
+// KEY_DOWN  LCD5  PC3 (PC5)
+// KEY_UP    LCD6  PC2 (PC1)
+// KEY_RIGHT LCD4  PC4 (PC4)
+// KEY_LEFT  LCD3  PC5 (PC3)
+// Reqd. bit 6 LEFT, 5 RIGHT, 4 UP, 3 DOWN 2 EXIT 1 MENU
+// LCD pins 5 DOWN, 4 RIGHT, 3 LEFT, 1 UP
 uint32_t read_keys()
 {
 	register uint32_t x ;
 	register uint32_t y ;
 	
-	x = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP
+	x = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
+#ifdef REVB
+	y = x & 0x00000020 ;		// RIGHT
+	if ( x & 0x00000004 )
+	{
+		y |= 0x00000010 ;			// UP
+	}
+	if ( x & 0x00000010 )
+	{
+		y |= 0x00000040 ;			// LEFT
+	}
+	if ( x & 0x00000040 )
+	{
+		y |= 0x00000008 ;			// DOWN
+	}
+#else	
 	y = x & 0x00000060 ;
 	if ( x & 0x00000008 )
 	{
@@ -279,13 +303,22 @@ uint32_t read_keys()
 	{
 		y |= 0x00000008 ;
 	}
+#endif
+#ifdef REVB
+	if ( PIOC->PIO_PDSR & 0x01000000 )
+#else 
 	if ( PIOA->PIO_PDSR & 0x80000000 )
+#endif
 	{
-		y |= 4 ;
+		y |= 4 ;		// EXIT
 	}
+#ifdef REVB
+	if ( PIOB->PIO_PDSR & 0x000000020 )
+#else 
 	if ( PIOB->PIO_PDSR & 0x000000040 )
+#endif
 	{
-		y |= 2 ;		
+		y |= 2 ;		// MENU
 	}
 	return y ;
 }
@@ -298,8 +331,12 @@ uint32_t read_trims()
 
 	trims = 0 ;
 
-// TRIM_LH_DOWN    PA7
+// TRIM_LH_DOWN    PA7 (PA23)
+#ifdef REVB
+	if ( ( PIOA->PIO_PDSR & 0x00800000 ) == 0 )
+#else
 	if ( ( PIOA->PIO_PDSR & 0x0080 ) == 0 )
+#endif
 	{
 		trims |= 1 ;
 	}
@@ -310,8 +347,12 @@ uint32_t read_trims()
 		trims |= 2 ;
 	}
 
-// TRIM_LV_DOWN  PA27
+// TRIM_LV_DOWN  PA27 (PA24)
+#ifdef REVB
+	if ( ( PIOA->PIO_PDSR & 0x01000000 ) == 0 )
+#else
 	if ( ( PIOA->PIO_PDSR & 0x08000000 ) == 0 )
+#endif
 	{
 		trims |= 4 ;
 	}
@@ -328,14 +369,22 @@ uint32_t read_trims()
 		trims |= 0x10 ;
 	}
 
-// TRIM_RV_UP    PA30
+// TRIM_RV_UP    PA30 (PA1)
+#ifdef REVB
+	if ( ( PIOA->PIO_PDSR & 0x00000002 ) == 0 )
+#else
 	if ( ( PIOA->PIO_PDSR & 0x40000000 ) == 0 )
+#endif
 	{
 		trims |= 0x20 ;
 	}
 
-// TRIM_RH_DOWN    PA29
+// TRIM_RH_DOWN    PA29 (PA0)
+#ifdef REVB
+	if ( ( PIOA->PIO_PDSR & 0x00000001 ) == 0 )
+#else 
 	if ( ( PIOA->PIO_PDSR & 0x20000000 ) == 0 )
+#endif 
 	{
 		trims |= 0x40 ;
 	}
@@ -413,7 +462,7 @@ void init_spi()
   pioptr->PIO_PDR = 0x00007800 ;					// Assign to peripheral
 	
 	spiptr = SPI ;
-	timer = ( Master_frequency / 3000000 ) << 8 ;
+	timer = ( Master_frequency / 3000000 ) << 8 ;		// Baud rate 3Mb/s
 	spiptr->SPI_MR = 0x14000011 ;				// 0001 0100 0000 0000 0000 0000 0001 0001 Master
 	spiptr->SPI_CSR[0] = 0x01180009 | timer ;		// 0000 0001 0001 1000 xxxx xxxx 0000 1001
 	NVIC_EnableIRQ(SPI_IRQn) ;
@@ -695,7 +744,7 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 	}
 	spiptr->SPI_TNCR = count ;
 
-	spiptr->SPI_PTCR = SPI_PTCR_RXTEN | SPI_PTCR_TXTEN ;	// Start tramsfers
+	spiptr->SPI_PTCR = SPI_PTCR_RXTEN | SPI_PTCR_TXTEN ;	// Start transfers
 
 	// Wait for things to get started, avoids early interrupt
 	for ( count = 0 ; count < 1000 ; count += 1 )

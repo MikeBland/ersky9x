@@ -22,8 +22,7 @@
 #define assert(x)
 #define wdt_reset()
 
-
-#define VERSION	"V0.25"
+#define VERSION	"V0.26"
 
 #define DATE_STR "xx.xx.2012"
 #define TIME_STR "xx:xx:xx"
@@ -113,6 +112,18 @@ enum EnumKeys {
 #define SW_BASE      SW_ThrCt
 #define SW_BASE_DIAG SW_ThrCt
 #define MAX_DRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_CSW)
+
+#define SWP_RUD (SW_RuddDR-SW_BASE)
+#define SWP_ELE (SW_ElevDR-SW_BASE)
+#define SWP_AIL (SW_AileDR-SW_BASE)
+#define SWP_THR (SW_ThrCt-SW_BASE)
+#define SWP_GEA (SW_Gear-SW_BASE)
+
+#define SWP_RUDB (1<<SWP_RUD)
+#define SWP_ELEB (1<<SWP_ELE)
+#define SWP_AILB (1<<SWP_AIL)
+#define SWP_THRB (1<<SWP_THR)
+#define SWP_GEAB (1<<SWP_GEA)
 
 #define SWP_ID0 (SW_ID0-SW_BASE)
 #define SWP_ID1 (SW_ID1-SW_BASE)
