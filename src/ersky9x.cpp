@@ -1282,22 +1282,22 @@ void setup_switches()
 // PC20, PC21(labelled 17), PC22, PC24
 void config_free_pins()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 	
-	pioptr = PIOA ;
-	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
-	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
-	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
+//	pioptr = PIOA ;
+//	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
+//	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
+//	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
 
-	pioptr = PIOB ;
-	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
-	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
-	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
+//	pioptr = PIOB ;
+//	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
+//	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
+//	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
 
-	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
-	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
-	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
+//	pioptr = PIOC ;
+//	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
+//	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
+//	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
 }
 
 

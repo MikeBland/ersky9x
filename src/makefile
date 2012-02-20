@@ -150,6 +150,11 @@ ifeq ($(REVB), 1)
  CPPDEFS += -DREVB
 endif
 
+# If serial Debug required
+ifeq ($(DEBUG), 1)
+ CPPDEFS += -DDEBUG
+endif
+
 # Generate dependency information
 CPFLAGS += -MD -MP -MF .dep/$(@F).d
 CPPFLAGS += -MD -MP -MF .dep/$(@F).d

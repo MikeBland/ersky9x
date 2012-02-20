@@ -117,12 +117,17 @@ void eeprom_process( void ) ;
 uint8_t Current_general_block ;		// 0 or 1 is active block
 uint8_t Other_general_block_blank ;
 
+struct t_eeprom_header
+{
+	uint32_t sequence_no ;		// sequence # to decide which block is most recent
+	uint16_t data_size ;			// # bytes in data area
+	uint16_t flags ;					// Unused, for expansion
+} ;
+
 // Structure of data in a block
 struct t_eeprom_block
 {
-	uint32_t sequence_no ;
-	uint16_t data_size ;
-	uint16_t spare ;
+	struct t_eeprom_header header ;
 	union
 	{
 		uint8_t bytes[4088] ;
@@ -178,13 +183,149 @@ struct t_eeprom_block
 //	return x ; 
 //}
 
+// Pass in an even block number, this and the next block will be checked
+// to see which is the most recent, the block_no of the most recent
+// is returned, with the corresponding data size if required
+//uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size )
+//{
+//	struct t_eeprom_header b0 ;
+//	struct t_eeprom_header b1 ;
+//  uint16_t size ;
+//	read_eeprom_block( block_no, ( uint8_t *)&b0, sizeof(b0), 0 ) ;		// Sequence # 0
+//	read_eeprom_block( block_no+1, ( uint8_t *)&b1, sizeof(b1), 0 ) ;	// Sequence # 1
+
+//  size = b0.data_size ;
+//	if ( b0.sequence_no == 0xFFFFFFFF )
+//	{
+//		if ( b1.sequence_no != 0xFFFFFFFF )
+//		{
+//  		size = b1.data_size ;
+//			block_no += 1 ;
+//		}
+//	}
+//	else
+//	{
+//		if ( b1.sequence_no != 0xFFFFFFFF )
+//		{
+//			if ( b0.sequence_no > b1.sequence_no )
+//			{
+//	  		size = b1.data_size ;
+//				block_no += 1 ;
+//			}
+//		}
+//	}
+//  if ( size == 0xFFFF )
+//	{
+//		size = 0 ;
+//	}
+//  if ( p_size )
+//	{
+//		*p_size = size ;
+//	}
+//  return block_no ;
+//}
+
+// bool eeLoadGeneral()
+//{
+//	register uint8_t *p ;
+//	register uint8_t *q ;
+//	uint32_t block_no ;
+//	uint16_t size ;
+//	uint32_t count ;
+//	block_no = get_current_block_number( 0, &size ) ;
+
+//	read_eeprom_block( block_no, ( uint8_t *)&E_images[0], size + sizeof(struct t_eeprom_header), 0 ) ;
+  
+//  memset(&g_eeGeneral, 0, sizeof(EEGeneral));
+
+//	if ( size > sizeof(EEGeneral) )
+//	{
+//		size = sizeof(EEGeneral) ;
+//	}
+	
+	// Copy data to general
+//	p = E_images[0].data.bytes ;
+//	q = (uint8_t*)&g_eeGeneral ;
+//	for ( count = 0 ; count < size ; count += 1 )
+//	{
+//		*q++ = *p++ ;			
+//	}
+  
+//  for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
+//  {
+//      uint8_t idx = char2idx(g_eeGeneral.ownerName[i]);
+//      g_eeGeneral.ownerName[i] = idx2char(idx);
+//  }
+
+//  if(g_eeGeneral.myVers<MDVERS)
+//      sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
+
+//  g_eeGeneral.myVers   =  MDVERS; // update myvers
+
+//  uint16_t sum=0;
+//  if(sz>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
+//  return g_eeGeneral.chkSum == sum;
+//}
 
 
+//void eeLoadModel(uint8_t id)
+//{
+//	register uint8_t *p ;
+//	register uint8_t *q ;
+//	uint32_t block_no ;
+//	uint16_t size ;
+//	uint32_t count ;
 
+//    if(id<MAX_MODELS)
+//    {
+//			block_no = get_current_block_number( id * 2, &size ) ;
 
+//			read_eeprom_block( block_no, ( uint8_t *)&E_images[1], size + sizeof(struct t_eeprom_header), 0 ) ;
+				
+//				memset(&g_model, 0, sizeof(g_model));
+        
+//			if ( size > sizeof(g_model) )
+//			{
+//				size = sizeof(g_model) ;
+//			}
+			
+	// Copy data to model
+//			p = E_images[1].data.bytes ;
+//			q = (uint8_t*)&g_eeGeneral ;
+//			for ( count = 0 ; count < size ; count += 1 )
+//			{
+//				*q++ = *p++ ;			
+//			}
+				
+//      if(size<256) // if not loaded a fair amount
+//      {
+//          modelDefault(id);
+//      }
 
+//      for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid
+//      {
+//          uint8_t idx = char2idx(g_model.name[i]);
+//          g_model.name[i] = idx2char(idx);
+//      }
 
+//      g_model.mdVers = MDVERS; //update mdvers
 
+//      resetTimer2();
+
+//#ifdef FRSKY
+//  FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
+//        FRSKY_setModelAlarms();
+//#endif
+//    }
+//}
+
+//bool eeModelExists(uint8_t id)
+//{
+//	uint32_t block_no ;
+//	uint16_t size ;
+//	block_no = get_current_block_number( id * 2, &size ) ;
+//	return ( size > 0 ) ;
+//}
 
 
 
