@@ -60,6 +60,28 @@
 
 //#define bool uint32_t
 
+// Soft power operation
+// When the main power switch is turned on, the CPU starts, finds PC17 is high
+// so RF Power is on, enables the pullup on PA8 (50K to 175K), and thus turns
+// the soft power switch ON. Even with 175K pullup, assuming a hFE of the transistor
+// of 100, the transistor collector current should be at least 1.46 mA. This is
+// enough to pull the gate of the soft switch low. When you turn the power switch
+// off, RF power goes off, PC17 goes low (could have an internal pull down resistor),
+// so the CPU knows the power switch is off, CPU tidies up,
+// disables the pullup on PA8 and turns itself off.
+
+// If you plug the trainer cable in, with the power switch off, the soft power
+// switch turns on, the CPU finds PC17 is low, and PA8 is high so power must be
+// because of the trainer cable. As long as the voltage from the trainer power
+// is at least 6 volts, PA8 will be read as a 1 (>2.31 volts (0.7*VDDIO)). The
+// CPU turns the pullup resistor on PA8 on, thus holding the soft power ON.
+// When you unplug the trainer cable, the voltage at PA8 pin will drop. Even
+// with a 50K pullup resistor, and 0.7V across the transistor base-emitter,
+// the voltage at PA8 will be less than 0.87V. A logic 0 is a voltage less
+// than 0.99V (0.3*VDDIO). So the CPU will see a logic 0 on PA8 and know it
+// is time to tidy up, then turn the soft power off.
+
+
 /*=========================================================================*/
 /*  DEFINE: All Structures and Common Constants                            */
 /*=========================================================================*/
@@ -230,13 +252,9 @@ uint8_t pxxFlag = 0;
 
 
 // Still to test
-// SPI to external flash eeprom
 
 // PPM-in						PC23 TIOA3
-// Sound out				PB14 DAC1
 // SSC out					PA17 TD (sync PPM)
-// Two-wire i/f			PA3, PA4
-// EL backlight			PA0, PA1
 
 // Serial ports
 // PA5, PA6
@@ -264,16 +282,23 @@ int main (void)
 
   PMC->PMC_PCER0 = 0x3900 ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
 	pioptr = PIOA ;
+#ifdef REVB	
+	pioptr->PIO_PER = 0x00000100L ;		// Enable bit A8 (Soft Power)
+	pioptr->PIO_OER = 0x00000100L ;		// Set bit A8 as output
+	pioptr->PIO_CODR = 0x00000100L ;	// Set bit A8 OFF, disables soft power switch
+#else	
+	// On REVB, PA21 is used as AD8, and measures current consumption.
 	pioptr->PIO_PER = 0x00200000L ;		// Enable bit A21 (EXT3)
 	pioptr->PIO_OER = 0x00200000L ;		// Set bit A21 as output
 	pioptr->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
+#endif
 
 //	pioptr->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
 //	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x82000000L ;		// Enable bit C31 (EXT1), C25 (USB-detect)
-	pioptr->PIO_OER = 0x80000000L ;		// Set bits C18 and C31 as output
+	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
 	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
 	// Configure RF_power (PC17) and PPM-jack-in (PC19), neither need pullups
@@ -1204,6 +1229,7 @@ extern "C" void PWM_IRQHandler (void)
 
 
 // Switch input pins
+// Needs updating for REVB board ********
 // AIL-DR  PA2
 // TRIM_LH_DOWN PA7 (PA23)
 // ELE_DR   PA8 (PC31)
