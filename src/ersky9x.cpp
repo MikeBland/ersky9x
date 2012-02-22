@@ -171,7 +171,6 @@ uint16_t g_LightOffCounter ;
 uint8_t  stickMoved = 0;
 
 uint16_t S_anaFilt[8] ;				// Analog inputs after filtering
-uint16_t Volume ;
 
 uint8_t sysFlags = 0 ;
 
@@ -365,8 +364,6 @@ int main (void)
 	
 //	refreshDisplay() ;
 
-	set_volume( Volume = 2 ) ;
-
 //	i = Timer2_count ;
 
 	txmit( 'E' ) ;
@@ -377,6 +374,9 @@ int main (void)
 	eeReadAll() ;
 //	generalDefault() ;
 //	modelDefault( 0 ) ;
+	
+	set_volume( g_eeGeneral.volume ) ;
+	PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 
   pushMenu(menuProcModelSelect);
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
@@ -807,7 +807,6 @@ void perMain()
 //	if ( Permenu_action )
 //	{
     g_menuStack[g_menuStackPtr](evt);
-		lcd_outhex4( 10*FW, 0, evt ) ;
     refreshDisplay();
 //	}
 

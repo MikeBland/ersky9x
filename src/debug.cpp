@@ -51,7 +51,6 @@
 
 #include "s9xsplash.lbm"
 
-extern uint16_t Volume ;
 extern uint32_t Lcd_analog_display ;
 extern uint32_t Per10ms_action ;
 extern uint32_t Permenu_action ;
@@ -1193,6 +1192,7 @@ void handle_serial()
 		{
 			x += 1 ;
 			PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
+			g_eeGeneral.bright = x ;
 		}
 	}
 
@@ -1205,22 +1205,23 @@ void handle_serial()
 		{
 			x -= 1 ;
 			PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
+			g_eeGeneral.bright = x ;
 		}
 	}
 
 	if ( rxchar == '/' )
 	{
-		if ( Volume > 0 )
+		if ( g_eeGeneral.volume > 0 )
 		{
-			set_volume( --Volume ) ;
+			set_volume( --g_eeGeneral.volume ) ;
 		}
 	}
 
 	if ( rxchar == '*' )
 	{
-		if ( Volume < NUM_VOL_LEVELS )
+		if ( g_eeGeneral.volume < NUM_VOL_LEVELS )
 		{
-			set_volume( ++Volume ) ;
+			set_volume( ++ g_eeGeneral.volume ) ;
 		}
 	}
 

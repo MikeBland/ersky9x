@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AT91SAM3S2.h"
 #include "ersky9x.h"
 #include "sound.h"
 #include "lcd.h"
@@ -75,6 +76,7 @@
 
 
 void menuProcSetup(uint8_t event) ;
+void menuProcSetup1(uint8_t event) ;
 void menuProcDiagAna(uint8_t event) ;
 void menuProcDiagKeys(uint8_t event) ;
 void menuProcDiagCalib(uint8_t event) ;
@@ -171,6 +173,7 @@ MenuFuncP menuTabModel[] = {
 enum EnumTabDiag
 {
   e_Setup,
+  e_Setup1,
   e_Trainer,
   e_Vers,
   e_Keys,
@@ -181,6 +184,7 @@ enum EnumTabDiag
 MenuFuncP menuTabDiag[] =
 {
   menuProcSetup,
+  menuProcSetup1,
   menuProcTrainer,
   menuProcDiagVers,
   menuProcDiagKeys,
@@ -2415,6 +2419,45 @@ void menuProcDiagVers(uint8_t event)
     lcd_puts_Pleft( 6*FH,stamp5 );
 }
 
+void menuProcSetup1(uint8_t event)
+{
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 3, {0/*, 0*/});
+	
+	int8_t  sub    = mstate2.m_posVert;
+//	uint8_t subSub = mstate2.m_posHorz;
+//	bool    edit;
+//	uint8_t blink ;
+
+	evalOffset(sub, 3);
+	uint8_t y = 1*FH;
+	uint8_t subN = 1;
+
+  lcd_puts_Pleft(    y, PSTR("Volume"));
+	lcd_outdezAtt( 14*FW, y, g_eeGeneral.volume, (sub==subN) ? INVERS : 0 ) ;
+  if(sub==subN)
+	{
+		CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.volume,0,NUM_VOL_LEVELS-1);
+		set_volume( g_eeGeneral.volume ) ;
+	}
+  if((y+=FH)>3*FH) return;
+	subN++;
+
+  lcd_puts_Pleft(    y, PSTR("Brightness"));
+	lcd_outdezAtt( 14*FW, y, 100-g_eeGeneral.bright, (sub==subN) ? INVERS : 0 ) ;
+  if(sub==subN)
+	{
+		uint8_t b ;
+		b = 100 - g_eeGeneral.bright ;
+		CHECK_INCDEC_H_GENVAR( event, b, 0, 100 ) ;
+		g_eeGeneral.bright = 100 - b ;
+		PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
+	}
+  if((y+=FH)>2*FH) return;
+	subN++;
+
+}
+
+
 // From Bertrand, allow trainer inputs without using mixers.
 // Raw trianer inputs replace raw sticks.
 // Only first 4 PPMin may be calibrated.
@@ -3115,7 +3158,6 @@ uint16_t g_timeMain;
 void menuProcStatistic2(uint8_t event)
 {
   TITLE("STAT2");
-	lcd_outhex4( 10*FW, 0*FH, event ) ;
 
   switch(event)
   {
