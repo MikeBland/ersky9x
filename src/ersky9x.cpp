@@ -297,25 +297,43 @@ int main (void)
 //	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x82000000L ;		// Enable bit C31 (EXT1), C25 (USB-detect)
-	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
-	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
+	pioptr->PIO_PER = 0x02000000L ;		// Enable bit C25 (USB-detect)
+//	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
+//	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
+#ifdef REVB	
+	// Configure RF_power (PC17) and PPM-jack-in (PC22), neither need pullups
+	pioptr->PIO_PER = 0x00420000L ;		// Enable bit C22, C17
+	pioptr->PIO_ODR = 0x00420000L ;		// Set bits C22 and C17 as input
+#else	
 	// Configure RF_power (PC17) and PPM-jack-in (PC19), neither need pullups
 	pioptr->PIO_PER = 0x000A0000L ;		// Enable bit C19, C17
 	pioptr->PIO_ODR = 0x000A0000L ;		// Set bits C19 and C17 as input
+#endif
 
 	config_free_pins() ;
 
 	// Next section configures the key inputs on the LCD data
+#ifdef REVB	
+	pioptr->PIO_PER = 0x0000003BL ;		// Enable bits 1,3,4,5, 0
+	pioptr->PIO_OER = 0x00000001L ;		// Set bit 0 output
+	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
+#else	
 	pioptr->PIO_PER = 0x0000003DL ;		// Enable bits 2,3,4,5, 0
 	pioptr->PIO_OER = 0x00000001L ;		// Set bit 0 output
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
+#endif
 
 	pioptr = PIOB ;
+#ifdef REVB	
+	pioptr->PIO_PUER = 0x20 ;					// Enable pullup on bit B5 (MENU)
+	pioptr->PIO_PER = 0x20 ;					// Enable bit B5
+#else	
 	pioptr->PIO_PUER = 0x40 ;					// Enable pullup on bit B6 (MENU)
 	pioptr->PIO_PER = 0x40 ;					// Enable bit B6
+#endif
 
 	setup_switches() ;
 
@@ -853,14 +871,13 @@ void perMain()
 // Starts TIMER2 at 100Hz,  commentd out drive of TIOA2 (A26, EXT2) out
 void start_timer2()
 {
-//	register Pio *pioptr ;
+	register Pio *pioptr ;
   register Tc *ptc ;
 	register uint32_t timer ;
 
 	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
-//	pioptr = PIOA ;
 	timer = Master_frequency / 12800 ;		// MCK/128 and 100 Hz
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
@@ -872,9 +889,9 @@ void start_timer2()
 	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
 																						// MCK/128, set @ RA, Clear @ RC waveform
 
-//  pioptr->PIO_ABCDSR[0] |= 0x04000000 ;		// Peripheral B = TIOA2
-//  pioptr->PIO_ABCDSR[1] &= ~0x04000000 ;	// Peripheral B
-//	pioptr->PIO_PDR = 0x04000000L ;		// Disable bit A26 (EXT2) Assign to peripheral
+	pioptr = PIOC ;
+	pioptr->PIO_PER = 0x00080000L ;		// Enable bits C19
+	pioptr->PIO_OER = 0x00080000L ;		// Set as output
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
 	NVIC_EnableIRQ(TC2_IRQn) ;
@@ -1238,7 +1255,7 @@ extern "C" void PWM_IRQHandler (void)
 // SW_TCUT     PA28 (PC20)
 // TRIM_RH_DOWN    PA29 (PA0)
 // TRIM_RV_UP    PA30 (PA1)
-// TRIM_LH_UP    PB4
+// TRIM_LH_UP    //PB4
 // SW-TRAIN    PC8
 // TRIM_RH_UP   PC9
 // TRIM_RV_DOWN   PC10
@@ -1258,7 +1275,7 @@ extern "C" void PWM_IRQHandler (void)
 // PORTA 1111 1000 0000 0000 1000 0001 1000 0100 = 0xF8008184 proto
 // PORTA 0000 0001 1000 0000 1000 0000 0000 0111 = 0x01808087 REVB
 // PORTB 0000 0000 0001 0000										 = 0x0010     proto
-// PORTB 0000 0000 0010 0000										 = 0x0020     REVB
+// PORTB 0000 0000 0010 0000										 = 0x0030     REVB
 // PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900 proto
 // PORTC 1001 0001 0001 0001 0100 1001 0000 0000 = 0x91114900 REVB
 
@@ -1280,9 +1297,9 @@ void setup_switches()
 #endif 
 	pioptr = PIOB ;
 #ifdef REVB
-	pioptr->PIO_PER = 0x00000020 ;		// Enable bits
-	pioptr->PIO_ODR = 0x00000020 ;		// Set bits input
-	pioptr->PIO_PUER = 0x00000020 ;		// Set bits with pullups
+	pioptr->PIO_PER = 0x00000030 ;		// Enable bits
+	pioptr->PIO_ODR = 0x00000030 ;		// Set bits input
+	pioptr->PIO_PUER = 0x00000030 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
 	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
@@ -1302,28 +1319,32 @@ void setup_switches()
 
 }
 
-
+// Prototype
 // Free pins (PA16 is stock buzzer)
 // PA23, PA24, PA25, PB7, PB13
 // PC20, PC21(labelled 17), PC22, PC24
+// REVB
+// PA25, use for stock buzzer
+// PB14, PB6
+// PC21, PC19, PC15 (PPM2 output)
 void config_free_pins()
 {
-//	register Pio *pioptr ;
+	register Pio *pioptr ;
 	
 //	pioptr = PIOA ;
-//	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
-//	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
-//	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
+//	pioptr->PIO_PER = 0x02000000L ;		// Enable bit A25
+//	pioptr->PIO_ODR = 0x02000000L ;		// Set as input
+//	pioptr->PIO_PUER = 0x02000000L ;	// Enable pullups
 
-//	pioptr = PIOB ;
-//	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
-//	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
-//	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
+	pioptr = PIOB ;
+	pioptr->PIO_PER = 0x00004040L ;		// Enable bits B14, 6
+	pioptr->PIO_ODR = 0x00004040L ;		// Set as input
+	pioptr->PIO_PUER = 0x00004040L ;	// Enable pullups
 
-//	pioptr = PIOC ;
-//	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
-//	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
-//	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
+	pioptr = PIOC ;
+	pioptr->PIO_PER = 0x00288000L ;		// Enable bits C21, 19, 15
+	pioptr->PIO_ODR = 0x00288000L ;		// Set as input
+	pioptr->PIO_PUER = 0x00288000L ;	// Enable pullups
 }
 
 

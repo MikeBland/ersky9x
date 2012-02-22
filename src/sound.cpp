@@ -102,11 +102,28 @@ void start_sound()
 	init_twi() ;
 
 	pioptr = PIOA ;
+#ifdef REVB
+	pioptr->PIO_CODR = 0x02000000L ;	// Set bit A25 OFF
+	pioptr->PIO_PER = 0x02000000L ;		// Enable bit A25 (Stock buzzer)
+	pioptr->PIO_OER = 0x02000000L ;		// Set bit A25 as output
+#else
 	pioptr->PIO_CODR = 0x00010000L ;	// Set bit A16 OFF
 	pioptr->PIO_PER = 0x00010000L ;		// Enable bit A16 (Stock buzzer)
 	pioptr->PIO_OER = 0x00010000L ;		// Set bit A16 as output
+#endif
 }
 
+#ifdef REVB
+void buzzer_on()
+{
+	PIOA->PIO_SODR = 0x02000000L ;	// Set bit A25 ON
+}
+
+void buzzer_off()
+{
+	PIOA->PIO_CODR = 0x02000000L ;	// Set bit A25 ON
+}
+#else
 void buzzer_on()
 {
 	PIOA->PIO_SODR = 0x00010000L ;	// Set bit A16 ON
@@ -116,6 +133,7 @@ void buzzer_off()
 {
 	PIOA->PIO_CODR = 0x00010000L ;	// Set bit A16 ON
 }
+#endif
 
 void buzzer_sound( uint8_t time )
 {

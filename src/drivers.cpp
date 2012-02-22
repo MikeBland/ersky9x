@@ -409,6 +409,16 @@ void per10ms()
 
   g_tmr10ms++;
   g_blinkTmr10ms++;
+
+	if ( PIOC->PIO_ODSR & 0x00080000 )
+	{
+		PIOC->PIO_CODR = 0x00200000L ;	// Set bit C19 OFF
+	}
+	else
+	{
+		PIOC->PIO_SODR = 0x00200000L ;	// Set bit C19 ON
+	}
+
   uint8_t enuk = KEY_MENU;
   uint8_t    in = ~read_keys() ;
   for( i=1; i<7; i++)
@@ -445,7 +455,7 @@ void per10ms()
 // MISO PA12 (peripheral A)
 // MOSI PA13 (peripheral A)
 // SCK  PA14 (peripheral A)
-
+// Set clock to 3 MHz, AT25 device is rated to 70MHz, 18MHz would be better
 void init_spi()
 {
 	register Pio *pioptr ;
@@ -929,9 +939,6 @@ void read_8_adc()
 
 //	PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 
-	// Debug for timing length of operation
-	PIOA->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
-	
 	padc = ADC ;
 	y = padc->ADC_ISR ;		// Clear EOC flags
 	for ( y = 8 ; --y > 0 ; )
@@ -958,8 +965,6 @@ void read_8_adc()
 	Analog_values[6] = ADC->ADC_CDR13 ;
 	Analog_values[7] = ADC->ADC_CDR14;
 	
-	// Debug for timing length of operation
-	PIOA->PIO_CODR = 0x00200000L ;	// Clear bit A21 OFF
 
 // Power save
 //  PMC->PMC_PCER0 &= ~0x20000000L ;		// Disable peripheral clock to ADC
