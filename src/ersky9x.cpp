@@ -807,6 +807,7 @@ void perMain()
 //	if ( Permenu_action )
 //	{
     g_menuStack[g_menuStackPtr](evt);
+		lcd_outhex4( 10*FW, 0, evt ) ;
     refreshDisplay();
 //	}
 
