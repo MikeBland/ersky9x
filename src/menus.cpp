@@ -1813,7 +1813,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 17, {0,sizeof(g_model.name)-1,1,0,0,0,0,0,0,6,2,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 19, {0,sizeof(g_model.name)-1,1,0,0,1,0,0,0,0,0,0,6,2,0/*repeated...*/});
 //  MENU("SETUP", menuTabModel, e_Model, 16, {0,sizeof(g_model.name)-1,1,0,0,0,0,0,0,6,2,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;
@@ -1861,10 +1861,12 @@ void menuProcModel(uint8_t event)
     if((y+=FH)>7*FH) return;
 	}subN++;
 
+for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
+{
 	if(s_pgOfs<subN)
 	{
     lcd_puts_Pleft(    y, PSTR("Timer"));
-    putsTime(12*FW-1, y, g_model.tmrVal,(sub==subN && subSub==0 ? (s_editMode ? BLINK : INVERS):0),(sub==subN && subSub==1 ? (s_editMode ? BLINK : INVERS):0) );
+    putsTime(12*FW-1, y, g_model.timer[timer].tmrVal,(sub==subN && subSub==0 ? (s_editMode ? BLINK : INVERS):0),(sub==subN && subSub==1 ? (s_editMode ? BLINK : INVERS):0) );
 
     if(sub==subN && (s_editMode || p1valdiff))
 		{
@@ -1872,17 +1874,17 @@ void menuProcModel(uint8_t event)
 			{
         case 0:
         {
-            int8_t min=g_model.tmrVal/60;
+            int8_t min=g_model.timer[timer].tmrVal/60;
             CHECK_INCDEC_H_MODELVAR( event,min ,0,59);
-            g_model.tmrVal = g_model.tmrVal%60 + min*60;
+            g_model.timer[timer].tmrVal = g_model.timer[timer].tmrVal%60 + min*60;
             break;
         }
         case 1:
         {
-            int8_t sec=g_model.tmrVal%60;
+            int8_t sec=g_model.timer[timer].tmrVal%60;
             sec -= checkIncDec_hm( event,sec+2 ,1,62)-2;
-            g_model.tmrVal -= sec ;
-            if((int16_t)g_model.tmrVal < 0) g_model.tmrVal=0;
+            g_model.timer[timer].tmrVal -= sec ;
+            if((int16_t)g_model.timer[timer].tmrVal < 0) g_model.timer[timer].tmrVal=0;
             break;
         }
       }
@@ -1890,22 +1892,40 @@ void menuProcModel(uint8_t event)
     if((y+=FH)>7*FH) return;
 	}subN++;
 
-if(s_pgOfs<subN) { //timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw, chx(value > or < than tmrChVal), ch%
-    lcd_puts_Pleft(    y, PSTR("Trigger"));
+  if(s_pgOfs<subN) { //timer trigger source -> off, abs, THstk, THstk%, ch%
+    lcd_puts_Pleft(    y, PSTR("TriggerA"));
     uint8_t attr = (sub==subN ?  INVERS : 0);
-    putsTmrMode(10*FW,y,attr);
+    putsTmrMode(10*FW,y,attr, timer, 1 ) ;
 
     if(sub==subN)
-        CHECK_INCDEC_H_MODELVAR( event,g_model.tmrMode ,-(13+2*MAX_DRSWITCH),(13+2*MAX_DRSWITCH));
+        CHECK_INCDEC_H_MODELVAR( event,g_model.timer[timer].tmrModeA ,0,(1+2+16));
     if((y+=FH)>7*FH) return;
 }subN++;
 
-if(s_pgOfs<subN) {
-    lcd_puts_Pleft(    y, PSTR("Timer "));
-    lcd_putsnAtt(  10*FW, y, PSTR("Count DownCount Up  ")+10*g_model.tmrDir,10,(sub==subN ? INVERS:0));
-    if(sub==subN) CHECK_INCDEC_H_MODELVAR(event,g_model.tmrDir,0,1);
+  if(s_pgOfs<subN) { //timer trigger source -> none, sw/!sw, m_sw
+    lcd_puts_Pleft(    y, PSTR("TriggerB"));
+    uint8_t attr = (sub==subN ?  INVERS : 0);
+    putsTmrMode(10*FW,y,attr, timer, 2 ) ;
+//    int8_t tm = g_model.timer[timer].tmrModeB;
+//    if(abs(tm)>=(MAX_DRSWITCH))	 //momentary on-off
+//		{
+//  	  lcd_putcAtt(10*FW+3*FW,  y,'m',attr);
+//			if ( tm > 0 )
+//			{
+//				tm -= MAX_DRSWITCH - 1 ;
+//			}
+//			if ( tm < 0 )
+//			{
+//				tm += MAX_DRSWITCH - 1;
+//			}
+//		}			 
+//   	putsDrSwitches( 10*FW-1*FW, y, tm, attr );
+
+    if(sub==subN)
+        CHECK_INCDEC_H_MODELVAR( event,g_model.timer[timer].tmrModeB ,(1-MAX_DRSWITCH),(-2+2*MAX_DRSWITCH));
     if((y+=FH)>7*FH) return;
-}subN++;
+  }subN++;
+}
 
 if(s_pgOfs<subN) {
     uint8_t b ;
@@ -2050,14 +2070,14 @@ if(s_pgOfs<subN) {
     if((y+=FH)>7*FH) return;
 }subN++;
 
-if(s_pgOfs<subN) {
-    uint8_t b ;
-    b = g_model.t2throttle ;
-    lcd_puts_Pleft(    y, PSTR("T2ThTrig"));
-    menu_lcd_onoff( 10*FW, y, b, sub==subN ) ;
-    if(sub==subN) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.t2throttle = b ; }
-    if((y+=FH)>7*FH) return;
-}subN++;
+//if(s_pgOfs<subN) {
+//    uint8_t b ;
+//    b = g_model.t2throttle ;
+//    lcd_puts_Pleft(    y, PSTR("T2ThTrig"));
+//    menu_lcd_onoff( 10*FW, y, b, sub==subN ) ;
+//    if(sub==subN) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.t2throttle = b ; }
+//    if((y+=FH)>7*FH) return;
+//}subN++;
 
 if(s_pgOfs<subN) {
     lcd_putsAtt(0*FW, y, PSTR("DELETE MODEL   [MENU]"),s_noHi ? 0 : (sub==subN?INVERS:0));
@@ -2991,109 +3011,187 @@ void menuProcSetup(uint8_t event)
 
 }
 
-uint16_t s_timeCumTot;
+uint16_t s_timeCumTot;		// Total tx on time (secs)
 uint16_t s_timeCumAbs;  //laufzeit in 1/16 sec
-uint16_t s_timeCumSw;  //laufzeit in 1/16 sec
-uint16_t s_timeCumThr;  //gewichtete laufzeit in 1/16 sec
-uint16_t s_timeCum16ThrP; //gewichtete laufzeit in 1/16 sec
-uint8_t  s_timerState;
+static uint16_t s_time;
+static uint8_t s_cnt;
+
+
+struct t_timer
+{
+	uint16_t s_sum ;
+	uint8_t lastSwPos ;
+	uint8_t sw_toggled ;
+	uint16_t s_timeCumSw ;  //laufzeit in 1/16 sec
+	uint8_t  s_timerState ;
+	uint16_t s_timeCumThr ;  //gewichtete laufzeit in 1/16 sec
+	uint16_t s_timeCum16ThrP ; //gewichtete laufzeit in 1/16 sec
+	int16_t  s_timerVal ;
+} s_timer[2] ;
+
+// Timer triggers:
+// OFF - disabled
+// ABS AND no switch - always running
+// THs AND no switch - throttle stick
+// TH% AND no switch - throttle %
+// cx% AND no switch - channel %
+// ABS AND switch/switchm - controlled by switch
+// THs AND switch/switchm - both throttle stick AND switch
+// TH% AND switch/switchm - both throttle % AND switch
+// cx% AND switch/switchm - both channel % AND switch
+
+// 1. Test modeA, if OFF, timer OFF
+// 2. Test modeB, if no switch, or switch is ON, timer may run, else OFF
+// 3. Test modeA, if ABS timer is ON
+// 4. Test modeA, if THs, timer ON if throttle not 0
+// 4. Test modeA, if Th% or cx%, timer on as %
 #define TMR_OFF     0
 #define TMR_RUNNING 1
 #define TMR_BEEPING 2
 #define TMR_STOPPED 3
 
-int16_t  s_timerVal;
-void timer(uint8_t val)
+//int16_t  s_timerVal;
+void timer(uint16_t throttle_val)
 {
-    int8_t tm = g_model.tmrMode;
-    static uint16_t s_time;
-    static uint16_t s_cnt;
-    static uint16_t s_sum;
-    static uint8_t sw_toggled;
+	int16_t val ;
+	uint8_t timer ;
+	int8_t tma ;
+  int8_t tmb ;
+  uint16_t tv ;
+  
+  s_cnt++;			// Numver of times val added in
+	for( timer = 0 ; timer < 2 ; timer += 1 )
+	{
+		tma = g_model.timer[timer].tmrModeA ;
+    tmb = g_model.timer[timer].tmrModeB ;
 
-    if(abs(tm)>=(TMR_VAROFS+MAX_DRSWITCH-1)){ //toggeled switch//abs(g_model.tmrMode)<(10+MAX_DRSWITCH-1)
-        static uint8_t lastSwPos;
-        if(!(sw_toggled | s_sum | s_cnt | s_time | lastSwPos)) lastSwPos = tm < 0;  // if initializing then init the lastSwPos
-        uint8_t swPos = getSwitch(tm>0 ? tm-(TMR_VAROFS+MAX_DRSWITCH-1-1) : tm+(TMR_VAROFS+MAX_DRSWITCH-1-1) ,0);
-        if(swPos && !lastSwPos)  sw_toggled = !sw_toggled;  //if switcdh is flipped first time -> change counter state
-        lastSwPos = swPos;
-    }
+// code for cx%
+		val = throttle_val ;
+   	if(tma>=TMR_VAROFS) // Cxx%
+		{
+ 	    val = ( ex_chans[tma-TMR_VAROFS] + RESX ) / (RESX/16) ;
+		}		
 
-    s_cnt++;
-    s_sum+=val;
-    if(( get_tmr10ms()-s_time)<100) return; //1 sec
-    s_time += 100;
-    val     = s_sum/s_cnt;
-    s_sum  -= val*s_cnt; //rest
-    s_cnt   = 0;
+		if ( tma != TMRMODE_NONE )		// Timer is not off
+		{ // We have a triggerA so timer is running 
+    	if(tmb>=(MAX_DRSWITCH-1))	 // toggeled switch
+			{
+    	  if(!(s_timer[timer].sw_toggled | s_timer[timer].s_sum | s_cnt | s_time | s_timer[timer].lastSwPos)) s_timer[timer].lastSwPos = 0 ;  // if initializing then init the lastSwPos
+    	  uint8_t swPos = getSwitch( tmb-(MAX_DRSWITCH-1), 0 ) ;
+    	  if(swPos && !s_timer[timer].lastSwPos)  s_timer[timer].sw_toggled = !s_timer[timer].sw_toggled;  //if switch is flipped first time -> change counter state
+    	  s_timer[timer].lastSwPos = swPos;
+    	}
+    	else
+			{
+				if ( tmb )
+				{
+    	  	s_timer[timer].sw_toggled = getSwitch( tmb ,0); //normal switch
+				}
+				else
+				{
+					s_timer[timer].sw_toggled = 1 ;	// No trigger B so use as active
+				}
+			}
+		}
 
-    if(abs(tm)<TMR_VAROFS) sw_toggled = false; // not switch - sw timer off
-    else if(abs(tm)<(TMR_VAROFS+MAX_DRSWITCH-1)) sw_toggled = getSwitch((tm>0 ? tm-(TMR_VAROFS-1) : tm+(TMR_VAROFS-1)) ,0); //normal switch
+		if ( s_timer[timer].sw_toggled == 0 )
+		{
+			val = 0 ;			
+		}
 
-    s_timeCumTot               += 1;
-    s_timeCumAbs               += 1;
-    if(val) s_timeCumThr       += 1;
-    if(sw_toggled) s_timeCumSw += 1;
-    s_timeCum16ThrP            += val/2;
+    s_timer[timer].s_sum += val ;   // Add val in
+    if(( get_tmr10ms()-s_time)<100)
+		{
+			if ( timer == 0 )
+			{
+				continue ; //1 sec
+			}
+			else
+			{
+				return ;
+			}
+		}
+    val     = s_timer[timer].s_sum/s_cnt;   // Average of val over last 100mS
+    s_timer[timer].s_sum  -= val*s_cnt;     //rest (remainder not added in)
 
-    s_timerVal = g_model.tmrVal;
-    uint8_t tmrM = abs(g_model.tmrMode);
-    if(tmrM==TMRMODE_NONE) s_timerState = TMR_OFF;
-    else if(tmrM==TMRMODE_ABS) s_timerVal -= s_timeCumAbs;
-    else if(tmrM<TMR_VAROFS) s_timerVal -= (tmrM&1) ? s_timeCum16ThrP/16 : s_timeCumThr;// stick% : stick
-    else s_timerVal -= s_timeCumSw; //switch
+		if ( timer == 0 )
+		{
+    	s_timeCumTot += 1;
+	    s_timeCumAbs += 1;
+		}
+		else
+		{
+	    s_cnt   = 0;    // ready for next 100mS
+			s_time += 100;  // 100*10mS passed
+		}
+    if(val) s_timer[timer].s_timeCumThr       += 1;
+    if(s_timer[timer].sw_toggled) s_timer[timer].s_timeCumSw += 1;
+    s_timer[timer].s_timeCum16ThrP            += val>>1;	// val/2
 
-    switch(s_timerState)
+    tv = s_timer[timer].s_timerVal = g_model.timer[timer].tmrVal ;
+    if(tma == TMRMODE_NONE)
+		{
+			s_timer[timer].s_timerState = TMR_OFF;
+		}
+    else
+		{
+			if ( tma==TMRMODE_ABS )
+			{
+				if ( tmb == 0 ) s_timer[timer].s_timerVal -= s_timeCumAbs ;
+	    	else s_timer[timer].s_timerVal -= s_timer[timer].s_timeCumSw ; //switch
+			}
+	    else if(tma<TMR_VAROFS-1) s_timer[timer].s_timerVal -= s_timer[timer].s_timeCumThr;	// stick
+		  else s_timer[timer].s_timerVal -= s_timer[timer].s_timeCum16ThrP/16 ; // stick% or Cx%
+		}   
+		 
+    switch(s_timer[timer].s_timerState)
     {
     case TMR_OFF:
-        if(g_model.tmrMode != TMRMODE_NONE) s_timerState=TMR_RUNNING;
+        if(tma != TMRMODE_NONE) s_timer[timer].s_timerState=TMR_RUNNING;
         break;
     case TMR_RUNNING:
-        if(s_timerVal<=0 && g_model.tmrVal) s_timerState=TMR_BEEPING;
+        if(s_timer[timer].s_timerVal<=0 && tv) s_timer[timer].s_timerState=TMR_BEEPING;
         break;
     case TMR_BEEPING:
-        if(s_timerVal <= -MAX_ALERT_TIME)   s_timerState=TMR_STOPPED;
-        if(g_model.tmrVal == 0)             s_timerState=TMR_RUNNING;
+        if(s_timer[timer].s_timerVal <= -MAX_ALERT_TIME)   s_timer[timer].s_timerState=TMR_STOPPED;
+        if(tv == 0)       s_timer[timer].s_timerState=TMR_RUNNING;
         break;
     case TMR_STOPPED:
         break;
     }
+    if( tv==0) s_timer[timer].s_timerVal = tv-s_timer[timer].s_timerVal; //if counting backwards - display backwards
+	}
+    
+		
+		static int16_t last_tmr;
 
-    static int16_t last_tmr;
-
-    if(last_tmr != s_timerVal)  //beep only if seconds advance
+    if(last_tmr != s_timer[0].s_timerVal)  //beep only if seconds advance
     {
-        if(s_timerState==TMR_RUNNING)
+    		last_tmr = s_timer[0].s_timerVal;
+        if(s_timer[0].s_timerState==TMR_RUNNING)
         {
-            if(g_eeGeneral.preBeep && g_model.tmrVal) // beep when 30, 15, 10, 5,4,3,2,1 seconds remaining
+            if(g_eeGeneral.preBeep && g_model.timer[0].tmrVal) // beep when 30, 15, 10, 5,4,3,2,1 seconds remaining
             {
-            	
+              	if(s_timer[0].s_timerVal==30) {audioDefevent(AUDIO_TIMER_30);}	
+              	if(s_timer[0].s_timerVal==20) {audioDefevent(AUDIO_TIMER_20);}		
+                if(s_timer[0].s_timerVal==10) {audioDefevent(AUDIO_TIMER_10);}	
+                if(s_timer[0].s_timerVal<= 3) {audioDefevent(AUDIO_TIMER_LT3);}	               
 
-              	if(s_timerVal==30) {audioDefevent(AUDIO_TIMER_30);}	
-              	if(s_timerVal==20) {audioDefevent(AUDIO_TIMER_20);}		
-                if(s_timerVal==10) {audioDefevent(AUDIO_TIMER_10);}	
-                if(s_timerVal<= 3) {audioDefevent(AUDIO_TIMER_LT3);}	               
-                
-                
-
-                if(g_eeGeneral.flashBeep && (s_timerVal==30 || s_timerVal==20 || s_timerVal==10 || s_timerVal<=3))
+                if(g_eeGeneral.flashBeep && (s_timer[0].s_timerVal==30 || s_timer[0].s_timerVal==20 || s_timer[0].s_timerVal==10 || s_timer[0].s_timerVal<=3))
                     g_LightOffCounter = FLASH_DURATION;
             }
-
-            if(g_eeGeneral.minuteBeep && (((g_model.tmrDir ? g_model.tmrVal-s_timerVal : s_timerVal)%60)==0)) //short beep every minute
+            if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrVal ?  s_timer[0].s_timerVal : g_model.timer[0].tmrVal-s_timer[0].s_timerVal)%60)==0)) //short beep every minute
             {
                 audioDefevent(AUDIO_WARNING1);
                 if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
             }
         }
-        else if(s_timerState==TMR_BEEPING)
+        else if(s_timer[0].s_timerState==TMR_BEEPING)
         {
             audioDefevent(AUDIO_TIMER_LT3);
             if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
         }
     }
-    last_tmr = s_timerVal;
-    if(g_model.tmrDir) s_timerVal = g_model.tmrVal-s_timerVal; //if counting backwards - display backwards
 }
 
 
@@ -3105,26 +3203,27 @@ void trace()   // called in perOut - once envery 0.01sec
 {
     //value for time described in g_model.tmrMode
     //OFFABSRUsRU%ELsEL%THsTH%ALsAL%P1P1%P2P2%P3P3%
-  uint16_t v = 0;
-  if((abs(g_model.tmrMode)>1) && (abs(g_model.tmrMode)<TMR_VAROFS))
-	{
-    v = calibratedStick[CONVERT_MODE(abs(g_model.tmrMode)/2)-1];
-    v = (g_model.tmrMode<0 ? RESX-v : v+RESX ) / (RESX/16);
-  }
-  timer(v) ;
+    //now OFFABSTHsTH%
+    uint16_t val = calibratedStick[CONVERT_MODE(3)-1]; //Get throttle channel value
+//    uint16_t v = 0;
+//    if((g_model.timer[0].tmrModeA>1) && (g_model.timer[0].tmrModeA<TMR_VAROFS))
+//		{
+//      v = ( val + RESX ) / (RESX/16) ;
+//    }
+    timer(val);
 
-  uint16_t val = calibratedStick[CONVERT_MODE(3)-1]; //Get throttle channel value
+//    uint16_t val = calibratedStick[CONVERT_MODE(3)-1]; //Get throttle channel value
   val = (val+RESX) / (RESX/16); //calibrate it
-  if ( g_model.t2throttle )
-  {
-    if ( val >= 5 )
-    {
-      if ( Timer2_running == 0 )
-      {
-        Timer2_running = 3 ;  // Running (bit 0) and Started by throttle (bit 1)
-      }
-    }
-  }
+//  if ( g_model.t2throttle )
+//  {
+//    if ( val >= 5 )
+//    {
+//      if ( Timer2_running == 0 )
+//      {
+//        Timer2_running = 3 ;  // Running (bit 0) and Started by throttle (bit 1)
+//      }
+//    }
+//  }
   static uint16_t s_time;
   static uint16_t s_cnt;
   static uint16_t s_sum;
@@ -3249,12 +3348,12 @@ void menuProcStatistic(uint8_t event)
   lcd_puts_P(  1*FW, FH*1, PSTR("TME"));
   putsTime(    7*FW, FH*1, s_timeCumAbs, 0, 0);
   lcd_puts_P( 17*FW, FH*1, PSTR("TSW"));
-  putsTime(   13*FW, FH*1, s_timeCumSw,      0, 0);
+  putsTime(   13*FW, FH*1, s_timer[0].s_timeCumSw,      0, 0);
 
   lcd_puts_P(  1*FW, FH*2, PSTR("STK"));
-  putsTime(    7*FW, FH*2, s_timeCumThr, 0, 0);
+  putsTime(    7*FW, FH*2, s_timer[0].s_timeCumThr, 0, 0);
   lcd_puts_P( 17*FW, FH*2, PSTR("ST%"));
-  putsTime(   13*FW, FH*2, s_timeCum16ThrP/16, 0, 0);
+  putsTime(   13*FW, FH*2, s_timer[0].s_timeCum16ThrP/16, 0, 0);
 
   lcd_puts_P( 17*FW, FH*0, PSTR("TOT"));
   putsTime(   13*FW, FH*0, s_timeCumTot, 0, 0);
@@ -3281,11 +3380,15 @@ void menuProcStatistic(uint8_t event)
 
 void resetTimer()
 {
-    s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
+    s_timer[0].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
     s_timeCumAbs=0;
-    s_timeCumThr=0;
-    s_timeCumSw=0;
-    s_timeCum16ThrP=0;
+    s_timer[0].s_timeCumThr=0;
+    s_timer[0].s_timeCumSw=0;
+    s_timer[0].s_timeCum16ThrP=0;
+    s_timer[1].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
+    s_timer[1].s_timeCumThr=0;
+    s_timer[1].s_timeCumSw=0;
+    s_timer[1].s_timeCum16ThrP=0;
 }
 
 extern int8_t *TrimPtr[4] ;
@@ -3399,15 +3502,15 @@ void menuProc0(uint8_t event)
       killEvents(event);
     break;
     case EVT_KEY_FIRST(KEY_EXIT):
-        if(s_timerState==TMR_BEEPING) {
-            s_timerState = TMR_STOPPED;
+        if(s_timer[0].s_timerState==TMR_BEEPING) {
+            s_timer[0].s_timerState = TMR_STOPPED;
             audioDefevent(AUDIO_MENUS);
         }
-        else if(view == e_timer2) {
-            resetTimer2();
-            // Timer2_running = !Timer2_running;
-            audioDefevent(AUDIO_MENUS);
-        }
+//        else if(view == e_timer2) {
+//            resetTimer2();
+//            // Timer2_running = !Timer2_running;
+//            audioDefevent(AUDIO_MENUS);
+//        }
 #ifdef FRSKY
         else if (view == e_telemetry) {
             resetTelemetry();
@@ -3417,7 +3520,7 @@ void menuProc0(uint8_t event)
         break;
     case EVT_KEY_LONG(KEY_EXIT):
         resetTimer();
-        resetTimer2();
+//        resetTimer2();
 #ifdef FRSKY
         resetTelemetry();
 #endif
@@ -3448,11 +3551,10 @@ void menuProc0(uint8_t event)
 	  putsVBat(x+4*FW, 2*FH, att|NO_UNIT ) ;
   	lcd_putc( x+4*FW, 3*FH, 'V' ) ;
 
-  	if(s_timerState != TMR_OFF)
-		{
-  	  uint8_t att = DBLSIZE | (s_timerState==TMR_BEEPING ? BLINK : 0);
-  	  putsTime(x+14*FW-2, FH*2, s_timerVal, att,att);
-  	  putsTmrMode(x+7*FW-FW/2,FH*3,0);
+    if(s_timer[0].s_timerState != TMR_OFF){
+      uint8_t att = DBLSIZE | (s_timer[0].s_timerState==TMR_BEEPING ? BLINK : 0);
+      putsTime(x+14*FW-2, FH*2, s_timer[0].s_timerVal, att,att);
+      putsTmrMode(x+7*FW-FW/2,FH*3,0, 0, 2 ) ;
   	}
 
   	lcd_putsnAtt(x+4*FW,     2*FH,PSTR("ExpExFFneMedCrs")+3*g_model.trimInc,3, 0);
@@ -3493,10 +3595,9 @@ void menuProc0(uint8_t event)
     lcd_putsnAtt(0, 0, g_model.name, sizeof(g_model.name), INVERS);
     uint8_t att = (g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0);
     putsVBat(14*FW,0,att);
-    if(s_timerState != TMR_OFF)
- 		{
-      att = (s_timerState==TMR_BEEPING ? BLINK : 0);
-      putsTime(18*FW+3, 0, s_timerVal, att, att);
+    if(s_timer[0].s_timerState != TMR_OFF){
+      att = (s_timer[0].s_timerState==TMR_BEEPING ? BLINK : 0);
+      putsTime(18*FW+3, 0, s_timer[0].s_timerVal, att, att);
     }
   }
   

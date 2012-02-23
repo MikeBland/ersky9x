@@ -104,6 +104,7 @@ void perMain( void ) ;
 void generalDefault( void ) ;
 void modelDefault( uint8_t id ) ;
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
+void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( char *string ) ;
 uint16_t rxuart( void ) ;
@@ -345,6 +346,8 @@ int main (void)
 	PMC->PMC_PCK[2] = 2 ;										// PCK2 is PLLA
 
 	UART_Configure( 9600, Master_frequency ) ;
+	UART2_Configure( 9600, Master_frequency ) ;		// Testing
+
 	start_timer2() ;
 	start_timer0() ;
 	init_adc() ;
@@ -478,6 +481,13 @@ int main (void)
 
 #ifdef	DEBUG
 		handle_serial() ;
+		{
+			uint16_t rxchar ;
+			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
+			{
+				txmit2nd( rxchar ) ;                   		// Testing
+			}
+		}
 #endif
 
 		pioptr = PIOC ;
@@ -1139,12 +1149,15 @@ extern "C" void PWM_IRQHandler (void)
     	}
 	//    *ptr=q;       //reverse these two assignments
 	//    *(ptr+1)=rest;
-    	 *ptr = rest;
-    	 *(ptr+1) = 0;
-
+    	*ptr = rest;
+    	*(ptr+1) = 0;
 		}
 	}
 }
+
+
+
+
 
 
 /*-------------------------------------------------------------------*/
@@ -1459,22 +1472,39 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
   lcd_putsnAtt(x+FW,y,get_switches_string()+3*(abs(idx1)-1),3,att);
 }
 
-void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr)
+void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type )
 {
-  int8_t tm = g_model.tmrMode;
-  if(abs(tm)<TMR_VAROFS) {
-    lcd_putsnAtt(  x, y, PSTR("OFFABSRUsRU%ELsEL%THsTH%ALsAL%P1 P1%P2 P2%P3 P3%")+3*abs(tm),3,attr);
-    if(tm<(-TMRMODE_ABS)) lcd_putcAtt(x-1*FW,  y,'!',attr);
-    return;
-  }
-
-  if(abs(tm)<(TMR_VAROFS+MAX_DRSWITCH-1)) { //normal on-off
-    putsDrSwitches( x-1*FW,y,tm>0 ? tm-(TMR_VAROFS-1) : tm+(TMR_VAROFS-1),attr);
-    return;
-  }
-
-  putsDrSwitches( x-1*FW,y,tm>0 ? tm-(TMR_VAROFS+MAX_DRSWITCH-1-1) : tm+(TMR_VAROFS+MAX_DRSWITCH-1-1),attr);//momentary on-off
-  lcd_putcAtt(x+3*FW,  y,'m',attr);
+  int8_t tm = g_model.timer[timer].tmrModeA ;
+	if ( type < 2 )		// 0 or 1
+	{
+	  if(tm<TMR_VAROFS) {
+        lcd_putsnAtt(  x, y, PSTR("OFFABSTHsTH%")+3*abs(tm),3,attr);
+//    return;
+  	}
+		else
+		{
+  		tm -= TMR_VAROFS ;
+  		lcd_putsnAtt(  x, y, PSTR( CURV_STR ) + 21 + 3*tm, 3, attr ) ;		// Cheat to get chan# text
+			if ( tm < 9 )
+			{
+				x -= FW ;		
+			}
+  		lcd_putcAtt(x+3*FW,  y,'%',attr);
+		}
+	}
+	if ( ( type == 2 ) || ( ( type == 0 ) && ( tm == 1 ) ) )
+	{
+    tm = g_model.timer[timer].tmrModeB;
+    if(abs(tm)>=(MAX_DRSWITCH))	 //momentary on-off
+		{
+  	  lcd_putcAtt(x+3*FW,  y,'m',attr);
+			if ( tm > 0 )
+			{
+				tm -= MAX_DRSWITCH - 1 ;
+			}
+		}			 
+   	putsDrSwitches( x-1*FW, y, tm, attr );
+	}
 }
 
 const char *get_switches_string()

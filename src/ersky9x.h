@@ -406,7 +406,7 @@ extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 extern void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att) ;
 extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
-extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr);
+extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type ) ;
 extern const char *get_switches_string( void ) ;
 
 extern int16_t intpol(int16_t x, uint8_t idx);

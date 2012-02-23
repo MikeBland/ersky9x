@@ -30,7 +30,11 @@ extern uint32_t Eeprom_image_updated ;
 
 extern void eeprom_process( void ) ;
 
+#ifdef REVB
+uint16_t Analog_values[9] ;
+#else
 uint16_t Analog_values[8] ;
+#endif
 uint8_t eeprom[4096] ;
 
 volatile uint32_t Spi_complete ;
@@ -63,7 +67,8 @@ void p2hex( unsigned char c ) ;
 void hex_digit_send( unsigned char c ) ;
 void read_8_adc(void ) ;
 void init_adc( void ) ;
-
+void init_ssc( void ) ;
+void disable_ssc( void ) ;
 
 /** Console baudrate 9600. */
 #define CONSOLE_BAUDRATE    9600
@@ -631,6 +636,7 @@ uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uin
 	return result ;
 }
 
+// The following superceded by the PDC version after
 //uint32_t spi_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
 //{
 //	register Spi *spiptr ;
@@ -777,6 +783,7 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
  *
  * baudrate  Baudrate at which the UART should operate (in Hz).
  * masterClock  Frequency of the system master clock (in Hz).
+ * uses PA9 and PA10, RXD2 and TXD2
  */
 void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 {
@@ -814,7 +821,7 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 // USART0 configuration
 // Work in Progress, UNTESTED
-//
+// Uses PA5 and PA6 (RXD and TXD)
 void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 {
 ////    const Pin pPins[] = CONSOLE_PINS;
@@ -887,6 +894,27 @@ uint16_t rxuart()
 	return 0xFFFF ;
 }
 
+void txmit2nd( uint8_t c )
+{
+  register Usart *pUsart = SECOND_USART;
+
+	/* Wait for the transmitter to be ready */
+  while ( (pUsart->US_CSR & US_CSR_TXEMPTY) == 0 ) ;
+
+  /* Send character */
+  pUsart->US_THR=c ;
+}
+
+uint16_t rx2nduart()
+{
+  register Usart *pUsart = SECOND_USART;
+
+  if (pUsart->US_CSR & US_CSR_RXRDY)
+	{
+		return pUsart->US_RHR ;
+	}
+	return 0xFFFF ;
+}
 
 // Send a <cr><lf> combination to the serial port
 void crlf()
@@ -931,6 +959,8 @@ void hex_digit_send( unsigned char c )
 }
 
 
+// Read 8 (9 for REVB) ADC channels
+// Documented bug, must do them 1 by 1
 void read_8_adc()
 {
 	register Adc *padc ;
@@ -941,7 +971,11 @@ void read_8_adc()
 
 	padc = ADC ;
 	y = padc->ADC_ISR ;		// Clear EOC flags
+#ifdef REVB
+	for ( y = 9 ; --y > 0 ; )
+#else
 	for ( y = 8 ; --y > 0 ; )
+#endif
 	{
 		padc->ADC_CR = 2 ;		// Start conversion
 		x = 0 ;
@@ -963,7 +997,10 @@ void read_8_adc()
 	Analog_values[4] = ADC->ADC_CDR5 ;
 	Analog_values[5] = ADC->ADC_CDR9 ;
 	Analog_values[6] = ADC->ADC_CDR13 ;
-	Analog_values[7] = ADC->ADC_CDR14;
+	Analog_values[7] = ADC->ADC_CDR14 ;
+#ifdef REVB
+	Analog_values[8] = ADC->ADC_CDR8 ;
+#endif
 	
 
 // Power save
@@ -996,7 +1033,11 @@ void init_adc()
   PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 	padc = ADC ;
 	padc->ADC_MR = 0x14110000 | timer ;  // 0001 0100 0001 0001 xxxx xxxx 0000 0000
+#ifdef REVB
+	padc->ADC_CHER = 0x0000633E ;  // channels 1,2,3,4,5,8,9,13,14
+#else
 	padc->ADC_CHER = 0x0000623E ;  // channels 1,2,3,4,5,9,13,14
+#endif
 	padc->ADC_CGR = 0 ;  // Gain = 1, all channels
 	padc->ADC_COR = 0 ;  // Single ended, 0 offset, all channels
 }
@@ -1140,4 +1181,40 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 //  sei();
 }
 
+// Initialise the SSC to allow PXX output.
+// TD is on PA17, peripheral A
+void init_ssc()
+{
+	register Pio *pioptr ;
+	register Ssc *sscptr ;
+
+  PMC->PMC_PCER0 |= 0x00400000L ;		// Enable peripheral clock to SSC
+	pioptr = PIOA ;
+  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;	// Peripheral A bit 17
+  pioptr->PIO_ABCDSR[1] &= ~0x00020000 ;	// Peripheral A
+  pioptr->PIO_PDR = 0x00020000 ;					// Assign to peripheral
+	
+	sscptr = SSC ;
+	sscptr->SSC_CMR = Master_frequency / (125000*2) ;		// 8uS per bit
+	sscptr->SSC_CMR = 0 ;  	//  0000 0000 0000 0000 0000 0000 0000 0000
+	sscptr->SSC_TFMR = 0x000000A7 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, msb)
+	sscptr->SSC_CR = SSC_CR_TXEN ;
+
+}
+
+void disable_ssc()
+{
+	register Pio *pioptr ;
+	register Ssc *sscptr ;
+
+	// Revert back to pwm output
+	pioptr = PIOA ;
+  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;		// Peripheral C
+  pioptr->PIO_ABCDSR[1] |= 0x00020000 ;			// Peripheral C
+	pioptr->PIO_PDR = 0x00020000L ;						// Disable bit A17 Assign to peripheral
+	
+	sscptr = SSC ;
+
+
+}
 

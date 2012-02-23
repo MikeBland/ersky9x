@@ -11,6 +11,8 @@ extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void txmit( uint8_t c ) ;
 extern void uputs( register char *string ) ;
 extern uint16_t rxuart( void ) ;
+extern void txmit2nd( uint8_t c ) ;
+extern uint16_t rx2nduart( void ) ;
 
 extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void per10ms( void ) ;
