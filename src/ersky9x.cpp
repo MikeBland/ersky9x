@@ -302,9 +302,9 @@ int main (void)
 //	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
 #ifdef REVB	
-	// Configure RF_power (PC17) and PPM-jack-in (PC22), neither need pullups
-	pioptr->PIO_PER = 0x00420000L ;		// Enable bit C22, C17
-	pioptr->PIO_ODR = 0x00420000L ;		// Set bits C22 and C17 as input
+	// Configure RF_power (PC17) but not PPM-jack-in (PC22), neither need pullups
+	pioptr->PIO_PER = 0x00020000L ;		// Enable bit C17
+	pioptr->PIO_ODR = 0x00020000L ;		// Set bits C17 as input
 #else	
 	// Configure RF_power (PC17) and PPM-jack-in (PC19), neither need pullups
 	pioptr->PIO_PER = 0x000A0000L ;		// Enable bit C19, C17
@@ -1126,7 +1126,7 @@ void init_pwm()
 	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
 	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
 	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
-	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
+	pwmptr->PWM_ENA = PWM_ENA_CHID1 ;						// Enable channel 1
 #endif
 
 #ifdef REVB
@@ -1387,20 +1387,32 @@ void config_free_pins()
 {
 	register Pio *pioptr ;
 	
-//	pioptr = PIOA ;
-//	pioptr->PIO_PER = 0x02000000L ;		// Enable bit A25
-//	pioptr->PIO_ODR = 0x02000000L ;		// Set as input
-//	pioptr->PIO_PUER = 0x02000000L ;	// Enable pullups
-
+#ifdef REVB
 	pioptr = PIOB ;
 	pioptr->PIO_PER = 0x00004040L ;		// Enable bits B14, 6
 	pioptr->PIO_ODR = 0x00004040L ;		// Set as input
 	pioptr->PIO_PUER = 0x00004040L ;	// Enable pullups
 
 	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x00288000L ;		// Enable bits C21, 19, 15
-	pioptr->PIO_ODR = 0x00288000L ;		// Set as input
-	pioptr->PIO_PUER = 0x00288000L ;	// Enable pullups
+	pioptr->PIO_PER = 0x00280000L ;		// Enable bits C21, 19
+	pioptr->PIO_ODR = 0x00280000L ;		// Set as input
+	pioptr->PIO_PUER = 0x00280000L ;	// Enable pullups
+#else 
+	pioptr = PIOA ;
+	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
+	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
+	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
+
+	pioptr = PIOB ;
+	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
+	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
+	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
+
+	pioptr = PIOC ;
+	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
+	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
+	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
+#endif 
 }
 
 
