@@ -1049,12 +1049,13 @@ void getADC_filt()
 // Ensure PB5 is three state/input, used on REVB for MENU KEY
 
 // configure PWM3 as PPM drive, PWM0 will become LED backlight PWM on PWMH0
-// This is PC18 peripheral B
+// This is PC18 peripheral B, Also enable PC22 peripheral B, this is PPM-JACK (PWML3)
 //
 // REVB board:
 // PWML2, output as peripheral C on PA16, is for HAPTIC
 // For testing, just drive it out with PWM
-
+// PWML1 for PPM2 output as peripheral B on PC15
+// For testing, just drive it out with PWM
 void init_pwm()
 {
 	register Pio *pioptr ;
@@ -1089,6 +1090,18 @@ void init_pwm()
   pioptr->PIO_ABCDSR[1] &= ~PIO_PC18 ;		// Peripheral B
 	pioptr->PIO_PDR = PIO_PC18 ;						// Disable bit C18 Assign to peripheral
 
+#ifdef REVB
+  pioptr->PIO_ABCDSR[0] |= PIO_PC15 ;			// Peripheral B
+  pioptr->PIO_ABCDSR[1] &= ~PIO_PC15 ;		// Peripheral B
+	pioptr->PIO_PDR = PIO_PC15 ;						// Disable bit C15 Assign to peripheral
+#endif
+
+#ifdef REVB
+  pioptr->PIO_ABCDSR[0] |= PIO_PC22 ;			// Peripheral B
+  pioptr->PIO_ABCDSR[1] &= ~PIO_PC22 ;		// Peripheral B
+	pioptr->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
+#endif
+
 	// Configure clock - depends on MCK frequency
 	timer = Master_frequency / 2000000 ;
 	timer |= ( Master_frequency / ( 32* 10000 ) ) << 16 ;
@@ -1107,7 +1120,17 @@ void init_pwm()
 	pwmptr->PWM_ENA = PWM_ENA_CHID0 ;						// Enable channel 0
 
 #ifdef REVB
-	// PWM2 for HAPTIC drive
+	// PWM1 for PPM2 output 100Hz test
+	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[1].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
+	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
+#endif
+
+#ifdef REVB
+	// PWM2 for HAPTIC drive 100Hz test
 	pwmptr->PWM_CH_NUM[2].PWM_CMR = 0x0000000C ;	// CLKB
 	pwmptr->PWM_CH_NUM[2].PWM_CPDR = 100 ;			// Period
 	pwmptr->PWM_CH_NUM[2].PWM_CPDRUPD = 100 ;		// Period
