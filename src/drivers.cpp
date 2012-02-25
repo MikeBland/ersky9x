@@ -30,11 +30,7 @@ extern uint32_t Eeprom_image_updated ;
 
 extern void eeprom_process( void ) ;
 
-#ifdef REVB
-uint16_t Analog_values[9] ;
-#else
-uint16_t Analog_values[8] ;
-#endif
+uint16_t Analog_values[NUMBER_ANALOG] ;
 uint8_t eeprom[4096] ;
 
 volatile uint32_t Spi_complete ;
@@ -65,7 +61,7 @@ void p8hex( uint32_t value ) ;
 void p4hex( uint16_t value ) ;
 void p2hex( unsigned char c ) ;
 void hex_digit_send( unsigned char c ) ;
-void read_8_adc(void ) ;
+void read_9_adc(void ) ;
 void init_adc( void ) ;
 void init_ssc( void ) ;
 void disable_ssc( void ) ;
@@ -961,7 +957,7 @@ void hex_digit_send( unsigned char c )
 
 // Read 8 (9 for REVB) ADC channels
 // Documented bug, must do them 1 by 1
-void read_8_adc()
+void read_9_adc()
 {
 	register Adc *padc ;
 	register uint32_t y ;
@@ -971,11 +967,7 @@ void read_8_adc()
 
 	padc = ADC ;
 	y = padc->ADC_ISR ;		// Clear EOC flags
-#ifdef REVB
-	for ( y = 9 ; --y > 0 ; )
-#else
-	for ( y = 8 ; --y > 0 ; )
-#endif
+	for ( y = NUMBER_ANALOG ; --y > 0 ; )
 	{
 		padc->ADC_CR = 2 ;		// Start conversion
 		x = 0 ;

@@ -50,6 +50,11 @@ const char stamp5[] = " MOD: " MOD_VERS;
 #define strncpy_P(a,b,c)	strncpy(a,b,c)
 #define pgm_read_byte(p)	(*(p))
 
+#ifdef REVB
+#define NUMBER_ANALOG	9
+#else
+#define NUMBER_ANALOG	8
+#endif
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
 

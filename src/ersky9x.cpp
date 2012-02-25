@@ -122,7 +122,7 @@ uint16_t anaIn( uint8_t chan ) ;
 void getADC_single( void ) ;
 void getADC_osmp( void ) ;
 void getADC_filt( void ) ;
-void read_8_adc( void ) ;
+void read_9_adc( void ) ;
 void init_adc( void ) ;
 void init_pwm( void ) ;
 //void poll_pwm( void ) ;
@@ -171,7 +171,7 @@ volatile uint8_t tick10ms = 0 ;
 uint16_t g_LightOffCounter ;
 uint8_t  stickMoved = 0;
 
-uint16_t S_anaFilt[8] ;				// Analog inputs after filtering
+uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
 
 uint8_t sysFlags = 0 ;
 
@@ -280,24 +280,24 @@ int main (void)
 
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
-  PMC->PMC_PCER0 = 0x3900 ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
+  PMC->PMC_PCER0 = (1<<ID_PIOC)|(1<<ID_PIOB)|(1<<ID_PIOA)|(1<<ID_UART0) ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
 	pioptr = PIOA ;
 #ifdef REVB	
-	pioptr->PIO_PER = 0x00000100L ;		// Enable bit A8 (Soft Power)
-	pioptr->PIO_OER = 0x00000100L ;		// Set bit A8 as output
-	pioptr->PIO_CODR = 0x00000100L ;	// Set bit A8 OFF, disables soft power switch
+	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
+	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as output
+	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
 #else	
 	// On REVB, PA21 is used as AD8, and measures current consumption.
-	pioptr->PIO_PER = 0x00200000L ;		// Enable bit A21 (EXT3)
-	pioptr->PIO_OER = 0x00200000L ;		// Set bit A21 as output
-	pioptr->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
+	pioptr->PIO_PER = PIO_PA21 ;		// Enable bit A21 (EXT3)
+	pioptr->PIO_OER = PIO_PA21 ;		// Set bit A21 as output
+	pioptr->PIO_SODR = PIO_PA21 ;	// Set bit A21 ON
 #endif
 
 //	pioptr->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
 //	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x02000000L ;		// Enable bit C25 (USB-detect)
+	pioptr->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
 //	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
 //	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
@@ -316,32 +316,32 @@ int main (void)
 	// Next section configures the key inputs on the LCD data
 #ifdef REVB	
 	pioptr->PIO_PER = 0x0000003BL ;		// Enable bits 1,3,4,5, 0
-	pioptr->PIO_OER = 0x00000001L ;		// Set bit 0 output
+	pioptr->PIO_OER = PIO_PC0 ;		// Set bit 0 output
 	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
 #else	
 	pioptr->PIO_PER = 0x0000003DL ;		// Enable bits 2,3,4,5, 0
-	pioptr->PIO_OER = 0x00000001L ;		// Set bit 0 output
+	pioptr->PIO_OER = PIO_PC0 ;		// Set bit 0 output
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 #endif
 
 	pioptr = PIOB ;
 #ifdef REVB	
-	pioptr->PIO_PUER = 0x20 ;					// Enable pullup on bit B5 (MENU)
-	pioptr->PIO_PER = 0x20 ;					// Enable bit B5
+	pioptr->PIO_PUER = PIO_PB5 ;					// Enable pullup on bit B5 (MENU)
+	pioptr->PIO_PER = PIO_PB5 ;					// Enable bit B5
 #else	
-	pioptr->PIO_PUER = 0x40 ;					// Enable pullup on bit B6 (MENU)
-	pioptr->PIO_PER = 0x40 ;					// Enable bit B6
+	pioptr->PIO_PUER = PIO_PB6 ;					// Enable pullup on bit B6 (MENU)
+	pioptr->PIO_PER = PIO_PB6 ;					// Enable bit B6
 #endif
 
 	setup_switches() ;
 
   // Enable PCK2 on PB3, This is for testing of Timer 2 working
 	// It will be used as serial data to the Bluetooth module
-	pioptr->PIO_ABCDSR[0] |=  0x00000008 ;	// Peripheral B
-  pioptr->PIO_ABCDSR[1] &= ~0x00000008 ;	// Peripheral B
-  pioptr->PIO_PDR = 0x00000008 ;					// Assign to peripheral
+	pioptr->PIO_ABCDSR[0] |=  PIO_PB3 ;	// Peripheral B
+  pioptr->PIO_ABCDSR[1] &= ~PIO_PB3 ;	// Peripheral B
+  pioptr->PIO_PDR = PIO_PB3 ;					// Assign to peripheral
 	PMC->PMC_SCER |= 0x0400 ;								// PCK2 enabled
 	PMC->PMC_PCK[2] = 2 ;										// PCK2 is PLLA
 
@@ -460,7 +460,7 @@ int main (void)
 //			{
 //				register uint32_t j ;
 
-//				read_8_adc() ;
+//				read_9_adc() ;
 //				getADC_osmp() ;
 //				lcd_clear() ;
 
@@ -984,7 +984,7 @@ extern "C" void TC2_IRQHandler()
 
 uint16_t anaIn(uint8_t chan)
 {
-  static uint8_t crossAna[]={1,5,7,0,4,6,2,3};
+  static uint8_t crossAna[]={1,5,7,0,4,6,2,3,8};
   volatile uint16_t *p = &S_anaFilt[crossAna[chan]] ;
   return  *p;
 }
@@ -994,9 +994,9 @@ void getADC_single()
 {
 	register uint32_t x ;
 
-	read_8_adc() ;
+	read_9_adc() ;
 
-	for( x = 0 ; x < 8 ; x += 1 )
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 	{
 		S_anaFilt[x] = Analog_values[x] >> 1 ;
 	}
@@ -1007,21 +1007,21 @@ void getADC_osmp()
 {
 	register uint32_t x ;
 	register uint32_t y ;
-	uint16_t temp[8] ;
+	uint16_t temp[NUMBER_ANALOG] ;
 
-	for( x = 0 ; x < 8 ; x += 1 )
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 	{
 		temp[x] = 0 ;
 	}
 	for( y = 0 ; y < 4 ; y += 1 )
 	{
-		read_8_adc() ;
-		for( x = 0 ; x < 8 ; x += 1 )
+		read_9_adc() ;
+		for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 		{
 			temp[x] += Analog_values[x] ;
 		}
 	}
-	for( x = 0 ; x < 8 ; x += 1 )
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 	{
 		S_anaFilt[x] = temp[x] >> 3 ;
 	}
@@ -1031,10 +1031,10 @@ void getADC_osmp()
 void getADC_filt()
 {
 	register uint32_t x ;
-	static uint16_t t_ana[2][8] ;
+	static uint16_t t_ana[2][NUMBER_ANALOG] ;
 
-	read_8_adc() ;
-	for( x = 0 ; x < 8 ; x += 1 )
+	read_9_adc() ;
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 	{
 		S_anaFilt[x] = S_anaFilt[x]/2 + (t_ana[1][x] >> 1 ) ;
 		t_ana[1][x] = ( t_ana[1][x] + t_ana[0][x] ) >> 1 ;
@@ -1050,6 +1050,10 @@ void getADC_filt()
 
 // configure PWM3 as PPM drive, PWM0 will become LED backlight PWM on PWMH0
 // This is PC18 peripheral B
+//
+// REVB board:
+// PWML2, output as peripheral C on PA16, is for HAPTIC
+// For testing, just drive it out with PWM
 
 void init_pwm()
 {
@@ -1057,7 +1061,7 @@ void init_pwm()
 	register Pwm *pwmptr ;
 	register uint32_t timer ;
 
-  PMC->PMC_PCER0 |= 0x80000000L ;		// Enable peripheral clock to PWM
+  PMC->PMC_PCER0 |= ( 1 << ID_PWM ) ;		// Enable peripheral clock to PWM
   
 	MATRIX->CCFG_SYSIO |= 0x00000020L ;				// Disable TDO let PB5 work!
 	
@@ -1070,14 +1074,20 @@ void init_pwm()
 #endif
 
 	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;		// Peripheral C
-  pioptr->PIO_ABCDSR[1] |= 0x00020000 ;			// Peripheral C
-	pioptr->PIO_PDR = 0x00020000L ;						// Disable bit A17 Assign to peripheral
+  pioptr->PIO_ABCDSR[0] &= ~PIO_PA17 ;		// Peripheral C
+  pioptr->PIO_ABCDSR[1] |= PIO_PA17 ;			// Peripheral C
+	pioptr->PIO_PDR = PIO_PA17 ;						// Disable bit A17 Assign to peripheral
+
+#ifdef REVB
+  pioptr->PIO_ABCDSR[0] &= ~PIO_PA16 ;		// Peripheral C
+  pioptr->PIO_ABCDSR[1] |= PIO_PA16 ;			// Peripheral C
+	pioptr->PIO_PDR = PIO_PA16 ;						// Disable bit A16 Assign to peripheral
+#endif
 
 	pioptr = PIOC ;
-  pioptr->PIO_ABCDSR[0] |= 0x00040000 ;			// Peripheral B
-  pioptr->PIO_ABCDSR[1] &= ~0x00040000 ;		// Peripheral B
-	pioptr->PIO_PDR = 0x00040000L ;						// Disable bit C18 Assign to peripheral
+  pioptr->PIO_ABCDSR[0] |= PIO_PC18 ;			// Peripheral B
+  pioptr->PIO_ABCDSR[1] &= ~PIO_PC18 ;		// Peripheral B
+	pioptr->PIO_PDR = PIO_PC18 ;						// Disable bit C18 Assign to peripheral
 
 	// Configure clock - depends on MCK frequency
 	timer = Master_frequency / 2000000 ;
@@ -1095,6 +1105,16 @@ void init_pwm()
 	pwmptr->PWM_CH_NUM[0].PWM_CDTY = 40 ;				// Duty
 	pwmptr->PWM_CH_NUM[0].PWM_CDTYUPD = 40 ;		// Duty
 	pwmptr->PWM_ENA = PWM_ENA_CHID0 ;						// Enable channel 0
+
+#ifdef REVB
+	// PWM0 for LED backlight
+	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[1].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
+	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
+#endif
 
 	// PWM3 for PPM output	 
 	pwmptr->PWM_CH_NUM[3].PWM_CMR = 0x0000000B ;	// CLKA

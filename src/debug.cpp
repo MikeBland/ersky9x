@@ -758,7 +758,7 @@ void handle_serial()
 		padc = ADC ;
 		p8hex( padc->ADC_CDR4 ) ;
 		crlf() ;
-		read_8_adc() ;
+		read_9_adc() ;
 		DACC->DACC_CDR = padc->ADC_CDR4 ;		// Battery 
 	}
 	

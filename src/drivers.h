@@ -1,6 +1,6 @@
 
 
-extern uint16_t Analog_values[8] ;
+extern uint16_t Analog_values[NUMBER_ANALOG] ;
 extern volatile uint32_t Spi_complete ;
 
 
@@ -32,7 +32,7 @@ extern void p8hex( uint32_t value ) ;
 extern void p4hex( uint16_t value ) ;
 extern void p2hex( unsigned char c ) ;
 extern void hex_digit_send( unsigned char c ) ;
-extern void read_8_adc(void ) ;
+extern void read_9_adc(void ) ;
 extern void init_adc( void ) ;
 extern void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom) ;
 extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size) ;

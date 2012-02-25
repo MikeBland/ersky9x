@@ -3283,6 +3283,11 @@ void menuProcStatistic2(uint8_t event)
   lcd_outdez(14*FW , 3*FH, (g_tmr1Latency_max - g_tmr1Latency_min) /2 );
     lcd_puts_Pleft( 4*FH, PSTR("tmain          ms"));
   lcd_outdezAtt(14*FW , 4*FH, (g_timeMain)/20 ,PREC2);
+#ifdef REVB    
+		lcd_puts_Pleft( 6*FH, PSTR("Current"));
+    lcd_outhex4( 10*FW+3, 6*FH, anaIn(NUMBER_ANALOG-1) ) ;
+#endif
+
 
 //    lcd_puts_P( 0*FW,  5*FH, PSTR("Stack          b"));
 //    lcd_outhex4( 10*FW+3, 5*FH, stack_free() ) ;
