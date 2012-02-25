@@ -94,6 +94,9 @@ uint8_t	Eeprom_writing_block_no ;
 #define E_WRITESENDING			4
 #define E_WRITEWAITING			5
 
+#define EE_WAIT			0
+#define EE_NO_WAIT	1
+
 
 void handle_serial( void ) ;
 //void hello( void ) ;
@@ -102,6 +105,12 @@ void handle_serial( void ) ;
 uint32_t read_eeprom_block( uint32_t block_no, uint32_t immediate ) ;
 uint32_t write_eeprom_block( uint32_t block_no, uint32_t sub_no, uint32_t size, uint32_t immediate ) ;
 uint32_t eeprom_image_blank( uint32_t image_index ) ;
+
+bool eearmModelExists(uint8_t id) ;
+uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq ) ;
+uint32_t read32_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
+
+
 
 void eeprom_process( void ) ;
 
@@ -156,73 +165,86 @@ struct t_eeprom_block
 
 
 // Read eeprom data starting at a 4096 byte block boundary
-//uint32_t read_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate )
-//{
-//	register uint8_t *p ;
-//	register uint32_t x ;
+uint32_t read32_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate )
+{
+	register uint8_t *p ;
+	register uint32_t x ;
 
-////	p = E_images[block_no].spi_command ;
-//	*p = 3 ;		// Read command
-//	*(p+1) = 0 ;
-//	*(p+2) = block_no << 4 ;
-//	*(p+3) = 0 ;		// 3 bytes address
-//	spi_PDC_action( p, 0, buffer, 4, size + 4 ) ;
+	p = Spi_tx_buf ;
+	*p = 3 ;		// Read command
+	*(p+1) = 0 ;
+	*(p+2) = block_no << 4 ;
+	*(p+3) = 0 ;		// 3 bytes address
+	spi_PDC_action( p, 0, buffer, 4, size + 4 ) ;
 
-//	if ( immediate )
-//	{
-//		return 0 ;		
-//	}
-//	for ( x = 0 ; x < 100000 ; x += 1  )
-//	{
-//		if ( Spi_complete )
-//		{
-//			break ;				
-//		}        			
-//	}
-//	return x ; 
-//}
+	if ( immediate )
+	{
+		return 0 ;		
+	}
+	for ( x = 0 ; x < 100000 ; x += 1  )
+	{
+		if ( Spi_complete )
+		{
+			break ;				
+		}        			
+	}
+	return x ; 
+}
 
 // Pass in an even block number, this and the next block will be checked
 // to see which is the most recent, the block_no of the most recent
 // is returned, with the corresponding data size if required
-//uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size )
-//{
-//	struct t_eeprom_header b0 ;
-//	struct t_eeprom_header b1 ;
-//  uint16_t size ;
-//	read_eeprom_block( block_no, ( uint8_t *)&b0, sizeof(b0), 0 ) ;		// Sequence # 0
-//	read_eeprom_block( block_no+1, ( uint8_t *)&b1, sizeof(b1), 0 ) ;	// Sequence # 1
+// and the sequence number if required
+uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq )
+{
+	struct t_eeprom_header b0 ;
+	struct t_eeprom_header b1 ;
+  uint32_t sequence_no ;
+  uint16_t size ;
+	read32_eeprom_block( block_no, ( uint8_t *)&b0, sizeof(b0), EE_WAIT ) ;		// Sequence # 0
+	read32_eeprom_block( block_no+1, ( uint8_t *)&b1, sizeof(b1), EE_WAIT ) ;	// Sequence # 1
 
-//  size = b0.data_size ;
-//	if ( b0.sequence_no == 0xFFFFFFFF )
-//	{
-//		if ( b1.sequence_no != 0xFFFFFFFF )
-//		{
-//  		size = b1.data_size ;
-//			block_no += 1 ;
-//		}
-//	}
-//	else
-//	{
-//		if ( b1.sequence_no != 0xFFFFFFFF )
-//		{
-//			if ( b0.sequence_no > b1.sequence_no )
-//			{
-//	  		size = b1.data_size ;
-//				block_no += 1 ;
-//			}
-//		}
-//	}
-//  if ( size == 0xFFFF )
-//	{
-//		size = 0 ;
-//	}
-//  if ( p_size )
-//	{
-//		*p_size = size ;
-//	}
-//  return block_no ;
-//}
+  size = b0.data_size ;
+  sequence_no = b0.sequence_no ;
+	if ( b0.sequence_no == 0xFFFFFFFF )
+	{
+		if ( b1.sequence_no != 0xFFFFFFFF )
+		{
+  		size = b1.data_size ;
+		  sequence_no = b1.sequence_no ;
+			block_no += 1 ;
+		}
+	}
+	else
+	{
+		if ( b1.sequence_no != 0xFFFFFFFF )
+		{
+			if ( b1.sequence_no > b0.sequence_no )
+			{
+	  		size = b1.data_size ;
+			  sequence_no = b1.sequence_no ;
+				block_no += 1 ;
+			}
+		}
+	}
+  if ( size == 0xFFFF )
+	{
+		size = 0 ;
+	}
+  if ( p_size )
+	{
+		*p_size = size ;
+	}
+  if ( sequence_no == 0xFFFFFFFF )
+	{  
+		sequence_no = 0 ;
+	}
+  if ( p_seq )
+	{
+		*p_seq = sequence_no ;
+	}
+  return block_no ;
+}
 
 // bool eeLoadGeneral()
 //{
@@ -264,6 +286,19 @@ struct t_eeprom_block
 //  uint16_t sum=0;
 //  if(sz>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
 //  return g_eeGeneral.chkSum == sum;
+//}
+
+//void eearm_check_load_model(uint8_t id)
+//{
+//	uint32_t block_no ;
+//	uint16_t size ;
+	
+//	if ( eearmModelExists(uint8_t id) )
+//	{
+		
+//	}
+//	block_no = get_current_block_number( id * 2, &size ) ;
+	
 //}
 
 
@@ -318,13 +353,14 @@ struct t_eeprom_block
 //    }
 //}
 
-//bool eeModelExists(uint8_t id)
-//{
-//	uint32_t block_no ;
-//	uint16_t size ;
-//	block_no = get_current_block_number( id * 2, &size ) ;
-//	return ( size > 0 ) ;
-//}
+bool eearmModelExists(uint8_t id)
+{
+	uint32_t block_no ;
+	uint16_t size ;
+	uint32_t sequence ;
+	block_no = get_current_block_number( id * 2, &size, &sequence ) ;
+	return ( size > 0 ) ;
+}
 
 
 

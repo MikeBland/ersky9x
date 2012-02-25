@@ -1107,12 +1107,12 @@ void init_pwm()
 	pwmptr->PWM_ENA = PWM_ENA_CHID0 ;						// Enable channel 0
 
 #ifdef REVB
-	// PWM0 for LED backlight
-	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000C ;	// CLKB
-	pwmptr->PWM_CH_NUM[1].PWM_CPDR = 100 ;			// Period
-	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
-	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
-	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
+	// PWM2 for HAPTIC drive
+	pwmptr->PWM_CH_NUM[2].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[2].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[2].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[2].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[2].PWM_CDTYUPD = 40 ;		// Duty
 	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
 #endif
 
