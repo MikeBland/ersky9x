@@ -108,7 +108,7 @@ uint32_t eeprom_image_blank( uint32_t image_index ) ;
 
 bool eearmModelExists(uint8_t id) ;
 uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq ) ;
-uint32_t read32_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
+uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 
 
 
@@ -164,17 +164,17 @@ struct t_eeprom_block
 //}
 
 
-// Read eeprom data starting at a 4096 byte block boundary
-uint32_t read32_eeprom_block( uint32_t block_no, register uint8_t *buffer, uint32_t size, uint32_t immediate )
+// Read eeprom data starting at random address
+uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate )
 {
 	register uint8_t *p ;
 	register uint32_t x ;
 
 	p = Spi_tx_buf ;
 	*p = 3 ;		// Read command
-	*(p+1) = 0 ;
-	*(p+2) = block_no << 4 ;
-	*(p+3) = 0 ;		// 3 bytes address
+	*(p+1) = eeAddress ;
+	*(p+2) = eeAddress >> 8 ;
+	*(p+3) = eeAddress >>16 ;		// 3 bytes address
 	spi_PDC_action( p, 0, buffer, 4, size + 4 ) ;
 
 	if ( immediate )
@@ -201,8 +201,8 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
 	struct t_eeprom_header b1 ;
   uint32_t sequence_no ;
   uint16_t size ;
-	read32_eeprom_block( block_no, ( uint8_t *)&b0, sizeof(b0), EE_WAIT ) ;		// Sequence # 0
-	read32_eeprom_block( block_no+1, ( uint8_t *)&b1, sizeof(b1), EE_WAIT ) ;	// Sequence # 1
+	read32_eeprom_data( block_no << 12, ( uint8_t *)&b0, sizeof(b0), EE_WAIT ) ;		// Sequence # 0
+	read32_eeprom_data( (block_no+1) << 12, ( uint8_t *)&b1, sizeof(b1), EE_WAIT ) ;	// Sequence # 1
 
   size = b0.data_size ;
   sequence_no = b0.sequence_no ;
@@ -302,56 +302,44 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
 //}
 
 
-//void eeLoadModel(uint8_t id)
-//{
-//	register uint8_t *p ;
-//	register uint8_t *q ;
-//	uint32_t block_no ;
-//	uint16_t size ;
-//	uint32_t count ;
+void ee32LoadModel(uint8_t id)
+{
+	uint32_t block_no ;
+	uint16_t size ;
 
-//    if(id<MAX_MODELS)
-//    {
-//			block_no = get_current_block_number( id * 2, &size ) ;
+    if(id<MAX_MODELS)
+    {
+			block_no = get_current_block_number( id * 2, &size, 0 ) ;
 
-//			read_eeprom_block( block_no, ( uint8_t *)&E_images[1], size + sizeof(struct t_eeprom_header), 0 ) ;
-				
-//				memset(&g_model, 0, sizeof(g_model));
-        
-//			if ( size > sizeof(g_model) )
-//			{
-//				size = sizeof(g_model) ;
-//			}
-			
-	// Copy data to model
-//			p = E_images[1].data.bytes ;
-//			q = (uint8_t*)&g_eeGeneral ;
-//			for ( count = 0 ; count < size ; count += 1 )
-//			{
-//				*q++ = *p++ ;			
-//			}
-				
-//      if(size<256) // if not loaded a fair amount
-//      {
-//          modelDefault(id);
-//      }
+			memset(&g_model, 0, sizeof(g_model));
+       
+			if ( size > sizeof(g_model) )
+			{
+				size = sizeof(g_model) ;
+			}
+			 
+      if(size<256) // if not loaded a fair amount
+      {
+        modelDefault(id) ;
+      }
+			else
+			{
+				read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_eeGeneral, size, 0 ) ;
+			}
 
-//      for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid
-//      {
-//          uint8_t idx = char2idx(g_model.name[i]);
-//          g_model.name[i] = idx2char(idx);
-//      }
+      for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid
+      {
+          uint8_t idx = char2idx(g_model.name[i]);
+          g_model.name[i] = idx2char(idx);
+      }
+      g_model.mdVers = MDVERS; //update mdvers
 
-//      g_model.mdVers = MDVERS; //update mdvers
-
-//      resetTimer2();
-
-//#ifdef FRSKY
-//  FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
-//        FRSKY_setModelAlarms();
-//#endif
-//    }
-//}
+#ifdef FRSKY
+  FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
+        FRSKY_setModelAlarms();
+#endif
+    }
+}
 
 bool eearmModelExists(uint8_t id)
 {

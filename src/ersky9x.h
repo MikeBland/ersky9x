@@ -420,6 +420,7 @@ extern uint16_t anaIn(uint8_t chan) ;
 
 extern int16_t ex_chans[NUM_CHNOUT];
 
+extern void modelDefault( uint8_t id ) ;
 
 void eeWaitComplete( void ) ;
 void eeDirty(uint8_t msk);

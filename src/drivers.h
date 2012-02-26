@@ -43,4 +43,6 @@ extern void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom
 void start_ppm_capture( void ) ;
 void end_ppm_capture( void ) ;
 
+uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
+
 

@@ -820,13 +820,10 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
-void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
-void txmitBt( uint8_t c ) ;
-uint16_t rxBtuart( void ) ;
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 {
 //    const Pin pPins[] = CONSOLE_PINS;
-  register Uart *pUart = CONSOLE_USART;
+  register Uart *pUart = BT_USART;
 	register Pio *pioptr ;
 
   /* Configure PIO */
@@ -1270,6 +1267,7 @@ void disable_ssc()
 	pioptr->PIO_PDR = 0x00020000L ;						// Disable bit A17 Assign to peripheral
 	
 	sscptr = SSC ;
+	sscptr->SSC_CR = SSC_CR_TXDIS ;
 
 
 }
