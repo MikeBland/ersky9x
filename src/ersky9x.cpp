@@ -347,6 +347,7 @@ int main (void)
 
 	UART_Configure( 9600, Master_frequency ) ;
 	UART2_Configure( 9600, Master_frequency ) ;		// Testing
+	UART3_Configure( 9600, Master_frequency ) ;		// Testing
 
 	start_timer2() ;
 	start_timer0() ;
@@ -484,6 +485,10 @@ int main (void)
 		{
 			uint16_t rxchar ;
 			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
+			{
+				txmitBt( rxchar ) ;                   		// Testing
+			}
+			if ( ( rxchar = rxBtuart() ) != 0xFFFF )		// Testing
 			{
 				txmit2nd( rxchar ) ;                   		// Testing
 			}

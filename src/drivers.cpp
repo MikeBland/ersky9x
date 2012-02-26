@@ -42,6 +42,9 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( register char *string ) ;
 uint16_t rxuart( void ) ;
+void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
+void txmitBt( uint8_t c ) ;
+uint16_t rxBtuart( void ) ;
 
 uint32_t keyState( enum EnumKeys enuk) ;
 void per10ms( void ) ;
@@ -84,6 +87,8 @@ void disable_ssc( void ) ;
 /** Pins description corresponding to Rxd,Txd, (UART pins) */
 #define SECOND_PINS        {PINS_USART0}
 
+#define BT_USART       UART1
+#define BT_ID          ID_UART1
 
 
 static uint8_t s_evt;
@@ -815,6 +820,43 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
+void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
+void txmitBt( uint8_t c ) ;
+uint16_t rxBtuart( void ) ;
+void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
+{
+//    const Pin pPins[] = CONSOLE_PINS;
+  register Uart *pUart = CONSOLE_USART;
+	register Pio *pioptr ;
+
+  /* Configure PIO */
+	pioptr = PIOB ;
+  pioptr->PIO_ABCDSR[0] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
+  pioptr->PIO_ABCDSR[1] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
+  pioptr->PIO_PDR = (PIO_PB2 | PIO_PB3) ;					// Assign to peripheral
+
+  /* Configure PMC */
+  PMC->PMC_PCER0 = 1 << BT_ID;
+
+  /* Reset and disable receiver & transmitter */
+  pUart->UART_CR = UART_CR_RSTRX | UART_CR_RSTTX
+                 | UART_CR_RXDIS | UART_CR_TXDIS;
+
+  /* Configure mode */
+  pUart->UART_MR =  0x800 ;  // NORMAL, No Parity
+
+  /* Configure baudrate */
+  /* Asynchronous, no oversampling */
+  pUart->UART_BRGR = (masterClock / baudrate) / 16;
+
+  /* Disable PDC channel */
+  pUart->UART_PTCR = UART_PTCR_RXTDIS | UART_PTCR_TXTDIS;
+
+  /* Enable receiver and transmitter */
+  pUart->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
+
+}
+
 // USART0 configuration
 // Work in Progress, UNTESTED
 // Uses PA5 and PA6 (RXD and TXD)
@@ -908,6 +950,28 @@ uint16_t rx2nduart()
   if (pUsart->US_CSR & US_CSR_RXRDY)
 	{
 		return pUsart->US_RHR ;
+	}
+	return 0xFFFF ;
+}
+
+void txmitBt( uint8_t c )
+{
+  Uart *pUart=BT_USART ;
+
+	/* Wait for the transmitter to be ready */
+  while ( (pUart->UART_SR & UART_SR_TXEMPTY) == 0 ) ;
+
+  /* Send character */
+  pUart->UART_THR=c ;
+}
+
+uint16_t rxBtuart()
+{
+  Uart *pUart=BT_USART ;
+
+  if (pUart->UART_SR & UART_SR_RXRDY)
+	{
+		return pUart->UART_RHR ;
 	}
 	return 0xFFFF ;
 }
