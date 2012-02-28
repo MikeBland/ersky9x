@@ -31,7 +31,17 @@ extern uint32_t Eeprom_image_updated ;
 extern void eeprom_process( void ) ;
 
 uint16_t Analog_values[NUMBER_ANALOG] ;
-uint8_t eeprom[4096] ;
+uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
+
+struct t_fifo32
+{
+	uint8_t fifo[32] ;
+	uint32_t in ;
+	uint32_t out ;
+	volatile uint32_t count ;
+} ;
+
+struct t_fifo32 FrskyFifo ;
 
 volatile uint32_t Spi_complete ;
 
@@ -452,6 +462,31 @@ void per10ms()
     ++enuk;
   }
 }
+
+
+void put_frsky_fifo( uint8_t c )
+{
+	FrskyFifo.fifo[FrskyFifo.in] = c ;
+	FrskyFifo.count++ ;
+	FrskyFifo.in = (FrskyFifo.in + 1) & 0x1F ;
+}
+
+int32_t get_frsky_fifo()
+{
+	uint32_t rxchar ;
+
+	if (FrskyFifo.count )						// Look for char available
+	{
+		rxchar = FrskyFifo.fifo[FrskyFifo.out] ;
+		__disable_irq() ;
+		FrskyFifo.count-- ;						// Protect from interrupts
+		__enable_irq() ;
+		FrskyFifo.out = ( FrskyFifo.out + 1 ) & 0x1F ;
+		return rxchar ;
+	}
+	return -1 ;
+}
+
 
 
 // SPI i/f to EEPROM (4Mb)

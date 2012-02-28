@@ -2451,13 +2451,18 @@ void menuProcSetup1(uint8_t event)
 	evalOffset(sub, 3);
 	uint8_t y = 1*FH;
 	uint8_t subN = 1;
+	uint8_t current_volume ;
 
+	current_volume = g_eeGeneral.volume ;
   lcd_puts_Pleft(    y, PSTR("Volume"));
-	lcd_outdezAtt( 14*FW, y, g_eeGeneral.volume, (sub==subN) ? INVERS : 0 ) ;
+	lcd_outdezAtt( 14*FW, y, current_volume, (sub==subN) ? INVERS : 0 ) ;
   if(sub==subN)
 	{
-		CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.volume,0,NUM_VOL_LEVELS-1);
-		set_volume( g_eeGeneral.volume ) ;
+		CHECK_INCDEC_H_GENVAR(event,current_volume,0,NUM_VOL_LEVELS-1);
+		if ( current_volume != g_eeGeneral.volume )
+		{
+			set_volume( g_eeGeneral.volume = current_volume ) ;
+		}
 	}
   if((y+=FH)>3*FH) return;
 	subN++;

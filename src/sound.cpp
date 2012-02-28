@@ -274,7 +274,7 @@ void init_twi()
   pioptr->PIO_ABCDSR[1] &= ~0x00000018 ;	// Peripheral A
   pioptr->PIO_PDR = 0x00000018 ;					// Assign to peripheral
 	
-	timing = Master_frequency * 5 / 1000000 ;
+	timing = Master_frequency * 5 / 1000000 ;		// 5uS high and low
 	timing += 15 - 4 ;
 	timing /= 16 ;
 	timing |= timing << 8 ;
@@ -303,18 +303,19 @@ void set_volume( register uint8_t volume )
 	}
 	volume = Volume_scale[volume] ;
 
+	__disable_irq() ;
 	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
 	{
 		Volume_required = volume ;
 	}
 	else
 	{
-
 		TWI0->TWI_THR = volume ;		// Send data
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
 
 	}
+	__enable_irq() ;
 }
 
 extern "C" void TWI0_IRQHandler()

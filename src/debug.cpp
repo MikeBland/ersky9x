@@ -106,7 +106,7 @@ uint32_t read_eeprom_block( uint32_t block_no, uint32_t immediate ) ;
 uint32_t write_eeprom_block( uint32_t block_no, uint32_t sub_no, uint32_t size, uint32_t immediate ) ;
 uint32_t eeprom_image_blank( uint32_t image_index ) ;
 
-bool eearmModelExists(uint8_t id) ;
+bool ee32ModelExists(uint8_t id) ;
 uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq ) ;
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 
@@ -246,54 +246,43 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
   return block_no ;
 }
 
-// bool eeLoadGeneral()
-//{
-//	register uint8_t *p ;
-//	register uint8_t *q ;
-//	uint32_t block_no ;
-//	uint16_t size ;
-//	uint32_t count ;
-//	block_no = get_current_block_number( 0, &size ) ;
+ bool ee32LoadGeneral()
+{
+	uint32_t block_no ;
+	uint16_t size ;
+	block_no = get_current_block_number( 0, &size, 0 ) ;
 
-//	read_eeprom_block( block_no, ( uint8_t *)&E_images[0], size + sizeof(struct t_eeprom_header), 0 ) ;
-  
-//  memset(&g_eeGeneral, 0, sizeof(EEGeneral));
+  memset(&g_eeGeneral, 0, sizeof(EEGeneral));
 
-//	if ( size > sizeof(EEGeneral) )
-//	{
-//		size = sizeof(EEGeneral) ;
-//	}
-	
-	// Copy data to general
-//	p = E_images[0].data.bytes ;
-//	q = (uint8_t*)&g_eeGeneral ;
-//	for ( count = 0 ; count < size ; count += 1 )
-//	{
-//		*q++ = *p++ ;			
-//	}
-  
-//  for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
-//  {
-//      uint8_t idx = char2idx(g_eeGeneral.ownerName[i]);
-//      g_eeGeneral.ownerName[i] = idx2char(idx);
-//  }
+	if ( size > sizeof(EEGeneral) )
+	{
+		size = sizeof(EEGeneral) ;
+	}
 
-//  if(g_eeGeneral.myVers<MDVERS)
-//      sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
+	read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_eeGeneral, size, 0 ) ;
 
-//  g_eeGeneral.myVers   =  MDVERS; // update myvers
+  for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
+  {
+      uint8_t idx = char2idx(g_eeGeneral.ownerName[i]);
+      g_eeGeneral.ownerName[i] = idx2char(idx);
+  }
 
-//  uint16_t sum=0;
-//  if(sz>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
-//  return g_eeGeneral.chkSum == sum;
-//}
+  if(g_eeGeneral.myVers<MDVERS)
+      sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
+
+  g_eeGeneral.myVers   =  MDVERS; // update myvers
+
+  uint16_t sum=0;
+  if(size>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
+  return g_eeGeneral.chkSum == sum;
+}
 
 //void eearm_check_load_model(uint8_t id)
 //{
 //	uint32_t block_no ;
 //	uint16_t size ;
 	
-//	if ( eearmModelExists(uint8_t id) )
+//	if ( ee32ModelExists(uint8_t id) )
 //	{
 		
 //	}
@@ -324,7 +313,7 @@ void ee32LoadModel(uint8_t id)
       }
 			else
 			{
-				read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_eeGeneral, size, 0 ) ;
+				read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_model, size, 0 ) ;
 			}
 
       for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid
@@ -341,13 +330,36 @@ void ee32LoadModel(uint8_t id)
     }
 }
 
-bool eearmModelExists(uint8_t id)
+bool ee32ModelExists(uint8_t id)
+{
+//	uint32_t block_no ;
+	uint16_t size ;
+	uint32_t sequence ;
+//	block_no = get_current_block_number( id * 2, &size, &sequence ) ;
+	get_current_block_number( id * 2, &size, &sequence ) ;
+	return ( size > 0 ) ;
+}
+
+void ee32LoadModelName(uint8_t id,char*buf,uint8_t len)
 {
 	uint32_t block_no ;
 	uint16_t size ;
-	uint32_t sequence ;
-	block_no = get_current_block_number( id * 2, &size, &sequence ) ;
-	return ( size > 0 ) ;
+  
+	if(id<MAX_MODELS)
+  {
+		block_no = get_current_block_number( id * 2, &size, 0 ) ;
+    
+		memset(buf,' ',len);
+    
+		read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)buf, sizeof(g_model.name), 0 ) ;
+
+//		if(theFile.readRlc((uint8_t*)buf,sizeof(g_model.name)) == sizeof(g_model.name) )
+//    {
+//      uint16_t sz=theFile.size();
+//      buf+=len;
+//      while(sz){ --buf; *buf='0'+sz%10; sz/=10;}
+//    }
+  }
 }
 
 
