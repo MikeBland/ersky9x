@@ -26,6 +26,14 @@
 #include "drivers.h"
 #include "myeeprom.h"
 
+// Timer usage
+// TIMER3 for input capture
+// Timer4 to provide 0.5uS clock for input capture
+// TIMER0 at full speed (MCK/2) for delay timing
+// TIMER2 at 100Hz, provides 10mS tick on interrupt
+// Timer1 used for DAC output timing
+// Timer5 is currently UNUSED
+
 extern uint32_t Eeprom_image_updated ;
 
 extern void eeprom_process( void ) ;
@@ -1284,8 +1292,8 @@ void init_ssc()
 	
 	sscptr = SSC ;
 	sscptr->SSC_CMR = Master_frequency / (125000*2) ;		// 8uS per bit
-	sscptr->SSC_CMR = 0 ;  	//  0000 0000 0000 0000 0000 0000 0000 0000
-	sscptr->SSC_TFMR = 0x000000A7 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, msb)
+	sscptr->SSC_TCMR = 0 ;  	//  0000 0000 0000 0000 0000 0000 0000 0000
+	sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
 	sscptr->SSC_CR = SSC_CR_TXEN ;
 
 }
@@ -1297,13 +1305,10 @@ void disable_ssc()
 
 	// Revert back to pwm output
 	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;		// Peripheral C
-  pioptr->PIO_ABCDSR[1] |= 0x00020000 ;			// Peripheral C
-	pioptr->PIO_PDR = 0x00020000L ;						// Disable bit A17 Assign to peripheral
+	pioptr->PIO_PER = 0x00020000L ;						// Assign A17 to PIO
 	
 	sscptr = SSC ;
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
-
 
 }
 

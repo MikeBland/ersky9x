@@ -59,6 +59,9 @@ extern void lcd_puts_P( uint8_t x, uint8_t y, const char *s ) ;
 extern void lcd_outdez( uint8_t x, uint8_t y, int16_t val ) ;
 extern void lcd_outdezAtt( uint8_t x, uint8_t y, int16_t val, uint8_t mode ) ;
 extern void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len ) ;
+
+extern void lcd_hbar( uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t percent ) ;
+extern void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h ) ;
 extern void lcd_plot( uint8_t x, uint8_t y ) ;
 extern void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat ) ;
 extern void lcd_hline( uint8_t x, uint8_t y, int8_t w ) ;

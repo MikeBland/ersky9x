@@ -198,10 +198,11 @@ typedef struct t_TimerMode
 
 typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
-  uint8_t   mdVers;
+  uint8_t   reserved_spare;  //used to be MDVERS - now depreciated
   int8_t    spare21;              // was timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw
 //    uint8_t   sparex:1;      // was tmrDir, now use tmrVal>0 => count down
-  uint8_t   tmrDir:1;    //0=>Count Down, 1=>Count Up
+    uint8_t   sparex:1;      // was tmrDir, now use tmrVal>0 => count down
+//    uint8_t   tmrDir:1;      // was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  // 0 disable trainer, 1 allow trainer
   uint8_t   spare22:1 ;  // Start timer2 using throttle
   uint8_t   FrSkyUsrProto:2 ;  // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
@@ -232,11 +233,11 @@ typedef struct t_ModelData {
   int8_t    curves5[MAX_CURVE5][5];
   int8_t    curves9[MAX_CURVE9][9];
   CSwData   customSw[NUM_CSW];
-  uint8_t   rxnum;
-  uint8_t   res3[2];
+//  uint8_t   rxnum;
+  uint8_t   res3[3];
   SafetySwData  safetySw[NUM_CHNOUT];
   FrSkyData frsky;
-		TimerMode timer[2] ;
+	TimerMode timer[2] ;
 } __attribute__((packed)) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))

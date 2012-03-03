@@ -37,11 +37,15 @@ extern void p2hex( unsigned char c ) ;
 extern void hex_digit_send( unsigned char c ) ;
 extern void read_9_adc(void ) ;
 extern void init_adc( void ) ;
+extern void init_ssc( void ) ;
 extern void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom) ;
 extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size) ;
 extern void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size ) ;
 void start_ppm_capture( void ) ;
 void end_ppm_capture( void ) ;
+
+extern void init_ssc( void ) ;
+extern void disable_ssc( void ) ;
 
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 

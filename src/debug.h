@@ -11,3 +11,14 @@ extern void disp_mem( register uint32_t address ) ;
 extern void disp_256( uint32_t address, uint32_t lines ) ;
 
 
+struct t_file_entry
+{
+	uint32_t block_no ;
+	uint32_t sequence_no ;
+	uint16_t size ;
+	uint16_t flags ;			// Unused at present
+} ;
+
+extern struct t_file_entry File_system[] ;
+
+

@@ -68,13 +68,12 @@ extern void screen0( void ) ;
 //const unsigned char Ersky9x[] = {"ERSKY9X"} ;
 
 
-
+// These may not be needed, or might just be smaller
 uint8_t Spi_tx_buf[24] ;
 uint8_t Spi_rx_buf[24] ;
 
 
-
-
+struct t_file_entry File_system[MAX_MODELS+1] ;
 
 
 uint32_t Eeprom_image_updated ;		// Ram image changed
@@ -246,11 +245,11 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
   return block_no ;
 }
 
- bool ee32LoadGeneral()
+bool ee32LoadGeneral()
 {
-	uint32_t block_no ;
 	uint16_t size ;
-	block_no = get_current_block_number( 0, &size, 0 ) ;
+	
+	size = File_system[0].size ;
 
   memset(&g_eeGeneral, 0, sizeof(EEGeneral));
 
@@ -259,7 +258,10 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
 		size = sizeof(EEGeneral) ;
 	}
 
-	read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_eeGeneral, size, 0 ) ;
+	if ( size )
+	{
+		read32_eeprom_data( ( File_system[0].block_no << 12) + 16, ( uint8_t *)&g_eeGeneral, size, 0 ) ;
+	}
 
   for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
   {
@@ -293,12 +295,11 @@ uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t
 
 void ee32LoadModel(uint8_t id)
 {
-	uint32_t block_no ;
 	uint16_t size ;
 
     if(id<MAX_MODELS)
     {
-			block_no = get_current_block_number( id * 2, &size, 0 ) ;
+			size =  File_system[id].size ;
 
 			memset(&g_model, 0, sizeof(g_model));
        
@@ -313,7 +314,7 @@ void ee32LoadModel(uint8_t id)
       }
 			else
 			{
-				read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)&g_model, size, 0 ) ;
+				read32_eeprom_data( ( File_system[0].block_no << 12) + 16, ( uint8_t *)&g_model, size, 0 ) ;
 			}
 
       for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid
@@ -321,7 +322,7 @@ void ee32LoadModel(uint8_t id)
           uint8_t idx = char2idx(g_model.name[i]);
           g_model.name[i] = idx2char(idx);
       }
-      g_model.mdVers = MDVERS; //update mdvers
+//      g_model.mdVers = MDVERS; //update mdvers
 
 #ifdef FRSKY
   FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
@@ -342,16 +343,10 @@ bool ee32ModelExists(uint8_t id)
 
 void ee32LoadModelName(uint8_t id,char*buf,uint8_t len)
 {
-	uint32_t block_no ;
-	uint16_t size ;
-  
 	if(id<MAX_MODELS)
   {
-		block_no = get_current_block_number( id * 2, &size, 0 ) ;
-    
 		memset(buf,' ',len);
-    
-		read32_eeprom_data( (block_no << 12) + 16, ( uint8_t *)buf, sizeof(g_model.name), 0 ) ;
+		read32_eeprom_data( ( File_system[id].block_no << 12) + 16, ( uint8_t *)buf, sizeof(g_model.name), 0 ) ;
 
 //		if(theFile.readRlc((uint8_t*)buf,sizeof(g_model.name)) == sizeof(g_model.name) )
 //    {
@@ -363,7 +358,25 @@ void ee32LoadModelName(uint8_t id,char*buf,uint8_t len)
 }
 
 
+void fill_file_index()
+{
+	uint32_t i ;
+	for ( i = 0 ; i < MAX_MODELS + 1 ; i += 1 )
+	{
+		uint32_t j ;
+		j = i ;
+		if ( j == 0 )
+		{
+			j = 17 ;			// Temporary ******* blocks 0 and 1 have another use
+		}
+		File_system[i].block_no = get_current_block_number( j * 2, &File_system[i].size, &File_system[i].sequence_no ) ;
+	}
+}
 
+void init_ee32()
+{
+	fill_file_index() ;
+}
 
 
 
@@ -593,6 +606,8 @@ void init_eeprom()
 	}
 //	disp_256( (uint32_t)eeprom, 6 ) ;
 	Eeprom_process_state = E_IDLE ;
+
+	init_ee32() ;
 }
 
 

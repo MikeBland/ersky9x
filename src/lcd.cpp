@@ -470,6 +470,39 @@ void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat
   }
 }
 
+void lcd_hbar( uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t percent )
+{
+	uint8_t solid ;
+	if ( percent > 100 )
+	{
+		percent = 100 ;
+	}
+	solid = (w-2) * percent / 100 ;
+	lcd_rect( x, y, w, h ) ;
+
+	if ( solid )
+	{
+		w = y + h - 1 ;
+		y += 1 ;
+		x += 1 ;
+		while ( y < w )
+		{
+ 			lcd_hline(x, y, solid ) ;
+			y += 1 ;			
+		}
+	}
+}
+
+void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h )
+{
+  lcd_vline(x, y, h ) ;
+	if ( w > 1 )
+	{
+  	lcd_vline(x+w-1, y, h ) ;
+	}
+ 	lcd_hline(x+1, y+h-1, w-2 ) ;
+ 	lcd_hline(x+1, y, w-2 ) ;
+}
 void lcd_hline( uint8_t x, uint8_t y, int8_t w )
 {
   lcd_hlineStip(x,y,w,0xff);

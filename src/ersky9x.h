@@ -291,6 +291,7 @@ extern uint16_t g_LightOffCounter;
 
 template<class t> inline t min(t a, t b){ return a<b?a:b; }
 template<class t> inline t max(t a, t b){ return a>b?a:b; }
+template<class t> inline t limit(t mi, t x, t ma){ return min(max(mi,x),ma); }
 
 // This doesn't need protection on this processor
 #define get_tmr10ms() g_tmr10ms
