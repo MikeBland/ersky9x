@@ -1124,7 +1124,7 @@ void menuProcMixOne(uint8_t event)
         case 3:
     				b = md2->enableFmTrim ;
             lcd_puts_P(  2*FW,y,PSTR("FlModetrim"));
-            lcd_putsnAtt(FW*14,y, PSTR("OFFON ")+3*b,3,attr);  //default is 0=ON
+            lcd_putsnAtt(FW*14,y, PSTR("OFFON ")+3*b,3,attr);  //default is 0=OFF
             //            lcd_putsnAtt( x, y, PSTR("OFFON ")+3*value,3,mode ? INVERS:0) ;
             //            menu_lcd_onoff( FW*14, y, md2->enableFmTrim, sub==i ) ;
             if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,1); md2->enableFmTrim = b ; }
@@ -2624,6 +2624,7 @@ void menuProcSetup(uint8_t event)
 
 #ifdef FRSKY
 	uint8_t vCountItems = 21; //21 is default
+  int8_t sw_offset = -6 ;
 //		switch (g_eeGeneral.speakerMode){
 //				//beeper
 //				case 0:
@@ -2644,6 +2645,7 @@ void menuProcSetup(uint8_t event)
 		
 #else 
 	uint8_t vCountItems = 22 ; //21 is default
+  int8_t sw_offset = -4 ;
 //		switch (g_eeGeneral.speakerMode){
 //				//beeper
 //				case 0:
@@ -2660,6 +2662,7 @@ void menuProcSetup(uint8_t event)
 //		}
 #endif
 
+    sw_offset += vCountItems ;
 
 //	SIMPLE_MENU("RADIO SETUP", menuTabDiag, e_Setup, 20 ) ;
 //  //  SIMPLE_MENU("RADIO SETUP", menuTabDiag, e_Setup, COUNT_ITEMS+1);
@@ -2691,11 +2694,13 @@ void menuProcSetup(uint8_t event)
     case EVT_KEY_REPT(KEY_LEFT):
     case EVT_KEY_FIRST(KEY_LEFT):
       if(sub==1 && subSub>0 && s_editMode) mstate2.m_posHorz--;
+      if(sub==sw_offset && subSub>0) mstate2.m_posHorz--;   //for Sw Position
     break;
 
     case EVT_KEY_REPT(KEY_RIGHT):
     case EVT_KEY_FIRST(KEY_RIGHT):
       if(sub==1 && subSub<sizeof(g_model.name)-1 && s_editMode) mstate2.m_posHorz++;
+      if(sub==sw_offset && subSub<7) mstate2.m_posHorz++;
     break;
 
     case EVT_KEY_REPT(KEY_UP):
@@ -3095,7 +3100,7 @@ struct t_timer
 #define TMR_STOPPED 3
 
 //int16_t  s_timerVal;
-void timer(uint16_t throttle_val)
+void timer(int16_t throttle_val)
 {
 	int16_t val ;
 	uint8_t timer ;
@@ -3250,7 +3255,7 @@ void trace()   // called in perOut - once envery 0.01sec
     //value for time described in g_model.tmrMode
     //OFFABSRUsRU%ELsEL%THsTH%ALsAL%P1P1%P2P2%P3P3%
     //now OFFABSTHsTH%
-    uint16_t val = calibratedStick[CONVERT_MODE(3)-1]; //Get throttle channel value
+    int16_t val = calibratedStick[CONVERT_MODE(3)-1]; //Get throttle channel value
 //    uint16_t v = 0;
 //    if((g_model.timer[0].tmrModeA>1) && (g_model.timer[0].tmrModeA<TMR_VAROFS))
 //		{
@@ -3297,9 +3302,12 @@ void trace()   // called in perOut - once envery 0.01sec
 
 //extern unsigned int stack_free() ;
 
-uint16_t g_tmr1Latency_max;
-uint16_t g_tmr1Latency_min = 0x7ff;
+//uint16_t g_tmr1Latency_max;
+//uint16_t g_tmr1Latency_min = 0x7ff;
 uint16_t g_timeMain;
+uint16_t Current ;
+uint32_t Current_sum ;
+uint8_t Current_count ;
 void menuProcStatistic2(uint8_t event)
 {
   TITLE("STAT2");
@@ -3307,8 +3315,8 @@ void menuProcStatistic2(uint8_t event)
   switch(event)
   {
     case EVT_KEY_FIRST(KEY_MENU):
-      g_tmr1Latency_min = 0x7ff;
-      g_tmr1Latency_max = 0;
+//      g_tmr1Latency_min = 0x7ff;
+//      g_tmr1Latency_max = 0;
       g_timeMain    = 0;
       audioDefevent(AUDIO_MENUS);
     break;
@@ -3321,24 +3329,31 @@ void menuProcStatistic2(uint8_t event)
     	killEvents(event) ;
     break;
   }
-    lcd_puts_Pleft( 1*FH, PSTR("tmr1Lat max    us"));
-  lcd_outdez(14*FW , 1*FH, g_tmr1Latency_max/2 );
-    lcd_puts_Pleft( 2*FH, PSTR("tmr1Lat min    us"));
-  lcd_outdez(14*FW , 2*FH, g_tmr1Latency_min/2 );
-    lcd_puts_Pleft( 3*FH, PSTR("tmr1 Jitter    us"));
-  lcd_outdez(14*FW , 3*FH, (g_tmr1Latency_max - g_tmr1Latency_min) /2 );
-    lcd_puts_Pleft( 4*FH, PSTR("tmain          ms"));
-  lcd_outdezAtt(14*FW , 4*FH, (g_timeMain)/20 ,PREC2);
+//    lcd_puts_Pleft( 1*FH, PSTR("tmr1Lat max    us"));
+//  lcd_outdez(14*FW , 1*FH, g_tmr1Latency_max/2 );
+//    lcd_puts_Pleft( 2*FH, PSTR("tmr1Lat min    us"));
+//  lcd_outdez(14*FW , 2*FH, g_tmr1Latency_min/2 );
+//    lcd_puts_Pleft( 3*FH, PSTR("tmr1 Jitter    us"));
+//  lcd_outdez(14*FW , 3*FH, (g_tmr1Latency_max - g_tmr1Latency_min) /2 );
+    lcd_puts_Pleft( 2*FH, PSTR("tmain          ms"));
+  lcd_outdezAtt(14*FW , 2*FH, (g_timeMain)/20 ,PREC2);
 #ifdef REVB    
+		Current_sum += anaIn(NUMBER_ANALOG-1) ;
+		if ( ++Current_count > 49 )
+		{
+			Current = Current_sum / 5 ;
+			Current_sum = 0 ;
+			Current_count = 0 ;
+		}
 		lcd_puts_Pleft( 6*FH, PSTR("Current"));
-    lcd_outhex4( 10*FW+3, 6*FH, anaIn(NUMBER_ANALOG-1) ) ;
+		lcd_outhex4( 10*FW+3, 6*FH, Current ) ;
 #endif
 
 
 //    lcd_puts_P( 0*FW,  5*FH, PSTR("Stack          b"));
 //    lcd_outhex4( 10*FW+3, 5*FH, stack_free() ) ;
 
-  lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
+//  lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
 
 #ifdef JETI

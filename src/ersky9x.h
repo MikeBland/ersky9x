@@ -24,20 +24,20 @@
 
 #define VERSION	"V0.26"
 
-#define DATE_STR "xx.xx.2012"
-#define TIME_STR "xx:xx:xx"
-#define SUB_VERS VERSION
-#define SVN_VERS "trunk-rxxx"
-#define MOD_VERS "Normal"
+//#define DATE_STR "xx.xx.2012"
+//#define TIME_STR "xx:xx:xx"
+//#define SUB_VERS VERSION
+//#define SVN_VERS "trunk-rxxx"
+//#define MOD_VERS "Normal"
 
 //#define STR2(s) #s
 //#define DEFNUMSTR(s)  STR2(s)
 
-const char stamp1[] = "VERS: "SUB_VERS ;
-const char stamp2[] = "DATE: " DATE_STR;
-const char stamp3[] = "TIME: " TIME_STR;
-const char stamp4[] = " SVN: " SVN_VERS;
-const char stamp5[] = " MOD: " MOD_VERS;
+extern const char stamp1[] ;
+extern const char stamp2[] ;
+extern const char stamp3[] ;
+extern const char stamp4[] ;
+extern const char stamp5[] ;
 
 #define CPU_INT		int32_t
 #define CPU_UINT	uint32_t

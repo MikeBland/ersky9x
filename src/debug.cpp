@@ -62,10 +62,23 @@ extern void disp_256( uint32_t address, uint32_t lines ) ;
 extern uint8_t eeprom[] ;
 
 
-extern void screen0( void ) ;
+// Logic for storing to EERPOM/loading from EEPROM
+// If main needs to wait for the eeprom, call mainsequence without actioning menus
+// General configuration
+// 'main' set flag STORE_GENERAL
+// 'eeCheck' sees flag STORE_GENERAL, copies data, starts 2 second timer, clears flag STORE_GENERAL
+// 'eeCheck' sees 2 second timer expire, locks copy, initiates write, enters WRITE_GENERAL mode
+// 'eeCheck' completes write, unlocks copy, exits WRITE_GENERAL mode
 
-//const unsigned char Hello[] = {"Hello ERSKY9X"} ;
-//const unsigned char Ersky9x[] = {"ERSKY9X"} ;
+// 'main' set flag STORE_MODEL(n)
+
+// 'main' set flag STORE_MODEL_TRIM(n)
+
+
+// 'main' needs to load a model
+
+
+
 
 
 // These may not be needed, or might just be smaller

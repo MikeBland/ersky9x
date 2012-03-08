@@ -47,6 +47,9 @@ DLIBS =
 
 EXT = STD
 
+AREV = $(shell sh -c "cat .svn/entries | sed -n '4p'")
+REV = $(shell echo $$(( $(AREV) + 1 )))
+
 #
 # End of default section
 ##############################################################################################
@@ -83,7 +86,8 @@ SRC  = core_cm3.c \
        crt.c \
        vectors_sam3s.c
 
-CPPSRC = drivers.cpp \
+CPPSRC = stamp.cpp \
+         drivers.cpp \
          sound.cpp \
          lcd.cpp \
          debug.cpp \
@@ -126,12 +130,10 @@ DEFS    = $(DDEFS) $(UDEFS) -DRUN_FROM_FLASH=1
 endif
 
 
-# If FRSKY-Support is enabled
+# If OPTREX lcd
 ifeq ($(EXT), OPTREX)
  CPPDEFS = -DOPTREX_LCD
 endif
-
-
 
 ADEFS   = $(DADEFS) $(UADEFS)
 OBJS    = $(ASRC:.s=.o) $(SRC:.c=.o) $(CPPSRC:.cpp=.o)
@@ -145,9 +147,13 @@ CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverb
 
 CPPFLAGS += $(CPPDEFS)
 
+AVER = ${shell sh -c "grep \"SUB_VERS\" stamp-ersky9x.h | egrep -o \"[[:digit:]]*\""}
+VER = $(shell echo $$(( $(AVER) + 1 )))
+
 # If REVB board
 ifeq ($(REVB), 1)
  CPPDEFS += -DREVB
+ EXT_MOD=REVB
 endif
 
 # If serial Debug required
@@ -163,9 +169,19 @@ CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 # makefile rules
 #
 
-all: $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin
+all: stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin
 
-
+# Build stamp-file
+stamp:
+	@echo
+	@echo "Generate Version-stamp:"
+	@echo "//Automatically generated file - do not edit" > stamp-ersky9x.h
+	@echo "#define DATE_STR \"`date +%d.%m.%Y`\"" >> stamp-ersky9x.h
+	@echo "#define TIME_STR \"`date +%H:%I:%S`\"" >> stamp-ersky9x.h
+	@echo "#define SUB_VERS $(VER)-$(USER)" >> stamp-ersky9x.h
+	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
+	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
+	@cat stamp-ersky9x.h
 
 %.o : %.cpp
 	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@

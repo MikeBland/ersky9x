@@ -98,9 +98,9 @@ extern void eeprom_process( void ) ;
 
 
 
-void mainSequence( void ) ;
+void mainSequence( uint32_t no_menu ) ;
 void doSplash( void ) ;
-void perMain( void ) ;
+void perMain( uint32_t no_menu ) ;
 void generalDefault( void ) ;
 void modelDefault( uint8_t id ) ;
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
@@ -430,73 +430,6 @@ int main (void)
 //		PIOA->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
-		// EXT3 controlled by MENU key for testing/debug
-//		if ( PIOB->PIO_PDSR & 0x40 )
-//		{
-//			PIOA->PIO_SODR = 0x00200000L ;	// Set bit A21 ON
-//			both_on = 0 ;
-//		}
-//		else
-//		{
-//			PIOA->PIO_CODR = 0x00200000L ;	// Clear bit A21 OFF
-			
-//			if ( ( PIOA->PIO_PDSR & 0x80000000L ) == 0 )	// EXIT and MENU ON together
-//			{
-//				if ( ! both_on )
-//				{
-//					both_on = 1 ;
-//					if ( Per10ms_action )
-//					{
-//						Per10ms_action = 0 ;			
-//					}
-//					else
-//					{
-//						Per10ms_action = 1 ;
-//					}
-//					if ( Permenu_action )
-//					{
-//						Permenu_action = 0 ;			
-//					}
-//					else
-//					{
-//						Permenu_action = 1 ;
-//					}
-//				}
-//			}
-//			else
-//			{
-//				both_on = 0 ;
-//			}
-//		}
-
-
-		// EXT2 (A26) driven by Timer 2 TIOA
-//		if ( i != Timer2_count )
-//		{
-//			i = Timer2_count ;
-//			if ( Lcd_analog_display )
-//			{
-//				register uint32_t j ;
-
-//				read_9_adc() ;
-//				getADC_osmp() ;
-//				lcd_clear() ;
-
-//    		for( j=0; j<8; j++)
-//  	  	{
-//      	  uint8_t y=j*FH;
-//      	  lcd_putc( 4*FW, y, 'A' ) ;
-//      	  lcd_putc( 5*FW, y, '1'+j ) ;
-//      	  //        lcd_putsn_P( 4*FW, y,PSTR("A1A2A3A4A5A6A7A8")+2*i,2);
-//      	  lcd_outhex4( 7*FW, y,Analog_values[j]);
-//      	  lcd_outhex4( 13*FW, y,S_anaFilt[j]);
-//	    	}
-//				refreshDisplay() ;
-//			}
-//		}
-		
-
-
 #ifdef	DEBUG
 		handle_serial() ;
 		{
@@ -526,7 +459,7 @@ int main (void)
 //			Sine_index = 0 ;			
 //		}
 
-		mainSequence() ;
+		mainSequence( 0 ) ;
 
 	}
 
@@ -570,7 +503,7 @@ uint16_t getTmr2MHz()
 	return TC1->TC_CHANNEL[0].TC_CV ;
 }
 
-void mainSequence()
+void mainSequence( uint32_t no_menu )
 {
   uint16_t t0 = getTmr2MHz();
 	
@@ -588,7 +521,7 @@ void mainSequence()
 		getADC_single() ;
 	}
 
-	perMain();      // Give bandgap plenty of time to settle
+	perMain( no_menu ) ;		// Allow menu processing
 
 //      if(heartbeat == 0x3)
 //      {
@@ -791,13 +724,13 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
 }
 
 
-void perMain()
+void perMain( uint32_t no_menu )
 {
   static uint16_t lastTMR;
   tick10ms = (get_tmr10ms() != lastTMR);
   lastTMR = get_tmr10ms();
 
-    perOut(g_chans512, 0);
+  perOut(g_chans512, 0);
   if(!tick10ms) return ; //make sure the rest happen only every 10ms.
 
   //  if ( Timer2_running )
@@ -812,37 +745,39 @@ void perMain()
 
   eeCheck();
 
-  lcd_clear();
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
 
-    uint16_t a = 0;
-    uint16_t b = 0;
-    if(g_LightOffCounter) g_LightOffCounter--;
-    if(evt) a = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
-    if(stickMoved) b = g_eeGeneral.lightOnStickMove*500;
-    if(a>g_LightOffCounter) g_LightOffCounter = a;
-    if(b>g_LightOffCounter) g_LightOffCounter = b;
+  uint16_t a = 0;
+  uint16_t b = 0;
+  if(g_LightOffCounter) g_LightOffCounter--;
+  if(evt) a = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
+  if(stickMoved) b = g_eeGeneral.lightOnStickMove*500;
+  if(a>g_LightOffCounter) g_LightOffCounter = a;
+   if(b>g_LightOffCounter) g_LightOffCounter = b;
 
-		check_backlight() ;
+	check_backlight() ;
 
-    static int16_t p1valprev;
-    p1valdiff = (p1val-calibratedStick[6])/32;
-    if(p1valdiff) {
-        p1valdiff = (p1valprev-calibratedStick[6])/2;
-        p1val = calibratedStick[6];
-    }
-    p1valprev = calibratedStick[6];
-   if ( g_eeGeneral.disablePotScroll )
-   {
-      p1valdiff = 0 ;			
-   	}
+  static int16_t p1valprev;
+  p1valdiff = (p1val-calibratedStick[6])/32;
+  if(p1valdiff) {
+    p1valdiff = (p1valprev-calibratedStick[6])/2;
+    p1val = calibratedStick[6];
+  }
+  p1valprev = calibratedStick[6];
+  if ( g_eeGeneral.disablePotScroll )
+  {
+    p1valdiff = 0 ;			
+	}
 
-//	if ( Permenu_action )
-//	{
+// Here, if waiting for EEPROM response, don't action menus
+
+	if ( no_menu == 0 )
+	{
+    lcd_clear();
     g_menuStack[g_menuStackPtr](evt);
     refreshDisplay();
-//	}
+	}
 
 
 //    if(checkSlaveMode()) {
@@ -1060,7 +995,7 @@ void getADC_filt()
 	read_9_adc() ;
 	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
 	{
-		S_anaFilt[x] = S_anaFilt[x]/2 + (t_ana[1][x] >> 1 ) ;
+		S_anaFilt[x] = S_anaFilt[x]/2 + (t_ana[1][x] >> 2 ) ;
 		t_ana[1][x] = ( t_ana[1][x] + t_ana[0][x] ) >> 1 ;
 		t_ana[0][x] = ( t_ana[0][x] + Analog_values[x] ) >> 1 ;
 	}	 
