@@ -156,6 +156,7 @@ CPPFLAGS += $(CPPDEFS)
 ifeq ($(STAMP), 1)
 AVER = ${shell sh -c "grep \"SUB_VERS\" stamp-ersky9x.h | egrep -o \"[[:digit:]]*\""}
 VER = $(shell echo $$(( $(AVER) + 1 )))
+CPPDEFS += -DSTAMP
 endif
 
 # If REVB board
