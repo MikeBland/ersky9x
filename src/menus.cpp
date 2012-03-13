@@ -3469,14 +3469,6 @@ void menuProc0(uint8_t event)
 	
 	switch(event)
 	{
-    case EVT_KEY_BREAK(KEY_MENU):
-        if(view == e_timer2)
-        {
-            //            Timer2_running = !Timer2_running;
-            Timer2_running ^= 1 ;
-            audioDefevent(AUDIO_MENUS);
-        }
-        break;
     case  EVT_KEY_LONG(KEY_MENU):// go to last menu
 #ifdef FRSKY
         if( (view == e_telemetry) && ((g_eeGeneral.view & 0x30) == 0x20 ) )
@@ -3925,7 +3917,7 @@ void menuProc0(uint8_t event)
 	}
   else  // New Timer2 display
   {
-    putsTime(30+5*FW, FH*5, Timer2, DBLSIZE, DBLSIZE);
+    putsTime(30+5*FW, FH*5, s_timer[1].s_timerVal, DBLSIZE, DBLSIZE);
   }
 }
 

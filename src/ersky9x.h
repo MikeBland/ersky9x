@@ -364,6 +364,11 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define BACKLIGHT_ON    (PWM->PWM_CH_NUM[0].PWM_CDTY = g_eeGeneral.bright)
 #define BACKLIGHT_OFF   (PWM->PWM_CH_NUM[0].PWM_CDTY = 100)
 
+// Options for mainSequence()
+#define NO_MENU		1
+#define MENUS			0
+
+
 typedef void (*MenuFuncP)(uint8_t event);
 
 
@@ -401,9 +406,9 @@ extern void message(const char * s);
 void resetTimer();
 
 
-extern uint8_t Timer2_running ;
-extern uint16_t Timer2 ;
-void resetTimer2( void ) ;
+//extern uint8_t Timer2_running ;
+//extern uint16_t Timer2 ;
+//void resetTimer2( void ) ;
 
 extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
@@ -456,7 +461,7 @@ void    popMenu(bool uppermost=false);
 
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
 extern uint8_t g_vbat100mV ;
-extern uint16_t Timer2 ;
+//extern uint16_t Timer2 ;
 extern void doSplash( void ) ;
 
 

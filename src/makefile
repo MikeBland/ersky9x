@@ -47,8 +47,10 @@ DLIBS =
 
 EXT = STD
 
+ifeq ($(STAMP), 1)
 AREV = $(shell sh -c "cat .svn/entries | sed -n '4p'")
 REV = $(shell echo $$(( $(AREV) + 1 )))
+endif
 
 #
 # End of default section
@@ -86,8 +88,7 @@ SRC  = core_cm3.c \
        crt.c \
        vectors_sam3s.c
 
-CPPSRC = stamp.cpp \
-         drivers.cpp \
+CPPSRC = drivers.cpp \
          sound.cpp \
          lcd.cpp \
          debug.cpp \
@@ -96,6 +97,11 @@ CPPSRC = stamp.cpp \
          pers.cpp \
          menus.cpp \
          ersky9x.cpp
+
+ifeq ($(STAMP), 1)
+ CPPSRC += stamp.cpp
+endif
+
 
 # List ASM source files here
 ASRC =
@@ -147,8 +153,10 @@ CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverb
 
 CPPFLAGS += $(CPPDEFS)
 
+ifeq ($(STAMP), 1)
 AVER = ${shell sh -c "grep \"SUB_VERS\" stamp-ersky9x.h | egrep -o \"[[:digit:]]*\""}
 VER = $(shell echo $$(( $(AVER) + 1 )))
+endif
 
 # If REVB board
 ifeq ($(REVB), 1)

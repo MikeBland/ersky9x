@@ -157,6 +157,9 @@ void setupPulses( void ) ;
 void setupPulsesPPM( void ) ;
 void setupPulsesDsm2(uint8_t chns) ;
 void setupPulsesPXX( void ) ;
+void init_soft_power( void ) ;
+uint32_t check_soft_power( void ) ;
+void soft_power_off( void ) ;
 
 
 
@@ -226,9 +229,9 @@ uint8_t g_vbat100mV = 98 ;
 //int16_t g_chans512[NUM_CHNOUT] ;
 uint8_t heartbeat ;
 
-uint8_t Timer2_running = 0 ;
-uint8_t Timer2_pre = 0 ;
-uint16_t Timer2 = 0 ;
+//uint8_t Timer2_running = 0 ;
+//uint8_t Timer2_pre = 0 ;
+//uint16_t Timer2 = 0 ;
 
 
 #define DO_SQUARE(xx,yy,ww)         \
@@ -284,7 +287,7 @@ uint16_t Timer2 = 0 ;
 
 int main (void)
 {
-//	register uint32_t i ;
+	register uint32_t goto_usb ;
 	register Pio *pioptr ;
 	// Debug variable
 //	uint32_t both_on ;
@@ -296,9 +299,7 @@ int main (void)
   PMC->PMC_PCER0 = (1<<ID_PIOC)|(1<<ID_PIOB)|(1<<ID_PIOA)|(1<<ID_UART0) ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
 	pioptr = PIOA ;
 #ifdef REVB	
-	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
-	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as output
-	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
+	init_soft_power() ;
 #else	
 	// On REVB, PA21 is used as AD8, and measures current consumption.
 	pioptr->PIO_PER = PIO_PA21 ;		// Enable bit A21 (EXT3)
@@ -315,9 +316,6 @@ int main (void)
 //	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
 #ifdef REVB	
-	// Configure RF_power (PC17) but not PPM-jack-in (PC22), neither need pullups
-	pioptr->PIO_PER = 0x00020000L ;		// Enable bit C17
-	pioptr->PIO_ODR = 0x00020000L ;		// Set bits C17 as input
 #else	
 	// Configure RF_power (PC17) and PPM-jack-in (PC19), neither need pullups
 	pioptr->PIO_PER = 0x000A0000L ;		// Enable bit C19, C17
@@ -419,6 +417,7 @@ int main (void)
 //	Per10ms_action = 1 ;		// Run immediately
 //	Permenu_action = 1 ;
 
+	goto_usb = 0 ;
   while (1)
   {
 //	  PMC->PMC_PCER0 = 0x1800 ;				// Enable clocks to PIOB and PIOA
@@ -449,7 +448,7 @@ int main (void)
 		if ( pioptr->PIO_PDSR & 0x02000000 )
 		{
 			// Detected USB
-			break ;
+			goto_usb = 1 ;
 		}
   
 		// output a sinewave, untimed
@@ -459,8 +458,55 @@ int main (void)
 //			Sine_index = 0 ;			
 //		}
 
-		mainSequence( 0 ) ;
+		mainSequence( MENUS ) ;
 
+#ifdef REVB	
+		if ( ( check_soft_power() == 0 ) || ( goto_usb ) )		// power now off
+		{
+			// Time to switch off
+			lcd_clear() ;
+			lcd_putsn_P( 4*FW, 3*FH, "SHUTTING DOWN", 13 ) ;
+			if ( goto_usb )
+			{
+				lcd_putsn_P( 7*FW, 4*FH, "TO USB", 6 ) ;
+			}
+			refreshDisplay() ;
+
+			// Wait for OK to turn off
+			// Currently wait 1 sec, needs to check eeprom finished
+
+  		uint16_t tgtime = get_tmr10ms() + (3*100) ; //100 - 3 second for test
+	  	while(tgtime != get_tmr10ms())
+  		{
+//				if ( check_soft_power() )
+//				{
+//					break ;		// Power back on
+//				}
+				wdt_reset() ;
+
+//				if ( ee32_check_finished() == 0 )
+//				{
+//					lcd_putsn_P( 7*FW, 4*FH, "EEPROM BUSY", 11 ) ;
+//					refreshDisplay() ;
+////					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
+//				}
+//				else
+//				{
+//					lcd_putsn_P( 7*FW, 4*FH, "           ", 11 ) ;
+//					refreshDisplay() ;
+//				}
+  		}
+//			if ( check_soft_power() == 0 )
+//			{
+				soft_power_off() ;		// Only turn power off if necessary
+
+//			}
+		}
+#endif
+		if ( goto_usb )
+		{
+			break ;		
+		}
 	}
 
 	lcd_clear() ;
@@ -472,6 +518,7 @@ int main (void)
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
+	soft_power_off() ;
 	end_ppm_capture() ;
 	end_spi() ;
 	end_sound() ;
@@ -734,14 +781,14 @@ void perMain( uint32_t no_menu )
   if(!tick10ms) return ; //make sure the rest happen only every 10ms.
 
   //  if ( Timer2_running )
-  if ( Timer2_running & 1)  // ignore throttle started flag
-  {
-    if ( (Timer2_pre += 1 ) >= 100 )
-    {
-      Timer2_pre -= 100 ;
-      Timer2 += 1 ;
-    }
-  }
+//  if ( Timer2_running & 1)  // ignore throttle started flag
+//  {
+//    if ( (Timer2_pre += 1 ) >= 100 )
+//    {
+//      Timer2_pre -= 100 ;
+//      Timer2 += 1 ;
+//    }
+//  }
 
   eeCheck();
 
@@ -2086,12 +2133,12 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 }
 
 
-void resetTimer2()
-{
-  Timer2_pre = 0 ;
-  Timer2 = 0 ;
-  Timer2_running = 0 ;   // Stop and clear throttle started flag
-}
+//void resetTimer2()
+//{
+//  Timer2_pre = 0 ;
+//  Timer2 = 0 ;
+//  Timer2_running = 0 ;   // Stop and clear throttle started flag
+//}
 
 
 void alertMessages( const char * s, const char * t )
@@ -2304,6 +2351,53 @@ void pushMenu(MenuFuncP newMenu)
 }
 
 
+// 
+void init_soft_power()
+{
+	register Pio *pioptr ;
+	
+	pioptr = PIOC ;
+	// Configure RF_power (PC17) but not PPM-jack-in (PC22), neither need pullups
+	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
+	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
+	
+	pioptr = PIOA ;
+	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
+	pioptr->PIO_ODR = PIO_PA8 ;		// Set bit A8 as input
+	pioptr->PIO_PUER = PIO_PA8 ;	// Enable PA8 pullup
+}
+
+
+// Returns non-zero if power is switched off
+uint32_t check_soft_power()
+{
+#ifdef REVB	
+	if ( PIOC->PIO_PDSR & PIO_PC17 )		// Power on
+	{
+		return 1 ;
+	}
+
+	if ( PIOA->PIO_PDSR & PIO_PA8 )		// Trainer plugged in
+	{
+		return 1 ;
+	}
+#endif
+	return 0 ;	
+}
+
+
+// turn off soft power
+void soft_power_off()
+{
+#ifdef REVB
+	register Pio *pioptr ;
+	
+	pioptr = PIOA ;
+	pioptr->PIO_PUDR = PIO_PA8 ;	// Disble PA8 pullup
+	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as input
+	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
+#endif
+}
 
 
 /*** EOF ***/

@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <string.h>
 //#include <stdlib.h>
+#include "AT91SAM3S2.h"
 #include "ersky9x.h"
 #include "templates.h"
 #include "file.h"
@@ -140,7 +141,7 @@ void eeLoadModel(uint8_t id)
 
 //        g_model.mdVers = MDVERS; //update mdvers
 
-        resetTimer2();
+//        resetTimer2();
 
 #ifdef FRSKY
   FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
@@ -216,6 +217,17 @@ void eeDirty(uint8_t msk)
   if(!msk) return;
   s_eeDirtyMsk      |= msk;
   s_eeDirtyTime10ms  = get_tmr10ms() ;
+
+	// New file system operations
+	if ( msk & EE_GENERAL )
+	{
+		ee32StoreGeneral() ;
+	}
+	if ( msk & EE_MODEL )
+	{
+		ee32StoreModel( g_eeGeneral.currModel, msk & EE_TRIM ) ;
+	}
+
 }
 #define WRITE_DELAY_10MS 100
 
