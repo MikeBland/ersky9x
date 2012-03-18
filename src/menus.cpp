@@ -2476,9 +2476,19 @@ void menuProcDiagVers(uint8_t event)
     lcd_puts_Pleft( 6*FH,stamp5 );
 }
 
+#define PARAM_OFS   17*FW
+
+uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int8_t subN, uint8_t event )
+{
+  lcd_puts_Pleft(y, s);
+  menu_lcd_onoff( PARAM_OFS, y, value, sub==subN ) ;
+  if(sub==subN) CHECK_INCDEC_H_GENVAR(event, value, 0, 1);
+  return value ;
+}
+
 void menuProcSetup1(uint8_t event)
 {
-  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 3, {0/*, 0*/});
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 4, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
@@ -2501,7 +2511,7 @@ void menuProcSetup1(uint8_t event)
 			set_volume( g_eeGeneral.volume = current_volume ) ;
 		}
 	}
-  if((y+=FH)>3*FH) return;
+  if((y+=FH)>2*FH) return;
 	subN++;
 
   lcd_puts_Pleft(    y, PSTR("Brightness"));
@@ -2514,7 +2524,11 @@ void menuProcSetup1(uint8_t event)
 		g_eeGeneral.bright = 100 - b ;
 		PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 	}
-  if((y+=FH)>2*FH) return;
+  if((y+=FH)>3*FH) return;
+	subN++;
+
+  g_eeGeneral.optrexDisplay = onoffMenuItem( g_eeGeneral.optrexDisplay, y, PSTR("Optrex Display"), sub, subN, event ) ;
+  if((y+=FH)>4*FH) return;
 	subN++;
 
 }
@@ -2625,15 +2639,6 @@ void menuProcTrainer(uint8_t event)
 }
 
 
-#define PARAM_OFS   17*FW
-
-uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int8_t subN, uint8_t event )
-{
-  lcd_puts_Pleft(y, s);
-  menu_lcd_onoff( PARAM_OFS, y, value, sub==subN ) ;
-  if(sub==subN) CHECK_INCDEC_H_GENVAR(event, value, 0, 1);
-  return value ;
-}
 
 void menuProcSetup(uint8_t event)
 {

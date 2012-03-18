@@ -132,11 +132,6 @@ DEFS    = $(DDEFS) $(UDEFS) -DRUN_FROM_FLASH=1
 endif
 
 
-# If OPTREX lcd
-ifeq ($(EXT), OPTREX)
- CPPDEFS = -DOPTREX_LCD
-endif
-
 ADEFS   = $(DADEFS) $(UADEFS)
 OBJS    = $(ASRC:.s=.o) $(SRC:.c=.o) $(CPPSRC:.cpp=.o)
 LIBS    = $(DLIBS) $(ULIBS)

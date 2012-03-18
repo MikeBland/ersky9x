@@ -109,7 +109,8 @@ typedef struct t_EEGeneral {
   uint8_t	FRSkyOrange:4;
   uint8_t	FRSkyRed:4;  //mike please check these are correct
   uint8_t   hideNameOnSplash:1;
-  uint8_t   spare:3;
+  uint8_t   optrexDisplay:1;
+  uint8_t   spare:2;
   uint8_t   speakerPitch;
   uint8_t	hapticStrength;
   uint8_t	speakerMode;

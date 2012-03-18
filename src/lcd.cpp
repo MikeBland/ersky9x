@@ -24,6 +24,7 @@
 
 #include "AT91SAM3S2.h"
 #include "ersky9x.h"
+#include "myeeprom.h"
 #include "lcd.h"
 
 #include "font.lbm"
@@ -35,10 +36,6 @@
 
 #define TRUE	1
 #define FALSE	0
-
-
-// Compile time options for LCD version
-//#define OPTREX_LCD 0
 
 
 // Local data
@@ -723,11 +720,7 @@ void refreshDisplay()
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
 #endif 
   for( y=0; y < 8; y++) {
-#ifdef OPTREX_LCD
-    lcdSendCtl(0x00);
-#else
-    lcdSendCtl(0x04);
-#endif
+    lcdSendCtl( g_eeGeneral.optrexDisplay ? 0 : 0x04 ) ;
     lcdSendCtl(0x10); //column addr 0
     lcdSendCtl( y | 0xB0); //page addr y
     
