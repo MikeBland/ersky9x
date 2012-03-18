@@ -22,9 +22,9 @@
 #include "core_cm3.h"
 
 #include "ersky9x.h"
-#include "debug.h"
-#include "drivers.h"
 #include "myeeprom.h"
+#include "drivers.h"
+#include "debug.h"
 
 // Timer usage
 // TIMER3 for input capture
@@ -39,7 +39,7 @@ extern uint32_t Eeprom_image_updated ;
 extern void eeprom_process( void ) ;
 
 uint16_t Analog_values[NUMBER_ANALOG] ;
-uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
+//uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
 
 struct t_fifo32
 {
@@ -887,11 +887,11 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Configure baudrate */
   /* Asynchronous, no oversampling */
-  pUart->UART_BRGR = (masterClock / baudrate) / 16;
+//  pUart->UART_BRGR = (masterClock / baudrate) / 16;
   
-//	baudrate = (masterClock * 8 / baudrate) / 16 ;
-//  pUart->UART_BRGR = ( baudrate / 8 ) || ( ( baudrate & 7 ) << 16 ) ;	// Fractional part to allow 152000 baud
-//
+	baudrate = (masterClock * 8 / baudrate) / 16 ;
+  pUart->UART_BRGR = ( baudrate / 8 ) | ( ( baudrate & 7 ) << 16 ) ;	// Fractional part to allow 152000 baud
+
   /* Disable PDC channel */
   pUart->UART_PTCR = UART_PTCR_RXTDIS | UART_PTCR_TXTDIS;
 
@@ -1000,10 +1000,17 @@ uint16_t rx2nduart()
 void txmitBt( uint8_t c )
 {
   Uart *pUart=BT_USART ;
+	uint32_t x ;
 
 	/* Wait for the transmitter to be ready */
-  while ( (pUart->UART_SR & UART_SR_TXEMPTY) == 0 ) ;
-
+	x = 10000 ;
+  while ( (pUart->UART_SR & UART_SR_TXEMPTY) == 0 )
+	{
+		if ( --x == 0 )
+		{
+			break ;			// Timeout so we don't hang
+		}
+	}
   /* Send character */
   pUart->UART_THR=c ;
 }
@@ -1142,32 +1149,32 @@ void init_adc()
 }
 
 
-void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom)
-{
-	eeprom[pointer_eeprom] = dat ;
-	Eeprom_image_updated = 1 ;
-}
+//void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom)
+//{
+//	eeprom[pointer_eeprom] = dat ;
+//	Eeprom_image_updated = 1 ;
+//}
 
-void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size)
-{
-  const char* pointer_ram = (const char*)i_pointer_ram;
-  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
-  while(size){
-    eeprom_write_byte_cmp(*pointer_ram++,pointer_eeprom++);
-    size--;
-  }
-}
+//void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size)
+//{
+//  const char* pointer_ram = (const char*)i_pointer_ram;
+//  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
+//  while(size){
+//    eeprom_write_byte_cmp(*pointer_ram++,pointer_eeprom++);
+//    size--;
+//  }
+//}
 
-void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size )
-{
-  char *pointer_ram = (char*)i_pointer_ram;
-  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
-	while ( size )
-	{
-		*pointer_ram++ = eeprom[pointer_eeprom++] ;
-		size -= 1 ;		
-	}
-}
+//void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size )
+//{
+//  char *pointer_ram = (char*)i_pointer_ram;
+//  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
+//	while ( size )
+//	{
+//		*pointer_ram++ = eeprom[pointer_eeprom++] ;
+//		size -= 1 ;		
+//	}
+//}
 
 
 // Start TIMER3 for input capture

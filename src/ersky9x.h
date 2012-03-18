@@ -389,7 +389,7 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 
 extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_CHNOUT];
-extern uint8_t eeprom[4096] ;
+//extern uint8_t eeprom[4096] ;
 
 uint8_t char2idx(char c);
 char idx2char(uint8_t idx);
@@ -428,16 +428,16 @@ extern int16_t ex_chans[NUM_CHNOUT];
 
 extern void modelDefault( uint8_t id ) ;
 
-void eeWaitComplete( void ) ;
+//void eeWaitComplete( void ) ;
 void eeDirty(uint8_t msk);
-void eeCheck(bool immediately=false ) ;
+//void eeCheck(bool immediately=false ) ;
 void eeReadAll( void ) ;
-void eeLoadModelName(uint8_t id,char*buf,uint8_t len);
+//void eeLoadModelName(uint8_t id,char*buf,uint8_t len);
 //uint16_t eeFileSize(uint8_t id);
-void eeLoadModel(uint8_t id);
+//void eeLoadModel(uint8_t id);
 //void eeSaveModel(uint8_t id);
 bool eeDuplicateModel(uint8_t id);
-bool eeModelExists(uint8_t id);
+//bool eeModelExists(uint8_t id);
 
 extern char idx2char(uint8_t idx) ;
 extern uint8_t char2idx(char c) ;
@@ -463,6 +463,7 @@ extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
 extern uint8_t g_vbat100mV ;
 //extern uint16_t Timer2 ;
 extern void doSplash( void ) ;
+extern void mainSequence( uint32_t no_menu ) ;
 
 
 

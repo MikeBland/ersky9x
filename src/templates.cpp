@@ -240,7 +240,7 @@ void applyTemplate(uint8_t idx)
 
 
     STORE_MODELVARS;
-    eeWaitComplete() ;
+//    eeWaitComplete() ;
 
 }
 

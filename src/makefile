@@ -88,7 +88,8 @@ SRC  = core_cm3.c \
        crt.c \
        vectors_sam3s.c
 
-CPPSRC = drivers.cpp \
+CPPSRC = stamp.cpp \
+         drivers.cpp \
          sound.cpp \
          lcd.cpp \
          debug.cpp \
@@ -97,11 +98,6 @@ CPPSRC = drivers.cpp \
          pers.cpp \
          menus.cpp \
          ersky9x.cpp
-
-ifeq ($(STAMP), 1)
- CPPSRC += stamp.cpp
-endif
-
 
 # List ASM source files here
 ASRC =
@@ -183,6 +179,7 @@ all: stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).b
 # Build stamp-file
 stamp:
 	@echo
+ifeq ($(STAMP), 1)
 	@echo "Generate Version-stamp:"
 	@echo "//Automatically generated file - do not edit" > stamp-ersky9x.h
 	@echo "#define DATE_STR \"`date +%d.%m.%Y`\"" >> stamp-ersky9x.h
@@ -191,6 +188,7 @@ stamp:
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
 	@cat stamp-ersky9x.h
+endif
 
 %.o : %.cpp
 	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@

@@ -94,7 +94,6 @@
 extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
 extern uint16_t g_timeMain;
-extern void eeprom_process( void ) ;
 
 
 
@@ -358,7 +357,7 @@ int main (void)
 
 	UART_Configure( 9600, Master_frequency ) ;
 	UART2_Configure( 9600, Master_frequency ) ;		// Testing
-	UART3_Configure( 9600, Master_frequency ) ;		// Testing
+	UART3_Configure( 115200, Master_frequency ) ;		// Testing
 
 	start_timer2() ;
 	start_timer0() ;
@@ -475,7 +474,7 @@ int main (void)
 			// Wait for OK to turn off
 			// Currently wait 1 sec, needs to check eeprom finished
 
-  		uint16_t tgtime = get_tmr10ms() + (3*100) ; //100 - 3 second for test
+  		uint16_t tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
 	  	while(tgtime != get_tmr10ms())
   		{
 //				if ( check_soft_power() )
@@ -484,17 +483,17 @@ int main (void)
 //				}
 				wdt_reset() ;
 
-//				if ( ee32_check_finished() == 0 )
-//				{
-//					lcd_putsn_P( 7*FW, 4*FH, "EEPROM BUSY", 11 ) ;
-//					refreshDisplay() ;
-////					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
-//				}
-//				else
-//				{
-//					lcd_putsn_P( 7*FW, 4*FH, "           ", 11 ) ;
-//					refreshDisplay() ;
-//				}
+				if ( ee32_check_finished() == 0 )
+				{
+					lcd_putsn_P( 7*FW, 4*FH, "EEPROM BUSY", 11 ) ;
+					refreshDisplay() ;
+					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 moer second
+				}
+				else
+				{
+					lcd_putsn_P( 7*FW, 4*FH, "           ", 11 ) ;
+					refreshDisplay() ;
+				}
   		}
 //			if ( check_soft_power() == 0 )
 //			{
@@ -550,6 +549,8 @@ uint16_t getTmr2MHz()
 	return TC1->TC_CHANNEL[0].TC_CV ;
 }
 
+uint32_t OneSecTimer ;
+
 void mainSequence( uint32_t no_menu )
 {
   uint16_t t0 = getTmr2MHz();
@@ -570,11 +571,11 @@ void mainSequence( uint32_t no_menu )
 
 	perMain( no_menu ) ;		// Allow menu processing
 
-//      if(heartbeat == 0x3)
-//      {
-//          wdt_reset();
-//          heartbeat = 0;
-//      }
+  if(heartbeat == 0x3)
+  {
+    wdt_reset();
+    heartbeat = 0;
+  }
   
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
@@ -583,7 +584,12 @@ void mainSequence( uint32_t no_menu )
 	if ( Tenms )
 	{
 		Tenms = 0 ;
-		eeprom_process() ;
+		ee32_process() ;
+		if ( ++OneSecTimer >= 100 )
+		{
+			OneSecTimer -= 100 ;
+			txmitBt( 'X' ) ;		// Send an X to Blurtooth every second for testing
+		}
 	}
 
 
@@ -790,7 +796,7 @@ void perMain( uint32_t no_menu )
 //    }
 //  }
 
-  eeCheck();
+//  eeCheck();
 
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
@@ -881,6 +887,7 @@ void perMain( uint32_t no_menu )
 //    }
 //        break;
   }
+  stickMoved = 0; //reset this flag
 
 }
 
@@ -1438,7 +1445,7 @@ void setupPulsesDsm2(uint8_t chns)
   dsmDat[1]=g_eeGeneral.currModel+1;  //DSM2 Header second byte for model match
   for(uint8_t i=0; i<chns; i++)
   {
-    uint16_t pulse = limit(0, (g_chans512[i]>>1)+512,1023);
+		uint16_t pulse = limit(0, ((g_chans512[i]*13)>>5)+512,1023);
     dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
     dsmDat[3+2*i] = pulse & 0xff;
   }

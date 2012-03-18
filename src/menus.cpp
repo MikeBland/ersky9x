@@ -526,7 +526,7 @@ else  if(sub>0){ //make sure we're not on "EDIT"
         else    for (uint8_t i = 0; i < 5; i++) crv[i] = (i-2)*dfltCrv* 100 /  8;
         STORE_MODELVARS;        
         //        eeDirty(EE_MODEL);
-        eeWaitComplete() ;
+//        eeWaitComplete() ;
     }
 }
 
@@ -666,7 +666,7 @@ switch(event)
             case 0:
                 ld->offset = (ld->revert) ? -v : v;
                 STORE_MODELVARS;
-                eeWaitComplete() ;
+//                eeWaitComplete() ;
                 break;
             }
         }
@@ -1092,7 +1092,7 @@ void deleteMix(uint8_t idx)
             (MAX_MIXERS-(idx+1))*sizeof(MixData));
     memset(&g_model.mixData[MAX_MIXERS-1],0,sizeof(MixData));
     STORE_MODELVARS;
-    eeWaitComplete() ;
+//    eeWaitComplete() ;
 }
 
 void insertMix(uint8_t idx)
@@ -1104,7 +1104,7 @@ void insertMix(uint8_t idx)
     g_model.mixData[idx].srcRaw      = s_currDestCh; //1;   //
     g_model.mixData[idx].weight      = 100;
     STORE_MODELVARS;
-    eeWaitComplete() ;
+//    eeWaitComplete() ;
 }
 
 void menuProcMixOne(uint8_t event)
@@ -1315,7 +1315,7 @@ void moveMix(uint8_t idx,uint8_t mcopy, uint8_t dir) //true=inc=down false=dec=u
     //flip between idx and tgt
     memswap( tgt, src, sizeof(MixData) ) ;
     STORE_MODELVARS;
-    eeWaitComplete() ;
+//    eeWaitComplete() ;
 
 }
 
@@ -1804,10 +1804,11 @@ void menuDeleteDupModel(uint8_t event)
         }
         else
         {
-            EFile::rm(FILE_MODEL(g_eeGeneral.currModel)); //delete file
+						ee32_delete_model( g_eeGeneral.currModel ) ;
+//            EFile::rm(FILE_MODEL(g_eeGeneral.currModel)); //delete file
 
             i = g_eeGeneral.currModel;//loop to find next available model
-            while (!EFile::exists(FILE_MODEL(i))) {
+            while ( ! ee32ModelExists( i ) ) {
                 i--;
                 if(i>MAX_MODELS) i=MAX_MODELS-1;
                 if(i==g_eeGeneral.currModel) {
@@ -1817,8 +1818,9 @@ void menuDeleteDupModel(uint8_t event)
             }
             g_eeGeneral.currModel = i;
             STORE_GENERALVARS;
-            eeWaitComplete() ;
-            eeLoadModel(g_eeGeneral.currModel); //load default values
+						ee32WaitLoadModel(g_eeGeneral.currModel) ;
+//            eeWaitComplete() ;
+//            eeLoadModel(g_eeGeneral.currModel); //load default values
             resetTimer();
         }
         killEvents(event);
@@ -1990,7 +1992,7 @@ if(s_pgOfs<subN) {
             s_editMode = false;
             g_model.beepANACenter ^= (1<<(subSub));
             STORE_MODELVARS;
-            eeWaitComplete() ;
+//            eeWaitComplete() ;
         }
     }
     if((y+=FH)>7*FH) return;
@@ -2199,8 +2201,8 @@ void menuProcModelSelect(uint8_t event)
   int8_t subOld  = mstate2.m_posVert;
   mstate2.check_submenu_simple(event,MAX_MODELS-1) ;
 
-  lcd_puts_P(     9*FW, 0, PSTR("free"));
-  lcd_outdezAtt(  17*FW, 0, EeFsGetFree(),0);
+//  lcd_puts_P(     9*FW, 0, PSTR("free"));
+//  lcd_outdezAtt(  17*FW, 0, EeFsGetFree(),0);
 
   DisplayScreenIndex(e_ModelSelect, DIM(menuTabModel), INVERS);
 
@@ -2220,13 +2222,14 @@ void menuProcModelSelect(uint8_t event)
           sel_editMode = false;
           audioDefevent(AUDIO_MENUS);
           killEvents(event);
-          eeWaitComplete();    // Wait to load model if writing something
-          eeLoadModel(g_eeGeneral.currModel = mstate2.m_posVert);
+					ee32WaitLoadModel(g_eeGeneral.currModel = mstate2.m_posVert) ;
+//          eeWaitComplete();    // Wait to load model if writing something
+//          eeLoadModel(g_eeGeneral.currModel = mstate2.m_posVert);
           resetTimer();
           STORE_GENERALVARS;
-          eeWaitComplete();
-          STORE_MODELVARS;
-          eeWaitComplete();
+//          eeWaitComplete();
+//          STORE_MODELVARS;
+//          eeWaitComplete();
           break;
       }
       //fallthrough
@@ -2236,11 +2239,12 @@ void menuProcModelSelect(uint8_t event)
       {
           killEvents(event);
           g_eeGeneral.currModel = mstate2.m_posVert;
-          eeWaitComplete();    // Wait to load model if writing something
-          eeLoadModel(g_eeGeneral.currModel);
+          ee32WaitLoadModel(g_eeGeneral.currModel); //load default values
+//          eeWaitComplete();    // Wait to load model if writing something
+//          eeLoadModel(g_eeGeneral.currModel);
           resetTimer();
           STORE_GENERALVARS;
-          eeWaitComplete();
+//          eeWaitComplete();
           audioDefevent(AUDIO_WARNING2);
       }
 #ifndef NO_TEMPLATES
@@ -2280,12 +2284,13 @@ void menuProcModelSelect(uint8_t event)
       sel_editMode = false;
 
       mstate2.m_posVert = g_eeGeneral.currModel;
-      eeCheck(true); //force writing of current model data before this is changed
+//      eeCheck(true); //force writing of current model data before this is changed
       break;
   }
   if(sel_editMode && subOld!=sub)
 	{
-    EFile::swap(FILE_MODEL(subOld),FILE_MODEL(sub));
+// ****** This needs sorting out
+//    EFile::swap(FILE_MODEL(subOld),FILE_MODEL(sub));
   }
 
   if(sub-s_pgOfs < 1)        s_pgOfs = max(0,sub-1);
@@ -2295,10 +2300,11 @@ void menuProcModelSelect(uint8_t event)
     uint8_t y=(i+2)*FH;
     uint8_t k=i+s_pgOfs;
     lcd_outdezNAtt(  3*FW, y, k+1, ((sub==k) ? INVERS : 0) + LEADING0,2);
-    static char buf[sizeof(g_model.name)+5];
+//    static char buf[sizeof(g_model.name)+5];
     if(k==g_eeGeneral.currModel) lcd_putc(1,  y,'*');
-    eeLoadModelName(k,buf,sizeof(buf));
-    lcd_putsnAtt(  4*FW, y, buf,sizeof(buf),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
+//    eeLoadModelName(k,buf,sizeof(buf));
+    lcd_putsnAtt(  4*FW, y, (char *)ModelNames[k+1],sizeof(g_model.name),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
+//    lcd_putsnAtt(  4*FW, y, (char *)buf,sizeof(buf),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
   }
 
 }
@@ -2953,7 +2959,7 @@ void menuProcSetup(uint8_t event)
                 }
 
                 STORE_GENERALVARS;
-                eeWaitComplete() ;
+//                eeWaitComplete() ;
             }
         }
 
@@ -4009,7 +4015,8 @@ void perOut(int16_t *chanOut, uint8_t att)
             inacSum = tsum;
             stickMoved = 1;  // reset in perMain
         }
-        if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49)) {
+        if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49))
+				{
             if (++inacPrescale > 15 )
             {
                 inacCounter++;
@@ -4017,10 +4024,7 @@ void perOut(int16_t *chanOut, uint8_t att)
             }
             uint16_t tsum = 0;
             for(uint8_t i=0;i<4;i++) tsum += anas[i];
-            if(abs(int16_t(tsum-inacSum))>INACTIVITY_THRESHOLD){
-                inacSum = tsum;
-                inacCounter=0;
-            }
+            if(stickMoved) inacCounter=0;
             if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
                 if((inacCounter&0x3)==1) {
                     audioDefevent(AUDIO_INACTIVITY);
