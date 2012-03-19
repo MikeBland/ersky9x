@@ -51,6 +51,29 @@ struct t_fifo32
 
 struct t_fifo32 FrskyFifo ;
 
+#define RX_UART_BUFFER_SIZE	32
+
+struct t_rxUartBuffer
+{
+	uint8_t fifo[RX_UART_BUFFER_SIZE] ;
+	uint8_t *outPtr ;
+} ;
+
+// set outPtr start of buffer
+// give 1st buffer to Uart as RPR/RCR
+// set outPtr start of buffer
+// give 2nd buffer to Uart as RNPR/RNCR
+
+// read RPR
+// if RPRcopy in TelemetryInBuffer[TelemetryActiveBuffer]
+// process chars up to RPRcopy
+// else process remaining chars in buffer, give buffer to Uart as RNPR/RNCR
+//      TelemetryActiveBuffer becomes other buffer
+
+
+struct t_rxUartBuffer TelemetryInBuffer[2] ;
+uint32_t TelemetryActiveBuffer ;
+
 volatile uint32_t Spi_complete ;
 
 void putEvent( register uint8_t evt) ;
@@ -900,7 +923,7 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
-// USART0 configuration
+// USART0 configuration, we will use this for FrSky etc
 // Work in Progress, UNTESTED
 // Uses PA5 and PA6 (RXD and TXD)
 void UART2_Configure( uint32_t baudrate, uint32_t masterClock)

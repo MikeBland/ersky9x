@@ -1089,7 +1089,7 @@ void init_pwm()
 #endif
 
 #ifdef REVB
-	pioptr = PIOB ;
+	pioptr = PIOA ;
   pioptr->PIO_ABCDSR[0] &= ~PIO_PA16 ;		// Peripheral C
   pioptr->PIO_ABCDSR[1] |= PIO_PA16 ;			// Peripheral C
 	pioptr->PIO_PDR = PIO_PA16 ;						// Disable bit A16 Assign to peripheral
