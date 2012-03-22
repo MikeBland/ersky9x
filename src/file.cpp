@@ -438,6 +438,10 @@ bool ee32LoadGeneral()
 	{
 		read32_eeprom_data( ( File_system[0].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&g_eeGeneral, size, 0 ) ;
 	}
+	else
+	{
+		return false ;		// No data to load
+	}
 
   for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
   {
@@ -452,6 +456,7 @@ bool ee32LoadGeneral()
 
   uint16_t sum=0;
   if(size>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
+	else return false ;
   return g_eeGeneral.chkSum == sum;
 }
 

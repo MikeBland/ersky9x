@@ -48,13 +48,16 @@ void generalDefault()
   memset(&g_eeGeneral,0,sizeof(g_eeGeneral));
   g_eeGeneral.myVers   =  MDVERS;
   g_eeGeneral.currModel=  0;
-  g_eeGeneral.contrast = 25;
+  g_eeGeneral.contrast = 30;
   g_eeGeneral.vBatWarn = 65;
   g_eeGeneral.stickMode=  1;
+	g_eeGeneral.disablePotScroll=  1;
+	g_eeGeneral.bright = 50 ;
+	g_eeGeneral.volume = 2 ;
   for (int i = 0; i < 7; ++i) {
-    g_eeGeneral.calibMid[i]     = 0x200;
-    g_eeGeneral.calibSpanNeg[i] = 0x180;
-    g_eeGeneral.calibSpanPos[i] = 0x180;
+    g_eeGeneral.calibMid[i]     = 0x400;
+    g_eeGeneral.calibSpanNeg[i] = 0x300;
+    g_eeGeneral.calibSpanPos[i] = 0x300;
   }
   strncpy_P(g_eeGeneral.ownerName,PSTR("ME        "), 10);
   int16_t sum=0;
@@ -186,13 +189,13 @@ bool eeDuplicateModel(uint8_t id)
 
 void eeReadAll()
 {
-	txmit('a') ;
+//	txmit('a') ;
   if(!ee32LoadGeneral() )
 //		 !EeFsOpen()  ||
 //     EeFsck() < 0 ||
 //  )
   {
-	txmit('b') ;
+//	txmit('b') ;
 		
     alert((char const *)"Bad EEprom Data", true);
     g_eeGeneral.contrast = 25 ;

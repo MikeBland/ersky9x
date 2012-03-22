@@ -59,20 +59,10 @@ struct t_rxUartBuffer
 	uint8_t *outPtr ;
 } ;
 
-// set outPtr start of buffer
-// give 1st buffer to Uart as RPR/RCR
-// set outPtr start of buffer
-// give 2nd buffer to Uart as RNPR/RNCR
-
-// read RPR
-// if RPRcopy in TelemetryInBuffer[TelemetryActiveBuffer]
-// process chars up to RPRcopy
-// else process remaining chars in buffer, give buffer to Uart as RNPR/RNCR
-//      TelemetryActiveBuffer becomes other buffer
-
-
 struct t_rxUartBuffer TelemetryInBuffer[2] ;
 uint32_t TelemetryActiveBuffer ;
+
+
 
 volatile uint32_t Spi_complete ;
 
@@ -860,9 +850,9 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Configure PIO */
 	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00000600 ;	// Peripheral A
-  pioptr->PIO_ABCDSR[1] &= ~0x00000600 ;	// Peripheral A
-  pioptr->PIO_PDR = 0x00000600 ;					// Assign to peripheral
+  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
+  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
+  pioptr->PIO_PDR = (PIO_PA9 | PIO_PA10) ;					// Assign to peripheral
 
   /* Configure PMC */
   PMC->PMC_PCER0 = 1 << CONSOLE_ID;
@@ -934,9 +924,9 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Configure PIO */
 	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00000060 ;	// Peripheral A
-  pioptr->PIO_ABCDSR[1] &= ~0x00000060 ;	// Peripheral A
-  pioptr->PIO_PDR = 0x00000060 ;					// Assign to peripheral
+  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
+  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
+  pioptr->PIO_PDR = (PIO_PA5 | PIO_PA6) ;					// Assign to peripheral
 
 //  /* Configure PMC */
   PMC->PMC_PCER0 = 1 << SECOND_ID;
@@ -946,7 +936,7 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 	                 | US_CR_RXDIS | US_CR_TXDIS;
 
 //  /* Configure mode */
-  pUsart->US_MR =  0x000008C0 ;  // NORMAL, No Parity
+  pUsart->US_MR =  0x000008C0 ;  // NORMAL, No Parity, 8 bit
 
 //  /* Configure baudrate */
 //  /* Asynchronous, no oversampling */
@@ -959,6 +949,88 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
   pUsart->US_CR = US_CR_RXEN | US_CR_TXEN;
 
 }
+
+// set outPtr start of buffer
+// give 1st buffer to Uart as RPR/RCR
+// set outPtr start of buffer
+// give 2nd buffer to Uart as RNPR/RNCR
+
+// read RPR
+// if RPRcopy in TelemetryInBuffer[TelemetryActiveBuffer]
+// process chars up to RPRcopy
+// else process remaining chars in buffer, give buffer to Uart as RNPR/RNCR
+//      TelemetryActiveBuffer becomes other buffer
+
+
+uint8_t OutputBuffer[128] ;
+uint32_t OutIndex ;
+
+void charProcess( uint8_t byte )
+{
+	OutputBuffer[OutIndex++] = byte ;
+	OutIndex &= 0x007F ;	
+}
+
+void poll2ndUsart10mS()
+{
+	rxPdcUsart( charProcess ) ;	
+}
+
+
+
+void startPdcUsartReceive()
+{
+  register Usart *pUsart = SECOND_USART;
+	
+	TelemetryInBuffer[0].outPtr = TelemetryInBuffer[0].fifo ;
+	TelemetryInBuffer[1].outPtr = TelemetryInBuffer[1].fifo ;
+	pUsart->US_RPR = (uint32_t)TelemetryInBuffer[0].fifo ;
+	pUsart->US_RNPR = (uint32_t)TelemetryInBuffer[1].fifo ;
+	pUsart->US_RCR = RX_UART_BUFFER_SIZE ;
+	pUsart->US_RNCR = RX_UART_BUFFER_SIZE ;
+	pUsart->US_PTCR = US_PTCR_RXTEN ;
+	TelemetryActiveBuffer = 0 ;
+}
+
+void rxPdcUsart( void (*pChProcess)(uint8_t x) )
+{
+  register Usart *pUsart = SECOND_USART;
+	uint8_t *ptr ;
+	uint8_t *endPtr ;
+//	uint32_t bufIndex ;
+//	uint32_t i ;
+	uint32_t j ;
+
+ //Find out where the DMA has got to
+		__disable_irq() ;
+	pUsart->US_PTCR = US_PTCR_RXTDIS ;		// Freeze DMA
+	ptr = (uint8_t *)pUsart->US_RPR ;
+	j = pUsart->US_RNCR ;
+	pUsart->US_PTCR = US_PTCR_RXTEN ;			// DMA active again
+		__enable_irq() ;
+
+	endPtr = ptr - 1 ;
+	ptr = TelemetryInBuffer[TelemetryActiveBuffer].outPtr ;
+	if ( j == 0 )		// First buf is full
+	{
+		endPtr = &TelemetryInBuffer[TelemetryActiveBuffer].fifo[RX_UART_BUFFER_SIZE-1] ;		// last byte
+	}
+	while ( ptr <= endPtr )
+	{
+		(*pChProcess)(*ptr++) ;
+	}
+	TelemetryInBuffer[TelemetryActiveBuffer].outPtr = ptr ;
+	if ( j == 0 )		// First buf is full
+	{
+		TelemetryInBuffer[TelemetryActiveBuffer].outPtr = TelemetryInBuffer[TelemetryActiveBuffer].fifo ;
+		pUsart->US_RNPR = (uint32_t)TelemetryInBuffer[TelemetryActiveBuffer].fifo ;
+		pUsart->US_RNCR = RX_UART_BUFFER_SIZE ;
+		TelemetryActiveBuffer ^= 1 ;		// Other buffer is active
+		rxPdcUsart( pChProcess ) ;			// Get any chars from second buffer
+	}
+}
+
+
 
 /**
  * Outputs a character on the UART line.

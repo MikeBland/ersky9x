@@ -393,7 +393,6 @@ int main (void)
 	PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 
 	// Choose here between PPM and PXX
-	init_main_ppm( 3000, 1 ) ;		// Default for now, initial period 1.5 mS, output on
 //	init_ssc() ;			// Or we may do this
 
   pushMenu(menuProcModelSelect);
@@ -404,12 +403,17 @@ int main (void)
   checkTHR();
   checkSwitches();
 
-	lcd_clear() ;
-	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
-	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
+//	lcd_clear() ;
+//	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
+//	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
 	
-	refreshDisplay() ;
+//	refreshDisplay() ;
+	init_main_ppm( 3000, 1 ) ;		// Default for now, initial period 1.5 mS, output on
+
 	start_ppm_capture() ;
+
+	// FrSky testing serial receive
+	startPdcUsartReceive() ;
 
 //	both_on = 0 ;
 	
@@ -517,6 +521,7 @@ int main (void)
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
+	USART0->US_PTCR = US_PTCR_RXTDIS ;		// Terminate any serial reception
 	soft_power_off() ;
 	end_ppm_capture() ;
 	end_spi() ;
@@ -590,6 +595,11 @@ void mainSequence( uint32_t no_menu )
 			OneSecTimer -= 100 ;
 			txmitBt( 'X' ) ;		// Send an X to Blurtooth every second for testing
 		}
+
+		// Process FrSky received bytes
+		poll2ndUsart10mS() ;
+//		rxPdcUsart( charProcess ) ;
+
 	}
 
 
@@ -1156,7 +1166,10 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 	register Pio *pioptr ;
 	register Pwm *pwmptr ;
 	
-  if ( out_enable )
+  perOut(g_chans512, 0) ;
+  setupPulsesPPM() ;
+
+	if ( out_enable )
 	{
 		pioptr = PIOA ;
 		pioptr->PIO_ABCDSR[0] &= ~PIO_PA17 ;		// Peripheral C

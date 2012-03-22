@@ -447,7 +447,7 @@ void handle_serial()
 
 	if ( rxchar == '(' )
 	{
-		set_frequency( 100 ) ;
+		set_frequency( 500 ) ;
 	}
 	
 	if ( rxchar == '=' )
@@ -457,7 +457,7 @@ void handle_serial()
 	
 	if ( rxchar == ')' )
 	{
-		set_frequency( 5500 ) ;
+		set_frequency( 3000 ) ;
 	}
 	
 	if ( rxchar == ' ' )

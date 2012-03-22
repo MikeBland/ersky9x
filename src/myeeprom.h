@@ -99,7 +99,7 @@ typedef struct t_EEGeneral {
   uint8_t   flashBeep:1;
   uint8_t   disableSplashScreen:1;
   uint8_t   disablePotScroll:1;
-  uint8_t   disableBG:1;
+  uint8_t   spare3:1;
   uint8_t   frskyinternalalarm:1;
   uint8_t   filterInput;
   uint8_t   lightAutoOff;

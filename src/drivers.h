@@ -17,6 +17,12 @@ extern void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void txmitBt( uint8_t c ) ;
 extern uint16_t rxBtuart( void ) ;
 
+extern void poll2ndUsart10mS( void ) ;
+//extern void charProcess( uint8_t byte ) ;
+extern void poll2ndUsart10mS( void ) ;
+extern void startPdcUsartReceive( void ) ;
+extern void rxPdcUsart( void (*pChProcess)(uint8_t x) ) ;
+
 extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void per10ms( void ) ;
 extern uint8_t getEvent( void ) ;
