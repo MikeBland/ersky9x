@@ -763,14 +763,15 @@ void refreshDisplay()
     }
 		pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
   }
+	pioptr->PIO_ODSR = 0xFF ;					// Drive lines high
 #ifdef REVB
+	pioptr->PIO_PUER = 0x0000003AL ;	// Set bits 1, 3, 4, 5 with pullups
 	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
 #else
+	pioptr->PIO_PUER = 0x0000003CL ;	// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 #endif 
-	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
+	pioptr->PIO_ODSR = 0xFE ;					// Drive D0 low
 }
 
 

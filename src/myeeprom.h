@@ -248,15 +248,6 @@ extern EEGeneral g_eeGeneral;
 extern ModelData g_model;
 
 
-
-
-
-
-
-
-
-
-
 #endif
 /*eof*/
 

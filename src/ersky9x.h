@@ -20,7 +20,7 @@
 
 // Items set to make things compile, will need to be sorted eventually
 #define assert(x)
-#define wdt_reset()
+#define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
 
 #define VERSION	"V0.26"
 

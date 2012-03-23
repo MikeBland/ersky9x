@@ -34,22 +34,22 @@
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
-extern uint32_t Eeprom_image_updated ;
+//extern uint32_t Eeprom_image_updated ;
 
-extern void eeprom_process( void ) ;
+//extern void eeprom_process( void ) ;
 
 uint16_t Analog_values[NUMBER_ANALOG] ;
 //uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
 
-struct t_fifo32
-{
-	uint8_t fifo[32] ;
-	uint32_t in ;
-	uint32_t out ;
-	volatile uint32_t count ;
-} ;
+//struct t_fifo32
+//{
+//	uint8_t fifo[32] ;
+//	uint32_t in ;
+//	uint32_t out ;
+//	volatile uint32_t count ;
+//} ;
 
-struct t_fifo32 FrskyFifo ;
+//struct t_fifo32 FrskyFifo ;
 
 #define RX_UART_BUFFER_SIZE	32
 
@@ -365,52 +365,36 @@ uint32_t read_keys()
 uint32_t read_trims()
 {
 	uint32_t trims ;
+	uint32_t trima ;
 
 	trims = 0 ;
 
+	trima = PIOA->PIO_PDSR ;
 // TRIM_LH_DOWN    PA7 (PA23)
 #ifdef REVB
-	if ( ( PIOA->PIO_PDSR & 0x00800000 ) == 0 )
+	if ( ( trima & 0x00800000 ) == 0 )
 #else
-	if ( ( PIOA->PIO_PDSR & 0x0080 ) == 0 )
+	if ( ( trima & 0x0080 ) == 0 )
 #endif
 	{
 		trims |= 1 ;
 	}
     
-// TRIM_LH_UP PB4
-	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
-	{
-		trims |= 2 ;
-	}
-
 // TRIM_LV_DOWN  PA27 (PA24)
 #ifdef REVB
-	if ( ( PIOA->PIO_PDSR & 0x01000000 ) == 0 )
+	if ( ( trima & 0x01000000 ) == 0 )
 #else
-	if ( ( PIOA->PIO_PDSR & 0x08000000 ) == 0 )
+	if ( ( trima & 0x08000000 ) == 0 )
 #endif
 	{
 		trims |= 4 ;
 	}
 
-// TRIM_LV_UP   PC28
-	if ( ( PIOC->PIO_PDSR & 0x10000000 ) == 0 )
-	{
-		trims |= 8 ;
-	}
-
-// TRIM_RV_DOWN   PC10
-	if ( ( PIOC->PIO_PDSR & 0x00000400 ) == 0 )
-	{
-		trims |= 0x10 ;
-	}
-
 // TRIM_RV_UP    PA30 (PA1)
 #ifdef REVB
-	if ( ( PIOA->PIO_PDSR & 0x00000002 ) == 0 )
+	if ( ( trima & 0x00000002 ) == 0 )
 #else
-	if ( ( PIOA->PIO_PDSR & 0x40000000 ) == 0 )
+	if ( ( trima & 0x40000000 ) == 0 )
 #endif
 	{
 		trims |= 0x20 ;
@@ -418,16 +402,35 @@ uint32_t read_trims()
 
 // TRIM_RH_DOWN    PA29 (PA0)
 #ifdef REVB
-	if ( ( PIOA->PIO_PDSR & 0x00000001 ) == 0 )
+	if ( ( trima & 0x00000001 ) == 0 )
 #else 
-	if ( ( PIOA->PIO_PDSR & 0x20000000 ) == 0 )
+	if ( ( trima & 0x20000000 ) == 0 )
 #endif 
 	{
 		trims |= 0x40 ;
 	}
 
+// TRIM_LH_UP PB4
+	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
+	{
+		trims |= 2 ;
+	}
+
+	trima = PIOC->PIO_PDSR ;
+// TRIM_LV_UP   PC28
+	if ( ( trima & 0x10000000 ) == 0 )
+	{
+		trims |= 8 ;
+	}
+
+// TRIM_RV_DOWN   PC10
+	if ( ( trima & 0x00000400 ) == 0 )
+	{
+		trims |= 0x10 ;
+	}
+
 // TRIM_RH_UP   PC9
-	if ( ( PIOC->PIO_PDSR & 0x00000200 ) == 0 )
+	if ( ( trima & 0x00000200 ) == 0 )
 	{
 		trims |= 0x80 ;
 	}
@@ -485,28 +488,28 @@ void per10ms()
 }
 
 
-void put_frsky_fifo( uint8_t c )
-{
-	FrskyFifo.fifo[FrskyFifo.in] = c ;
-	FrskyFifo.count++ ;
-	FrskyFifo.in = (FrskyFifo.in + 1) & 0x1F ;
-}
+//void put_frsky_fifo( uint8_t c )
+//{
+//	FrskyFifo.fifo[FrskyFifo.in] = c ;
+//	FrskyFifo.count++ ;
+//	FrskyFifo.in = (FrskyFifo.in + 1) & 0x1F ;
+//}
 
-int32_t get_frsky_fifo()
-{
-	uint32_t rxchar ;
+//int32_t get_frsky_fifo()
+//{
+//	uint32_t rxchar ;
 
-	if (FrskyFifo.count )						// Look for char available
-	{
-		rxchar = FrskyFifo.fifo[FrskyFifo.out] ;
-		__disable_irq() ;
-		FrskyFifo.count-- ;						// Protect from interrupts
-		__enable_irq() ;
-		FrskyFifo.out = ( FrskyFifo.out + 1 ) & 0x1F ;
-		return rxchar ;
-	}
-	return -1 ;
-}
+//	if (FrskyFifo.count )						// Look for char available
+//	{
+//		rxchar = FrskyFifo.fifo[FrskyFifo.out] ;
+//		__disable_irq() ;
+//		FrskyFifo.count-- ;						// Protect from interrupts
+//		__enable_irq() ;
+//		FrskyFifo.out = ( FrskyFifo.out + 1 ) & 0x1F ;
+//		return rxchar ;
+//	}
+//	return -1 ;
+//}
 
 
 
@@ -990,6 +993,13 @@ void startPdcUsartReceive()
 	pUsart->US_RNCR = RX_UART_BUFFER_SIZE ;
 	pUsart->US_PTCR = US_PTCR_RXTEN ;
 	TelemetryActiveBuffer = 0 ;
+}
+
+void endPdcUsartReceive()
+{
+  register Usart *pUsart = SECOND_USART;
+	
+	pUsart->US_PTCR = US_PTCR_RXTDIS ;
 }
 
 void rxPdcUsart( void (*pChProcess)(uint8_t x) )

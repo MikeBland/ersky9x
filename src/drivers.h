@@ -21,6 +21,7 @@ extern void poll2ndUsart10mS( void ) ;
 //extern void charProcess( uint8_t byte ) ;
 extern void poll2ndUsart10mS( void ) ;
 extern void startPdcUsartReceive( void ) ;
+extern void endPdcUsartReceive( void ) ;
 extern void rxPdcUsart( void (*pChProcess)(uint8_t x) ) ;
 
 extern uint32_t keyState( enum EnumKeys enuk) ;

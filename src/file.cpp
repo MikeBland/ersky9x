@@ -58,26 +58,6 @@ struct t_file_entry File_system[MAX_MODELS+1] ;
 unsigned char ModelNames[MAX_MODELS+1][sizeof(g_model.name)] ;		// Allow for general
 
 
-//static uint32_t Eeprom_image_updated ;		// Ram image changed
-//static uint32_t Eeprom_sequence_no ;			// Ram image changed
-//static uint8_t Current_eeprom_block ;		// 0 or 1 is active block
-//static uint8_t Other_eeprom_block_blank ;
-//static uint8_t Eeprom_process_state ;
-//static uint8_t Eeprom_process_sub_no ;		// Used to manage writes
-//static uint8_t	Eeprom_write_pending ;
-//static uint8_t	Eeprom_writing_block_no ;
-
-
-uint8_t	Eeprom32_process_state ;
-uint8_t	Eeprom32_state_after_erase ;
-uint8_t	Eeprom32_write_pending ;
-uint8_t Eeprom32_file_index ;
-uint8_t *Eeprom32_buffer_address ;
-uint8_t *Eeprom32_source_address ;
-uint32_t Eeprom32_address ;
-uint32_t Eeprom32_data_size ;
-
-
 uint16_t General_timer ;
 uint16_t Model_timer ;
 uint32_t Update_timer ;
@@ -88,15 +68,15 @@ uint8_t Ee32_general_write_pending ;
 uint8_t Ee32_model_write_pending ;
 uint8_t Ee32_model_delete_pending ;
 
+uint8_t	Eeprom32_process_state ;
+uint8_t	Eeprom32_state_after_erase ;
+uint8_t	Eeprom32_write_pending ;
+uint8_t Eeprom32_file_index ;
+uint8_t *Eeprom32_buffer_address ;
+uint8_t *Eeprom32_source_address ;
+uint32_t Eeprom32_address ;
+uint32_t Eeprom32_data_size ;
 
-
-// States in Eeprom_process_state
-#define E_IDLE							1
-//#define E_ERASESENDING			2
-//#define E_ERASEWAITING			3
-//#define E_WRITESENDING			4
-//#define E_WRITEWAITING			5
-//#define E_32ACTIVE					6
 
 #define EE_WAIT			0
 #define EE_NO_WAIT	1
@@ -117,12 +97,6 @@ uint8_t Ee32_model_delete_pending ;
 
 
 void handle_serial( void ) ;
-//void hello( void ) ;
-//void dbl9x( void ) ;
-//uint32_t read_switch( enum EnumKeys enuk ) ;
-//uint32_t read_eeprom_block( uint32_t block_no, uint32_t immediate ) ;
-//uint32_t write_eeprom_block( uint32_t block_no, uint32_t sub_no, uint32_t size, uint32_t immediate ) ;
-//uint32_t eeprom_image_blank( uint32_t image_index ) ;
 
 bool ee32ModelExists(uint8_t id) ;
 uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq ) ;
@@ -548,7 +522,7 @@ void fill_file_index()
 	}
 }
 
-void init_ee32()
+void init_eeprom()
 {
 	fill_file_index() ;
 	ee32_read_model_names() ;
@@ -944,8 +918,8 @@ uint32_t ee32_process()
 //}
 
 
-void init_eeprom()
-{
+//void init_eeprom()
+//{
 //	register uint32_t x ;
 //	register uint32_t y ;
 //	register uint8_t *p ;
@@ -1022,8 +996,8 @@ void init_eeprom()
 //	disp_256( (uint32_t)eeprom, 6 ) ;
 //	Eeprom_process_state = E_IDLE ;
 
-	init_ee32() ;
-}
+//	init_ee32() ;
+//}
 
 
 //uint32_t eeprom_image_blank( uint32_t image_index )

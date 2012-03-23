@@ -489,13 +489,13 @@ int main (void)
 
 				if ( ee32_check_finished() == 0 )
 				{
-					lcd_putsn_P( 7*FW, 4*FH, "EEPROM BUSY", 11 ) ;
+					lcd_putsn_P( 7*FW, 5*FH, "EEPROM BUSY", 11 ) ;
 					refreshDisplay() ;
 					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 moer second
 				}
 				else
 				{
-					lcd_putsn_P( 7*FW, 4*FH, "           ", 11 ) ;
+					lcd_putsn_P( 7*FW, 5*FH, "           ", 11 ) ;
 					refreshDisplay() ;
 				}
   		}
@@ -521,7 +521,7 @@ int main (void)
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
-	USART0->US_PTCR = US_PTCR_RXTDIS ;		// Terminate any serial reception
+	endPdcUsartReceive() ;		// Terminate any serial reception
 	soft_power_off() ;
 	end_ppm_capture() ;
 	end_spi() ;
@@ -656,16 +656,16 @@ void doSplash()
   {
 
 
-    	check_backlight() ;
+   	check_backlight() ;
 
-	  	lcd_clear();
-    	lcd_img(0, 0, s9xsplash,0,0);
-    	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-    	if(!g_eeGeneral.hideNameOnSplash)
-    	  lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+  	lcd_clear();
+   	lcd_img(0, 0, s9xsplash,0,0);
+   	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
+   	if(!g_eeGeneral.hideNameOnSplash)
+		lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
 
   	refreshDisplay();
-    	    lcdSetRefVolt(g_eeGeneral.contrast);
+    lcdSetRefVolt(g_eeGeneral.contrast);
 
   	clearKeyEvents();
 
@@ -2267,7 +2267,6 @@ void checkSwitches()
 
   // first - display warning
   alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
-  
   uint8_t x = g_eeGeneral.switchWarningStates & SWP_IL5;
   if(x==SWP_IL1 || x==SWP_IL2 || x==SWP_IL3 || x==SWP_IL4 || x==SWP_IL5) //illegal states for ID0/1/2
   {
@@ -2276,10 +2275,11 @@ void checkSwitches()
   }
 	
 	//loop until all switches are reset
-  while (1)
+	
+	while (1)
   {
-    uint8_t i = 0;
-    for(uint8_t j=0; j<8; j++)
+    uint32_t i = 0;
+		for(uint32_t j=0; j<8; j++)
     {
         bool t=keyState((EnumKeys)(SW_BASE_DIAG+7-j));
 				i <<= 1 ;
@@ -2287,11 +2287,10 @@ void checkSwitches()
     }
 //        alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
 
-
         //show the difference between i and switch?
         //show just the offending switches.
         //first row - THR, GEA, AIL, ELE, ID0/1/2
-        uint8_t x = i ^ g_eeGeneral.switchWarningStates;
+        uint32_t x = i ^ g_eeGeneral.switchWarningStates;
 
         lcd_putsnAtt(0*FW, 2*FH, PSTR("                      "), 22, 0);
 
@@ -2321,7 +2320,7 @@ void checkSwitches()
         refreshDisplay();
 
 
-    if((i==g_eeGeneral.switchWarningStates) || (keyDown())) // check state against settings
+    if( (i==g_eeGeneral.switchWarningStates) || (keyDown())) // check state against settings
     {
         return;  //wait for key release
     }

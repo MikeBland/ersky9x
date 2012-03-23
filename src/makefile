@@ -97,6 +97,7 @@ CPPSRC = stamp.cpp \
          templates.cpp \
          pers.cpp \
          menus.cpp \
+         frsky.cpp \
          ersky9x.cpp
 
 # List ASM source files here
@@ -169,7 +170,10 @@ CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 # makefile rules
 #
 
-all: stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin
+all: stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
+
+size:
+	arm-none-eabi-size $(FULL_PRJ).elf
 
 # Build stamp-file
 stamp:
