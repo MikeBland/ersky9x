@@ -820,6 +820,7 @@ void perMain( uint32_t no_menu )
 
 //  eeCheck();
 
+	heartbeat |= HEART_TIMER10ms;
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
 
@@ -991,7 +992,6 @@ extern "C" void TC2_IRQHandler()
 	}
   per10ms();
   
-//	heartbeat |= HEART_TIMER10ms;
 }
 
 
@@ -1308,6 +1308,8 @@ extern "C" void PWM_IRQHandler (void)
 
 void setupPulses()
 {
+  heartbeat |= HEART_TIMER2Mhz;
+	
   if ( Current_protocol != g_model.protocol )
   {
     switch( Current_protocol )
