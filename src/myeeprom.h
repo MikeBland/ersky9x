@@ -208,7 +208,7 @@ typedef struct t_ModelData {
   uint8_t   spare22:1 ;  // Start timer2 using throttle
   uint8_t   FrSkyUsrProto:2 ;  // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
   uint8_t   FrSkyImperial:1 ;  // Convert FrSky values to imperial units
-  uint8_t   FrSkyAltWarn:2;
+  uint8_t   FrSkyAltAlarm:2;
   uint16_t  tmrValx;
   uint8_t   protocol;
   int8_t    ppmNCH;
@@ -235,7 +235,8 @@ typedef struct t_ModelData {
   int8_t    curves9[MAX_CURVE9][9];
   CSwData   customSw[NUM_CSW];
 //  uint8_t   rxnum;
-  uint8_t   res3[3];
+  uint8_t   frSkyVoltThreshold ;
+  uint8_t   res3[2];
   SafetySwData  safetySw[NUM_CHNOUT];
   FrSkyData frsky;
 	TimerMode timer[2] ;

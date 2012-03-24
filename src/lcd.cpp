@@ -141,7 +141,7 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 	register int32_t i ;
 	register uint8_t *p    = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
     //uint8_t *pmax = &displayBuf[ DISPLAY_H/8 * DISPLAY_W ];
-	if ( c < 23 )		// Move to specific x position (c-1)*FW
+	if ( c < 22 )		// Move to specific x position (c)*FW
 	{
 		x = c*FW ;
   	if(mode&DBLSIZE)
@@ -224,6 +224,19 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
   }
 	return x ;
 }
+
+// Puts sub-string from string options
+// First byte of string is sub-string length
+// idx is index into string (in length units)
+// Output length characters
+void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_t att)
+{
+	uint8_t length ;
+	length = *s++ ;
+
+  lcd_putsnAtt(x,y,s+length*idx,length,att) ;
+}
+
 
 void lcd_putsnAtt(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 {

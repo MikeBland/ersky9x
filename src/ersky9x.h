@@ -257,7 +257,7 @@ extern uint8_t Ee_lock ;
 #define EE_TRIM    4           // Store model because of trim
 
 
-#define TMR_VAROFS  16
+#define TMR_VAROFS  4
 
 #define TMRMODE_NONE     0
 #define TMRMODE_ABS      1
@@ -464,7 +464,9 @@ extern uint8_t g_vbat100mV ;
 //extern uint16_t Timer2 ;
 extern void doSplash( void ) ;
 extern void mainSequence( uint32_t no_menu ) ;
-
+#ifdef FRSKY
+extern void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
+#endif
 
 
 

@@ -157,6 +157,8 @@ ifeq ($(REVB), 1)
  EXT_MOD=REVB
 endif
 
+CPPDEFS += -DFRSKY
+
 # If serial Debug required
 ifeq ($(DEBUG), 1)
  CPPDEFS += -DDEBUG

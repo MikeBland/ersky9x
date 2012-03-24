@@ -146,8 +146,8 @@ extern uint8_t FrskyAlarmCheckFlag ;
 extern uint8_t MaxGpsSpeed ;
 
 void FRSKY_Init(void);
-// static void FRSKY10mspoll(void);
-void FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
+void FRSKY10mspoll(void);
+uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
 void check_frsky( void ) ;
 
 void FRSKY_setModelAlarms(void) ;
@@ -155,6 +155,7 @@ void FRSKY_setModelAlarms(void) ;
 enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm=2) ;
 void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm) ;
 void resetTelemetry();
+extern void frskyTransmitBuffer( uint32_t size ) ;
 
 #endif
 

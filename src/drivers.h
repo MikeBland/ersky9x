@@ -23,6 +23,8 @@ extern void poll2ndUsart10mS( void ) ;
 extern void startPdcUsartReceive( void ) ;
 extern void endPdcUsartReceive( void ) ;
 extern void rxPdcUsart( void (*pChProcess)(uint8_t x) ) ;
+extern uint32_t txPdcUsart( uint8_t *buffer, uint32_t size ) ;
+extern uint32_t txPdcPending( void ) ;
 
 extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void per10ms( void ) ;

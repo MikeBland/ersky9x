@@ -1012,12 +1012,12 @@ void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 	uint32_t j ;
 
  //Find out where the DMA has got to
-		__disable_irq() ;
+	__disable_irq() ;
 	pUsart->US_PTCR = US_PTCR_RXTDIS ;		// Freeze DMA
 	ptr = (uint8_t *)pUsart->US_RPR ;
 	j = pUsart->US_RNCR ;
 	pUsart->US_PTCR = US_PTCR_RXTEN ;			// DMA active again
-		__enable_irq() ;
+	__enable_irq() ;
 
 	endPtr = ptr - 1 ;
 	ptr = TelemetryInBuffer[TelemetryActiveBuffer].outPtr ;
@@ -1038,6 +1038,35 @@ void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 		TelemetryActiveBuffer ^= 1 ;		// Other buffer is active
 		rxPdcUsart( pChProcess ) ;			// Get any chars from second buffer
 	}
+}
+
+uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
+{
+  register Usart *pUsart = SECOND_USART;
+
+	if ( pUsart->US_TNCR == 0 )
+	{
+		pUsart->US_TNPR = (uint32_t)buffer ;
+		pUsart->US_TNCR = size ;
+		pUsart->US_PTCR = US_PTCR_TXTEN ;
+		return 1 ;
+	}
+	return 0 ;
+}
+
+uint32_t txPdcPending()
+{
+  register Usart *pUsart = SECOND_USART;
+	uint32_t x ;
+
+	__disable_irq() ;
+	pUsart->US_PTCR = US_PTCR_TXTDIS ;		// Freeze DMA
+	x = pUsart->US_TNCR ;				// Total
+	x += pUsart->US_TCR ;				// Still to send
+	pUsart->US_PTCR = US_PTCR_TXTEN ;			// DMA active again
+	__enable_irq() ;
+
+	return x ;
 }
 
 

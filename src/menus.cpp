@@ -30,6 +30,16 @@
 #include "drivers.h"
 #include "file.h"
 #include "templates.h"
+#ifdef FRSKY
+#include "frsky.h"
+#endif
+
+const char Str_ALTeq[] =  "Alt=" ;
+const char Str_TXeq[] =  "Tx=" ;
+const char Str_RXeq[] =  "Rx=" ;
+const char Str_TRE012AG[] =  "TRE012AG" ;
+const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
+const char Str_A_eq[] =  "A =" ;
 
 
 #ifndef STAMP
@@ -112,6 +122,8 @@ void menuProcCurve(uint8_t event);
 void menuProcSwitches(uint8_t event);
 void menuProcSafetySwitches(uint8_t event);
 void menuProcTemplates(uint8_t event);
+void menuProcTelemetry(uint8_t event) ;
+void menuProcTelemetry2(uint8_t event) ;
 
 uint8_t getMixerCount( void ) ;
 bool reachMixerCountLimit( void ) ;
@@ -159,10 +171,10 @@ enum EnumTabModel {
     e_Curve,
     e_Switches,
     e_SafetySwitches//,
-//#ifdef FRSKY
-//    ,e_Telemetry
-//    ,e_Telemetry2
-//#endif
+#ifdef FRSKY
+    ,e_Telemetry
+    ,e_Telemetry2
+#endif
 #ifndef NO_TEMPLATES
     ,e_Templates
 #endif
@@ -180,10 +192,10 @@ MenuFuncP menuTabModel[] = {
     menuProcCurve,
     menuProcSwitches,
     menuProcSafetySwitches//,
-//    #ifdef FRSKY
-//    ,menuProcTelemetry
-//    ,menuProcTelemetry2
-//    #endif
+    #ifdef FRSKY
+    ,menuProcTelemetry
+    ,menuProcTelemetry2
+    #endif
     #ifndef NO_TEMPLATES
     ,menuProcTemplates
     #endif
@@ -226,7 +238,7 @@ void menu_lcd_onoff( uint8_t x,uint8_t y, uint8_t value, uint8_t mode )
 
 void menu_lcd_HYPHINV( uint8_t x,uint8_t y, uint8_t value, uint8_t mode )
 {
-    lcd_putsnAtt( x, y, PSTR("---INV")+3*value,3,mode ? INVERS:0) ;
+    lcd_putsAttIdx( x, y, PSTR("\003---INV"),value,mode ? INVERS:0) ;
 }
 
 void MState2::check_simple(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t menuTabSize, uint8_t maxrow)
@@ -764,10 +776,10 @@ lcd_puts_Pleft(FH, PSTR("UsrProto"));
 {
 uint8_t b ;
 b = g_model.FrSkyUsrProto ;
-lcd_putsnAtt(  10*FW, FH, PSTR("FrHubWSHhi")+5*b,5,(sub==subN && subSub==0 ? INVERS:0));
+lcd_putsAttIdx(  10*FW, FH, PSTR("\005FrHubWSHhi"),b,(sub==subN && subSub==0 ? INVERS:0));
 if(sub==subN && subSub==0 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyUsrProto = b ; }
 b = g_model.FrSkyImperial ;
-lcd_putsnAtt(  16*FW, FH, PSTR("MetImp")+3*b,3,(sub==subN && subSub==1 ? INVERS:0));
+lcd_putsAttIdx(  16*FW, FH, PSTR("\003MetImp"),b,(sub==subN && subSub==1 ? INVERS:0));
 if(sub==subN && subSub==1 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyImperial = b ; }
 }
 subN++;
@@ -3441,14 +3453,12 @@ void menuProcStatistic(uint8_t event)
   	break;
   }
 
-  lcd_puts_P(  1*FW, FH*1, PSTR("TME"));
+  lcd_puts_P(  1*FW, FH*1, PSTR("TME\021TSW"));
   putsTime(    7*FW, FH*1, s_timeCumAbs, 0, 0);
-  lcd_puts_P( 17*FW, FH*1, PSTR("TSW"));
   putsTime(   13*FW, FH*1, s_timer[0].s_timeCumSw,      0, 0);
 
-  lcd_puts_P(  1*FW, FH*2, PSTR("STK"));
+  lcd_puts_P(  1*FW, FH*2, PSTR("STK\021ST%"));
   putsTime(    7*FW, FH*2, s_timer[0].s_timeCumThr, 0, 0);
-  lcd_puts_P( 17*FW, FH*2, PSTR("ST%"));
   putsTime(   13*FW, FH*2, s_timer[0].s_timeCum16ThrP/16, 0, 0);
 
   lcd_puts_P( 17*FW, FH*0, PSTR("TOT"));

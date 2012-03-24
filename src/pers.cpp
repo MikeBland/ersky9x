@@ -157,12 +157,14 @@ void modelDefault(uint8_t id)
 
 bool eeDuplicateModel(uint8_t id)
 {
-//  uint8_t i;
-//  for( i=id+1; i<MAX_MODELS; i++)
-//  {
-//    if(! EFile::exists(FILE_MODEL(i))) break;
-//  }
-//  if(i==MAX_MODELS) return false; //no free space in directory left
+  uint32_t i;
+  for( i=id+1; i<MAX_MODELS; i++)
+  {
+    if(! ee32ModelExists(i) ) break;
+  }
+  if(i==MAX_MODELS) return false; //no free space in directory left
+
+	ee32StoreModel( i, 0 ) ;
 
 //  theFile.openRd(FILE_MODEL(id));
 //  theFile2.create(FILE_MODEL(i),FILE_TYP_MODEL,600);
@@ -183,7 +185,7 @@ bool eeDuplicateModel(uint8_t id)
 //  theFile2.closeTrunc();
 //  //todo error handling
 //  return true;
-	return false ;
+	return true ;
 }
 
 

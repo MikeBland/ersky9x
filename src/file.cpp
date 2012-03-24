@@ -23,7 +23,9 @@
 #include "myeeprom.h"
 #include "drivers.h"
 #include "file.h"
-
+#ifdef FRSKY
+#include "frsky.h"
+#endif
 
 extern PROGMEM s9xsplash[] ;
 

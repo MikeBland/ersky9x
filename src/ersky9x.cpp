@@ -50,6 +50,9 @@
 #include "drivers.h"
 #include "file.h"
 #include "menus.h"
+#ifdef FRSKY
+#include "frsky.h"
+#endif
 
 
 #include "debug.h"
@@ -291,8 +294,6 @@ int main (void)
 	// Debug variable
 //	uint32_t both_on ;
 
-	WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
-
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
   PMC->PMC_PCER0 = (1<<ID_PIOC)|(1<<ID_PIOB)|(1<<ID_PIOA)|(1<<ID_UART0) ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
@@ -313,6 +314,13 @@ int main (void)
 	pioptr->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
 //	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
 //	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
+
+	if ( ( pioptr->PIO_PDSR & 0x02000000 ) == 0 )
+	{
+		// USB not the power source
+//		WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
+		WDT->WDT_MR = 0x3FFF2FFF ;			// Enable watchdog
+	}
 
 #ifdef REVB	
 #else	
@@ -412,8 +420,12 @@ int main (void)
 
 	start_ppm_capture() ;
 
+#ifdef FRSKY
+    FRSKY_Init();
+#endif
+
 	// FrSky testing serial receive
-	startPdcUsartReceive() ;
+//	startPdcUsartReceive() ;
 
 //	both_on = 0 ;
 	
@@ -597,7 +609,7 @@ void mainSequence( uint32_t no_menu )
 		}
 
 		// Process FrSky received bytes
-		poll2ndUsart10mS() ;
+//		poll2ndUsart10mS() ;
 //		rxPdcUsart( charProcess ) ;
 
 	}
@@ -832,6 +844,10 @@ void perMain( uint32_t no_menu )
   {
     p1valdiff = 0 ;			
 	}
+
+#ifdef FRSKY
+	check_frsky() ;
+#endif
 
 // Here, if waiting for EEPROM response, don't action menus
 
@@ -1999,6 +2015,79 @@ const char *get_switches_string()
 {
   return PSTR(SWITCHES_STR)	;
 }	
+
+#ifdef FRSKY
+void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
+{
+    uint32_t value ;
+    //  uint8_t ratio ;
+    uint16_t ratio ;
+    uint8_t times2 ;
+
+    value = val ;
+    if (g_model.frsky.channels[channel].type == 2/*V*/)
+    {
+        times2 = 1 ;
+    }
+    else
+    {
+        times2 = 0 ;
+    }
+
+    if ( scale )
+    {
+        ratio = g_model.frsky.channels[channel].ratio ;
+        if ( times2 )
+        {
+            ratio <<= 1 ;
+        }
+        value *= ratio ;
+  	if (g_model.frsky.channels[channel].type == 3/*A*/)
+        {
+            value /= 100 ;
+            att |= PREC1 ;
+        }
+        else if ( ratio < 100 )
+        {
+            value *= 2 ;
+            value /= 51 ;  // Same as *10 /255 but without overflow
+            att |= PREC2 ;
+        }
+        else
+        {
+            value /= 255 ;
+        }
+    }
+    else
+    {
+        if ( times2 )
+        {
+            value <<= 1 ;
+        }
+  	if (g_model.frsky.channels[channel].type == 3/*A*/)
+        {
+            value *= 255 ;
+            value /= 100 ;
+            att |= PREC1 ;
+        }
+    }
+    //              val = (uint16_t)staticTelemetry[i]*g_model.frsky.channels[i].ratio / 255;
+    //              putsTelemetry(x0-2, 2*FH, val, g_model.frsky.channels[i].type, blink|DBLSIZE|LEFT);
+    //  if (g_model.frsky.channels[channel].type == 0/*v*/)
+    if ( (g_model.frsky.channels[channel].type == 0/*v*/) || (g_model.frsky.channels[channel].type == 2/*v*/) )
+    {
+        lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
+        if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
+    }
+    else
+    {
+        lcd_outdezAtt(x, y, value, att);
+    }
+}
+
+
+#endif
+
 
 inline int16_t getValue(uint8_t i)
 {

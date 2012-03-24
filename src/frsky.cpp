@@ -21,6 +21,7 @@
 #include "ersky9x.h"
 #include "frsky.h"
 #include "myeeprom.h"
+#include "drivers.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -40,7 +41,7 @@
 
 uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
 uint8_t frskyTxBuffer[19];   // Ditto for transmit buffer
-uint8_t frskyTxBufferCount = 0;
+//uint8_t frskyTxBufferCount = 0;
 uint8_t FrskyRxBufferReady = 0;
 uint8_t frskyStreaming = 0;
 uint8_t frskyUsrStreaming = 0;
@@ -299,7 +300,7 @@ void frsky_receive_byte( uint8_t data )
    USART0 (transmit) Data Register Emtpy ISR
    Usef to transmit FrSky data packets, which are buffered in frskyTXBuffer. 
 */
-uint8_t frskyTxISRIndex = 0;
+//uint8_t frskyTxISRIndex = 0;
 //ISR(USART0_UDRE_vect)
 //{
 //  if (frskyTxBufferCount > 0) 
@@ -312,10 +313,9 @@ uint8_t frskyTxISRIndex = 0;
 
 /******************************************/
 
-void frskyTransmitBuffer()
+void frskyTransmitBuffer( uint32_t size )
 {
-  frskyTxISRIndex = 0;
-//  UCSR0B |= (1 << UDRIE0); // enable  UDRE0 interrupt
+	txPdcUsart( frskyTxBuffer, size ) ;
 }
 
 
@@ -324,15 +324,14 @@ uint8_t FrskyDelay = 0 ;
 uint8_t FrskyRSSIsend = 0 ;
 
 
-static void FRSKY10mspoll(void)
+void FRSKY10mspoll(void)
 {
   if (FrskyDelay)
   {
     FrskyDelay -= 1 ;
     return ;
   }
-
-  if (frskyTxBufferCount)
+	if ( txPdcPending() )
   {
     return; // we only have one buffer. If it's in use, then we can't send yet.
   }
@@ -341,6 +340,7 @@ static void FRSKY10mspoll(void)
   {
 		uint8_t i ;
 		uint8_t j = 1 ;
+		uint32_t size ;
 
 		for ( i = 0 ; i < 7 ; i += 1, j <<= 1 )
 		{
@@ -358,27 +358,26 @@ static void FRSKY10mspoll(void)
 		//	FRSKY_setTxPacket( A22PKT + i, g_eeGeneral.frskyinternalalarm ? 0 :g_model.frsky.channels[channel].alarms_value[alarm],
 		//														 ALARM_GREATER(channel, alarm), ALARM_LEVEL(channel, alarm) ) ;					
 		
-		            FRSKY_setTxPacket( A22PKT + i, g_model.frsky.channels[channel].alarms_value[alarm],
-                                                                 ALARM_GREATER(channel, alarm), g_eeGeneral.frskyinternalalarm ? 0 :ALARM_LEVEL(channel, alarm) ) ;
-	
+	    size = FRSKY_setTxPacket( A22PKT + i, g_model.frsky.channels[channel].alarms_value[alarm],
+                   ALARM_GREATER(channel, alarm), g_eeGeneral.frskyinternalalarm ? 0 :ALARM_LEVEL(channel, alarm) ) ;
 									 
 		}
 		else if( i < 6 )
 		{
 			i &= 1 ;
-			FRSKY_setTxPacket( RSSITXPKT+i, frskyRSSIlevel[i], 0, frskyRSSItype[i] ) ;
+			size = FRSKY_setTxPacket( RSSITXPKT+i, frskyRSSIlevel[i], 0, frskyRSSItype[i] ) ;
 		}
 		else if (i == 6)
 		{
 // Send packet requesting all RSSIalarm settings be sent back to us
-			FRSKY_setTxPacket( RSSI_REQUEST, 0, 0, 0 ) ;
+			size = FRSKY_setTxPacket( RSSI_REQUEST, 0, 0, 0 ) ;
 		}
 		else
 		{
 			return ;
 		}
     FrskyDelay = 5 ; // 50mS
-    frskyTransmitBuffer(); 
+    frskyTransmitBuffer( size ) ; 
   }
 }
 
@@ -407,7 +406,7 @@ static void FRSKY10mspoll(void)
 
 
 
-void FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 )
+uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 )
 {
 	uint8_t i = 0;
   frskyTxBuffer[i++] = START_STOP;        // Start of packet
@@ -425,7 +424,7 @@ void FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 )
     *ptr++ = 0x00 ;
     *ptr++ = START_STOP ;        // End of packet
 	}
-	frskyTxBufferCount = i + 8 ;
+	return i + 8 ;
 }
 
 enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm)
@@ -481,6 +480,7 @@ void FRSKY_Init(void)
   // clear frsky variables
   memset(frskyAlarms, 0, sizeof(frskyAlarms));
   resetTelemetry();
+	startPdcUsartReceive() ;
 }
 
 void frskyPushValue(uint8_t & i, uint8_t value)
@@ -550,7 +550,10 @@ void check_frsky()
 {
   // Used to detect presence of valid FrSky telemetry packets inside the
   // last FRSKY_TIMEOUT10ms 10ms intervals
-  if (frskyStreaming > 0) frskyStreaming--;
+	
+	rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
+	
+	if (frskyStreaming > 0) frskyStreaming--;
   if (frskyUsrStreaming > 0) frskyUsrStreaming--;
 	
   if ( FrskyAlarmSendState )
