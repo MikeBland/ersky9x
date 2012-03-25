@@ -55,7 +55,7 @@
 extern uint32_t Lcd_analog_display ;
 extern uint32_t Per10ms_action ;
 extern uint32_t Permenu_action ;
-extern void disp_256( uint32_t address, uint32_t lines ) ;
+static void disp_256( uint32_t address, uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
 
@@ -491,15 +491,15 @@ void handle_serial()
 }
 
 
-void disp_mem( register uint32_t address )
-{
-	p8hex( address ) ;
-	txmit('=') ;
-	p8hex( *( (uint32_t *)address ) ) ;
-	crlf() ;
-}
+//void disp_mem( register uint32_t address )
+//{
+//	p8hex( address ) ;
+//	txmit('=') ;
+//	p8hex( *( (uint32_t *)address ) ) ;
+//	crlf() ;
+//}
 
-void disp_256( register uint32_t address, register uint32_t lines )
+static void disp_256( register uint32_t address, register uint32_t lines )
 {
 	register uint32_t i ;
 	register uint32_t j ;

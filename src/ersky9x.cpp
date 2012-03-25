@@ -110,8 +110,8 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( char *string ) ;
 uint16_t rxuart( void ) ;
-void start_timer2( void ) ;
-void start_timer0( void ) ;
+static void start_timer2( void ) ;
+static void start_timer0( void ) ;
 extern "C" void TC2_IRQHandler( void ) ;
 extern "C" void sam_boot( void ) ;
 void crlf( void ) ;
@@ -126,23 +126,23 @@ void getADC_osmp( void ) ;
 void getADC_filt( void ) ;
 void read_9_adc( void ) ;
 void init_adc( void ) ;
-void init_pwm( void ) ;
-void init_main_ppm( uint32_t period, uint32_t out_enable ) ;
+static void init_pwm( void ) ;
+static void init_main_ppm( uint32_t period, uint32_t out_enable ) ;
 void disable_main_ppm( void ) ;
 //void poll_pwm( void ) ;
 //uint32_t hextoi( uint8_t *string ) ;
 //uint32_t gets( uint8_t *string, uint32_t maxcount ) ;
-void setup_switches( void ) ;
+static void setup_switches( void ) ;
 uint32_t read_trims( void ) ;
 extern uint32_t read_keys( void ) ;
 void hello( void ) ;
 void dbl9x( void ) ;
 //uint32_t get_switches( void ) ;
-void config_free_pins( void ) ;
+static void config_free_pins( void ) ;
 void checkTHR( void ) ;
-void checkSwitches( void ) ;
+static void checkSwitches( void ) ;
 
-uint8_t checkTrim(uint8_t event) ;
+static uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
 
 void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
@@ -159,7 +159,7 @@ void setupPulses( void ) ;
 void setupPulsesPPM( void ) ;
 void setupPulsesDsm2(uint8_t chns) ;
 void setupPulsesPXX( void ) ;
-void init_soft_power( void ) ;
+static void init_soft_power( void ) ;
 uint32_t check_soft_power( void ) ;
 void soft_power_off( void ) ;
 
@@ -644,6 +644,18 @@ void clearKeyEvents()
     putEvent(0);
 }
 
+uint32_t check_power_or_usb()
+{
+	if ( check_soft_power() == 0 )		// power now off
+	{
+		return 1 ;
+	}
+	if ( PIOC->PIO_PDSR & 0x02000000 )
+	{
+		return 1 ;			// Detected USB
+	}
+	return 0 ;
+}
 
 void check_backlight()
 {
@@ -698,7 +710,7 @@ void doSplash()
     
 			if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
 
-			if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+			if ( check_power_or_usb() ) return ;		// Usb on or power off
 
 			check_backlight() ;
   	}
@@ -919,7 +931,7 @@ void perMain( uint32_t no_menu )
 }
 
 // Starts TIMER2 at 100Hz,  commentd out drive of TIOA2 (A26, EXT2) out
-void start_timer2()
+static void start_timer2()
 {
 	register Pio *pioptr ;
   register Tc *ptc ;
@@ -951,7 +963,7 @@ void start_timer2()
 
 
 // Test, starts TIMER0 at full speed (MCK/2) for delay timing
-void start_timer0()
+static void start_timer0()
 {
   register Tc *ptc ;
 
@@ -1096,7 +1108,7 @@ void getADC_filt()
 // For testing, just drive it out with PWM
 // PWML1 for PPM2 output as peripheral B on PC15
 // For testing, just drive it out with PWM
-void init_pwm()
+static void init_pwm()
 {
 	register Pio *pioptr ;
 	register Pwm *pwmptr ;
@@ -1177,7 +1189,7 @@ void init_pwm()
 
 }
 
-void init_main_ppm( uint32_t period, uint32_t out_enable )
+static void init_main_ppm( uint32_t period, uint32_t out_enable )
 {
 	register Pio *pioptr ;
 	register Pwm *pwmptr ;
@@ -1308,7 +1320,7 @@ extern "C" void PWM_IRQHandler (void)
 
 void setupPulses()
 {
-  heartbeat |= HEART_TIMER2Mhz;
+  heartbeat |= HEART_TIMER_PULSES ;
 	
   if ( Current_protocol != g_model.protocol )
   {
@@ -1788,7 +1800,7 @@ void setupPulsesPXX()
 
 
 // Assumes PMC has already enabled clocks to ports
-void setup_switches()
+static void setup_switches()
 {
 	register Pio *pioptr ;
 
@@ -1834,7 +1846,7 @@ void setup_switches()
 // PA25, use for stock buzzer
 // PB14, PB6
 // PC21, PC19, PC15 (PPM2 output)
-void config_free_pins()
+static void config_free_pins()
 {
 	register Pio *pioptr ;
 	
@@ -1875,7 +1887,7 @@ int8_t *TrimPtr[4] =
   &g_model.trim[3]
 } ;
 
-uint8_t checkTrim(uint8_t event)
+static uint8_t checkTrim(uint8_t event)
 {
   int8_t  k = (event & EVT_KEY_MASK) - TRM_BASE;
   int8_t  s = g_model.trimInc;
@@ -2283,18 +2295,8 @@ void alert(const char * s, bool defaults)
         {
             return;  //wait for key release
         }
-        if(heartbeat == 0x3)
-        {
-            wdt_reset();
-            heartbeat = 0;
-        }
-				if ( PIOC->PIO_PDSR & 0x02000000 )
-				{
-					// Detected USB
-					break ;
-				}
-
-		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+        wdt_reset();
+				if ( check_power_or_usb() ) return ;		// Usb on or power off
         if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
             BACKLIGHT_ON;
         else
@@ -2338,13 +2340,13 @@ void checkTHR()
       {
           return;
       }
+      wdt_reset();
 
-		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+		if ( check_power_or_usb() ) return ;		// Usb on or power off
 
 		check_backlight() ;
   }
 }
-
 
 
 void putWarnSwitch( uint8_t x, const char * s )
@@ -2352,7 +2354,7 @@ void putWarnSwitch( uint8_t x, const char * s )
   lcd_putsnAtt( x, 2*FH, s, 3, 0) ;
 }
 
-void checkSwitches()
+static void checkSwitches()
 {
   if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
 
@@ -2415,8 +2417,9 @@ void checkSwitches()
     {
         return;  //wait for key release
     }
+    wdt_reset();
 
-		if ( PIOC->PIO_PDSR & 0x02000000 ) return ;			// Detected USB
+		if ( check_power_or_usb() ) return ;		// Usb on or power off
 
 		check_backlight() ;
   }
@@ -2462,7 +2465,7 @@ void pushMenu(MenuFuncP newMenu)
 
 
 // 
-void init_soft_power()
+static void init_soft_power()
 {
 	register Pio *pioptr ;
 	

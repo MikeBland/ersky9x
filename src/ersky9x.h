@@ -165,7 +165,7 @@ enum EnumKeys {
 #define EVT_ENTRY_UP            (0xfe - _MSK_KEY_REPT)
 #define EVT_KEY_MASK             0x0f
 
-#define HEART_TIMER2Mhz 1;
+#define HEART_TIMER_PULSES 1 ;
 #define HEART_TIMER10ms 2;
 
 
