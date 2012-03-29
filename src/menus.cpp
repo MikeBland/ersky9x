@@ -2665,20 +2665,20 @@ void menuProcSetup(uint8_t event)
 //*/
 
 #ifdef FRSKY
-	uint8_t vCountItems = 21; //21 is default
-  int8_t sw_offset = -6 ;
+	uint8_t vCountItems = 23; //21 is default
+  int8_t sw_offset = -4 ;
 //		switch (g_eeGeneral.speakerMode){
 //				//beeper
 //				case 0:
-//						vCountItems = 21;
+//						vCountItems = 23;
 //						break;
 //				//piezo speaker
 //			 	case 1:
-//			 			vCountItems = 24;
+//			 			vCountItems = 25;
 //			 			break;
 //			 	//pcmwav
 //			  case 2:
-//						vCountItems = 23;
+//						vCountItems = 24;
 //						break;	  	
 //		}		
 //		if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 0){ // add in alert red/org/yel
@@ -2686,20 +2686,20 @@ void menuProcSetup(uint8_t event)
 //		}		
 		
 #else 
-	uint8_t vCountItems = 22 ; //21 is default
+	uint8_t vCountItems = 23 ; //21 is default
   int8_t sw_offset = -4 ;
 //		switch (g_eeGeneral.speakerMode){
 //				//beeper
 //				case 0:
-//						vCountItems = 21;
+//						vCountItems = 23;
 //						break;
 //				//piezo speaker
 //			 	case 1:
-//			 			vCountItems = 23;
+//			 			vCountItems = 25;
 //			 			break;
 //			 	//pcmwav
 //			  case 2:
-//						vCountItems = 22;
+//						vCountItems = 24;
 //						break;	  	
 //		}
 #endif
@@ -2790,15 +2790,15 @@ void menuProcSetup(uint8_t event)
     if((y+=FH)>7*FH) return;
   }subN++;
 
-//    if(s_pgOfs<subN) {
-//        uint8_t b ;
-//        b = g_eeGeneral.speakerMode ;
-//        lcd_puts_P(0, y,PSTR("Sound Mode"));
-//        lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Beeper""PiSpkr""PcmWav")+6*b,6,(sub==subN ? INVERS:0));
-//        if(sub==subN) { CHECK_INCDEC_H_GENVAR(event, b, 0, 2); g_eeGeneral.speakerMode = b ; }
-
-//        if((y+=FH)>7*FH) return;
-//    }subN++;
+  if(s_pgOfs<subN)
+	{
+    uint8_t b ;
+    b = g_eeGeneral.speakerMode ;
+    lcd_puts_P(0, y,PSTR("Sound Mode"));
+    lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Beeper""Speakr""PcmWav")+6*b,6,(sub==subN ? INVERS:0));
+    if(sub==subN) { CHECK_INCDEC_H_GENVAR(event, b, 0, 1); g_eeGeneral.speakerMode = b ; }	// 0 to 2 later
+    if((y+=FH)>7*FH) return;
+  }subN++;
 
 
 //if(g_eeGeneral.speakerMode == 1){
@@ -3389,6 +3389,7 @@ void menuProcStatistic2(uint8_t event)
 		}
 		lcd_puts_Pleft( 6*FH, PSTR("Current"));
 		lcd_outhex4( 10*FW+3, 6*FH, Current ) ;
+	  lcd_outdezAtt( 18*FW, 6*FH, Current/22 ,0 ) ;
 #endif
 
 

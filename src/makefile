@@ -50,6 +50,7 @@ EXT = STD
 ifeq ($(STAMP), 1)
 AREV = $(shell sh -c "cat .svn/entries | sed -n '4p'")
 REV = $(shell echo $$(( $(AREV) + 1 )))
+REV = $(shell echo $$(( $(AREV) )))
 endif
 
 #
@@ -172,7 +173,10 @@ CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 # makefile rules
 #
 
-all: stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
+all: size_before stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
+
+size_before:
+	arm-none-eabi-size $(FULL_PRJ).elf
 
 size:
 	arm-none-eabi-size $(FULL_PRJ).elf
@@ -184,7 +188,7 @@ ifeq ($(STAMP), 1)
 	@echo "Generate Version-stamp:"
 	@echo "//Automatically generated file - do not edit" > stamp-ersky9x.h
 	@echo "#define DATE_STR \"`date +%d.%m.%Y`\"" >> stamp-ersky9x.h
-	@echo "#define TIME_STR \"`date +%H:%I:%S`\"" >> stamp-ersky9x.h
+	@echo "#define TIME_STR \"`date +%H:%M:%S`\"" >> stamp-ersky9x.h
 	@echo "#define SUB_VERS $(VER)-$(USER)" >> stamp-ersky9x.h
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h

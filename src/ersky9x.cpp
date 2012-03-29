@@ -190,13 +190,13 @@ uint16_t g_LightOffCounter ;
 uint8_t  stickMoved = 0;
 
 uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
+uint16_t Current_analogue ;
 
 uint8_t sysFlags = 0 ;
 
 
-uint32_t Lcd_analog_display ;
-uint32_t Per10ms_action ;
-uint32_t Permenu_action ;
+//uint32_t Per10ms_action ;
+//uint32_t Permenu_action ;
 
 int16_t g_ppmIns[8];
 uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
@@ -561,7 +561,7 @@ int main (void)
   return(0);
 }
 
-uint16_t getTmr2MHz()
+static inline uint16_t getTmr2MHz()
 {
 	return TC1->TC_CHANNEL[0].TC_CV ;
 }
@@ -585,6 +585,7 @@ void mainSequence( uint32_t no_menu )
 	{
 		getADC_single() ;
 	}
+	Current_analogue = ( Current_analogue * 31 + S_anaFilt[8] ) >> 5 ;
 
 	perMain( no_menu ) ;		// Allow menu processing
 
@@ -605,12 +606,8 @@ void mainSequence( uint32_t no_menu )
 		if ( ++OneSecTimer >= 100 )
 		{
 			OneSecTimer -= 100 ;
-			txmitBt( 'X' ) ;		// Send an X to Blurtooth every second for testing
+			txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 		}
-
-		// Process FrSky received bytes
-//		poll2ndUsart10mS() ;
-//		rxPdcUsart( charProcess ) ;
 
 	}
 
@@ -678,8 +675,6 @@ void doSplash()
 {
   if(!g_eeGeneral.disableSplashScreen)
   {
-
-
    	check_backlight() ;
 
   	lcd_clear();
@@ -963,6 +958,8 @@ static void start_timer2()
 
 
 // Test, starts TIMER0 at full speed (MCK/2) for delay timing
+// @ 36MHz this is 18MHz
+// This was 6 MHz, we may need to slow it to TIMER_CLOCK2 (MCK/8=4.5 MHz)
 static void start_timer0()
 {
   register Tc *ptc ;
@@ -973,7 +970,7 @@ static void start_timer0()
   ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
 	ptc->TC_BMR = 2 ;
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00008000 ;	// Waveform mode
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00008001 ;	// Waveform mode MCK/8 for 36MHz osc.
 	ptc->TC_CHANNEL[0].TC_RC = 0xFFF0 ;
 	ptc->TC_CHANNEL[0].TC_RA = 0 ;
 	ptc->TC_CHANNEL[0].TC_CMR = 0x00008040 ;	// 0000 0000 0000 0000 1000 0000 0100 0000, stop at regC
@@ -1033,10 +1030,15 @@ extern "C" void TC2_IRQHandler()
 // temp1 = average temp1 and temp0
 // temp0 = average new reading and temp0
 
+
 uint16_t anaIn(uint8_t chan)
 {
   static uint8_t crossAna[]={1,5,7,0,4,6,2,3,8};
   volatile uint16_t *p = &S_anaFilt[crossAna[chan]] ;
+	if ( chan == 8 )
+	{
+		return Current_analogue ;
+	}
   return  *p;
 }
 

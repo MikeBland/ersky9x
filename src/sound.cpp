@@ -35,11 +35,15 @@
 
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "AT91SAM3S2.h"
 #include "core_cm3.h"
 
 #include "sound.h"
+#include "ersky9x.h"
+#include "myeeprom.h"
+#include "drivers.h"
 
 void start_sound( void ) ;
 void buzzer_on( void ) ;
@@ -305,7 +309,7 @@ void init_twi()
 	TWI0->TWI_CR = TWI_CR_MSEN | TWI_CR_SVDIS ;		// Master mode enable
 	TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
 	NVIC_EnableIRQ(TWI0_IRQn) ;
-
+	set_volume( 2 ) ;
 }
 
 static int16_t Volume_required ;
@@ -317,7 +321,9 @@ static const uint8_t Volume_scale[NUM_VOL_LEVELS] =
 
 void set_volume( register uint8_t volume )
 {
-	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
+//	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
+	txmit( 'v' ) ;
+	p2hex( volume ) ;
 	
 	if ( volume >= NUM_VOL_LEVELS )
 	{
@@ -328,10 +334,12 @@ void set_volume( register uint8_t volume )
 	__disable_irq() ;
 	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
 	{
+		txmit( 'x' ) ;
 		Volume_required = volume ;
 	}
 	else
 	{
+		txmit( 'y' ) ;
 		TWI0->TWI_THR = volume ;		// Send data
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
@@ -357,7 +365,15 @@ extern "C" void TWI0_IRQHandler()
 
 void audioDefevent(uint8_t e)
 {
-	buzzer_sound( 4 ) ;
+	if ( g_eeGeneral.speakerMode == 0 )
+	{
+		buzzer_sound( 4 ) ;
+	}
+	else if ( g_eeGeneral.speakerMode == 1 )
+	{
+//		tone_start( 50 ) ;
+		playTone( 2000, 60 ) ;		// 2KHz, 60mS
+	}
 //	audio.event(e,BEEP_DEFAULT_FREQ);
 }
 

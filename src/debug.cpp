@@ -52,9 +52,8 @@
 
 #include "s9xsplash.lbm"
 
-extern uint32_t Lcd_analog_display ;
-extern uint32_t Per10ms_action ;
-extern uint32_t Permenu_action ;
+//extern uint32_t Per10ms_action ;
+//extern uint32_t Permenu_action ;
 static void disp_256( uint32_t address, uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
@@ -122,18 +121,18 @@ void handle_serial()
 		crlf() ;
 	}
 
-	if ( rxchar == 'A' )
-	{
-		if ( Permenu_action )
-		{
-			Permenu_action = 0 ;			
-		}
-		else
-		{
-			Permenu_action = 1 ;
-		}
+//	if ( rxchar == 'A' )
+//	{
+//		if ( Permenu_action )
+//		{
+//			Permenu_action = 0 ;			
+//		}
+//		else
+//		{
+//			Permenu_action = 1 ;
+//		}
 		
-	}
+//	}
 
 	if ( rxchar == 'B' )
 	{
@@ -234,174 +233,161 @@ void handle_serial()
 	}
 
 
-	if ( rxchar == 'D' )
-	{
-		if ( Lcd_analog_display )
-		{
-			Lcd_analog_display = 0 ;			
-		}
-		else
-		{
-			Lcd_analog_display = 1 ;
-		}
-	}
-        
-				
-	if ( rxchar == 'Y' )
-	{
-		lcd_clear();
-  	lcd_img(0, 0, s9xsplash,0,0);
-  	lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
-  	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-		refreshDisplay();
-	}
+//	if ( rxchar == 'Y' )
+//	{
+//		lcd_clear();
+//  	lcd_img(0, 0, s9xsplash,0,0);
+//  	lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+//  	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
+//		refreshDisplay();
+//	}
 
-	if ( rxchar == 'W' )
-	{
-		if ( Per10ms_action )
-		{
-			Per10ms_action = 0 ;			
-		}
-		else
-		{
-			Per10ms_action = 1 ;
-		}
-	}
+//	if ( rxchar == 'W' )
+//	{
+//		if ( Per10ms_action )
+//		{
+//			Per10ms_action = 0 ;			
+//		}
+//		else
+//		{
+//			Per10ms_action = 1 ;
+//		}
+//	}
 
-	if ( rxchar == 'Q' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'Q' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 
-		txmit( 'Q' ) ;
-		p = Spi_rx_buf ;
-		*(p+4) = 0 ;
-		*(p+5) = 0 ;
-		*(p+19) = 0 ;
+//		txmit( 'Q' ) ;
+//		p = Spi_rx_buf ;
+//		*(p+4) = 0 ;
+//		*(p+5) = 0 ;
+//		*(p+19) = 0 ;
 
-		p = Spi_tx_buf ;
-		*p = 3 ;		// Read command
-		*(p+1) = 0 ;
-		*(p+2) = 0 ;
-		*(p+3) = 0 ;		// 3 bytes address
-		x = spi_operation( p, Spi_rx_buf, 20 ) ;
+//		p = Spi_tx_buf ;
+//		*p = 3 ;		// Read command
+//		*(p+1) = 0 ;
+//		*(p+2) = 0 ;
+//		*(p+3) = 0 ;		// 3 bytes address
+//		x = spi_operation( p, Spi_rx_buf, 20 ) ;
 
-		p8hex( x ) ;
-		txmit( ' ' ) ;
-		p = Spi_rx_buf ;
-		p2hex( *(p+4) ) ;
-		p2hex( *(p+5) ) ;
-		p2hex( *(p+18) ) ;
-		p2hex( *(p+19) ) ;
-		crlf() ;
-	}
+//		p8hex( x ) ;
+//		txmit( ' ' ) ;
+//		p = Spi_rx_buf ;
+//		p2hex( *(p+4) ) ;
+//		p2hex( *(p+5) ) ;
+//		p2hex( *(p+18) ) ;
+//		p2hex( *(p+19) ) ;
+//		crlf() ;
+//	}
 
-	if ( rxchar == 'E' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'E' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 
-		txmit( 'E' ) ;
-		p = Spi_rx_buf ;
-		*(p+1) = 0 ;
-		*(p+2) = 0 ;
+//		txmit( 'E' ) ;
+//		p = Spi_rx_buf ;
+//		*(p+1) = 0 ;
+//		*(p+2) = 0 ;
 
-		p = Spi_tx_buf ;
-		*p = 5 ;		// Read status command
-		*(p+1) = 0 ;
-		x = spi_operation( p, Spi_rx_buf, 2 ) ;
+//		p = Spi_tx_buf ;
+//		*p = 5 ;		// Read status command
+//		*(p+1) = 0 ;
+//		x = spi_operation( p, Spi_rx_buf, 2 ) ;
 
-		p8hex( x ) ;
-		txmit( ' ' ) ;
-		p = Spi_rx_buf ;
-		p2hex( *p ) ;
-		p2hex( *(p+1) ) ;
-		p2hex( *(p+2) ) ;
-		p2hex( *(p+3) ) ;
-		crlf() ;
-	}
+//		p8hex( x ) ;
+//		txmit( ' ' ) ;
+//		p = Spi_rx_buf ;
+//		p2hex( *p ) ;
+//		p2hex( *(p+1) ) ;
+//		p2hex( *(p+2) ) ;
+//		p2hex( *(p+3) ) ;
+//		crlf() ;
+//	}
 	
-	if ( rxchar == 'F' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'F' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 
-		txmit( 'F' ) ;
+//		txmit( 'F' ) ;
 
-		eeprom_write_enable() ;
+//		eeprom_write_enable() ;
 		
-		p = Spi_tx_buf ;
-		*p = 1 ;		// Write status register command
-		*(p+1) = 0 ;
+//		p = Spi_tx_buf ;
+//		*p = 1 ;		// Write status register command
+//		*(p+1) = 0 ;
 
-		x = spi_operation( p, Spi_rx_buf, 2 ) ;
-		p8hex( x ) ;
-		crlf() ;
-	}
+//		x = spi_operation( p, Spi_rx_buf, 2 ) ;
+//		p8hex( x ) ;
+//		crlf() ;
+//	}
 	
-	if ( rxchar == 'X' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'X' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 		
-		txmit( 'X' ) ;
-		eeprom_write_enable() ;
+//		txmit( 'X' ) ;
+//		eeprom_write_enable() ;
 		
-		p = Spi_tx_buf ;
-		*p = 0x20 ;		// Block Erase command
-		*(p+1) = 0 ;
-		*(p+2) = 0 << 4 ;		// Erase block 0
-		*(p+3) = 0 ;		// 3 bytes address
+//		p = Spi_tx_buf ;
+//		*p = 0x20 ;		// Block Erase command
+//		*(p+1) = 0 ;
+//		*(p+2) = 0 << 4 ;		// Erase block 0
+//		*(p+3) = 0 ;		// 3 bytes address
 		
-		x = spi_operation( p, Spi_rx_buf, 4 ) ;
-		p8hex( x ) ;
-		crlf() ;
-	}
+//		x = spi_operation( p, Spi_rx_buf, 4 ) ;
+//		p8hex( x ) ;
+//		crlf() ;
+//	}
 	
-	if ( rxchar == 'C' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'C' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 
-		txmit( 'C' ) ;
+//		txmit( 'C' ) ;
 
-		eeprom_write_enable() ;
+//		eeprom_write_enable() ;
 		
-		p = Spi_tx_buf ;
-		*p = 0x39 ;		// Unprotect sector command
-		*(p+1) = 0 ;
-		*(p+2) = 0 ;
-		*(p+3) = 0 ;		// 3 bytes address
+//		p = Spi_tx_buf ;
+//		*p = 0x39 ;		// Unprotect sector command
+//		*(p+1) = 0 ;
+//		*(p+2) = 0 ;
+//		*(p+3) = 0 ;		// 3 bytes address
 
-		x = spi_operation( p, Spi_rx_buf, 4 ) ;
+//		x = spi_operation( p, Spi_rx_buf, 4 ) ;
 
-		p8hex( x ) ;
-		crlf() ;
-	}
+//		p8hex( x ) ;
+//		crlf() ;
+//	}
 	 
-	if ( rxchar == 'U' )
-	{
-		register uint8_t *p ;
-		register uint32_t x ;
+//	if ( rxchar == 'U' )
+//	{
+//		register uint8_t *p ;
+//		register uint32_t x ;
 
-		txmit( 'U' ) ;
+//		txmit( 'U' ) ;
 
-		eeprom_write_enable() ;
-		p = Spi_tx_buf ;
+//		eeprom_write_enable() ;
+//		p = Spi_tx_buf ;
 		
-		*p = 2 ;		// Write command
-		*(p+1) = 0 ;
-		*(p+2) = 0 ;
-		*(p+3) = 0 ;		// 3 bytes address
-		*(p+4) = 1 ;
-		*(p+5) = 2 ;
-		*(p+18) = 0x0F ;
-		*(p+19) = 0x10 ;
+//		*p = 2 ;		// Write command
+//		*(p+1) = 0 ;
+//		*(p+2) = 0 ;
+//		*(p+3) = 0 ;		// 3 bytes address
+//		*(p+4) = 1 ;
+//		*(p+5) = 2 ;
+//		*(p+18) = 0x0F ;
+//		*(p+19) = 0x10 ;
 
-		x = spi_operation( p, Spi_rx_buf, 20 ) ;
-		p8hex( x ) ;
-		crlf() ;
-	}
+//		x = spi_operation( p, Spi_rx_buf, 20 ) ;
+//		p8hex( x ) ;
+//		crlf() ;
+//	}
 
 	if ( rxchar == '-' )
 	{

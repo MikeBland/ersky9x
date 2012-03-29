@@ -237,46 +237,51 @@ void Key::input(bool val, EnumKeys enuk)
 
 extern uint32_t keyState(EnumKeys enuk)
 {
+	register uint32_t a ;
+	register uint32_t c ;
+
   CPU_UINT xxx = 0 ;
   if(enuk < (int)DIM(keys))  return keys[enuk].state() ? 1 : 0;
 
-  switch((uint8_t)enuk)
+	a = PIOA->PIO_PDSR ;
+	c = PIOC->PIO_PDSR ;
+	switch((uint8_t)enuk)
 	{
 #ifdef REVB
-    case SW_ElevDR : xxx = PIOC->PIO_PDSR & 0x80000000 ;	// ELE_DR   PC31
+    case SW_ElevDR : xxx = c & 0x80000000 ;	// ELE_DR   PC31
 #else 
-    case SW_ElevDR : xxx = PIOA->PIO_PDSR & 0x00000100 ;	// ELE_DR   PA8
+    case SW_ElevDR : xxx = a & 0x00000100 ;	// ELE_DR   PA8
 #endif 
     break ;
     
-    case SW_AileDR : xxx = PIOA->PIO_PDSR & 0x00000004 ;	// AIL-DR  PA2
+    case SW_AileDR : xxx = a & 0x00000004 ;	// AIL-DR  PA2
     break ;
 
-    case SW_RuddDR : xxx = PIOA->PIO_PDSR & 0x00008000 ;	// RUN_DR   PA15
+    case SW_RuddDR : xxx = a & 0x00008000 ;	// RUN_DR   PA15
     break ;
       //     INP_G_ID1 INP_E_ID2
       // id0    0        1
       // id1    1        1
       // id2    1        0
-    case SW_ID0    : xxx = ~PIOC->PIO_PDSR & 0x00004000 ;	// SW_IDL1     PC14
+    case SW_ID0    : xxx = ~c & 0x00004000 ;	// SW_IDL1     PC14
     break ;
-    case SW_ID1    : xxx = (PIOC->PIO_PDSR & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
+    case SW_ID1    : xxx = (c & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
     break ;
-    case SW_ID2    : xxx = ~PIOC->PIO_PDSR & 0x00000800 ;	// SW_IDL2     PC11
+    case SW_ID2    : xxx = ~c & 0x00000800 ;	// SW_IDL2     PC11
     break ;
 
     
-		case SW_Gear   : xxx = PIOC->PIO_PDSR & 0x00010000 ;	// SW_GEAR     PC16
+		case SW_Gear   : xxx = c & 0x00010000 ;	// SW_GEAR     PC16
     break ;
 
 #ifdef REVB
-    case SW_ThrCt  : xxx = PIOC->PIO_PDSR & 0x00100000 ;	// SW_TCUT     PC20
+    case SW_ThrCt  : xxx = c & 0x00100000 ;	// SW_TCUT     PC20
 #else 
-    case SW_ThrCt  : xxx = PIOA->PIO_PDSR & 0x10000000 ;	// SW_TCUT     PA28
+    case SW_ThrCt  : xxx = a & 0x10000000 ;	// SW_TCUT     PA28
 #endif 
     break ;
 
-    case SW_Trainer: xxx = PIOC->PIO_PDSR & 0x00000100 ;	// SW-TRAIN    PC8
+    case SW_Trainer: xxx = c & 0x00000100 ;	// SW-TRAIN    PC8
     break ;
     default:;
   }
@@ -965,19 +970,19 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 //      TelemetryActiveBuffer becomes other buffer
 
 
-uint8_t OutputBuffer[128] ;
-uint32_t OutIndex ;
+//uint8_t OutputBuffer[128] ;
+//uint32_t OutIndex ;
 
-void charProcess( uint8_t byte )
-{
-	OutputBuffer[OutIndex++] = byte ;
-	OutIndex &= 0x007F ;	
-}
+//void charProcess( uint8_t byte )
+//{
+//	OutputBuffer[OutIndex++] = byte ;
+//	OutIndex &= 0x007F ;	
+//}
 
-void poll2ndUsart10mS()
-{
-	rxPdcUsart( charProcess ) ;	
-}
+//void poll2ndUsart10mS()
+//{
+//	rxPdcUsart( charProcess ) ;	
+//}
 
 
 
