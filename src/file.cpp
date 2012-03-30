@@ -59,7 +59,7 @@ uint8_t Spi_rx_buf[24] ;
 
 struct t_file_entry File_system[MAX_MODELS+1] ;
 
-unsigned char ModelNames[MAX_MODELS+1][sizeof(g_model.name)] ;		// Allow for general
+unsigned char ModelNames[MAX_MODELS+1][sizeof(g_model.name)+1] ;		// Allow for general
 
 
 uint16_t General_timer ;
@@ -219,7 +219,7 @@ void ee32StoreModel( uint8_t modelNumber, uint8_t trim )
 
 void ee32_delete_model( uint8_t id )
 {
-	uint8_t buffer[sizeof(g_model.name)] ;
+	uint8_t buffer[sizeof(g_model.name)+1] ;
   memset( buffer, ' ', sizeof(g_model.name) ) ;
 	ee32_update_name( id + 1, buffer ) ;
 	Ee32_model_delete_pending = id + 1 ;
@@ -245,6 +245,7 @@ void ee32_update_name( uint32_t id, uint8_t *source )
 	{
 		*p++ = *source++ ;
 	}
+	*p = '\0' ;
 }
 
 

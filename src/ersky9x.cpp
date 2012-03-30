@@ -191,6 +191,8 @@ uint8_t  stickMoved = 0;
 
 uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
 uint16_t Current_analogue ;
+uint32_t Current_accumulator ;
+uint32_t Current_used ;
 
 uint8_t sysFlags = 0 ;
 
@@ -603,12 +605,14 @@ void mainSequence( uint32_t no_menu )
 	{
 		Tenms = 0 ;
 		ee32_process() ;
+		Current_accumulator += Current_analogue ;
 		if ( ++OneSecTimer >= 100 )
 		{
 			OneSecTimer -= 100 ;
 			txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
+			Current_used += Current_accumulator / 100 ;			// milliAmpSeconds (but scaled)
+			Current_accumulator = 0 ;
 		}
-
 	}
 
 
@@ -1992,6 +1996,7 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
   lcd_putsnAtt(x+FW,y,get_switches_string()+3*(abs(idx1)-1),3,att);
 }
 
+//Type 1-trigA, 2-trigB, 0 best for display
 void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type )
 {
   int8_t tm = g_model.timer[timer].tmrModeA ;

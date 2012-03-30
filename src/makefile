@@ -177,9 +177,11 @@ all: size_before stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $
 
 size_before:
 	arm-none-eabi-size $(FULL_PRJ).elf
+#	@if test -f $(FULL_PRJ).elf; then arm-none-eabi-size $(FULL_PRJ).elf; fi
 
 size:
 	arm-none-eabi-size $(FULL_PRJ).elf
+#	@if test -f $(FULL_PRJ).elf; then arm-none-eabi-size $(FULL_PRJ).elf; fi
 
 # Build stamp-file
 stamp:

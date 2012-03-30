@@ -192,7 +192,8 @@ typedef struct t_FrSkyData {
 
 typedef struct t_TimerMode
 {
-    int8_t    tmrModeA ;            // timer trigger source -> off, abs, stk, stk%, cx%
+		uint8_t   tmrModeA:7 ;          // timer trigger source -> off, abs, stk, stk%, cx%
+    uint8_t   tmrDir:1 ;						// Timer direction
     int8_t    tmrModeB ;            // timer trigger source -> !sw, none, sw, m_sw
     uint16_t  tmrVal ;
 } __attribute__((packed)) TimerMode ;
@@ -209,7 +210,7 @@ typedef struct t_ModelData {
   uint8_t   FrSkyUsrProto:2 ;  // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
   uint8_t   FrSkyImperial:1 ;  // Convert FrSky values to imperial units
   uint8_t   FrSkyAltAlarm:2;
-  uint16_t  tmrValx;
+  uint16_t  spare_u16 ;			// Was timerval
   uint8_t   protocol;
   int8_t    ppmNCH;
   int8_t    thrTrim:4;            // Enable Throttle Trim

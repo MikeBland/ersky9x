@@ -322,8 +322,6 @@ static const uint8_t Volume_scale[NUM_VOL_LEVELS] =
 void set_volume( register uint8_t volume )
 {
 //	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
-	txmit( 'v' ) ;
-	p2hex( volume ) ;
 	
 	if ( volume >= NUM_VOL_LEVELS )
 	{
@@ -334,12 +332,10 @@ void set_volume( register uint8_t volume )
 	__disable_irq() ;
 	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
 	{
-		txmit( 'x' ) ;
 		Volume_required = volume ;
 	}
 	else
 	{
-		txmit( 'y' ) ;
 		TWI0->TWI_THR = volume ;		// Send data
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;

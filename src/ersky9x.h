@@ -340,6 +340,7 @@ inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat 
     //  return x + x/32 - x/128 + x/512;
 }
 
+extern uint32_t Current_used ;
 
 
 const char modn12x3[]= {
