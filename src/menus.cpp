@@ -3362,8 +3362,10 @@ void menuProcStatistic2(uint8_t event)
     case EVT_KEY_FIRST(KEY_MENU):
 //      g_tmr1Latency_min = 0x7ff;
 //      g_tmr1Latency_max = 0;
-      g_timeMain    = 0;
-      audioDefevent(AUDIO_MENUS);
+      g_timeMain = 0;
+			MAh_used = 0 ;
+			Current_used = 0 ;
+      audioDefevent(AUDIO_MENUS) ;
     break;
     case EVT_KEY_FIRST(KEY_DOWN):
         chainMenu(menuProcStatistic);
@@ -3399,7 +3401,7 @@ void menuProcStatistic2(uint8_t event)
 	  lcd_outdezAtt( 18*FW, 5*FH, Current/22 ,0 ) ;
 		lcd_puts_Pleft( 6*FH, PSTR("mAh"));
 		lcd_outhex4( 10*FW+3, 6*FH, Current_used ) ;
-	  lcd_outdezAtt( 18*FW, 6*FH, Current_used/22/360 ,0 ) ;
+	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/360 ,0 ) ;
 #endif
 
 

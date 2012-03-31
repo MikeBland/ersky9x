@@ -72,6 +72,7 @@ extern void start_timer1( void ) ;
 extern void init_dac( void ) ;
 extern "C" void DAC_IRQHandler( void ) ;
 extern void end_sound( void ) ;
+extern void sound_5ms( void ) ;
 extern void playTone( uint32_t frequency, uint32_t time ) ;
 extern void tone_start( register uint32_t time ) ;
 extern void tone_stop( void ) ;

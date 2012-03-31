@@ -341,6 +341,8 @@ inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat 
 }
 
 extern uint32_t Current_used ;
+extern uint16_t MAh_used ;
+extern uint16_t Run_time ;
 
 
 const char modn12x3[]= {
@@ -398,7 +400,7 @@ extern int16_t g_chans512[NUM_CHNOUT];
 uint8_t char2idx(char c);
 char idx2char(uint8_t idx);
 
-extern volatile uint32_t Timer2_count ;		// Modified in interrupt routine
+//extern volatile uint32_t Timer2_count ;		// Modified in interrupt routine
 extern volatile uint16_t g_tmr10ms ;
 extern volatile uint8_t  g_blinkTmr10ms;
 extern volatile uint8_t tick10ms ;

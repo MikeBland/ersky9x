@@ -183,7 +183,7 @@ volatile uint32_t Pulses_index = 0 ;		// Modified in interrupt routine
 
 uint32_t Master_frequency ;
 //uint16_t Adc_data[32] ;
-volatile uint32_t Timer2_count ;		// Modified in interrupt routine
+//volatile uint32_t Timer2_count ;		// Modified in interrupt routine
 volatile uint32_t Tenms ;						// Modified in interrupt routine
 volatile uint8_t tick10ms = 0 ;
 uint16_t g_LightOffCounter ;
@@ -193,6 +193,9 @@ uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
 uint16_t Current_analogue ;
 uint32_t Current_accumulator ;
 uint32_t Current_used ;
+
+uint16_t MAh_used ;
+uint16_t Run_time ;
 
 uint8_t sysFlags = 0 ;
 
@@ -374,6 +377,7 @@ int main (void)
 	init_adc() ;
 	init_pwm() ;
 
+	g_LightOffCounter = 1000 ;
 	__enable_irq() ;
 
   g_menuStack[0] =  menuProc0 ;
@@ -399,8 +403,10 @@ int main (void)
 //	generalDefault() ;
 //	modelDefault( 0 ) ;
 	
+  lcdSetRefVolt(g_eeGeneral.contrast) ;
 	set_volume( g_eeGeneral.volume ) ;
 	PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
+	MAh_used = g_eeGeneral.mAh_used ;
 
 	// Choose here between PPM and PXX
 //	init_ssc() ;			// Or we may do this
@@ -492,6 +498,13 @@ int main (void)
 			// Wait for OK to turn off
 			// Currently wait 1 sec, needs to check eeprom finished
 
+			MAh_used += Current_used/22/360 ;
+			if ( g_eeGeneral.mAh_used != MAh_used )
+			{
+				g_eeGeneral.mAh_used = MAh_used ;
+  	    STORE_GENERALVARS ;
+			}
+
   		uint16_t tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
 	  	while(tgtime != get_tmr10ms())
   		{
@@ -503,15 +516,14 @@ int main (void)
 
 				if ( ee32_check_finished() == 0 )
 				{
-					lcd_putsn_P( 7*FW, 5*FH, "EEPROM BUSY", 11 ) ;
-					refreshDisplay() ;
-					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 moer second
+					lcd_putsn_P( 5*FW, 5*FH, "EEPROM BUSY", 11 ) ;
+					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 more second
 				}
 				else
 				{
-					lcd_putsn_P( 7*FW, 5*FH, "           ", 11 ) ;
-					refreshDisplay() ;
+					lcd_putsn_P( 5*FW, 5*FH, "           ", 11 ) ;
 				}
+				refreshDisplay() ;
   		}
 //			if ( check_soft_power() == 0 )
 //			{
@@ -929,7 +941,7 @@ void perMain( uint32_t no_menu )
 
 }
 
-// Starts TIMER2 at 100Hz,  commentd out drive of TIOA2 (A26, EXT2) out
+// Starts TIMER2 at 200Hz,  commentd out drive of TIOA2 (A26, EXT2)
 static void start_timer2()
 {
 	register Pio *pioptr ;
@@ -939,7 +951,7 @@ static void start_timer2()
 	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
-	timer = Master_frequency / 12800 ;		// MCK/128 and 100 Hz
+	timer = Master_frequency / 12800 / 2 ;		// MCK/128 and 200 Hz
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
@@ -961,7 +973,7 @@ static void start_timer2()
 }
 
 
-// Test, starts TIMER0 at full speed (MCK/2) for delay timing
+// Starts TIMER0 at full speed (MCK/2) for delay timing
 // @ 36MHz this is 18MHz
 // This was 6 MHz, we may need to slow it to TIMER_CLOCK2 (MCK/8=4.5 MHz)
 static void start_timer0()
@@ -989,22 +1001,23 @@ extern "C" void TC2_IRQHandler()
   /* Clear status bit to acknowledge interrupt */
   dummy = TC0->TC_CHANNEL[2].TC_SR;
 	(void) dummy ;		// Discard value - prevents compiler warning
-	Tenms |= 1 ;			// 10 mS has passed
-	if ( Buzzer_count )
-	{
-		if ( --Buzzer_count == 0 )
-		{
-			buzzer_off() ;			
-		}
-	}
 
-	if ( ++pre_scale >= 10 )
+	sound_5ms() ;
+	 
+	if ( ++pre_scale >= 2 )
 	{
-		Timer2_count += 1 ;
+		Tenms |= 1 ;			// 10 mS has passed
+		if ( Buzzer_count )
+		{
+			if ( --Buzzer_count == 0 )
+			{
+				buzzer_off() ;			
+			}
+		}
+//		Timer2_count += 1 ;
 		pre_scale = 0 ;
+  	per10ms();
 	}
-  per10ms();
-  
 }
 
 
@@ -2477,9 +2490,10 @@ static void init_soft_power()
 	register Pio *pioptr ;
 	
 	pioptr = PIOC ;
-	// Configure RF_power (PC17) but not PPM-jack-in (PC22), neither need pullups
+	// Configure RF_power (PC17)
 	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
 	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
+	pioptr->PIO_PPDER = PIO_PC17;		// Enable pulldown on bit C17
 	
 	pioptr = PIOA ;
 	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)

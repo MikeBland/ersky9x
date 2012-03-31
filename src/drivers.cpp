@@ -30,7 +30,7 @@
 // TIMER3 for input capture
 // Timer4 to provide 0.5uS clock for input capture
 // TIMER0 at full speed (MCK/2) for delay timing
-// TIMER2 at 100Hz, provides 10mS tick on interrupt
+// TIMER2 at 200Hz, provides 5mS for sound and 10mS tick on interrupt
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
