@@ -455,14 +455,14 @@ void per10ms()
   g_tmr10ms++;
   g_blinkTmr10ms++;
 
-	if ( PIOC->PIO_ODSR & 0x00080000 )
-	{
-		PIOC->PIO_CODR = 0x00200000L ;	// Set bit C19 OFF
-	}
-	else
-	{
-		PIOC->PIO_SODR = 0x00200000L ;	// Set bit C19 ON
-	}
+//	if ( PIOC->PIO_ODSR & 0x00080000 )
+//	{
+//		PIOC->PIO_CODR = 0x00200000L ;	// Set bit C19 OFF
+//	}
+//	else
+//	{
+//		PIOC->PIO_SODR = 0x00200000L ;	// Set bit C19 ON
+//	}
 
   uint8_t enuk = KEY_MENU;
   uint8_t    in = ~read_keys() ;

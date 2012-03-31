@@ -944,7 +944,7 @@ void perMain( uint32_t no_menu )
 // Starts TIMER2 at 200Hz,  commentd out drive of TIOA2 (A26, EXT2)
 static void start_timer2()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
   register Tc *ptc ;
 	register uint32_t timer ;
 
@@ -962,9 +962,9 @@ static void start_timer2()
 	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
 																						// MCK/128, set @ RA, Clear @ RC waveform
 
-	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x00080000L ;		// Enable bits C19
-	pioptr->PIO_OER = 0x00080000L ;		// Set as output
+//	pioptr = PIOC ;
+//	pioptr->PIO_PER = 0x00080000L ;		// Enable bits C19
+//	pioptr->PIO_OER = 0x00080000L ;		// Set as output
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
 	NVIC_EnableIRQ(TC2_IRQn) ;
@@ -2493,6 +2493,7 @@ static void init_soft_power()
 	// Configure RF_power (PC17)
 	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
 	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
+	pioptr->PIO_PUDR = PIO_PC17;		// Disable pullup on bit C17
 	pioptr->PIO_PPDER = PIO_PC17;		// Enable pulldown on bit C17
 	
 	pioptr = PIOA ;
