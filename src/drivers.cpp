@@ -528,7 +528,7 @@ void per10ms()
 // Set clock to 3 MHz, AT25 device is rated to 70MHz, 18MHz would be better
 void init_spi()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 	register Spi *spiptr ;
 	register uint32_t timer ;
 	register uint8_t *p ;
@@ -536,10 +536,11 @@ void init_spi()
 
   PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
   /* Configure PIO */
-	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00007800 ;	// Peripheral A bits 14,13,12,11
-  pioptr->PIO_ABCDSR[1] &= ~0x00007800 ;	// Peripheral A
-  pioptr->PIO_PDR = 0x00007800 ;					// Assign to peripheral
+	configure_pins( 0x00007800, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//  pioptr->PIO_ABCDSR[0] &= ~0x00007800 ;	// Peripheral A bits 14,13,12,11
+//  pioptr->PIO_ABCDSR[1] &= ~0x00007800 ;	// Peripheral A
+//  pioptr->PIO_PDR = 0x00007800 ;					// Assign to peripheral
 	
 	spiptr = SPI ;
 	timer = ( Master_frequency / 3000000 ) << 8 ;		// Baud rate 3Mb/s
@@ -854,13 +855,14 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 {
 //    const Pin pPins[] = CONSOLE_PINS;
   register Uart *pUart = CONSOLE_USART;
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 
   /* Configure PIO */
-	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
-  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
-  pioptr->PIO_PDR = (PIO_PA9 | PIO_PA10) ;					// Assign to peripheral
+	configure_pins( (PIO_PA9 | PIO_PA10), PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
+//  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
+//  pioptr->PIO_PDR = (PIO_PA9 | PIO_PA10) ;					// Assign to peripheral
 
   /* Configure PMC */
   PMC->PMC_PCER0 = 1 << CONSOLE_ID;
@@ -888,13 +890,14 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 {
 //    const Pin pPins[] = CONSOLE_PINS;
   register Uart *pUart = BT_USART;
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 
   /* Configure PIO */
-	pioptr = PIOB ;
-  pioptr->PIO_ABCDSR[0] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
-  pioptr->PIO_ABCDSR[1] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
-  pioptr->PIO_PDR = (PIO_PB2 | PIO_PB3) ;					// Assign to peripheral
+	configure_pins( (PIO_PB2 | PIO_PB3), PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTB | PIN_NO_PULLUP ) ;
+//	pioptr = PIOB ;
+//  pioptr->PIO_ABCDSR[0] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
+//  pioptr->PIO_ABCDSR[1] &= ~(PIO_PB2 | PIO_PB3) ;	// Peripheral A
+//  pioptr->PIO_PDR = (PIO_PB2 | PIO_PB3) ;					// Assign to peripheral
 
   /* Configure PMC */
   PMC->PMC_PCER0 = 1 << BT_ID;
@@ -928,13 +931,14 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 {
 ////    const Pin pPins[] = CONSOLE_PINS;
   register Usart *pUsart = SECOND_USART;
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 
   /* Configure PIO */
-	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
-  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
-  pioptr->PIO_PDR = (PIO_PA5 | PIO_PA6) ;					// Assign to peripheral
+	configure_pins( (PIO_PA5 | PIO_PA6), PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
+//  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
+//  pioptr->PIO_PDR = (PIO_PA5 | PIO_PA6) ;					// Assign to peripheral
 
 //  /* Configure PMC */
   PMC->PMC_PCER0 = 1 << SECOND_ID;
@@ -1320,9 +1324,7 @@ void init_adc()
 void start_timer3()
 {
   register Tc *ptc ;
-	register Pio *pioptr ;
-
-	pioptr = PIOC ;
+//	register Pio *pioptr ;
 
 	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x04000000L ;		// Enable peripheral clock to TC3
@@ -1334,9 +1336,11 @@ void start_timer3()
 	ptc->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, b fall
 	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 
-  pioptr->PIO_ABCDSR[0] |= 0x00800000 ;		// Peripheral B = TIOA3
-  pioptr->PIO_ABCDSR[1] &= ~0x00800000 ;	// Peripheral B
-	pioptr->PIO_PDR = 0x00800000L ;		// Disable bit C23 (TIOA3) Assign to peripheral
+	configure_pins( PIO_PC23, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_PULLUP ) ;
+//	pioptr = PIOC ;
+//  pioptr->PIO_ABCDSR[0] |= 0x00800000 ;		// Peripheral B = TIOA3
+//  pioptr->PIO_ABCDSR[1] &= ~0x00800000 ;	// Peripheral B
+//	pioptr->PIO_PDR = 0x00800000L ;		// Disable bit C23 (TIOA3) Assign to peripheral
 	NVIC_SetPriority( TC3_IRQn, 15 ) ; // Low ppiority interrupt
 	NVIC_EnableIRQ(TC3_IRQn) ;
 	ptc->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;
@@ -1430,14 +1434,16 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 // TD is on PA17, peripheral A
 void init_ssc()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 	register Ssc *sscptr ;
 
   PMC->PMC_PCER0 |= 0x00400000L ;		// Enable peripheral clock to SSC
-	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;	// Peripheral A bit 17
-  pioptr->PIO_ABCDSR[1] &= ~0x00020000 ;	// Peripheral A
-  pioptr->PIO_PDR = 0x00020000 ;					// Assign to peripheral
+	
+	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;	// Peripheral A bit 17
+//  pioptr->PIO_ABCDSR[1] &= ~0x00020000 ;	// Peripheral A
+//  pioptr->PIO_PDR = 0x00020000 ;					// Assign to peripheral
 	
 	sscptr = SSC ;
 	sscptr->SSC_CMR = Master_frequency / (125000*2) ;		// 8uS per bit
@@ -1454,10 +1460,81 @@ void disable_ssc()
 
 	// Revert back to pwm output
 	pioptr = PIOA ;
-	pioptr->PIO_PER = 0x00020000L ;						// Assign A17 to PIO
+	pioptr->PIO_PER = PIO_PA17 ;						// Assign A17 to PIO
 	
 	sscptr = SSC ;
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
-
 }
+
+
+void configure_pins( uint32_t pins, uint16_t config )
+{
+	register Pio *pioptr ;
+	
+	pioptr = PIOA + ( ( config & PIN_PORT_MASK ) >> 6) ;
+	if ( config & PIN_PULLUP )
+	{
+		pioptr->PIO_PPDDR = pins ;
+		pioptr->PIO_PUER = pins ;
+	}
+	else
+	{
+		pioptr->PIO_PUDR = pins ;
+	}
+
+	if ( config & PIN_PULLDOWN )
+	{
+		pioptr->PIO_PUDR = pins ;
+		pioptr->PIO_PPDER = pins ;
+	}
+	else
+	{
+		pioptr->PIO_PPDDR = pins ;
+	}
+
+	if ( config & PIN_HIGH )
+	{
+		pioptr->PIO_SODR = pins ;		
+	}
+	else
+	{
+		pioptr->PIO_CODR = pins ;		
+	}
+
+	if ( config & PIN_INPUT )
+	{
+		pioptr->PIO_ODR = pins ;
+	}
+	else
+	{
+		pioptr->PIO_OER = pins ;
+	}
+
+	if ( config & PIN_PERI_MASK_L )
+	{
+		pioptr->PIO_ABCDSR[0] |= pins ;
+	}
+	else
+	{
+		pioptr->PIO_ABCDSR[0] &= ~pins ;
+	}
+	if ( config & PIN_PERI_MASK_H )
+	{
+		pioptr->PIO_ABCDSR[1] |= pins ;
+	}
+	else
+	{
+		pioptr->PIO_ABCDSR[1] &= ~pins ;
+	}
+
+	if ( config & PIN_ENABLE )
+	{
+		pioptr->PIO_PER = pins ;		
+	}
+	else
+	{
+		pioptr->PIO_PDR = pins ;		
+	}
+}
+
 

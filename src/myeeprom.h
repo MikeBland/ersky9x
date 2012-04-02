@@ -202,25 +202,26 @@ typedef struct t_TimerMode
 
 typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
-  uint8_t   reserved_spare;  //used to be MDVERS - now depreciated
-  int8_t    spare21;              // was timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw
-//    uint8_t   sparex:1;      // was tmrDir, now use tmrVal>0 => count down
-    uint8_t   sparex:1;      // was tmrDir, now use tmrVal>0 => count down
-//    uint8_t   tmrDir:1;      // was tmrDir, now use tmrVal>0 => count down
-  uint8_t   traineron:1;  // 0 disable trainer, 1 allow trainer
-  uint8_t   spare22:1 ;  // Start timer2 using throttle
-  uint8_t   FrSkyUsrProto:2 ;  // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
-  uint8_t   FrSkyImperial:1 ;  // Convert FrSky values to imperial units
+  uint8_t   reserved_spare;		//used to be MDVERS - now depreciated
+  int8_t    spare21;          // was timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw
+//    uint8_t   sparex:1;     // was tmrDir, now use tmrVal>0 => count down
+    uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
+//    uint8_t   tmrDir:1;     // was tmrDir, now use tmrVal>0 => count down
+  uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
+  uint8_t   spare22:1 ;  			// Start timer2 using throttle
+  uint8_t   FrSkyUsrProto:1 ; // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
+  uint8_t   FrSkyGpsAlt:1 ;		// Use Gps Altitude as main altitude reading
+  uint8_t   FrSkyImperial:1 ; // Convert FrSky values to imperial units
   uint8_t   FrSkyAltAlarm:2;
-  uint16_t  spare_u16 ;			// Was timerval
+  uint16_t  spare_u16 ;				// Was timerval
   uint8_t   protocol;
   int8_t    ppmNCH;
-  int8_t    thrTrim:4;            // Enable Throttle Trim
-  int8_t    thrExpo:4;            // Enable Throttle Expo
-  int8_t    trimInc;              // Trim Increments
+  int8_t    thrTrim:4;        // Enable Throttle Trim
+  int8_t    thrExpo:4;        // Enable Throttle Expo
+  int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
-  uint8_t   beepANACenter;        // 1<<0->A1.. 1<<6->A7
+  uint8_t   beepANACenter;    // 1<<0->A1.. 1<<6->A7
   uint8_t   pulsePol:1;
   uint8_t   extendedLimits:1;
   uint8_t   swashInvertELE:1;
@@ -229,7 +230,7 @@ typedef struct t_ModelData {
   uint8_t   swashType:3;
   uint8_t   swashCollectiveSource;
   uint8_t   swashRingValue;
-  int8_t    ppmFrameLength;    //0=22.5  (10msec-30msec) 0.5msec increments
+  int8_t    ppmFrameLength;   //0=22.5  (10msec-30msec) 0.5msec increments
   MixData   mixData[MAX_MIXERS];
   LimitData limitData[NUM_CHNOUT];
   ExpoData  expoData[4];

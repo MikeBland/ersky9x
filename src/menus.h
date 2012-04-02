@@ -77,7 +77,7 @@ struct MState2
   void check_submenu_simple(uint8_t event, uint8_t maxrow);
 };
 
-void evalOffset(int8_t sub, uint8_t max);
+uint8_t evalOffset(int8_t sub, uint8_t max);
 
 //typedef PROGMEM void (*MenuFuncP_PROGMEM)(uint8_t event);
 typedef const void (*MenuFunc)(uint8_t event) ;

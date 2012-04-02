@@ -484,7 +484,7 @@ int main (void)
 		mainSequence( MENUS ) ;
 
 #ifdef REVB	
-		if ( ( check_soft_power() == 0 ) || ( goto_usb ) )		// power now off
+		if ( ( check_soft_power() == POWER_OFF ) || ( goto_usb ) )		// power now off
 		{
 			// Time to switch off
 			lcd_clear() ;
@@ -659,7 +659,7 @@ void clearKeyEvents()
 
 uint32_t check_power_or_usb()
 {
-	if ( check_soft_power() == 0 )		// power now off
+	if ( check_soft_power() == POWER_OFF )		// power now off
 	{
 		return 1 ;
 	}
@@ -888,9 +888,14 @@ void perMain( uint32_t no_menu )
 //    }else{
 //        PORTG |=  (1<<OUT_G_SIM_CTL); // 1=ppm-in
 //    }
-
-		
-
+	if ( check_soft_power() == POWER_TRAINER )		// On trainer power
+	{
+		PIOC->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
+	}
+	else
+	{
+		PIOC->PIO_PER = PIO_PC22 ;						// Enable bit C22 as input
+	}
 
   switch( get_tmr10ms() & 0x1f )
 	{ //alle 10ms*32
@@ -1129,7 +1134,10 @@ void getADC_filt()
 // For testing, just drive it out with PWM
 static void init_pwm()
 {
+#ifdef REVB
+#else
 	register Pio *pioptr ;
+#endif
 	register Pwm *pwmptr ;
 	register uint32_t timer ;
 
@@ -1146,27 +1154,33 @@ static void init_pwm()
 #endif
 
 #ifdef REVB
-	pioptr = PIOA ;
-  pioptr->PIO_ABCDSR[0] &= ~PIO_PA16 ;		// Peripheral C
-  pioptr->PIO_ABCDSR[1] |= PIO_PA16 ;			// Peripheral C
-	pioptr->PIO_PDR = PIO_PA16 ;						// Disable bit A16 Assign to peripheral
+	configure_pins( PIO_PA16, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_C | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//  pioptr->PIO_ABCDSR[0] &= ~PIO_PA16 ;		// Peripheral C
+//  pioptr->PIO_ABCDSR[1] |= PIO_PA16 ;			// Peripheral C
+//	pioptr->PIO_PDR = PIO_PA16 ;						// Disable bit A16 Assign to peripheral
 #endif
 
-	pioptr = PIOC ;
-  pioptr->PIO_ABCDSR[0] |= PIO_PC18 ;			// Peripheral B
-  pioptr->PIO_ABCDSR[1] &= ~PIO_PC18 ;		// Peripheral B
-	pioptr->PIO_PDR = PIO_PC18 ;						// Disable bit C18 Assign to peripheral
+	configure_pins( PIO_PC18, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+//	pioptr = PIOC ;
+//  pioptr->PIO_ABCDSR[0] |= PIO_PC18 ;			// Peripheral B
+//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC18 ;		// Peripheral B
+//	pioptr->PIO_PDR = PIO_PC18 ;						// Disable bit C18 Assign to peripheral
 
 #ifdef REVB
-  pioptr->PIO_ABCDSR[0] |= PIO_PC15 ;			// Peripheral B
-  pioptr->PIO_ABCDSR[1] &= ~PIO_PC15 ;		// Peripheral B
-	pioptr->PIO_PDR = PIO_PC15 ;						// Disable bit C15 Assign to peripheral
+	configure_pins( PIO_PC15, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+//  pioptr->PIO_ABCDSR[0] |= PIO_PC15 ;			// Peripheral B
+//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC15 ;		// Peripheral B
+//	pioptr->PIO_PDR = PIO_PC15 ;						// Disable bit C15 Assign to peripheral
 #endif
 
 #ifdef REVB
-  pioptr->PIO_ABCDSR[0] |= PIO_PC22 ;			// Peripheral B
-  pioptr->PIO_ABCDSR[1] &= ~PIO_PC22 ;		// Peripheral B
-	pioptr->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
+	configure_pins( PIO_PC22, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+//  pioptr->PIO_ABCDSR[0] |= PIO_PC22 ;			// Peripheral B
+//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC22 ;		// Peripheral B
+//	pioptr->PIO_ODR = PIO_PC22 ;						// Set bit C22 as input
+//	pioptr->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
+//	pioptr->PIO_PUDR = PIO_PC22 ;						// Disable pullup on bit C22
 #endif
 
 	// Configure clock - depends on MCK frequency
@@ -1821,34 +1835,46 @@ void setupPulsesPXX()
 // Assumes PMC has already enabled clocks to ports
 static void setup_switches()
 {
-	register Pio *pioptr ;
-
-	pioptr = PIOA ;
 #ifdef REVB
-	pioptr->PIO_PER = 0x01808087 ;		// Enable bits
-	pioptr->PIO_ODR = 0x01808087 ;		// Set bits input
-	pioptr->PIO_PUER = 0x01808087 ;		// Set bits with pullups
+#else
+	register Pio *pioptr ;
+	
+	pioptr = PIOA ;
+#endif
+#ifdef REVB
+	configure_pins( 0x01808087, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
+//	pioptr->PIO_PER = 0x01808087 ;		// Enable bits
+//	pioptr->PIO_ODR = 0x01808087 ;		// Set bits input
+//	pioptr->PIO_PUER = 0x01808087 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0xF8008184 ;		// Enable bits
 	pioptr->PIO_ODR = 0xF8008184 ;		// Set bits input
 	pioptr->PIO_PUER = 0xF8008184 ;		// Set bits with pullups
 #endif 
-	pioptr = PIOB ;
 #ifdef REVB
-	pioptr->PIO_PER = 0x00000030 ;		// Enable bits
-	pioptr->PIO_ODR = 0x00000030 ;		// Set bits input
-	pioptr->PIO_PUER = 0x00000030 ;		// Set bits with pullups
+#else
+	pioptr = PIOB ;
+#endif 
+#ifdef REVB
+	configure_pins( 0x00000030, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+//	pioptr->PIO_PER = 0x00000030 ;		// Enable bits
+//	pioptr->PIO_ODR = 0x00000030 ;		// Set bits input
+//	pioptr->PIO_PUER = 0x00000030 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
 	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
 	pioptr->PIO_PUER = 0x00000010 ;		// Set bits with pullups
 #endif 
 
-	pioptr = PIOC ;
 #ifdef REVB
-	pioptr->PIO_PER = 0x91114900 ;		// Enable bits
-	pioptr->PIO_ODR = 0x91114900 ;		// Set bits input
-	pioptr->PIO_PUER = 0x91114900 ;		// Set bits with pullups
+#else
+	pioptr = PIOC ;
+#endif 
+#ifdef REVB
+	configure_pins( 0x91114900, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
+//	pioptr->PIO_PER = 0x91114900 ;		// Enable bits
+//	pioptr->PIO_ODR = 0x91114900 ;		// Set bits input
+//	pioptr->PIO_PUER = 0x91114900 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0x10014900 ;		// Enable bits
 	pioptr->PIO_ODR = 0x10014900 ;		// Set bits input
@@ -1867,19 +1893,22 @@ static void setup_switches()
 // PC21, PC19, PC15 (PPM2 output)
 static void config_free_pins()
 {
-	register Pio *pioptr ;
 	
 #ifdef REVB
-	pioptr = PIOB ;
-	pioptr->PIO_PER = 0x00004040L ;		// Enable bits B14, 6
-	pioptr->PIO_ODR = 0x00004040L ;		// Set as input
-	pioptr->PIO_PUER = 0x00004040L ;	// Enable pullups
+	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+//	pioptr = PIOB ;
+//	pioptr->PIO_PER = 0x00004040L ;		// Enable bits B14, 6
+//	pioptr->PIO_ODR = 0x00004040L ;		// Set as input
+//	pioptr->PIO_PUER = 0x00004040L ;	// Enable pullups
 
-	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x00280000L ;		// Enable bits C21, 19
-	pioptr->PIO_ODR = 0x00280000L ;		// Set as input
-	pioptr->PIO_PUER = 0x00280000L ;	// Enable pullups
+	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
+//	pioptr = PIOC ;
+//	pioptr->PIO_PER = 0x00280000L ;		// Enable bits C21, 19
+//	pioptr->PIO_ODR = 0x00280000L ;		// Set as input
+//	pioptr->PIO_PUER = 0x00280000L ;	// Enable pullups
 #else 
+	register Pio *pioptr ;
+
 	pioptr = PIOA ;
 	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
 	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
@@ -2157,8 +2186,6 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
     if(!dir) return ! keyState((enum EnumKeys)(SW_BASE-swtch-1));
     return            keyState((enum EnumKeys)(SW_BASE+swtch-1));
   }
-
-	return FALSE ;
 
   //use putsChnRaw
   //input -> 1..4 -> sticks,  5..8 pots
@@ -2487,37 +2514,41 @@ void pushMenu(MenuFuncP newMenu)
 // 
 static void init_soft_power()
 {
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 	
-	pioptr = PIOC ;
+//	pioptr = PIOC ;
 	// Configure RF_power (PC17)
-	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
-	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
-	pioptr->PIO_PUDR = PIO_PC17;		// Disable pullup on bit C17
-	pioptr->PIO_PPDER = PIO_PC17;		// Enable pulldown on bit C17
+	configure_pins( PIO_PC17, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_NO_PULLUP | PIN_PULLDOWN ) ;
+//	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
+//	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
+//	pioptr->PIO_PUDR = PIO_PC17;		// Disable pullup on bit C17
+//	pioptr->PIO_PPDER = PIO_PC17;		// Enable pulldown on bit C17
 	
-	pioptr = PIOA ;
-	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
-	pioptr->PIO_ODR = PIO_PA8 ;		// Set bit A8 as input
-	pioptr->PIO_PUER = PIO_PA8 ;	// Enable PA8 pullup
+	configure_pins( PIO_PA8, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
+//	pioptr = PIOA ;
+//	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
+//	pioptr->PIO_ODR = PIO_PA8 ;		// Set bit A8 as input
+//	pioptr->PIO_PUER = PIO_PA8 ;	// Enable PA8 pullup
 }
 
 
-// Returns non-zero if power is switched off
+// Returns zero if power is switched off
+//  1 if power switch is on
+//  2 if power switch off, trainer power on
 uint32_t check_soft_power()
 {
 #ifdef REVB	
 	if ( PIOC->PIO_PDSR & PIO_PC17 )		// Power on
 	{
-		return 1 ;
+		return POWER_ON ;
 	}
 
 	if ( PIOA->PIO_PDSR & PIO_PA8 )		// Trainer plugged in
 	{
-		return 1 ;
+		return POWER_TRAINER ;
 	}
 #endif
-	return 0 ;	
+	return POWER_OFF ;	
 }
 
 
@@ -2525,12 +2556,13 @@ uint32_t check_soft_power()
 void soft_power_off()
 {
 #ifdef REVB
-	register Pio *pioptr ;
+//	register Pio *pioptr ;
 	
-	pioptr = PIOA ;
-	pioptr->PIO_PUDR = PIO_PA8 ;	// Disble PA8 pullup
-	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as input
-	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
+	configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//	pioptr->PIO_PUDR = PIO_PA8 ;	// Disble PA8 pullup
+//	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as ouput
+//	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
 #endif
 }
 

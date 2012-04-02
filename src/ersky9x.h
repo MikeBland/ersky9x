@@ -284,6 +284,11 @@ extern uint8_t Ee_lock ;
 #define PXX_SEND_RXNUM     0x01
 #define PXX_SEND_FAILSAFE  0x02
 
+#define POWER_OFF			0
+#define POWER_ON			1
+#define POWER_TRAINER	2
+
+
 extern uint8_t pxxFlag;
 extern uint8_t stickMoved;
 
@@ -474,7 +479,7 @@ extern void mainSequence( uint32_t no_menu ) ;
 extern void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
 #endif
 
-
+extern uint32_t check_soft_power( void ) ;
 
 
 

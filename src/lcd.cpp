@@ -26,6 +26,7 @@
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "lcd.h"
+#include "drivers.h"
 
 #include "font.lbm"
 #define font_5x8_x20_x7f (font+3)
@@ -583,10 +584,11 @@ void lcd_init()
   // ~/txt/flieger/ST7565RV17.pdf  from http://www.glyn.de/content.asp?wdid=132&sid=
 
 #ifdef REVB
-	pioptr = PIOA ;
-	pioptr->PIO_PER = LCD_A0 ;		// Enable bit 7 (LCD-A0)
-	pioptr->PIO_CODR = LCD_A0 ;
-	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
+	configure_pins( LCD_A0, PIN_ENABLE | PIN_LOW | PIN_OUTPUT | PIN_PORTA | PIN_NO_PULLUP ) ;
+//	pioptr = PIOA ;
+//	pioptr->PIO_PER = LCD_A0 ;		// Enable bit 7 (LCD-A0)
+//	pioptr->PIO_CODR = LCD_A0 ;
+//	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x0C0030FFL ;		// Enable bits 27,26,13,12,7-0
 	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
