@@ -39,6 +39,7 @@
 //extern void eeprom_process( void ) ;
 
 uint16_t Analog_values[NUMBER_ANALOG] ;
+uint16_t Temperature ;		// Raw temp reading
 //uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
 
 //struct t_fifo32
@@ -1224,7 +1225,7 @@ void read_9_adc()
 
 	padc = ADC ;
 	y = padc->ADC_ISR ;		// Clear EOC flags
-	for ( y = NUMBER_ANALOG ; --y > 0 ; )
+	for ( y = NUMBER_ANALOG+1 ; --y > 0 ; )		// Include temp sensor
 	{
 		padc->ADC_CR = 2 ;		// Start conversion
 		x = 0 ;
@@ -1250,7 +1251,7 @@ void read_9_adc()
 #ifdef REVB
 	Analog_values[8] = ADC->ADC_CDR8 ;
 #endif
-	
+	Temperature = ( Temperature * 7 + ADC->ADC_CDR15 ) >> 3 ;	// Filter it
 
 // Power save
 //  PMC->PMC_PCER0 &= ~0x20000000L ;		// Disable peripheral clock to ADC
@@ -1282,10 +1283,11 @@ void init_adc()
   PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 	padc = ADC ;
 	padc->ADC_MR = 0x14110000 | timer ;  // 0001 0100 0001 0001 xxxx xxxx 0000 0000
+	padc->ADC_ACR = ADC_ACR_TSON ;			// Turn on temp sensor
 #ifdef REVB
-	padc->ADC_CHER = 0x0000633E ;  // channels 1,2,3,4,5,8,9,13,14
+	padc->ADC_CHER = 0x0000E33E ;  // channels 1,2,3,4,5,8,9,13,14,15
 #else
-	padc->ADC_CHER = 0x0000623E ;  // channels 1,2,3,4,5,9,13,14
+	padc->ADC_CHER = 0x0000E23E ;  // channels 1,2,3,4,5,9,13,14,15
 #endif
 	padc->ADC_CGR = 0 ;  // Gain = 1, all channels
 	padc->ADC_COR = 0 ;  // Single ended, 0 offset, all channels

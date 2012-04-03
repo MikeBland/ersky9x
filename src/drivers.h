@@ -24,6 +24,7 @@
 
 
 extern uint16_t Analog_values[NUMBER_ANALOG] ;
+extern uint16_t Temperature ;		// Raw temp reading
 extern volatile uint32_t Spi_complete ;
 
 

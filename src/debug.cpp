@@ -62,10 +62,36 @@ static void disp_256( uint32_t address, uint32_t lines ) ;
 #ifdef	DEBUG
 uint32_t Mem_address ;
 uint32_t Memaddmode ;
+uint32_t SoundCheck ;
 
 void handle_serial()
 {
 	uint16_t rxchar ;
+
+	if ( SoundCheck )
+	{
+		if ( SoundCheck == 3 )
+		{
+			if ( queueTone( 1000, 60, 0 ) )
+			{
+				SoundCheck = 2 ;
+			}
+		}
+		else if ( SoundCheck == 2 )
+		{
+			if ( queueTone( 0, 30, 0 ) )
+			{
+				SoundCheck = 1 ;
+			}			
+		}
+		else if ( SoundCheck == 1 )
+		{
+			if ( queueTone( 1500, 300, 50 ) )
+			{
+				SoundCheck = 0 ;
+			}			
+		}
+	}
 
 	if ( ( rxchar = rxuart() ) == 0xFFFF )
 	{
@@ -232,6 +258,11 @@ void handle_serial()
 		refreshDisplay() ;
 	}
 
+
+	if ( rxchar == 'Y' )
+	{
+		SoundCheck = 3 ;
+	}
 
 //	if ( rxchar == 'Y' )
 //	{
@@ -448,17 +479,20 @@ void handle_serial()
 	
 	if ( rxchar == ' ' )
 	{
-		tone_start( 50 ) ;
+		playTone( 1000, 50 ) ;
+//		tone_start( 50 ) ;
 	}
 
 	if ( rxchar == '!' )
 	{
-		tone_start( 0 ) ;
+		playTone( 1000, 20000 ) ;
+//		tone_start( 0 ) ;
 	}
 
 	if ( rxchar == '.' )
 	{
-		tone_stop() ;
+		playTone( 0, 0 ) ;
+//		tone_stop() ;
 	}
 
 	// Display Ram version of EEPROM

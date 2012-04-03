@@ -43,6 +43,7 @@
 
 
 #include "ersky9x.h"
+#include "audio.h"
 #include "sound.h"
 #include "lcd.h"
 #include "myeeprom.h"
@@ -141,6 +142,7 @@ void dbl9x( void ) ;
 static void config_free_pins( void ) ;
 void checkTHR( void ) ;
 static void checkSwitches( void ) ;
+void check_backlight( void ) ;
 
 static uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
@@ -217,6 +219,10 @@ ModelData  g_model;
                                 2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
                                 3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
                                 4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
+
+
+//new audio object
+audioQueue  audio;
 
 
 const char modi12x3[]=
@@ -377,7 +383,7 @@ int main (void)
 	init_adc() ;
 	init_pwm() ;
 
-	g_LightOffCounter = 1000 ;
+//	g_LightOffCounter = 1000 ;
 	__enable_irq() ;
 
   g_menuStack[0] =  menuProc0 ;
@@ -414,6 +420,23 @@ int main (void)
   pushMenu(menuProcModelSelect);
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
 
+  //we assume that startup is like pressing a switch and moving sticks.  Hence the lightcounter is set
+  //if we have a switch on backlight it will be able to turn on the backlight.
+  if(g_eeGeneral.lightAutoOff > g_eeGeneral.lightOnStickMove)
+    g_LightOffCounter = g_eeGeneral.lightAutoOff*500;
+  if(g_eeGeneral.lightAutoOff < g_eeGeneral.lightOnStickMove)
+    g_LightOffCounter = g_eeGeneral.lightOnStickMove*500;
+  check_backlight();
+
+  // moved here and logic added to only play statup tone if splash screen enabled.
+  // that way we save a bit, but keep the option for end users!
+  if(g_eeGeneral.speakerMode == 1)
+	{
+    if(!g_eeGeneral.disableSplashScreen)
+    {
+      audioDefevent(AU_TADA);
+    }
+  }
 	doSplash() ;
   getADC_single();
   checkTHR();
@@ -498,7 +521,7 @@ int main (void)
 			// Wait for OK to turn off
 			// Currently wait 1 sec, needs to check eeprom finished
 
-			MAh_used += Current_used/22/360 ;
+			MAh_used += Current_used/22/36 ;
 			if ( g_eeGeneral.mAh_used != MAh_used )
 			{
 				g_eeGeneral.mAh_used = MAh_used ;
@@ -609,9 +632,6 @@ void mainSequence( uint32_t no_menu )
     heartbeat = 0;
   }
   
-	t0 = getTmr2MHz() - t0;
-  if ( t0 > g_timeMain ) g_timeMain = t0 ;
-
 
 	if ( Tenms )
 	{
@@ -626,6 +646,9 @@ void mainSequence( uint32_t no_menu )
 			Current_accumulator = 0 ;
 		}
 	}
+
+	t0 = getTmr2MHz() - t0;
+  if ( t0 > g_timeMain ) g_timeMain = t0 ;
 
 
 //#ifdef FRSKY
@@ -748,13 +771,13 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   if(event==EVT_KEY_FIRST(kpl) || event== EVT_KEY_REPT(kpl) || (s_editMode && (event==EVT_KEY_FIRST(KEY_UP) || event== EVT_KEY_REPT(KEY_UP))) ) {
     newval++;
 
-		audioDefevent(AUDIO_KEYPAD_UP);
+		audioDefevent(AU_KEYPAD_UP);
 
     kother=kmi;
   }else if(event==EVT_KEY_FIRST(kmi) || event== EVT_KEY_REPT(kmi) || (s_editMode && (event==EVT_KEY_FIRST(KEY_DOWN) || event== EVT_KEY_REPT(KEY_DOWN))) ) {
     newval--;
 
-		audioDefevent(AUDIO_KEYPAD_DOWN);
+		audioDefevent(AU_KEYPAD_DOWN);
 
     kother=kpl;
   }
@@ -777,13 +800,13 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   {
     newval = i_max;
     killEvents(event);
-    audioDefevent(AUDIO_KEYPAD_UP);
+    audioDefevent(AU_KEYPAD_UP);
   }
   else if(newval < i_min)
   {
     newval = i_min;
     killEvents(event);
-    audioDefevent(AUDIO_KEYPAD_DOWN);
+    audioDefevent(AU_KEYPAD_DOWN);
 
   }
   if(newval != val) {
@@ -791,9 +814,9 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
       pauseEvents(event);
   
 		if (newval>val){
-			audioDefevent(AUDIO_KEYPAD_UP);
+			audioDefevent(AU_KEYPAD_UP);
 		} else {
-			audioDefevent(AUDIO_KEYPAD_DOWN);
+			audioDefevent(AU_KEYPAD_DOWN);
 		}		
 
     }
@@ -919,7 +942,7 @@ void perMain( uint32_t no_menu )
         s_batCheck+=32;
         if((s_batCheck==0) && (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49)){
 
-            audioDefevent(AUDIO_TX_BATTERY_LOW);
+            audioDefevent(AU_TX_BATTERY_LOW);
             if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
         }
     break ;
@@ -943,6 +966,8 @@ void perMain( uint32_t no_menu )
 //        break;
   }
   stickMoved = 0; //reset this flag
+		
+	AUDIO_HEARTBEAT();  // the queue processing
 
 }
 
@@ -1956,15 +1981,15 @@ static uint8_t checkTrim(uint8_t event)
     if(((x==0)  ||  ((x>=0) != (tm>=0))) && (!thro) && (tm!=0)){
       *TrimPtr[idx]=0;
       killEvents(event);
-      audioDefevent(AUDIO_TRIM_MIDDLE);
+      audioDefevent(AU_TRIM_MIDDLE);
 
     } else if(x>-125 && x<125){
       *TrimPtr[idx] = (int8_t)x;
       STORE_MODELVARS_TRIM;
       //if(event & _MSK_KEY_REPT) warble = true;
 			if(x <= 125 && x >= -125){
-				audioDefevent(AUDIO_TRIM_MOVE);
-//				audio.event(AUDIO_TRIM_MOVE,(abs(x)/4)+60);
+				audioDefevent(AU_TRIM_MOVE);
+//				audio.event(AU_TRIM_MOVE,(abs(x)/4)+60);
 			}	
     }
     else
@@ -1972,8 +1997,8 @@ static uint8_t checkTrim(uint8_t event)
       *TrimPtr[idx] = (x>0) ? 125 : -125;
       STORE_MODELVARS_TRIM;
 			if(x <= 125 && x >= -125){
-				audioDefevent(AUDIO_TRIM_MOVE);
-//				audio.event(AUDIO_TRIM_MOVE,(-abs(x)/4)+60);
+				audioDefevent(AU_TRIM_MOVE);
+//				audio.event(AU_TRIM_MOVE,(-abs(x)/4)+60);
 			}	
     }
 
@@ -2334,7 +2359,7 @@ void alert(const char * s, bool defaults)
     refreshDisplay();
     lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
 
-    audioDefevent(AUDIO_ERROR);
+    audioDefevent(AU_ERROR);
     clearKeyEvents();
     while(1)
     {
@@ -2482,7 +2507,7 @@ void popMenu(bool uppermost)
 {
   if(g_menuStackPtr>0 || uppermost){
     g_menuStackPtr = uppermost ? 0 : g_menuStackPtr-1;
-    audioDefevent(AUDIO_MENUS);
+    audioDefevent(AU_MENUS);
     (*g_menuStack[g_menuStackPtr])(EVT_ENTRY_UP);
   }else{
     alert(PSTR("menuStack underflow"));
@@ -2493,7 +2518,7 @@ void chainMenu(MenuFuncP newMenu)
 {
   g_menuStack[g_menuStackPtr] = newMenu;
   (*newMenu)(EVT_ENTRY);
-  audioDefevent(AUDIO_MENUS);
+  audioDefevent(AU_MENUS);
 }
 void pushMenu(MenuFuncP newMenu)
 {
@@ -2505,7 +2530,7 @@ void pushMenu(MenuFuncP newMenu)
     alert(PSTR("menuStack overflow"));
     return;
   }
-  audioDefevent(AUDIO_MENUS);
+  audioDefevent(AU_MENUS);
   g_menuStack[g_menuStackPtr] = newMenu;
   (*newMenu)(EVT_ENTRY);
 }

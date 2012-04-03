@@ -22,6 +22,7 @@
 
 #include "AT91SAM3S2.h"
 #include "ersky9x.h"
+#include "audio.h"
 #include "sound.h"
 #include "lcd.h"
 #include "myeeprom.h"
@@ -400,7 +401,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         if(m_posVert==0 || !menuTab) {
             popMenu();  //beeps itself
         } else {
-            audioDefevent(AUDIO_MENUS);
+            audioDefevent(AU_MENUS);
             init();BLINK_SYNC;
         }
     break;
@@ -651,7 +652,7 @@ void setStickCenter() // copy state of 3 primary to subtrim
     for(uint8_t i=0; i<4; i++)
         if(!IS_THROTTLE(i)) g_model.trim[i] = 0;// set trims to zero.
     STORE_MODELVARS_TRIM;
-    audioDefevent(AUDIO_WARNING2);
+    audioDefevent(AU_WARNING2);
 }
 
 void menuProcLimits(uint8_t event)
@@ -918,7 +919,7 @@ void menuProcTemplates(uint8_t event)  //Issue 73
             clearMixes();
         else if((sub>=0) && (sub<(int8_t)NUM_TEMPLATES))
             applyTemplate(sub);
-        audioDefevent(AUDIO_WARNING2);
+        audioDefevent(AU_WARNING2);
         break;
     }
 
@@ -1217,7 +1218,7 @@ void menuProcMixOne(uint8_t event)
             if(attr && event==EVT_KEY_LONG(KEY_MENU)){
                 killEvents(event);
                 deleteMix(s_currMixIdx);
-                audioDefevent(AUDIO_WARNING2);
+                audioDefevent(AU_WARNING2);
                 popMenu();
             }
             break;
@@ -1800,7 +1801,7 @@ void menuDeleteDupModel(uint8_t event)
     uint8_t i;
     switch(event){
     case EVT_ENTRY:
-        audioDefevent(AUDIO_WARNING1);
+        audioDefevent(AU_WARNING1);
         break;
     case EVT_KEY_FIRST(KEY_MENU):
         if ( DupIfNonzero )
@@ -1808,10 +1809,10 @@ void menuDeleteDupModel(uint8_t event)
             message(PSTR("Duplicating model"));
             if(eeDuplicateModel(DupSub))
             {
-                audioDefevent(AUDIO_MENUS);
+                audioDefevent(AU_MENUS);
                 DupIfNonzero = 2 ;		// sel_editMode = false;
             }
-            else audioDefevent(AUDIO_WARNING1);
+            else audioDefevent(AU_WARNING1);
         }
         else
         {
@@ -2235,7 +2236,7 @@ void menuProcModelSelect(uint8_t event)
   case  EVT_KEY_FIRST(KEY_EXIT):
       if(sel_editMode){
           sel_editMode = false;
-          audioDefevent(AUDIO_MENUS);
+          audioDefevent(AU_MENUS);
           killEvents(event);
 					ee32WaitLoadModel(g_eeGeneral.currModel = mstate2.m_posVert) ;
 //          eeWaitComplete();    // Wait to load model if writing something
@@ -2260,7 +2261,7 @@ void menuProcModelSelect(uint8_t event)
           resetTimer();
           STORE_GENERALVARS;
 //          eeWaitComplete();
-          audioDefevent(AUDIO_WARNING2);
+          audioDefevent(AU_WARNING2);
       }
 #ifndef NO_TEMPLATES
       if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcTemplates);//{killEvents(event);popMenu(true);}
@@ -2274,7 +2275,7 @@ void menuProcModelSelect(uint8_t event)
       break;
   case  EVT_KEY_FIRST(KEY_MENU):
       sel_editMode = true;
-      audioDefevent(AUDIO_MENUS);
+      audioDefevent(AU_MENUS);
       break;
   case  EVT_KEY_LONG(KEY_EXIT):  // make sure exit long exits to main
       popMenu(true);
@@ -2288,10 +2289,10 @@ void menuProcModelSelect(uint8_t event)
 
           //        message(PSTR("Duplicating model"));
           //        if(eeDuplicateModel(sub)) {
-          //          audioDefevent(AUDIO_MENUS);
+          //          audioDefevent(AU_MENUS);
           //          sel_editMode = false;
           //        }
-          //        else audioDefevent(AUDIO_WARNING1);
+          //        else audioDefevent(AU_WARNING1);
       }
       break;
 
@@ -2364,7 +2365,7 @@ void menuProcDiagCalib(uint8_t event)
       idxState++;
       if(idxState==3)
       {
-          audioDefevent(AUDIO_MENUS);
+          audioDefevent(AU_MENUS);
           STORE_GENERALVARS;     //eeWriteGeneral();
           idxState = 0;
       }
@@ -2648,7 +2649,7 @@ void menuProcTrainer(uint8_t event)
 	  	memcpy(g_eeGeneral.trainer.calib, g_ppmIns, sizeof(g_eeGeneral.trainer.calib));
 	  	STORE_GENERALVARS;     //eeWriteGeneral();
 	  	//        eeDirty(EE_GENERAL);
-	  	audioDefevent(AUDIO_MENUS);
+	  	audioDefevent(AU_MENUS);
 	  }
 	}
 }
@@ -2668,25 +2669,28 @@ void menuProcSetup(uint8_t event)
 //*/
 
 #ifdef FRSKY
-	uint8_t vCountItems = 23; //21 is default
-  int8_t sw_offset = -4 ;
-//		switch (g_eeGeneral.speakerMode){
-//				//beeper
-//				case 0:
-//						vCountItems = 23;
-//						break;
-//				//piezo speaker
-//			 	case 1:
-//			 			vCountItems = 25;
-//			 			break;
+	uint8_t vCountItems = 26 ; //21 is default
+  int8_t sw_offset = -8 ;
+	switch (g_eeGeneral.speakerMode)
+	{
+//	//beeper
+//	case 0 :
+//		vCountItems = 23 ;
+//	break ;
+//	//speaker
+	 	case 1 :
+			vCountItems += 1 ;
+		break ;
 //			 	//pcmwav
 //			  case 2:
 //						vCountItems = 24;
 //						break;	  	
-//		}		
-//		if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 0){ // add in alert red/org/yel
-//				vCountItems = vCountItems + 3;
-//		}		
+	}		
+	if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
+	{ // add in alert red/org/yel
+			vCountItems += 3;
+			sw_offset -= 3 ;
+	}		
 		
 #else 
 	uint8_t vCountItems = 23 ; //21 is default
@@ -3021,72 +3025,75 @@ void menuProcSetup(uint8_t event)
 //    }subN++;
 
 //frsky alert mappings
-//#ifdef FRSKY
+#ifdef FRSKY
 
-//		if(g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2){
-//						if(s_pgOfs<subN) {
-//				        g_eeGeneral.frskyinternalalarm = onoffMenuItem( g_eeGeneral.frskyinternalalarm, y, PSTR("Int. Frsky alarm"), sub, subN, event ) ;
-//				        if((y+=FH)>7*FH) return;
-//				    }subN++;
-//		}		    
+		if(g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2){
+						if(s_pgOfs<subN) {
+				        g_eeGeneral.frskyinternalalarm = onoffMenuItem( g_eeGeneral.frskyinternalalarm, y, PSTR("Int. Frsky alarm"), sub, subN, event ) ;
+				        if((y+=FH)>7*FH) return;
+				    }subN++;
+		}		    
 				    
-//    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 0){ 
+    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 0){ 
     
 
 					  
 						
-//						for ( uint8_t i = 0 ; i < 3 ; i += 1 )
-//					  {
-//					    uint8_t b ;
+						for ( uint8_t i = 0 ; i < 3 ; i += 1 )
+					  {
+					    uint8_t b ;
 					
-//					    b = g_eeGeneral.FRSkyYellow ;    // Done here to stop a compiler warning
-//					    if(s_pgOfs<subN)
-//							{
+					    b = g_eeGeneral.FRSkyYellow ;    // Done here to stop a compiler warning
+					    if(s_pgOfs<subN)
+							{
 								
-//								if ( i == 0 )
-//								{
-//					        lcd_puts_P(0, y,PSTR("Alert [Yel]"));
-//								}
-//								else if ( i == 1 )
-//								{
-//					        b = g_eeGeneral.FRSkyOrange ;
-//					        lcd_puts_P(0, y,PSTR("Alert [Org]"));
-//								}
-//								else if ( i == 2 )
-//								{
-//					        b = g_eeGeneral.FRSkyRed ;
-//					        lcd_puts_P(0, y,PSTR("Alert [Red]"));
-//								}
-//					      //lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Tone1 ""Tone2 ""Tone3 ""Tone4 ""Tone5 ""hTone1""hTone2""hTone3""hTone4""hTone5")+6*b,6,(sub==subN ? INVERS:0));
-//					      if(g_eeGeneral.speakerMode == 1){
-//					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Warn1 ""Warn2 ""Cheep ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
-//								}
-//					      if(g_eeGeneral.speakerMode == 2){
-//					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Trck1 ""Trck2 ""Trck3 ""Trck4 ""Trck4 ""Trck5 ""Trck6 ""Trck7 ""Trck8 ""Trck9 ""Trck10""Trck11""Trck12""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
-//								}								
-//					      if(sub==subN)
-//								{
-//									//CHECK_INCDEC_H_GENVAR(event, b, 0, 9);
-//									CHECK_INCDEC_H_GENVAR(event, b, 0, 15);
-//									if ( i == 0 )
-//									{
-//							      g_eeGeneral.FRSkyYellow = b ;
-//									}
-//									else if ( i == 1 )
-//									{
-//							      g_eeGeneral.FRSkyOrange = b ;
-//									}
-//									else if ( i == 2 )
-//									{
-//							      g_eeGeneral.FRSkyRed = b ;
-//									}
-//								  audio.frskyeventSample(b);
-//								}
-//								if((y+=FH)>7*FH) return;
-//					    }subN++;
-//					  }
-//		}			  
-//#endif
+								if ( i == 0 )
+								{
+					        lcd_puts_P(0, y,PSTR("Alert [Yel]"));
+								}
+								else if ( i == 1 )
+								{
+					        b = g_eeGeneral.FRSkyOrange ;
+					        lcd_puts_P(0, y,PSTR("Alert [Org]"));
+								}
+								else if ( i == 2 )
+								{
+					        b = g_eeGeneral.FRSkyRed ;
+					        lcd_puts_P(0, y,PSTR("Alert [Red]"));
+								}
+					      //lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Tone1 ""Tone2 ""Tone3 ""Tone4 ""Tone5 ""hTone1""hTone2""hTone3""hTone4""hTone5")+6*b,6,(sub==subN ? INVERS:0));
+					      if(g_eeGeneral.speakerMode == 1){
+					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Warn1 ""Warn2 ""Cheep ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
+								}
+					      if(g_eeGeneral.speakerMode == 2){
+					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Trck1 ""Trck2 ""Trck3 ""Trck4 ""Trck4 ""Trck5 ""Trck6 ""Trck7 ""Trck8 ""Trck9 ""Trck10""Trck11""Trck12""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
+								}								
+					      if(sub==subN)
+								{
+									//CHECK_INCDEC_H_GENVAR(event, b, 0, 9);
+									CHECK_INCDEC_H_GENVAR(event, b, 0, 15);
+									if ( i == 0 )
+									{
+							      g_eeGeneral.FRSkyYellow = b ;
+									}
+									else if ( i == 1 )
+									{
+							      g_eeGeneral.FRSkyOrange = b ;
+									}
+									else if ( i == 2 )
+									{
+							      g_eeGeneral.FRSkyRed = b ;
+									}
+								  if (checkIncDec_Ret)
+									{
+										audio.event(b);
+									}
+								}
+								if((y+=FH)>7*FH) return;
+					    }subN++;
+					  }
+		}			  
+#endif
 
     if(s_pgOfs<subN) {
         lcd_puts_P( 1*FW, y, PSTR("Mode"));//sub==3?INVERS:0);
@@ -3270,10 +3277,10 @@ void timer(int16_t throttle_val)
         {
             if(g_eeGeneral.preBeep && g_model.timer[0].tmrVal) // beep when 30, 15, 10, 5,4,3,2,1 seconds remaining
             {
-              	if(s_timer[0].s_timerVal==30) {audioDefevent(AUDIO_TIMER_30);}	
-              	if(s_timer[0].s_timerVal==20) {audioDefevent(AUDIO_TIMER_20);}		
-                if(s_timer[0].s_timerVal==10) {audioDefevent(AUDIO_TIMER_10);}	
-                if(s_timer[0].s_timerVal<= 3) {audioDefevent(AUDIO_TIMER_LT3);}	               
+              	if(s_timer[0].s_timerVal==30) {audioDefevent(AU_TIMER_30);}	
+              	if(s_timer[0].s_timerVal==20) {audioDefevent(AU_TIMER_20);}		
+                if(s_timer[0].s_timerVal==10) {audioDefevent(AU_TIMER_10);}	
+                if(s_timer[0].s_timerVal<= 3) {audioDefevent(AU_TIMER_LT3);}	               
 
                 if(g_eeGeneral.flashBeep && (s_timer[0].s_timerVal==30 || s_timer[0].s_timerVal==20 || s_timer[0].s_timerVal==10 || s_timer[0].s_timerVal<=3))
                     g_LightOffCounter = FLASH_DURATION;
@@ -3281,13 +3288,13 @@ void timer(int16_t throttle_val)
             if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrDir ? g_model.timer[0].tmrVal-s_timer[0].s_timerVal : s_timer[0].s_timerVal)%60)==0)) //short beep every minute
 //            if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrVal ?  s_timer[0].s_timerVal : g_model.timer[0].tmrVal-s_timer[0].s_timerVal)%60)==0)) //short beep every minute
             {
-                audioDefevent(AUDIO_WARNING1);
+                audioDefevent(AU_WARNING1);
                 if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
             }
         }
         else if(s_timer[0].s_timerState==TMR_BEEPING)
         {
-            audioDefevent(AUDIO_TIMER_LT3);
+            audioDefevent(AU_TIMER_LT3);
             if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
         }
     }
@@ -3336,7 +3343,7 @@ void trace()   // called in perOut - once envery 0.01sec
       return;
   s_time= get_tmr10ms() ;
  
-  if ((g_model.protocol==PROTO_DSM2)&&getSwitch(MAX_DRSWITCH-1,0,0) ) audioDefevent(AUDIO_TADA);   //DSM2 bind mode warning
+  if ((g_model.protocol==PROTO_DSM2)&&getSwitch(MAX_DRSWITCH-1,0,0) ) audioDefevent(AU_TADA);   //DSM2 bind mode warning
   //    s_time= time10ms ;
   val   = s_sum/s_cnt;
   s_sum = 0;
@@ -3366,9 +3373,9 @@ void menuProcStatistic2(uint8_t event)
 //      g_tmr1Latency_min = 0x7ff;
 //      g_tmr1Latency_max = 0;
       g_timeMain = 0;
-			MAh_used = 0 ;
-			Current_used = 0 ;
-      audioDefevent(AUDIO_MENUS) ;
+//			MAh_used = 0 ;
+//			Current_used = 0 ;
+      audioDefevent(AU_MENUS) ;
     break;
     case EVT_KEY_FIRST(KEY_DOWN):
         chainMenu(menuProcStatistic);
@@ -3404,7 +3411,7 @@ void menuProcStatistic2(uint8_t event)
 	  lcd_outdezAtt( 18*FW, 5*FH, Current/22 ,0 ) ;
 		lcd_puts_Pleft( 6*FH, PSTR("mAh"));
 		lcd_outhex4( 10*FW+3, 6*FH, Current_used ) ;
-	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/360 ,0 ) ;
+	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
 #endif
 
 
@@ -3413,6 +3420,58 @@ void menuProcStatistic2(uint8_t event)
 
 //  lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
+
+void menuProcBattery(uint8_t event)
+{
+  TITLE("BATTERY");
+
+  switch(event)
+  {
+    case EVT_KEY_FIRST(KEY_MENU):
+//      g_tmr1Latency_min = 0x7ff;
+//      g_tmr1Latency_max = 0;
+      g_timeMain = 0;
+			MAh_used = 0 ;
+			Current_used = 0 ;
+      audioDefevent(AU_MENUS) ;
+    break;
+    case EVT_KEY_FIRST(KEY_DOWN):
+    case EVT_KEY_FIRST(KEY_EXIT):
+      chainMenu(menuProc0);
+    break;
+    case EVT_KEY_FIRST(KEY_UP):
+      chainMenu(menuProcStatistic);
+    	killEvents(event) ;
+    break;
+  }
+#ifdef REVB    
+		Current_sum += anaIn(NUMBER_ANALOG-1) ;
+		if ( ++Current_count > 49 )
+		{
+			Current = Current_sum / 5 ;
+			Current_sum = 0 ;
+			Current_count = 0 ;
+		}
+  
+		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
+		putsVolts( 16*FW, 2*FH, g_vbat100mV+4, 0 ) ;	// Should be +3.5
+
+		lcd_puts_Pleft( 3*FH, PSTR("Current"));
+	  lcd_outdezAtt( 16*FW, 3*FH, Current/22 ,0 ) ;
+		lcd_puts_Pleft( 4*FH, PSTR("mAh"));
+	  lcd_outdezAtt( 16*FW, 4*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
+		lcd_puts_Pleft( 6*FH, PSTR("CPU temp."));
+    lcd_outhex4( 17*FW, 6*FH, Temperature ) ;
+	  lcd_outdezAtt( 16*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+
+#else
+		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
+		putsVolts( 18*FW, 2*FH, g_vbat100mV, 0 ) ;
+
+#endif
+}
+
+
 
 #ifdef JETI
 
@@ -3464,6 +3523,8 @@ void menuProcStatistic(uint8_t event)
   	  chainMenu(menuProcStatistic2);
   	break;
 		case EVT_KEY_FIRST(KEY_DOWN):
+  	  chainMenu(menuProcBattery) ;
+		break ;
   	case EVT_KEY_FIRST(KEY_EXIT):
   	  chainMenu(menuProc0);
   	break;
@@ -3543,6 +3604,11 @@ void menuProc0(uint8_t event)
 				      frskyTelemetry[1].setoffset() ;
 						}
         }
+        else if( (view == e_telemetry) && ((tview & 0x30) == 0x30 ) )	// GPS
+				{
+					MaxGpsSpeed = 0 ;
+					MaxGpsAlt = 0 ;
+				}
         else
         {
 #endif
@@ -3564,7 +3630,7 @@ void menuProc0(uint8_t event)
             g_eeGeneral.view = e_telemetry | ( ( tview + 0x10) & 0x30 ) ;
             //            STORE_GENERALVARS;     //eeWriteGeneral();
             //            eeDirty(EE_GENERAL);
-            audioDefevent(AUDIO_MENUS);
+            audioDefevent(AU_MENUS);
         }
         break;
     case EVT_KEY_BREAK(KEY_LEFT):
@@ -3572,7 +3638,7 @@ void menuProc0(uint8_t event)
             g_eeGeneral.view = e_telemetry | ( ( tview - 0x10) & 0x30 );
             //            STORE_GENERALVARS;     //eeWriteGeneral();
             //            eeDirty(EE_GENERAL);
-            audioDefevent(AUDIO_MENUS);
+            audioDefevent(AU_MENUS);
         }
         break;
 #endif
@@ -3587,7 +3653,7 @@ void menuProc0(uint8_t event)
       g_eeGeneral.view = view | tview ;
       STORE_GENERALVARS;     //eeWriteGeneral() ;
         //        eeDirty(EE_GENERAL) ;
-      audioDefevent(AUDIO_KEYPAD_UP) ;
+      audioDefevent(AU_KEYPAD_UP) ;
     break;
     case EVT_KEY_BREAK(KEY_DOWN) :
       if(view>0)
@@ -3597,10 +3663,10 @@ void menuProc0(uint8_t event)
       g_eeGeneral.view = view | tview ;
       STORE_GENERALVARS;     //eeWriteGeneral() ;
       //        eeDirty(EE_GENERAL);
-      audioDefevent(AUDIO_KEYPAD_DOWN) ;
+      audioDefevent(AU_KEYPAD_DOWN) ;
     break;
     case EVT_KEY_LONG(KEY_UP):
-      chainMenu(menuProcStatistic);
+  	  chainMenu(menuProcBattery);
       killEvents(event);
     break;
     case EVT_KEY_LONG(KEY_DOWN):
@@ -3615,7 +3681,7 @@ void menuProc0(uint8_t event)
         chainMenu(menuProcNMEA);
 #else
 				g_eeGeneral.view = e_telemetry | tview ;
-        audioDefevent(AUDIO_MENUS);
+        audioDefevent(AU_MENUS);
 //        chainMenu(menuProcStatistic2);
 #endif
       killEvents(event);
@@ -3623,17 +3689,17 @@ void menuProc0(uint8_t event)
     case EVT_KEY_FIRST(KEY_EXIT):
         if(s_timer[0].s_timerState==TMR_BEEPING) {
             s_timer[0].s_timerState = TMR_STOPPED;
-            audioDefevent(AUDIO_MENUS);
+            audioDefevent(AU_MENUS);
         }
 //        else if(view == e_timer2) {
 //            resetTimer2();
 //            // Timer2_running = !Timer2_running;
-//            audioDefevent(AUDIO_MENUS);
+//            audioDefevent(AU_MENUS);
 //        }
 #ifdef FRSKY
         else if (view == e_telemetry) {
             resetTelemetry();
-            audioDefevent(AUDIO_MENUS);
+            audioDefevent(AU_MENUS);
         }
 #endif
         break;
@@ -3643,7 +3709,7 @@ void menuProc0(uint8_t event)
 #ifdef FRSKY
         resetTelemetry();
 #endif
-        audioDefevent(AUDIO_MENUS);
+        audioDefevent(AU_MENUS);
         break;
     case EVT_ENTRY:
         killEvents(KEY_EXIT);
@@ -3909,10 +3975,11 @@ void menuProc0(uint8_t event)
                 lcd_outdezNAtt(8*FW, 3*FH, FrskyHubData[18], LEADING0 | blink, -5);
                 lcd_putc(8*FW, 3*FH, '.') ;
                 lcd_outdezNAtt(12*FW, 3*FH, FrskyHubData[26], LEADING0 | blink, -4);
-                lcd_puts_Pleft( 4*FH, Str_ALTeq ) ;
-                lcd_outdezAtt(8 * FW, 4*FH, FrskyHubData[1], 0 ) ;
+                lcd_puts_Pleft( 4*FH, PSTR("Alt=\011m   Max=")) ;
+                lcd_outdezAtt(20*FW, 4*FH, MaxGpsAlt, 0);
                 
 								lcd_puts_Pleft( 5*FH, PSTR("Spd=\011kts Max=")) ;
+                lcd_outdezAtt(20*FW, 5*FH, MaxGpsSpeed, blink );
 
 								mspeed = MaxGpsSpeed ;
                 if ( g_model.FrSkyImperial )
@@ -3920,7 +3987,6 @@ void menuProc0(uint8_t event)
 									lcd_puts_Pleft( 5*FH, PSTR("\011mph")) ;
 									mspeed = ( mspeed * 589 ) >> 9 ;
 								}
-
                 lcd_outdezAtt(20*FW, 5*FH, mspeed, blink );
               if (frskyUsrStreaming)
 							{
@@ -3929,6 +3995,7 @@ void menuProc0(uint8_t event)
 								{
 									mspeed = ( mspeed * 589 ) >> 9 ;
 								}
+								lcd_outdezAtt(8 * FW, 4*FH, FrskyHubData[1], 0 ) ;
                 lcd_outdezAtt(8*FW, 5*FH, mspeed, 0);		// Speed
                 
 								lcd_puts_Pleft( 6*FH, PSTR("V1=\007V2=\016V3=")) ;
@@ -4085,7 +4152,7 @@ void perOut(int16_t *chanOut, uint8_t att)
             if(stickMoved) inacCounter=0;
             if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
                 if((inacCounter&0x3)==1) {
-                    audioDefevent(AUDIO_INACTIVITY);
+                    audioDefevent(AU_INACTIVITY);
                 }
         }
     }
@@ -4186,7 +4253,7 @@ void perOut(int16_t *chanOut, uint8_t att)
 
         //===========BEEP CENTER================
         anaCenter &= g_model.beepANACenter;
-        if(((bpanaCenter ^ anaCenter) & anaCenter)) audioDefevent(AUDIO_POT_STICK_MIDDLE);
+        if(((bpanaCenter ^ anaCenter) & anaCenter)) audioDefevent(AU_POT_STICK_MIDDLE);
         bpanaCenter = anaCenter;
 
         anas[MIX_MAX-1]  = RESX;     // MAX
@@ -4463,9 +4530,9 @@ void perOut(int16_t *chanOut, uint8_t att)
         uint16_t tmr10ms ;
         tmr10ms = get_tmr10ms() ;
 
-        if(mixWarning & 1) if(((tmr10ms&0xFF)==  0)) audioDefevent(AUDIO_MIX_WARNING_1);
-        if(mixWarning & 2) if(((tmr10ms&0xFF)== 64) || ((tmr10ms&0xFF)== 72)) audioDefevent(AUDIO_MIX_WARNING_2);
-        if(mixWarning & 4) if(((tmr10ms&0xFF)==128) || ((tmr10ms&0xFF)==136) || ((tmr10ms&0xFF)==144)) audioDefevent(AUDIO_MIX_WARNING_3);        
+        if(mixWarning & 1) if(((tmr10ms&0xFF)==  0)) audioDefevent(AU_MIX_WARNING_1);
+        if(mixWarning & 2) if(((tmr10ms&0xFF)== 64) || ((tmr10ms&0xFF)== 72)) audioDefevent(AU_MIX_WARNING_2);
+        if(mixWarning & 4) if(((tmr10ms&0xFF)==128) || ((tmr10ms&0xFF)==136) || ((tmr10ms&0xFF)==144)) audioDefevent(AU_MIX_WARNING_3);        
 
 
     }

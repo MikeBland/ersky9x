@@ -99,6 +99,7 @@ CPPSRC = stamp.cpp \
          pers.cpp \
          menus.cpp \
          frsky.cpp \
+         audio.cpp \
          ersky9x.cpp
 
 # List ASM source files here

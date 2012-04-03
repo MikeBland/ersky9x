@@ -144,6 +144,7 @@ extern uint8_t FrskyVolts[];
 extern uint8_t FrskyBattCells;
 extern uint8_t FrskyAlarmCheckFlag ;
 extern uint8_t MaxGpsSpeed ;
+extern uint16_t MaxGpsAlt ;
 
 void FRSKY_Init(void);
 void FRSKY10mspoll(void);
