@@ -1988,8 +1988,11 @@ static uint8_t checkTrim(uint8_t event)
       STORE_MODELVARS_TRIM;
       //if(event & _MSK_KEY_REPT) warble = true;
 			if(x <= 125 && x >= -125){
-				audioDefevent(AU_TRIM_MOVE);
-//				audio.event(AU_TRIM_MOVE,(abs(x)/4)+60);
+				if(g_eeGeneral.speakerMode == 0){
+					audioDefevent(AU_TRIM_MOVE);
+				} else {
+					audio.event(AU_TRIM_MOVE,(abs(x)/4)+60);
+				}
 			}	
     }
     else
@@ -1997,8 +2000,11 @@ static uint8_t checkTrim(uint8_t event)
       *TrimPtr[idx] = (x>0) ? 125 : -125;
       STORE_MODELVARS_TRIM;
 			if(x <= 125 && x >= -125){
-				audioDefevent(AU_TRIM_MOVE);
-//				audio.event(AU_TRIM_MOVE,(-abs(x)/4)+60);
+				if(g_eeGeneral.speakerMode == 0){
+					audioDefevent(AU_TRIM_MOVE);
+				} else {
+					audio.event(AU_TRIM_MOVE,(-abs(x)/4)+60);
+				}
 			}	
     }
 
