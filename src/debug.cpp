@@ -70,27 +70,10 @@ void handle_serial()
 
 	if ( SoundCheck )
 	{
-		if ( SoundCheck == 3 )
+		if ( queueTone( 610, 200, 30 ) )
 		{
-			if ( queueTone( 1000, 60, 0 ) )
-			{
-				SoundCheck = 2 ;
-			}
-		}
-		else if ( SoundCheck == 2 )
-		{
-			if ( queueTone( 0, 30, 0 ) )
-			{
-				SoundCheck = 1 ;
-			}			
-		}
-		else if ( SoundCheck == 1 )
-		{
-			if ( queueTone( 1500, 300, 50 ) )
-			{
-				SoundCheck = 0 ;
-			}			
-		}
+			SoundCheck = 0 ;
+		}			
 	}
 
 	if ( ( rxchar = rxuart() ) == 0xFFFF )
@@ -261,7 +244,7 @@ void handle_serial()
 
 	if ( rxchar == 'Y' )
 	{
-		SoundCheck = 3 ;
+		SoundCheck = 1 ;
 	}
 
 //	if ( rxchar == 'Y' )

@@ -68,12 +68,13 @@ volatile uint8_t Buzzer_count ;
 
 struct t_sound_globals
 {
-	uint32_t Freq ;
-	uint32_t Sound_time ;
+	uint32_t Next_freq ;
+	volatile uint32_t Sound_time ;
 	uint32_t Frequency ;
 	volatile uint32_t Tone_timer ;		// Modified in interrupt routine
 	volatile uint8_t Tone_ms_timer ;
 	uint32_t Frequency_increment ;
+	uint32_t Next_frequency_increment ;
 } Sound_g ;
 
 
@@ -176,7 +177,6 @@ void set_frequency( uint32_t frequency )
   register Tc *ptc ;
 	register uint32_t timer ;
 
-	Sound_g.Frequency = frequency ;
 	timer = Master_frequency / (800 * frequency) ;		// MCK/8 and 100 000 Hz
 	if ( timer > 65535 )
 	{
@@ -289,9 +289,11 @@ void sound_5ms()
 		if ( Sound_g.Sound_time )
 		{
 			Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
-			if ( Sound_g.Freq )		// 0 => silence for time
+			if ( Sound_g.Next_freq )		// 0 => silence for time
 			{
-				set_frequency( Sound_g.Freq ) ;
+				Sound_g.Frequency = Sound_g.Next_freq ;
+				Sound_g.Frequency_increment = Sound_g.Next_frequency_increment ;
+				set_frequency( Sound_g.Frequency ) ;
 				tone_start( 0 ) ;
 			}
 			else
@@ -308,12 +310,12 @@ void sound_5ms()
 	}
 	else if ( ( Sound_g.Tone_ms_timer & 1 ) == 0 )		// Every 10 mS
 	{
-		if ( Sound_g.Freq )
+		if ( Sound_g.Frequency )
 		{
 			if ( Sound_g.Frequency_increment )
 			{
-				Sound_g.Freq += Sound_g.Frequency_increment ;
-				set_frequency( Sound_g.Freq ) ;
+				Sound_g.Frequency += Sound_g.Frequency_increment ;
+				set_frequency( Sound_g.Frequency ) ;
 			}
 		}
 	}
@@ -322,7 +324,8 @@ void sound_5ms()
 // frequency in Hz, time in mS
 void playTone( uint32_t frequency, uint32_t time )
 {
-	Sound_g.Freq = frequency ;
+	Sound_g.Next_frequency_increment = 0 ;
+	Sound_g.Next_freq = frequency ;
 	Sound_g.Sound_time = time ;
 //	set_frequency( frequency ) ;
 //	Tone_ms_timer = ( time + 4 ) / 5 ;
@@ -333,8 +336,8 @@ uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency_increm
 {
 	if ( Sound_g.Sound_time == 0 )
 	{
-		Sound_g.Freq = frequency ;
-		Sound_g.Frequency_increment = frequency_increment ;
+		Sound_g.Next_freq = frequency ;
+		Sound_g.Next_frequency_increment = frequency_increment ;
 		Sound_g.Sound_time = time ;
 		return 1 ;
 	}

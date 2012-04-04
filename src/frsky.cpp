@@ -22,6 +22,7 @@
 #include "frsky.h"
 #include "myeeprom.h"
 #include "drivers.h"
+#include "audio.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -464,25 +465,27 @@ enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm)
   return alarm_off;
 }
 
-void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm){			
-			uint8_t alarmLevel = ALARM_LEVEL(idx, alarm);
+void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
+{
+	uint8_t alarmLevel = ALARM_LEVEL(idx, alarm);
 			
-			if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1){   // this check is done here so haptic still works even if frsky beeper used.
-					switch (alarmLevel){			
-								case alarm_off:
-														break;
-								case alarm_yellow:
-//														audio.event(g_eeGeneral.FRSkyYellow);
-														break;														
-								case alarm_orange:
-//														audio.event(g_eeGeneral.FRSkyOrange);
-														break;												
-								case alarm_red:
-//														audio.event(g_eeGeneral.FRSkyRed);
-														break;		
-					}	
-			}
-			
+	if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
+	{   // this check is done here so haptic still works even if frsky beeper used.
+		switch (alarmLevel)
+		{
+			case alarm_off:
+			break;
+			case alarm_yellow:
+				audio.event(g_eeGeneral.FRSkyYellow);
+			break;														
+			case alarm_orange:
+				audio.event(g_eeGeneral.FRSkyOrange);
+			break;												
+			case alarm_red:
+				audio.event(g_eeGeneral.FRSkyRed);
+			break;		
+		}	
+	}
 }
 
 

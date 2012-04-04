@@ -846,28 +846,28 @@ extern uint8_t frskyRSSItype[2] ;
 
 void menuProcTelemetry2(uint8_t event)
 {
-    MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 4, {0, 1, 1, 0});
+  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 4, {0, 1, 1, 0});
 
-uint8_t  sub    = mstate2.m_posVert;
-uint8_t subSub = mstate2.m_posHorz;
-uint8_t blink;
-uint8_t y = 2*FH;
+	uint8_t  sub    = mstate2.m_posVert;
+	uint8_t subSub = mstate2.m_posHorz;
+	uint8_t blink;
+	uint8_t y = 2*FH;
 
-switch(event)
-{
+	switch(event)
+	{
     case EVT_KEY_BREAK(KEY_DOWN):
     case EVT_KEY_BREAK(KEY_UP):
     case EVT_KEY_BREAK(KEY_LEFT):
     case EVT_KEY_BREAK(KEY_RIGHT):
-        if(s_editMode)
-            FrskyAlarmSendState |= 0x30 ;	 // update Fr-Sky module when edit mode exited
-        break ;
-}
-blink = s_editMode ? BLINK : INVERS ;
-uint8_t subN = 1;
+      if(s_editMode)
+         FrskyAlarmSendState |= 0x30 ;	 // update Fr-Sky module when edit mode exited
+    break ;
+	}
+	blink = s_editMode ? BLINK : INVERS ;
+	uint8_t subN = 1;
 
-for (uint8_t j=0; j<2; j++)
-{
+	for (uint8_t j=0; j<2; j++)
+	{
     lcd_puts_Pleft( y, PSTR("TxRSSIalrm") );
     if ( j == 1 )
     {
@@ -887,7 +887,7 @@ for (uint8_t j=0; j<2; j++)
       	}
     }
     subN++; y+=FH;
-}
+	}
 
 	lcd_puts_Pleft(5*FH, PSTR("AltAlarm"));
   lcd_putsAttIdx(11*FW, 5*FH, PSTR("\003OFF122400"),g_model.FrSkyAltAlarm,(sub==subN ? blink:0));
@@ -2669,8 +2669,8 @@ void menuProcSetup(uint8_t event)
 //*/
 
 #ifdef FRSKY
-	uint8_t vCountItems = 26 ; //21 is default
-  int8_t sw_offset = -8 ;
+	uint8_t vCountItems = 23 ; //21 is default
+  int8_t sw_offset = -5 ;
 	switch (g_eeGeneral.speakerMode)
 	{
 //	//beeper
@@ -3034,7 +3034,7 @@ void menuProcSetup(uint8_t event)
 				    }subN++;
 		}		    
 				    
-    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 0){ 
+    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1){ 
     
 
 					  
