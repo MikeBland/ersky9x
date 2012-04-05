@@ -15,8 +15,12 @@
 #ifndef audio_h
 #define audio_h
 
-#define HAPTIC_OFF  PORTG &= ~(1<<2)
+/*#define HAPTIC_OFF  PORTG &= ~(1<<2)
 #define HAPTIC_ON   PORTG |=  (1<<2)
+*/
+
+
+
 
 //audio
 #define AUDIO_QUEUE_LENGTH (8)  //8 seems to suit most alerts

@@ -2511,7 +2511,7 @@ void menuProcSetup1(uint8_t event)
 //	bool    edit;
 //	uint8_t blink ;
 
-	evalOffset(sub, 3);
+	evalOffset(sub, 5);
 	uint8_t y = 1*FH;
 	uint8_t subN = 1;
 	uint8_t current_volume ;
@@ -2529,6 +2529,26 @@ void menuProcSetup1(uint8_t event)
 	}
   if((y+=FH)>2*FH) return;
 	subN++;
+	
+// audio start by rob
+    if(s_pgOfs<subN) {
+        lcd_puts_P(0, y,PSTR("Speaker Pitch"));
+        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.speakerPitch,(sub==subN ? INVERS : 0)|LEFT);
+        if(sub==subN) {
+            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.speakerPitch, 1, 100);
+        }
+        if((y+=FH)>7*FH) return;
+    }subN++;
+	
+    if(s_pgOfs<subN) {
+        lcd_puts_P(0, y,PSTR("Haptic Strength"));
+        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.hapticStrength,(sub==subN ? INVERS : 0)|LEFT);
+        if(sub==subN) {
+            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.hapticStrength, 0, 5);
+        }
+        if((y+=FH)>7*FH) return;
+    }subN++;	
+ //audio end by rob   
 
   lcd_puts_Pleft(    y, PSTR("Brightness"));
 	lcd_outdezAtt( 14*FW, y, 100-g_eeGeneral.bright, (sub==subN) ? INVERS : 0 ) ;
@@ -2808,28 +2828,7 @@ void menuProcSetup(uint8_t event)
   }subN++;
 
 
-//if(g_eeGeneral.speakerMode == 1){
-	
-//    if(s_pgOfs<subN) {
-//        lcd_puts_P(0, y,PSTR("Speaker Pitch"));
-//        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.speakerPitch,(sub==subN ? INVERS : 0)|LEFT);
-//        if(sub==subN) {
-//            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.speakerPitch, 1, 100);
-//        }
-//        if((y+=FH)>7*FH) return;
-//    }subN++;
 
-//}
-//if(g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2 ){
-//    if(s_pgOfs<subN) {
-//        lcd_puts_P(0, y,PSTR("Haptic Strength"));
-//        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.hapticStrength,(sub==subN ? INVERS : 0)|LEFT);
-//        if(sub==subN) {
-//            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.hapticStrength, 0, 5);
-//        }
-//        if((y+=FH)>7*FH) return;
-//    }subN++;
-//}
 
     if(s_pgOfs<subN) {
         lcd_puts_Pleft( y,PSTR("Contrast"));

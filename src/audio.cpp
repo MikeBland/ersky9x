@@ -69,22 +69,27 @@ void audioQueue::heartbeat()
 {
   if (toneTimeLeft )
 	{
-		if ( queueTone( toneFreq * 61 / 2, toneTimeLeft * 10, toneFreqIncr * 61 / 2 ) )
+		
+		if ( queueTone( toneFreq * 61 / 2, toneTimeLeft * 10, toneFreqIncr * 61 / 2 ))
 		{
-    	toneTimeLeft = 0 ; //time gets counted down
+    			toneTimeLeft = 0 ; //time gets counted down
 		}
-//		if (toneHaptic){
-//      if (hapticTick-- > 0) {
-//        HAPTIC_ON; // haptic output 'high'
-//      }
-//      else {
-//        HAPTIC_OFF; // haptic output 'low'
-//        hapticTick = g_eeGeneral.hapticStrength;
-//      }
-//    }
+
+		//this works - but really needs a delay added in.
+		// reason is because it takes time for the motor to spin up
+		// need to take this into account when the tone sent is really short!
+		// initial thoughts are a seconds queue to process haptic that gets
+		// fired from here.  end result is haptic events run for mix of 2 seconds?
+		
+		if (toneHaptic){
+	    		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
+		}    
   }
   else
 	{
+	
+	hapticOff();	
+		
     if ( tonePause )
 		{
 			if ( queueTone( 0, tonePause * 10, 0 ) )
@@ -262,7 +267,7 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		      playNow(f, 6, 1);
 		      break;
 		    case AU_TRIM_MIDDLE:
-		      playNow(BEEP_DEFAULT_FREQ, 10, 2, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 20, 2, 0, 1);
 		      break;
 		    case AU_MENUS:
 		      if (beepVal != BEEP_NOKEYS) {
