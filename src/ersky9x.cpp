@@ -394,30 +394,25 @@ int main (void)
 	init_spi() ;
 		
 	lcd_init() ;		
-	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
-	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
+//	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
+//	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
 	
-	refreshDisplay() ;
+//	refreshDisplay() ;
 
 //	i = Timer2_count ;
 
 	txmit( 'E' ) ;
 	crlf() ;
 
-	txmit( 'F' ) ;
 	init_eeprom() ;	
 	 
-	txmit( 'G' ) ;
 	eeReadAll() ;
 //	generalDefault() ;
 //	modelDefault( 0 ) ;
-	txmit( 'H' ) ;
 	
-  lcdSetRefVolt(30) ;
-//  lcdSetRefVolt(g_eeGeneral.contrast) ;
-	txmit( 'I' ) ;
+//  lcdSetRefVolt(30) ;
+  lcdSetRefVolt(g_eeGeneral.contrast) ;
 	set_volume( g_eeGeneral.volume ) ;
-	txmit( 'J' ) ;
 	PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 	MAh_used = g_eeGeneral.mAh_used ;
 
@@ -426,7 +421,6 @@ int main (void)
 
   pushMenu(menuProcModelSelect);
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
-	txmit( 'K' ) ;
 
   //we assume that startup is like pressing a switch and moving sticks.  Hence the lightcounter is set
   //if we have a switch on backlight it will be able to turn on the backlight.
@@ -445,9 +439,7 @@ int main (void)
       audioDefevent(AU_TADA);
     }
   }
-	txmit( 'L' ) ;
 	doSplash() ;
-	txmit( 'M' ) ;
   getADC_single();
   checkTHR();
   checkSwitches();
@@ -520,7 +512,6 @@ int main (void)
 		if ( ( check_soft_power() == POWER_OFF ) || ( goto_usb ) )		// power now off
 		{
 			// Time to switch off
-	txmit( 'P' ) ;
 			lcd_clear() ;
 			lcd_putsn_P( 4*FW, 3*FH, "SHUTTING DOWN", 13 ) ;
 			if ( goto_usb )
@@ -571,7 +562,6 @@ int main (void)
 			break ;		
 		}
 	}
-	txmit( 'Q' ) ;
 
 	lcd_clear() ;
 	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
@@ -724,7 +714,6 @@ uint16_t stickMoveValue()
 
 void doSplash()
 {
-	txmit( 'a' ) ;
   if(!g_eeGeneral.disableSplashScreen)
   {
    	check_backlight() ;
@@ -737,7 +726,6 @@ void doSplash()
 
   	refreshDisplay();
     lcdSetRefVolt(g_eeGeneral.contrast);
-	txmit( 'b' ) ;
 
   	clearKeyEvents();
 
@@ -763,7 +751,6 @@ void doSplash()
 			check_backlight() ;
   	}
 	}
-	txmit( 'c' ) ;
 }
 
 
