@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "AT91SAM3S2.h"
+#include "AT91SAM3S4.h"
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "lcd.h"

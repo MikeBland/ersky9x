@@ -70,11 +70,19 @@ RUN_FROM_FLASH = 1
 # Define linker script file here
 #
 ifeq ($(RUN_FROM_FLASH), 0)
-LDSCRIPT = sam3s2c_ram.ld
-FULL_PRJ = $(PROJECT)_ram
+ ifeq ($(SAM3S2), 1)
+ LDSCRIPT = sam3s2c_ram.ld
+ else
+ LDSCRIPT = sam3s4c_ram.ld
+ endif
+ FULL_PRJ = $(PROJECT)_ram
 else
-LDSCRIPT = sam3s2c_flash.ld
-FULL_PRJ = $(PROJECT)_rom
+ ifeq ($(SAM3S2), 1)
+ LDSCRIPT = sam3s2c_flash.ld
+ else
+ LDSCRIPT = sam3s4c_flash.ld
+ endif
+ FULL_PRJ = $(PROJECT)_rom
 endif
 
 # List all user C define here, like -D_DEBUG=1

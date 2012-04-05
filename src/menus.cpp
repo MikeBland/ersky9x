@@ -2504,7 +2504,7 @@ uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int
 
 void menuProcSetup1(uint8_t event)
 {
-  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 4, {0/*, 0*/});
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 5, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
@@ -3393,25 +3393,25 @@ void menuProcStatistic2(uint8_t event)
 //  lcd_outdez(14*FW , 3*FH, (g_tmr1Latency_max - g_tmr1Latency_min) /2 );
     lcd_puts_Pleft( 2*FH, PSTR("tmain          ms"));
   lcd_outdezAtt(14*FW , 2*FH, (g_timeMain)/20 ,PREC2);
-#ifdef REVB    
-		Current_sum += anaIn(NUMBER_ANALOG-1) ;
-		if ( ++Current_count > 49 )
-		{
-			Current = Current_sum / 5 ;
-			Current_sum = 0 ;
-			Current_count = 0 ;
-		}
+//#ifdef REVB    
+//		Current_sum += anaIn(NUMBER_ANALOG-1) ;
+//		if ( ++Current_count > 49 )
+//		{
+//			Current = Current_sum / 5 ;
+//			Current_sum = 0 ;
+//			Current_count = 0 ;
+//		}
   
-		lcd_puts_Pleft( 4*FH, PSTR("Battery"));
-		putsVolts( 18*FW, 4*FH, g_vbat100mV+4, 0 ) ;	// Should be +3.5
+//		lcd_puts_Pleft( 4*FH, PSTR("Battery"));
+//		putsVolts( 18*FW, 4*FH, g_vbat100mV+4, 0 ) ;	// Should be +3.5
 
-		lcd_puts_Pleft( 5*FH, PSTR("Current"));
-		lcd_outhex4( 10*FW+3, 5*FH, Current ) ;
-	  lcd_outdezAtt( 18*FW, 5*FH, Current/22 ,0 ) ;
-		lcd_puts_Pleft( 6*FH, PSTR("mAh"));
-		lcd_outhex4( 10*FW+3, 6*FH, Current_used ) ;
-	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
-#endif
+//		lcd_puts_Pleft( 5*FH, PSTR("Current"));
+//		lcd_outhex4( 10*FW+3, 5*FH, Current ) ;
+//	  lcd_outdezAtt( 18*FW, 5*FH, Current/22 ,0 ) ;
+//		lcd_puts_Pleft( 6*FH, PSTR("mAh"));
+//		lcd_outhex4( 10*FW+3, 6*FH, Current_used ) ;
+//	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
+//#endif
 
 
 //    lcd_puts_P( 0*FW,  5*FH, PSTR("Stack          b"));
