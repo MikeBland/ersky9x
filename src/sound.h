@@ -79,8 +79,10 @@ extern void tone_start( register uint32_t time ) ;
 extern void tone_stop( void ) ;
 extern void init_twi( void ) ;
 extern void set_volume( register uint8_t volume ) ;
-extern "C" void TWI0_IRQHandler (void) ;
+extern "C" void TWI0_IRQHandler( void ) ;
 extern void audioDefevent( uint8_t e ) ;
+extern void hapticOff(void) ;
+extern void hapticOn( uint32_t pwmPercent ) ;
 
 
 

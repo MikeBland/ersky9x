@@ -247,14 +247,17 @@ void handle_serial()
 		SoundCheck = 1 ;
 	}
 
-//	if ( rxchar == 'Y' )
-//	{
-//		lcd_clear();
-//  	lcd_img(0, 0, s9xsplash,0,0);
-//  	lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
-//  	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-//		refreshDisplay();
-//	}
+	if ( rxchar == 'H' )
+	{
+		txmit( 'H' ) ;
+		hapticOn( 40 ) ;
+	}
+
+	if ( rxchar == 'I' )
+	{
+		txmit( 'I' ) ;
+		hapticOff() ;
+	}
 
 //	if ( rxchar == 'W' )
 //	{

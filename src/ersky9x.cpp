@@ -1242,7 +1242,9 @@ static void init_pwm()
 	pwmptr->PWM_CH_NUM[2].PWM_CPDRUPD = 100 ;		// Period
 	pwmptr->PWM_CH_NUM[2].PWM_CDTY = 40 ;				// Duty
 	pwmptr->PWM_CH_NUM[2].PWM_CDTYUPD = 40 ;		// Duty
-	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
+	pwmptr->PWM_OOV &= ~0x00040000 ;	// Force low
+	pwmptr->PWM_OSS = 0x00040000 ;	// Force low
+//	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
 #endif
 
 }
