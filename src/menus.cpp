@@ -1849,7 +1849,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 21, {0,sizeof(g_model.name)-1,1,0,0,1,0,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 21, {0,sizeof(g_model.name)-1,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
 //  MENU("SETUP", menuTabModel, e_Model, 16, {0,sizeof(g_model.name)-1,1,0,0,0,0,0,0,6,2,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;

@@ -30,14 +30,14 @@
 
 # Chip & board used for compilation
 # (can be overriden by adding CHIP=chip and BOARD=board to the command-line)
-CHIP  = atsam3s2
-BOARD = atsam3s2_ek
+CHIP  = atsam3s4
+BOARD = atsam3s4_ek
 DYN = OFF
 
 # Makefile for compiling applet-serialflash applet.
 
-ifeq (atsam3s2,$(CHIP))
-BOARD_DIR = at91sam3s2-ek
+ifeq (atsam3s4,$(CHIP))
+BOARD_DIR = at91sam3s4-ek
 endif
 
 ifeq (sam9g15,$(CHIP))

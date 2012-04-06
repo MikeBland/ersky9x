@@ -50,7 +50,7 @@ EXT = STD
 ifeq ($(STAMP), 1)
 AREV = $(shell sh -c "cat .svn/entries | sed -n '4p'")
 REV = $(shell echo $$(( $(AREV) + 1 )))
-REV = $(shell echo $$(( $(AREV) )))
+#REV = $(shell echo $$(( $(AREV) )))
 endif
 
 #
