@@ -122,6 +122,7 @@ typedef struct t_EEGeneral {
   uint8_t   res[2];
 	uint16_t	mAh_used ;
 	uint16_t	run_time ;
+	int8_t		current_calib ;
 } __attribute__((packed)) EEGeneral;
 
 
@@ -203,7 +204,7 @@ typedef struct t_TimerMode
 typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
   uint8_t   reserved_spare;		//used to be MDVERS - now depreciated
-  int8_t    spare21;          // was timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw
+  uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
 //    uint8_t   sparex:1;     // was tmrDir, now use tmrVal>0 => count down
     uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
 //    uint8_t   tmrDir:1;     // was tmrDir, now use tmrVal>0 => count down

@@ -40,6 +40,10 @@ ifeq (atsam3s4,$(CHIP))
 BOARD_DIR = at91sam3s4-ek
 endif
 
+ifeq (atsam3s2,$(CHIP))
+BOARD_DIR = at91sam3s2-ek
+endif
+
 ifeq (sam9g15,$(CHIP))
 BOARD =sam9g15_ek
 BOARD_DIR = at91sam9g15-ek
@@ -227,4 +231,7 @@ clean:
 %.lss: %.elf
 	@echo
 	@echo $(MSG_EXTENDED_LISTING) $@
+ifeq (atsam3s4,$(CHIP))
+BOARD_DIR = at91sam3s4-ek
+endif
 	$(OBJDUMP) -h -S $< > $@

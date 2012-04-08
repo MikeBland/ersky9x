@@ -938,11 +938,6 @@ void menuProcTemplates(uint8_t event)  //Issue 73
     uint8_t attr = s_noHi ? 0 : ((sub==NUM_TEMPLATES) ? INVERS : 0);
     lcd_puts_P( 1*FW, y,PSTR("Channel Order"));//   RAET->AETR
 
-    //  lcd_putsnAtt(15*FW, y, PSTR(" RETA")+CHANNEL_ORDER(1),1,attr);
-    //  lcd_putsnAtt(16*FW, y, PSTR(" RETA")+CHANNEL_ORDER(2),1,attr);
-    //  lcd_putsnAtt(17*FW, y, PSTR(" RETA")+CHANNEL_ORDER(3),1,attr);
-    //  lcd_putsnAtt(18*FW, y, PSTR(" RETA")+CHANNEL_ORDER(4),1,attr);
-
     {
         uint8_t i ;
         for ( i = 1 ; i <= 4 ; i += 1 )
@@ -2050,7 +2045,10 @@ if(s_pgOfs<subN) {
             if ((g_model.protocol == PROTO_PPM) || (g_model.protocol == PROTO_PPM16))
                 CHECK_INCDEC_H_MODELVAR(event,g_model.ppmNCH,-2,4);
             else if (g_model.protocol == PROTO_PXX)
+						{
                 CHECK_INCDEC_H_MODELVAR(event,g_model.ppmNCH,0,124);
+								g_model.RxNum = g_model.ppmNCH ;			// Do this properly sometime
+						}
             break;
         case 2:
             if ((g_model.protocol == PROTO_PPM) || (g_model.protocol == PROTO_PPM16))
@@ -2118,15 +2116,6 @@ if(s_pgOfs<subN) {
     if(sub==subN) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.traineron = b ; }
     if((y+=FH)>7*FH) return;
 }subN++;
-
-//if(s_pgOfs<subN) {
-//    uint8_t b ;
-//    b = g_model.t2throttle ;
-//    lcd_puts_Pleft(    y, PSTR("T2ThTrig"));
-//    menu_lcd_onoff( 10*FW, y, b, sub==subN ) ;
-//    if(sub==subN) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.t2throttle = b ; }
-//    if((y+=FH)>7*FH) return;
-//}subN++;
 
 if(s_pgOfs<subN) {
     lcd_putsAtt(0*FW, y, PSTR("DELETE MODEL   [MENU]"),s_noHi ? 0 : (sub==subN?INVERS:0));
@@ -2430,13 +2419,10 @@ void menuProcDiagAna(uint8_t event)
     uint8_t y=i*FH;
     lcd_putc( 4*FW, y, 'A' ) ;
     lcd_putc( 5*FW, y, '1'+i ) ;
-    //        lcd_putsn_P( 4*FW, y,PSTR("A1A2A3A4A5A6A7A8")+2*i,2);
     lcd_outhex4( 7*FW, y,anaIn(i));
     if(i<7)  lcd_outdez(15*FW, y, (int32_t)calibratedStick[i]*100/1024);
     if(i==7) putsVBat(15*FW,y,(sub==1 ? INVERS : 0)|PREC1);
   }
-//  lcd_putsn_P( 18*FW, 5*FH,PSTR("BG"),2) ;
-//  lcd_outdezAtt(20*FW, 6*FH, BandGap, 0);
   if(sub==1)
   {
     scroll_disabled = 1;
@@ -3012,17 +2998,6 @@ void menuProcSetup(uint8_t event)
         if((y+=FH)>7*FH) return;
     }subN++;
 
-//    if(s_pgOfs<subN)
-//    {
-//        uint8_t b ;
-//        b = 1-g_eeGeneral.disableBG ;
-//        //		    lcd_puts_P(    0,    y, PSTR("BandGap"));
-//        //		    menu_lcd_onoff( 10*FW, y, b, sub==subN ) ;
-//        //		    if(sub==subN) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_eeGeneral.disableBG = 1-b ; }
-//        g_eeGeneral.disableBG = 1-onoffMenuItem( b, y, PSTR("BandGap"), sub, subN, event ) ;
-//        if((y+=FH)>7*FH) return;
-//    }subN++;
-
 //frsky alert mappings
 #ifdef FRSKY
 
@@ -3285,7 +3260,6 @@ void timer(int16_t throttle_val)
                     g_LightOffCounter = FLASH_DURATION;
             }
             if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrDir ? g_model.timer[0].tmrVal-s_timer[0].s_timerVal : s_timer[0].s_timerVal)%60)==0)) //short beep every minute
-//            if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrVal ?  s_timer[0].s_timerVal : g_model.timer[0].tmrVal-s_timer[0].s_timerVal)%60)==0)) //short beep every minute
             {
                 audioDefevent(AU_WARNING1);
                 if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
@@ -3353,11 +3327,6 @@ void trace()   // called in perOut - once envery 0.01sec
   if(s_traceWr>=MAXTRACE) s_traceWr=0;
 }
 
-
-//extern unsigned int stack_free() ;
-
-//uint16_t g_tmr1Latency_max;
-//uint16_t g_tmr1Latency_min = 0x7ff;
 uint16_t g_timeMain;
 uint16_t Current ;
 uint32_t Current_sum ;
@@ -3369,11 +3338,7 @@ void menuProcStatistic2(uint8_t event)
   switch(event)
   {
     case EVT_KEY_FIRST(KEY_MENU):
-//      g_tmr1Latency_min = 0x7ff;
-//      g_tmr1Latency_max = 0;
       g_timeMain = 0;
-//			MAh_used = 0 ;
-//			Current_used = 0 ;
       audioDefevent(AU_MENUS) ;
     break;
     case EVT_KEY_FIRST(KEY_DOWN):
@@ -3385,55 +3350,31 @@ void menuProcStatistic2(uint8_t event)
     	killEvents(event) ;
     break;
   }
-//    lcd_puts_Pleft( 1*FH, PSTR("tmr1Lat max    us"));
-//  lcd_outdez(14*FW , 1*FH, g_tmr1Latency_max/2 );
-//    lcd_puts_Pleft( 2*FH, PSTR("tmr1Lat min    us"));
-//  lcd_outdez(14*FW , 2*FH, g_tmr1Latency_min/2 );
-//    lcd_puts_Pleft( 3*FH, PSTR("tmr1 Jitter    us"));
-//  lcd_outdez(14*FW , 3*FH, (g_tmr1Latency_max - g_tmr1Latency_min) /2 );
-    lcd_puts_Pleft( 2*FH, PSTR("tmain          ms"));
+  lcd_puts_Pleft( 2*FH, PSTR("tmain          ms"));
   lcd_outdezAtt(14*FW , 2*FH, (g_timeMain)/20 ,PREC2);
-//#ifdef REVB    
-//		Current_sum += anaIn(NUMBER_ANALOG-1) ;
-//		if ( ++Current_count > 49 )
-//		{
-//			Current = Current_sum / 5 ;
-//			Current_sum = 0 ;
-//			Current_count = 0 ;
-//		}
-  
-//		lcd_puts_Pleft( 4*FH, PSTR("Battery"));
-//		putsVolts( 18*FW, 4*FH, g_vbat100mV+4, 0 ) ;	// Should be +3.5
 
-//		lcd_puts_Pleft( 5*FH, PSTR("Current"));
-//		lcd_outhex4( 10*FW+3, 5*FH, Current ) ;
-//	  lcd_outdezAtt( 18*FW, 5*FH, Current/22 ,0 ) ;
-//		lcd_puts_Pleft( 6*FH, PSTR("mAh"));
-//		lcd_outhex4( 10*FW+3, 6*FH, Current_used ) ;
-//	  lcd_outdezAtt( 18*FW, 6*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
-//#endif
-
-
-//    lcd_puts_P( 0*FW,  5*FH, PSTR("Stack          b"));
-//    lcd_outhex4( 10*FW+3, 5*FH, stack_free() ) ;
-
-//  lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
+  lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
 
 void menuProcBattery(uint8_t event)
 {
+	uint32_t current_scale ;
+
   TITLE("BATTERY");
 
   switch(event)
   {
-    case EVT_KEY_FIRST(KEY_MENU):
-//      g_tmr1Latency_min = 0x7ff;
-//      g_tmr1Latency_max = 0;
+  	case EVT_KEY_BREAK(KEY_MENU):
       g_timeMain = 0;
+			Current_max = 0 ;
+    break;
+    case EVT_KEY_LONG(KEY_MENU):
 			MAh_used = 0 ;
 			Current_used = 0 ;
       audioDefevent(AU_MENUS) ;
+    	killEvents(event) ;
     break;
+			
     case EVT_KEY_FIRST(KEY_DOWN):
     case EVT_KEY_FIRST(KEY_EXIT):
       chainMenu(menuProc0);
@@ -3442,6 +3383,22 @@ void menuProcBattery(uint8_t event)
       chainMenu(menuProcStatistic);
     	killEvents(event) ;
     break;
+    case EVT_KEY_FIRST(KEY_RIGHT):
+    case EVT_KEY_REPT(KEY_RIGHT):
+			if ( g_eeGeneral.current_calib < 49 )
+			{
+				g_eeGeneral.current_calib += 1 ;
+			}    	
+		break;
+
+			 
+    case EVT_KEY_FIRST(KEY_LEFT):
+    case EVT_KEY_REPT(KEY_LEFT):
+			if ( g_eeGeneral.current_calib > -49 )
+			{
+				g_eeGeneral.current_calib -= 1 ;
+			}    	
+		break;
   }
 #ifdef REVB    
 		Current_sum += anaIn(NUMBER_ANALOG-1) ;
@@ -3453,19 +3410,21 @@ void menuProcBattery(uint8_t event)
 		}
   
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
-		putsVolts( 16*FW, 2*FH, g_vbat100mV+4, 0 ) ;	// Should be +3.5
+		putsVolts( 13*FW, 2*FH, g_vbat100mV+3, 0 ) ;		// Add 0.3V for the diode
 
-		lcd_puts_Pleft( 3*FH, PSTR("Current"));
-	  lcd_outdezAtt( 16*FW, 3*FH, Current/22 ,0 ) ;
+		current_scale = 488 + g_eeGeneral.current_calib ;
+		lcd_puts_Pleft( 3*FH, PSTR("Current\016Max"));
+	  lcd_outdezAtt( 13*FW, 3*FH, Current*current_scale/8192 ,0 ) ;
+	  lcd_outdezAtt( 20*FW, 3*FH, Current_max*10*current_scale/8192 ,0 ) ;
 		lcd_puts_Pleft( 4*FH, PSTR("mAh"));
-	  lcd_outdezAtt( 16*FW, 4*FH, MAh_used + Current_used/22/36 ,PREC1 ) ;
-		lcd_puts_Pleft( 6*FH, PSTR("CPU temp."));
-    lcd_outhex4( 17*FW, 6*FH, Temperature ) ;
-	  lcd_outdezAtt( 16*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+	  lcd_outdezAtt( 13*FW, 4*FH, MAh_used + Current_used*current_scale/8192/36 ,PREC1 ) ;
+		lcd_puts_Pleft( 6*FH, PSTR("CPU temp.\016Max"));
+	  lcd_outdezAtt( 13*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+	  lcd_outdezAtt( 20*FW, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 
 #else
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
-		putsVolts( 18*FW, 2*FH, g_vbat100mV, 0 ) ;
+		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;
 
 #endif
 }
@@ -3651,7 +3610,6 @@ void menuProc0(uint8_t event)
       if( view>=MAX_VIEWS) view = 0 ;
       g_eeGeneral.view = view | tview ;
       STORE_GENERALVARS;     //eeWriteGeneral() ;
-        //        eeDirty(EE_GENERAL) ;
       audioDefevent(AU_KEYPAD_UP) ;
     break;
     case EVT_KEY_BREAK(KEY_DOWN) :
@@ -3661,7 +3619,6 @@ void menuProc0(uint8_t event)
         view = MAX_VIEWS-1;
       g_eeGeneral.view = view | tview ;
       STORE_GENERALVARS;     //eeWriteGeneral() ;
-      //        eeDirty(EE_GENERAL);
       audioDefevent(AU_KEYPAD_DOWN) ;
     break;
     case EVT_KEY_LONG(KEY_UP):

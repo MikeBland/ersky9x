@@ -346,6 +346,7 @@ inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat 
 }
 
 extern uint32_t Current_used ;
+extern uint16_t Current_max ;
 extern uint16_t MAh_used ;
 extern uint16_t Run_time ;
 

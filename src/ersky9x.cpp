@@ -194,6 +194,7 @@ uint8_t  stickMoved = 0;
 
 uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
 uint16_t Current_analogue ;
+uint16_t Current_max ;
 uint32_t Current_accumulator ;
 uint32_t Current_used ;
 
@@ -401,14 +402,12 @@ int main (void)
 
 //	i = Timer2_count ;
 
-	txmit( 'E' ) ;
-	crlf() ;
+//	txmit( 'E' ) ;
+//	crlf() ;
 
 	init_eeprom() ;	
 	 
 	eeReadAll() ;
-//	generalDefault() ;
-//	modelDefault( 0 ) ;
 	
 //  lcdSetRefVolt(30) ;
   lcdSetRefVolt(g_eeGeneral.contrast) ;
@@ -417,7 +416,6 @@ int main (void)
 	MAh_used = g_eeGeneral.mAh_used ;
 
 	// Choose here between PPM and PXX
-//	init_ssc() ;			// Or we may do this
 
   pushMenu(menuProcModelSelect);
   popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
@@ -457,14 +455,6 @@ int main (void)
     FRSKY_Init();
 #endif
 
-	// FrSky testing serial receive
-//	startPdcUsartReceive() ;
-
-//	both_on = 0 ;
-	
-//	Per10ms_action = 1 ;		// Run immediately
-//	Permenu_action = 1 ;
-
 	goto_usb = 0 ;
   while (1)
   {
@@ -479,17 +469,17 @@ int main (void)
 
 #ifdef	DEBUG
 		handle_serial() ;
-		{
-			uint16_t rxchar ;
-			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
-			{
-				txmitBt( rxchar ) ;                   		// Testing
-			}
-			if ( ( rxchar = rxBtuart() ) != 0xFFFF )		// Testing
-			{
-				txmit2nd( rxchar ) ;                   		// Testing
-			}
-		}
+//		{
+//			uint16_t rxchar ;
+//			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
+//			{
+//				txmitBt( rxchar ) ;                   		// Testing
+//			}
+//			if ( ( rxchar = rxBtuart() ) != 0xFFFF )		// Testing
+//			{
+//				txmit2nd( rxchar ) ;                   		// Testing
+//			}
+//		}
 #endif
 
 		pioptr = PIOC ;
@@ -499,13 +489,6 @@ int main (void)
 			goto_usb = 1 ;
 		}
   
-		// output a sinewave, untimed
-//		DACC->DACC_CDR = Sine_values[Sine_index++] ;		// Sinewave output
-//		if ( Sine_index >= 100 )
-//		{
-//			Sine_index = 0 ;			
-//		}
-
 		mainSequence( MENUS ) ;
 
 #ifdef REVB	
@@ -533,10 +516,10 @@ int main (void)
   		uint16_t tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
 	  	while(tgtime != get_tmr10ms())
   		{
-//				if ( check_soft_power() )
-//				{
-//					break ;		// Power back on
-//				}
+				if ( check_soft_power() )
+				{
+					break ;		// Power back on
+				}
 				wdt_reset() ;
 
 				if ( ee32_check_finished() == 0 )
@@ -607,11 +590,16 @@ static inline uint16_t getTmr2MHz()
 
 uint32_t OneSecTimer ;
 
+#ifdef FRSKY
+extern int16_t AltOffset ;
+#endif
+
+
+
 void mainSequence( uint32_t no_menu )
 {
   uint16_t t0 = getTmr2MHz();
 	
-	//      getADC[g_eeGeneral.filterInput]();
 	if ( g_eeGeneral.filterInput == 1 )
 	{
 		getADC_osmp() ;
@@ -625,6 +613,10 @@ void mainSequence( uint32_t no_menu )
 		getADC_single() ;
 	}
 	Current_analogue = ( Current_analogue * 31 + S_anaFilt[8] ) >> 5 ;
+	if ( Current_analogue > Current_max )
+	{
+		Current_max = Current_analogue ;		
+	}
 
 	perMain( no_menu ) ;		// Allow menu processing
 
@@ -653,14 +645,69 @@ void mainSequence( uint32_t no_menu )
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
 
 
-//#ifdef FRSKY
-//			if ( FrskyAlarmCheckFlag )
-//			{
-//				FrskyAlarmCheckFlag = 0 ;
-//				// Check for alarms here
-//				// Including Altitude limit
-//			}
-//#endif
+#ifdef FRSKY
+  if ( FrskyAlarmCheckFlag )
+  {
+    FrskyAlarmCheckFlag = 0 ;
+    // Check for alarms here
+    // Including Altitude limit
+
+    if (frskyUsrStreaming)
+    {
+      int16_t limit = g_model.FrSkyAltAlarm ;
+      if ( limit )
+      {
+        if (limit == 2)  // 400
+        {
+          limit = 400 ;	//ft
+        }
+        else
+        {
+          limit = 122 ;	//m
+        }
+        if ( ( FrskyHubData[16] + AltOffset ) > limit )
+        {
+          audioDefevent(AU_WARNING2) ;
+        }
+      }
+			for (uint8_t k=0; k<FrskyBattCells; k++)
+			{
+	      if ( FrskyVolts[k] < g_model.frSkyVoltThreshold )
+				{
+	        audioDefevent(AU_WARNING3);
+	        break;
+			  }
+	  	}
+    }
+
+
+    // this var prevents and alarm sounding if an earlier alarm is already sounding
+    // firing two alarms at once is pointless and sounds rubbish!
+    // this also means channel A alarms always over ride same level alarms on channel B
+    // up to debate if this is correct!
+    //				bool AlarmRaisedAlready = false;
+
+    if (frskyStreaming)
+		{
+      enum AlarmLevel level[4] ;
+      // RED ALERTS
+      if( (level[0]=FRSKY_alarmRaised(0,0)) == alarm_red) FRSKY_alarmPlay(0,0);
+      else if( (level[1]=FRSKY_alarmRaised(0,1)) == alarm_red) FRSKY_alarmPlay(0,1);
+      else	if( (level[2]=FRSKY_alarmRaised(1,0)) == alarm_red) FRSKY_alarmPlay(1,0);
+      else if( (level[3]=FRSKY_alarmRaised(1,1)) == alarm_red) FRSKY_alarmPlay(1,1);
+      // ORANGE ALERTS
+      else	if( level[0] == alarm_orange) FRSKY_alarmPlay(0,0);
+      else if( level[1] == alarm_orange) FRSKY_alarmPlay(0,1);
+      else	if( level[2] == alarm_orange) FRSKY_alarmPlay(1,0);
+      else if( level[3] == alarm_orange) FRSKY_alarmPlay(1,1);
+      // YELLOW ALERTS
+      else	if( level[0] == alarm_yellow) FRSKY_alarmPlay(0,0);
+      else if( level[1] == alarm_yellow) FRSKY_alarmPlay(0,1);
+      else	if( level[2] == alarm_yellow) FRSKY_alarmPlay(1,0);
+      else if( level[3] == alarm_yellow) FRSKY_alarmPlay(1,1);
+    }
+  }
+#endif
 }
 
 inline uint8_t keyDown()
@@ -856,18 +903,6 @@ void perMain( uint32_t no_menu )
   perOut(g_chans512, 0);
   if(!tick10ms) return ; //make sure the rest happen only every 10ms.
 
-  //  if ( Timer2_running )
-//  if ( Timer2_running & 1)  // ignore throttle started flag
-//  {
-//    if ( (Timer2_pre += 1 ) >= 100 )
-//    {
-//      Timer2_pre -= 100 ;
-//      Timer2 += 1 ;
-//    }
-//  }
-
-//  eeCheck();
-
 	heartbeat |= HEART_TIMER10ms;
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
@@ -908,11 +943,6 @@ void perMain( uint32_t no_menu )
 	}
 
 
-//    if(checkSlaveMode()) {
-//        PORTG &= ~(1<<OUT_G_SIM_CTL); // 0=ppm out
-//    }else{
-//        PORTG |=  (1<<OUT_G_SIM_CTL); // 1=ppm-in
-//    }
 	if ( check_soft_power() == POWER_TRAINER )		// On trainer power
 	{
 		PIOC->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
@@ -949,23 +979,6 @@ void perMain( uint32_t no_menu )
         }
     break ;
 
-//    case 3:
-//    {
-//    	/*
-//        static prog_uint8_t APM beepTab[]= {
-//            // 0   1   2   3    4
-//            0,  0,  0,  0,   0, //quiet
-//            0,  1,  8, 30, 100, //silent
-//            1,  1,  8, 30, 100, //normal
-//            1,  1, 15, 50, 150, //for motor
-//            10, 10, 30, 50, 150, //for motor
-//        };
-//        memcpy_P(g_beepVal,beepTab+5*g_eeGeneral.beeperVal,5);
-//        //g_beepVal = BEEP_VAL;
-//        */
-//        /* all this gone and replaced in new sound system */
-//    }
-//        break;
   }
   stickMoved = 0; //reset this flag
 		
@@ -973,14 +986,12 @@ void perMain( uint32_t no_menu )
 
 }
 
-// Starts TIMER2 at 200Hz,  commentd out drive of TIOA2 (A26, EXT2)
+// Starts TIMER2 at 200Hz
 static void start_timer2()
 {
-//	register Pio *pioptr ;
   register Tc *ptc ;
 	register uint32_t timer ;
 
-	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
 	timer = Master_frequency / 12800 / 2 ;		// MCK/128 and 200 Hz
@@ -993,15 +1004,10 @@ static void start_timer2()
 	ptc->TC_CHANNEL[2].TC_RA = timer >> 1 ;
 	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
 																						// MCK/128, set @ RA, Clear @ RC waveform
-
-//	pioptr = PIOC ;
-//	pioptr->PIO_PER = 0x00080000L ;		// Enable bits C19
-//	pioptr->PIO_OER = 0x00080000L ;		// Set as output
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
 	NVIC_EnableIRQ(TC2_IRQn) ;
 	TC0->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;
-
 }
 
 
@@ -1012,7 +1018,6 @@ static void start_timer0()
 {
   register Tc *ptc ;
 
-	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
   PMC->PMC_PCER0 |= 0x00800000L ;		// Enable peripheral clock to TC0
 
   ptc = TC0 ;		// Tc block 0 (TC0-2)
@@ -1064,6 +1069,7 @@ extern "C" void TC2_IRQHandler()
 // AD9  stick_LV
 // AD13 HOV_THR
 // AD14 stick_RV
+// AD15 Chip temperature
 // Peripheral ID 29 (0x20000000)
 // Note ADC sequencing won't work as it only operates on channels 0-7
 //      and we need 9, 13 and 14 as well
@@ -1182,32 +1188,16 @@ static void init_pwm()
 
 #ifdef REVB
 	configure_pins( PIO_PA16, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_C | PIN_PORTA | PIN_NO_PULLUP ) ;
-//	pioptr = PIOA ;
-//  pioptr->PIO_ABCDSR[0] &= ~PIO_PA16 ;		// Peripheral C
-//  pioptr->PIO_ABCDSR[1] |= PIO_PA16 ;			// Peripheral C
-//	pioptr->PIO_PDR = PIO_PA16 ;						// Disable bit A16 Assign to peripheral
 #endif
 
 	configure_pins( PIO_PC18, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
-//	pioptr = PIOC ;
-//  pioptr->PIO_ABCDSR[0] |= PIO_PC18 ;			// Peripheral B
-//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC18 ;		// Peripheral B
-//	pioptr->PIO_PDR = PIO_PC18 ;						// Disable bit C18 Assign to peripheral
 
 #ifdef REVB
 	configure_pins( PIO_PC15, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
-//  pioptr->PIO_ABCDSR[0] |= PIO_PC15 ;			// Peripheral B
-//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC15 ;		// Peripheral B
-//	pioptr->PIO_PDR = PIO_PC15 ;						// Disable bit C15 Assign to peripheral
 #endif
 
 #ifdef REVB
 	configure_pins( PIO_PC22, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
-//  pioptr->PIO_ABCDSR[0] |= PIO_PC22 ;			// Peripheral B
-//  pioptr->PIO_ABCDSR[1] &= ~PIO_PC22 ;		// Peripheral B
-//	pioptr->PIO_ODR = PIO_PC22 ;						// Set bit C22 as input
-//	pioptr->PIO_PDR = PIO_PC22 ;						// Disable bit C22 Assign to peripheral
-//	pioptr->PIO_PUDR = PIO_PC22 ;						// Disable pullup on bit C22
 #endif
 
 	// Configure clock - depends on MCK frequency
@@ -1604,10 +1594,6 @@ const uint16_t CRCTable[]=
 };
 
 
-
-
-
-
 uint16_t PcmCrc ;
 uint8_t PcmOnesCount ;
 
@@ -1617,7 +1603,6 @@ void crc( uint8_t data )
 
     PcmCrc=(PcmCrc>>8)^(CRCTable[(PcmCrc^data) & 0xFF]);
 }
-
 
 
 // 8uS/bit 01 = 0, 001 = 1
@@ -1727,105 +1712,6 @@ void setupPulsesPXX()
 }
 
 
-
-/*-------------------------------------------------------------------*/
-/* Convert hex string to internal long value */
-
-//uint32_t hextoi( uint8_t *string )
-//{
-//	register uint8_t *p ;
-//  register uint32_t value ;
-//  register uint8_t c ;
-
-//  p = string ;
-//  value = 0 ;
-//  while( ( c = toupper( *p ) ) != 0 )
-//  {
-//    if ( c < '0' || c > 'F' || ( c < 'A' && c > '9') )
-//    {
-//      break ;
-//    }
-//    else
-//    {
-//      value <<= 4 ;
-//      c -= (c > '9') ? '7' : '0' ;
-//      value += c ;
-//    }
-//    p++ ;
-//  }
-//  if ( p == string )
-//  {
-//    value = 0xFFFFFFFF ;
-//  }
-//  return value ;
-//}
-
-/*-------------------------------------------------------------------*/
-/* Get a string from the serial port into *string */
-
-//uint32_t gets( register uint8_t *string, register uint32_t maxcount )
-//{
-//  register uint32_t count ;
-//  register uint16_t c ;
-
-//  count = 0 ;
-//  c = '\0' ;
-//  while ( ( c != '\r' ) && ( count < maxcount-2 ) )
-//	{
-//		while ( ( c = rxuart() ) == 0xFFFF )
-//		{
-//			/* Null body, wait for char */
-//		}
-//    switch (c)
-//    {
-//      case '\r' :
-//			break ;
-
-//			case '\010' :
-//      case 0x7F :
-//				if (count > 0)
-//				{
-//				  txmit('\010') ;
-//				  txmit(' ') ;
-//				  txmit('\010') ;
-//				  count -= 1 ;
-//				  string -= 1 ;
-//				}
-//			break ;
-
-//			case '\t' :
-//      case ' '  :
-//				c = ' ' ;
-//				if (count > 0)
-//				{
-//				  txmit(c) ;
-//				  *string++ = c ;
-//				  count += 1 ;
-//				}
-//			break ;
-
-//      default :
-//				if (c < ' ')
-//				{
-//					if (c != 10 )
-//					{
-//					  txmit('\007') ;
-//					}
-//				}
-//				else
-//				{
-//					txmit( c ) ;
-//				  *string++ = c ;
-//				  count++ ;
-//				}
-//			break ;
-//    }
-//  }
-//  *string = '\0';
-//  return count ;
-//}
-
-
 // Switch input pins
 // Needs updating for REVB board ********
 // AIL-DR  PA2
@@ -1872,9 +1758,6 @@ static void setup_switches()
 #endif
 #ifdef REVB
 	configure_pins( 0x01808087, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
-//	pioptr->PIO_PER = 0x01808087 ;		// Enable bits
-//	pioptr->PIO_ODR = 0x01808087 ;		// Set bits input
-//	pioptr->PIO_PUER = 0x01808087 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0xF8008184 ;		// Enable bits
 	pioptr->PIO_ODR = 0xF8008184 ;		// Set bits input
@@ -1886,9 +1769,6 @@ static void setup_switches()
 #endif 
 #ifdef REVB
 	configure_pins( 0x00000030, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
-//	pioptr->PIO_PER = 0x00000030 ;		// Enable bits
-//	pioptr->PIO_ODR = 0x00000030 ;		// Set bits input
-//	pioptr->PIO_PUER = 0x00000030 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
 	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
@@ -1901,9 +1781,6 @@ static void setup_switches()
 #endif 
 #ifdef REVB
 	configure_pins( 0x91114900, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
-//	pioptr->PIO_PER = 0x91114900 ;		// Enable bits
-//	pioptr->PIO_ODR = 0x91114900 ;		// Set bits input
-//	pioptr->PIO_PUER = 0x91114900 ;		// Set bits with pullups
 #else 
 	pioptr->PIO_PER = 0x10014900 ;		// Enable bits
 	pioptr->PIO_ODR = 0x10014900 ;		// Set bits input
@@ -1925,16 +1802,8 @@ static void config_free_pins()
 	
 #ifdef REVB
 	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
-//	pioptr = PIOB ;
-//	pioptr->PIO_PER = 0x00004040L ;		// Enable bits B14, 6
-//	pioptr->PIO_ODR = 0x00004040L ;		// Set as input
-//	pioptr->PIO_PUER = 0x00004040L ;	// Enable pullups
 
 	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
-//	pioptr = PIOC ;
-//	pioptr->PIO_PER = 0x00280000L ;		// Enable bits C21, 19
-//	pioptr->PIO_ODR = 0x00280000L ;		// Set as input
-//	pioptr->PIO_PUER = 0x00280000L ;	// Enable pullups
 #else 
 	register Pio *pioptr ;
 
@@ -2271,24 +2140,13 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   {
       ret_value = (abs(x)>y) ;
   }
-//      return swtch>0 ? (abs(x)>y) : !(abs(x)>y);
       break;
   case (CS_ANEG):
   {
       ret_value = (abs(x)<y) ;
   }
-//      return swtch>0 ? (abs(x)<y) : !(abs(x)<y);
       break;
 
-//  case (CS_AND):
-//      return (getSwitch(a,0,level+1) && getSwitch(b,0,level+1));
-//      break;
-//  case (CS_OR):
-//      return (getSwitch(a,0,level+1) || getSwitch(b,0,level+1));
-//      break;
-//  case (CS_XOR):
-//      return (getSwitch(a,0,level+1) ^ getSwitch(b,0,level+1));
-//      break;
   case (CS_AND):
   case (CS_OR):
   case (CS_XOR):
@@ -2338,14 +2196,6 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 }
 
 
-//void resetTimer2()
-//{
-//  Timer2_pre = 0 ;
-//  Timer2 = 0 ;
-//  Timer2_running = 0 ;   // Stop and clear throttle started flag
-//}
-
-
 void alertMessages( const char * s, const char * t )
 {
   lcd_clear();
@@ -2362,28 +2212,28 @@ void alertMessages( const char * s, const char * t )
 
 void alert(const char * s, bool defaults)
 {
-    lcd_clear();
-    lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
-    lcd_puts_P(0,4*FH,s);
-    lcd_puts_P(64-6*FW,7*FH,PSTR("press any Key"));
-    refreshDisplay();
-    lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
+  lcd_clear();
+  lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
+  lcd_puts_P(0,4*FH,s);
+  lcd_puts_P(64-6*FW,7*FH,PSTR("press any Key"));
+  refreshDisplay();
+  lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
 
-    audioDefevent(AU_ERROR);
-    clearKeyEvents();
-    while(1)
+  audioDefevent(AU_ERROR);
+  clearKeyEvents();
+  while(1)
+  {
+    if(keyDown())
     {
-        if(keyDown())
-        {
-            return;  //wait for key release
-        }
-        wdt_reset();
-				if ( check_power_or_usb() ) return ;		// Usb on or power off
-        if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
-            BACKLIGHT_ON;
-        else
-            BACKLIGHT_OFF;
+      return;  //wait for key release
     }
+    wdt_reset();
+		if ( check_power_or_usb() ) return ;		// Usb on or power off
+    if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
+      BACKLIGHT_ON;
+    else
+      BACKLIGHT_OFF;
+  }
 }
 
 void message(const char * s)
@@ -2413,7 +2263,7 @@ void checkTHR()
   // first - display warning
   alertMessages( PSTR("Throttle not idle"), PSTR("Reset throttle") ) ;
   
-	//loop until all switches are reset
+	//loop until throttle stick is low
   while (1)
   {
       getADC_single();
@@ -2549,21 +2399,10 @@ void pushMenu(MenuFuncP newMenu)
 // 
 static void init_soft_power()
 {
-//	register Pio *pioptr ;
-	
-//	pioptr = PIOC ;
 	// Configure RF_power (PC17)
 	configure_pins( PIO_PC17, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_NO_PULLUP | PIN_PULLDOWN ) ;
-//	pioptr->PIO_PER = PIO_PC17 ;		// Enable bit C17
-//	pioptr->PIO_ODR = PIO_PC17 ;		// Set bit C17 as input
-//	pioptr->PIO_PUDR = PIO_PC17;		// Disable pullup on bit C17
-//	pioptr->PIO_PPDER = PIO_PC17;		// Enable pulldown on bit C17
 	
 	configure_pins( PIO_PA8, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
-//	pioptr = PIOA ;
-//	pioptr->PIO_PER = PIO_PA8 ;		// Enable bit A8 (Soft Power)
-//	pioptr->PIO_ODR = PIO_PA8 ;		// Set bit A8 as input
-//	pioptr->PIO_PUER = PIO_PA8 ;	// Enable PA8 pullup
 }
 
 
@@ -2591,13 +2430,8 @@ uint32_t check_soft_power()
 void soft_power_off()
 {
 #ifdef REVB
-//	register Pio *pioptr ;
 	
 	configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
-//	pioptr = PIOA ;
-//	pioptr->PIO_PUDR = PIO_PA8 ;	// Disble PA8 pullup
-//	pioptr->PIO_OER = PIO_PA8 ;		// Set bit A8 as ouput
-//	pioptr->PIO_CODR = PIO_PA8 ;	// Set bit A8 OFF, disables soft power switch
 #endif
 }
 

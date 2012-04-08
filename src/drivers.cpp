@@ -34,13 +34,9 @@
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
-//extern uint32_t Eeprom_image_updated ;
-
-//extern void eeprom_process( void ) ;
-
 uint16_t Analog_values[NUMBER_ANALOG] ;
-uint16_t Temperature ;		// Raw temp reading
-//uint8_t eeprom[4096] ;		// Used to emulate the existing 2K eeprom
+uint16_t Temperature ;				// Raw temp reading
+uint16_t Max_temperature ;		// Max raw temp reading
 
 //struct t_fifo32
 //{
@@ -50,7 +46,6 @@ uint16_t Temperature ;		// Raw temp reading
 //	volatile uint32_t count ;
 //} ;
 
-//struct t_fifo32 FrskyFifo ;
 
 #define RX_UART_BUFFER_SIZE	32
 
@@ -1252,6 +1247,10 @@ void read_9_adc()
 	Analog_values[8] = ADC->ADC_CDR8 ;
 #endif
 	Temperature = ( Temperature * 7 + ADC->ADC_CDR15 ) >> 3 ;	// Filter it
+	if ( Temperature > Max_temperature )
+	{
+		Max_temperature = Temperature ;		
+	}
 
 // Power save
 //  PMC->PMC_PCER0 &= ~0x20000000L ;		// Disable peripheral clock to ADC
