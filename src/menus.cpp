@@ -685,6 +685,7 @@ switch(event)
         break;
 }
 //  lcd_puts_P( 4*FW, 1*FH,PSTR("subT min  max inv"));
+    int8_t limit = (g_model.extendedLimits ? 125 : 100);
 for(uint8_t i=0; i<7; i++){
     y=(i+1)*FH;
     k=i+s_pgOfs;
@@ -711,10 +712,7 @@ for(uint8_t i=0; i<7; i++){
             lcd_outdezAtt(  12*FW, y, (int8_t)(ld->min-100),   attr);
             if(active) {
                 ld->min -=  100;
-                if(g_model.extendedLimits)
-                    CHECK_INCDEC_H_MODELVAR( event, ld->min, -125,125);
-                else
-                    CHECK_INCDEC_H_MODELVAR( event, ld->min, -100,100);
+		            CHECK_INCDEC_H_MODELVAR( event, ld->min, -limit,limit);
                 ld->min +=  100;
             }
             break;
@@ -722,10 +720,7 @@ for(uint8_t i=0; i<7; i++){
             lcd_outdezAtt( 17*FW, y, (int8_t)(ld->max+100),    attr);
             if(active) {
                 ld->max +=  100;
-                if(g_model.extendedLimits)
-                    CHECK_INCDEC_H_MODELVAR( event, ld->max, -125,125);
-                else
-                    CHECK_INCDEC_H_MODELVAR( event, ld->max, -100,100);
+                CHECK_INCDEC_H_MODELVAR( event, ld->max, -limit,limit);
                 ld->max -=  100;
             }
             break;
@@ -2490,7 +2485,7 @@ uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int
 
 void menuProcSetup1(uint8_t event)
 {
-  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 5, {0/*, 0*/});
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 7, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
@@ -2513,7 +2508,7 @@ void menuProcSetup1(uint8_t event)
 			set_volume( g_eeGeneral.volume = current_volume ) ;
 		}
 	}
-  if((y+=FH)>2*FH) return;
+  if((y+=FH)>7*FH) return;
 	subN++;
 	
 // audio start by rob
@@ -2546,12 +2541,21 @@ void menuProcSetup1(uint8_t event)
 		g_eeGeneral.bright = 100 - b ;
 		PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 	}
-  if((y+=FH)>3*FH) return;
+  if((y+=FH)>7*FH) return;
 	subN++;
 
   g_eeGeneral.optrexDisplay = onoffMenuItem( g_eeGeneral.optrexDisplay, y, PSTR("Optrex Display"), sub, subN, event ) ;
-  if((y+=FH)>4*FH) return;
+  if((y+=FH)>7*FH) return;
 	subN++;
+
+  lcd_puts_Pleft( y, PSTR("Capacity Alarm"));
+	lcd_outdezAtt( PARAM_OFS, y, g_eeGeneral.mAh_alarm*50, (sub==subN) ? INVERS : 0 ) ;
+  if(sub==subN)
+	{
+		CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.mAh_alarm,0,100);
+	}
+  if((y+=FH)>7*FH) return;
+//	subN++;
 
 }
 
@@ -3410,7 +3414,7 @@ void menuProcBattery(uint8_t event)
 		}
   
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
-		putsVolts( 13*FW, 2*FH, g_vbat100mV+3, 0 ) ;		// Add 0.3V for the diode
+		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;		// Add 0.3V for the diode
 
 		current_scale = 488 + g_eeGeneral.current_calib ;
 		lcd_puts_Pleft( 3*FH, PSTR("Current\016Max"));

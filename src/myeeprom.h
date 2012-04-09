@@ -117,9 +117,10 @@ typedef struct t_EEGeneral {
   uint8_t   lightOnStickMove;
   char      ownerName[GENERAL_OWNER_NAME_LEN];
   uint8_t   switchWarningStates;
-	uint8_t  volume ;
-	uint8_t  bright ;			// backlight
-  uint8_t   res[2];
+	uint8_t		volume ;
+	uint8_t 	bright ;			// backlight
+  uint8_t   res[1];
+	uint8_t		mAh_alarm ;
 	uint16_t	mAh_used ;
 	uint16_t	run_time ;
 	int8_t		current_calib ;

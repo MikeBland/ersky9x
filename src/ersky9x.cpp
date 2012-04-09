@@ -56,6 +56,10 @@
 #include "frsky.h"
 #endif
 
+//const pm_uchar splashdata[] PROGMEM = { 'S','P','S',0,
+//#include "s9xsplash.lbm"
+//	'S','P','E',0};
+//const pm_uchar * s9xsplash = splashdata+4;
 
 #include "debug.h"
 
@@ -968,14 +972,22 @@ void perMain( uint32_t no_menu )
         ab = ( ab + ab*(g_eeGeneral.vBatCalib)/128 ) * 4191 ;
 //        ab = (uint16_t) ab / (g_eeGeneral.disableBG ? 240 : BandGap ) ;  // ab might be more than 32767
         ab /= 55296  ;
-        g_vbat100mV = (ab + g_vbat100mV + 1) >> 1 ;  // Filter it a bit => more stable display
+        g_vbat100mV = ( (ab + g_vbat100mV + 1) >> 1 ) + 3 ;  // Filter it a bit => more stable display
+								// Also add on 0.3V for voltage drop across input diode
 
         static uint8_t s_batCheck;
         s_batCheck+=32;
-        if((s_batCheck==0) && (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49)){
-
+        if(s_batCheck==0)
+				{
+					if( (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49) )
+					{
             audioDefevent(AU_TX_BATTERY_LOW);
             if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
+					}
+					if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(488 + g_eeGeneral.current_calib)/8192/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
+					{
+            audioDefevent(AU_TX_BATTERY_LOW);
+					}
         }
     break ;
 
