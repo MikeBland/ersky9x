@@ -40,6 +40,7 @@ void audioQueue::aqinit()
 
   toneHaptic = 0;
   hapticTick = 0;
+  hapticMinRun = 0;
 
 }
 
@@ -67,6 +68,13 @@ bool audioQueue::freeslots()
 // it is called every 10ms
 void audioQueue::heartbeat()
 {
+  //haptic switch off happens in separate loop
+  if(hapticMinRun == 0){
+	hapticOff();	
+  } else {
+	hapticMinRun--;	
+  }	
+	
   if (toneTimeLeft )
 	{
 		
@@ -83,12 +91,12 @@ void audioQueue::heartbeat()
 		
 		if (toneHaptic){
 	    		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
+	    		hapticMinRun = HAPTIC_SPINUP;
 		}    
   }
   else
 	{
 	
-	hapticOff();	
 		
     if ( tonePause )
 		{

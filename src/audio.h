@@ -23,12 +23,13 @@
 
 
 //audio
-#define AUDIO_QUEUE_LENGTH (8)  //8 seems to suit most alerts
+#define AUDIO_QUEUE_LENGTH (20)  //20 seems to suit most alerts
 #define AUDIO_QUEUE_FREESLOTS (3)  //free before we insert new sounds
 #define BEEP_DEFAULT_FREQ  (70)
 #define BEEP_OFFSET        (10)
 #define BEEP_KEY_UP_FREQ   (BEEP_DEFAULT_FREQ+5)
 #define BEEP_KEY_DOWN_FREQ (BEEP_DEFAULT_FREQ-5)
+#define HAPTIC_SPINUP (20) //time haptic runs for to ensure motor starts up!
 
 
 /* the audio selection menu in the system config page */
@@ -151,6 +152,7 @@ class audioQueue
     int8_t toneFreqIncr;
     uint8_t toneTimeLeft;
     uint8_t tonePause;
+    
 
     // queue arrays
     uint8_t queueToneFreq[AUDIO_QUEUE_LENGTH];
@@ -159,9 +161,10 @@ class audioQueue
     uint8_t queueTonePause[AUDIO_QUEUE_LENGTH];
     uint8_t queueToneRepeat[AUDIO_QUEUE_LENGTH];
 
-	  uint8_t toneHaptic;
-	  uint8_t hapticTick;
-	  uint8_t queueToneHaptic[AUDIO_QUEUE_LENGTH];
+    uint8_t hapticMinRun;
+    uint8_t toneHaptic;
+    uint8_t hapticTick;
+    uint8_t queueToneHaptic[AUDIO_QUEUE_LENGTH];
 	 // uint8_t toneCounter;
 
 };
