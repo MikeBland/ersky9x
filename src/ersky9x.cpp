@@ -539,6 +539,9 @@ int main (void)
   		}
 //			if ( check_soft_power() == 0 )
 //			{
+				lcd_clear() ;
+				refreshDisplay() ;
+			  lcdSetRefVolt(0);
 				soft_power_off() ;		// Only turn power off if necessary
 
 //			}
@@ -669,7 +672,7 @@ void mainSequence( uint32_t no_menu )
         {
           limit = 122 ;	//m
         }
-        if ( ( FrskyHubData[16] + AltOffset ) > limit )
+        if ( ( FrskyHubData[FR_ALT_BARO] + AltOffset ) > limit )
         {
           audioDefevent(AU_WARNING2) ;
         }
@@ -709,6 +712,25 @@ void mainSequence( uint32_t no_menu )
       else if( level[1] == alarm_yellow) FRSKY_alarmPlay(0,1);
       else	if( level[2] == alarm_yellow) FRSKY_alarmPlay(1,0);
       else if( level[3] == alarm_yellow) FRSKY_alarmPlay(1,1);
+						
+			// Check for current alarm
+      for (int i=0; i<2; i++)
+			{
+				// To be enhanced by checking the type as well
+       	if (g_model.frsky.channels[i].ratio)
+				{
+     		  if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
+					{
+						if ( g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
+						{
+    		      if ( ( FrskyHubData[FR_A1_MAH+i] >> 6 ) >= g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
+							{
+								audio.event( g_model.frskyAlarms.alarmData[0].frskyAlarmSound ) ;
+							}
+						}
+					}
+       	}
+      }
     }
   }
 #endif
@@ -1075,7 +1097,7 @@ extern "C" void TC2_IRQHandler()
 // ADC channels are assigned to:
 // AD1  stick_RH
 // AD2  stick_LH
-// AD3  PIT_TRIM
+// AD3  PI#T_TRIM
 // AD4  battery
 // AD5  HOV_PIT
 // AD9  stick_LV
@@ -1272,10 +1294,14 @@ static void init_main_ppm( uint32_t period, uint32_t out_enable )
 	pwmptr = PWM ;
 	// PWM3 for PPM output	 
 	pwmptr->PWM_CH_NUM[3].PWM_CMR = 0x0000000B ;	// CLKA
+	if (g_model.pulsePol)
+	{
+		pwmptr->PWM_CH_NUM[3].PWM_CMR |= 0x00000200 ;	// CPOL
+	}
 	pwmptr->PWM_CH_NUM[3].PWM_CPDR = period ;			// Period in half uS
 	pwmptr->PWM_CH_NUM[3].PWM_CPDRUPD = period ;	// Period in half uS
-	pwmptr->PWM_CH_NUM[3].PWM_CDTY = 600 ;			// Duty in half uS
-	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = 600 ;		// Duty in half uS
+	pwmptr->PWM_CH_NUM[3].PWM_CDTY = g_model.ppmDelay*100+600 ;			// Duty in half uS
+	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = g_model.ppmDelay*100+600 ;		// Duty in half uS
 	pwmptr->PWM_ENA = PWM_ENA_CHID3 ;						// Enable channel 3
 
 	NVIC_EnableIRQ(PWM_IRQn) ;
@@ -1462,6 +1488,15 @@ void setupPulsesPPM()			// Don't enable interrupts through here
   uint32_t p=8+g_model.ppmNCH*2; //Channels *2
     
 	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
+	
+	if (g_model.pulsePol)
+	{
+		pwmptr->PWM_CH_NUM[3].PWM_CMR |= 0x00000200 ;	// CPOL
+	}
+	else
+	{
+		pwmptr->PWM_CH_NUM[3].PWM_CMR &= ~0x00000200 ;	// CPOL
+	}
     
 	uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
   rest += (int16_t(g_model.ppmFrameLength))*1000;
@@ -1933,7 +1968,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
   else if(idx<=4)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
   else if(idx<=NUM_XCHNRAW)
-    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  MAX FULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"TELEMETRY_CHANNELS)+4*(idx-5),4,att);
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"TELEMETRY_CHANNELS)+4*(idx-5),4,att);
 }
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)

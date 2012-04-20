@@ -194,6 +194,17 @@ typedef struct t_FrSkyData {
   FrSkyChannelData channels[2];
 } __attribute__((packed)) FrSkyData;
 
+typedef struct t_FrSkyalarms
+{
+	uint8_t frskyAlarmType ;
+	uint8_t frskyAlarmLimit ;
+	uint8_t frskyAlarmSound ;
+} __attribute__((packed)) FrSkyAlData;
+
+typedef struct t_FrSkyAlarmData {
+		FrSkyAlData alarmData[8] ;
+} __attribute__((packed)) FrSkyAlarmData;
+
 typedef struct t_TimerMode
 {
 		uint8_t   tmrModeA:7 ;          // timer trigger source -> off, abs, stk, stk%, cx%
@@ -201,6 +212,15 @@ typedef struct t_TimerMode
     int8_t    tmrModeB ;            // timer trigger source -> !sw, none, sw, m_sw
     uint16_t  tmrVal ;
 } __attribute__((packed)) TimerMode ;
+
+typedef struct t_PhaseData {
+  int8_t trim[4];     // -500..500 => trim value, 501 => use trim of phase 0, 502, 503, 504 => use trim of phases 1|2|3|4 instead
+  int8_t swtch;       // swtch of phase[0] is not used
+  char name[6];
+  uint8_t fadeIn:4;
+  uint8_t fadeOut:4;
+} PhaseData;
+
 
 typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
@@ -218,8 +238,11 @@ typedef struct t_ModelData {
   uint16_t  spare_u16 ;				// Was timerval
   uint8_t   protocol;
   int8_t    ppmNCH;
-  int8_t    thrTrim:4;        // Enable Throttle Trim
-  int8_t    thrExpo:4;        // Enable Throttle Expo
+  uint8_t   thrTrim:1;            // Enable Throttle Trim
+	uint8_t   numBlades:2;					// RPM scaling
+	uint8_t   spare10:1;
+  uint8_t   thrExpo:1;            // Enable Throttle Expo
+	uint8_t   spare11:3;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
@@ -246,6 +269,7 @@ typedef struct t_ModelData {
   SafetySwData  safetySw[NUM_CHNOUT];
   FrSkyData frsky;
 	TimerMode timer[2] ;
+	FrSkyAlarmData frskyAlarms ;
 } __attribute__((packed)) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))

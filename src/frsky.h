@@ -18,31 +18,70 @@
 #ifndef FRSKY_H
 #define FRSKY_H
 
+#define HUBDATALENGTH 34
+#define HUBMINMAXLEN	7
+
+// Mapped indices for Hub Data
+#define FR_A1_COPY		0
+#define FR_A2_COPY		1
+#define FR_ALT_BARO		2
+#define FR_ALT_BAROd	3
+#define FR_GPS_ALT		4
+#define FR_GPS_ALTd		5
+#define FR_GPS_SPEED	6
+#define FR_GPS_SPEEDd	7
+#define FR_TEMP1			8 
+#define FR_TEMP2			9 
+#define FR_RPM				10
+#define FR_FUEL				11
+#define FR_A1_MAH			12
+#define FR_A2_MAH			13
+#define FR_CELL_V			14
+#define FR_COURSE			15
+#define FR_COURSEd		16
+#define FR_GPS_DATMON	17
+#define FR_GPS_YEAR		18
+#define FR_GPS_HRMIN	19
+#define FR_GPS_SEC		20
+#define FR_GPS_LONG		21
+#define FR_GPS_LONGd	22
+#define FR_LONG_E_W		23
+#define FR_GPS_LAT		24
+#define FR_GPS_LATd		25
+#define FR_LAT_N_S		26
+#define FR_ACCX				27
+#define FR_ACCY				28
+#define FR_ACCZ				29
+#define FR_CURRENT		30
+// next 2 moved from 58 and 59
+#define FR_V_AMP			31
+#define FR_V_AMPd			32
+
 /*  FrSky Hub Info
 DataID Meaning       Unit   Range   Note
 0x01   GPS altitude  m              Before”.”
-0x09                                After “.”
 0x02   Temperature1  °C     -30-250
 0x03   RPM           BPS    0-60000
 0x04   Fuel Level    %      0, 25, 50, 75, 100
 0x05   Temperature2  °C     -30-250
-0x06   Volt          1/500v 0-4.2v, top 4 bits are cell #
+0x06   Cell Volt     1/500v 0-4.2v, top 4 bits are cell #
+0x09   GPS altitude  m              After “.”
 0x10   Altitude      m      0-9999  Before “.”
-0x21   Altitude      m              After "."
 0x11   GPS speed     Knots          Before “.”
-0x19                                After “.”
 0x12   Longitude     dddmm.mmmm     Before “.”
-0x1A                                After “.”
-0x22   E/W
 0x13   Latitude      ddmm.mmmm      Before “.”
-0x1B                                After “.”
-0x23   N/S
 0x14   Course        degree 0-360   Before “.”
-0x1C                                After “.”
 0x15   Date/Month
 0x16   Year
 0x17   Hour /Minute
 0x18   Second
+0x19   GPS speed     Knots          After “.”
+0x1A   Longitude     dddmm.mmmm     After “.”
+0x1B   Latitude      ddmm.mmmm      After “.”
+0x1C   Course        degree 0-360   After “.”
+0x21   Altitude      m              After "."
+0x22   Long - E/W
+0x23   Lat. N/S
 0x24   Acc-x         1/256g -8g ~ +8g
 0x25   Acc-y         1/256g -8g ~ +8g
 0x26   Acc-z         1/256g -8g ~ +8g
@@ -127,8 +166,6 @@ struct Frsky_current_info
 {
 uint16_t Amp_hour_boundary ;
 uint16_t Amp_hour_prescale ;
-uint16_t Amp_hours ;
-void update(uint8_t value);
 } ;
  
 extern Frsky_current_info Frsky_current[2] ;
@@ -140,11 +177,13 @@ extern uint8_t FrskyAlarmSendState;
 extern FrskyData frskyTelemetry[4];
 //extern FrskyData frskyRSSI[2];
 extern int16_t FrskyHubData[] ;
+extern int16_t FrskyHubMin[] ;
+extern int16_t FrskyHubMax[] ;
 extern uint8_t FrskyVolts[];
 extern uint8_t FrskyBattCells;
 extern uint8_t FrskyAlarmCheckFlag ;
-extern uint8_t MaxGpsSpeed ;
-extern uint16_t MaxGpsAlt ;
+//extern uint8_t MaxGpsSpeed ;
+//extern uint16_t MaxGpsAlt ;
 
 void FRSKY_Init(void);
 void FRSKY10mspoll(void);

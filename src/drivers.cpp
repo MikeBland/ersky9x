@@ -195,7 +195,7 @@ void Key::input(bool val, EnumKeys enuk)
       break;
 #ifdef KSTATE_RPTDELAY
     case KSTATE_RPTDELAY: // gruvin: longer delay before first key repeat
-      if(m_cnt == 24) putEvent(EVT_KEY_LONG(enuk)); // need to catch this inside RPTDELAY time
+      if(m_cnt == 32) putEvent(EVT_KEY_LONG(enuk)); // need to catch this inside RPTDELAY time
       if (m_cnt == 40) {
         m_state = 16;
         m_cnt = 0;
@@ -204,7 +204,7 @@ void Key::input(bool val, EnumKeys enuk)
 #endif
     case 16:
 #ifndef KSTATE_RPTDELAY
-      if(m_cnt == 24) putEvent(EVT_KEY_LONG(enuk));
+      if(m_cnt == 32) putEvent(EVT_KEY_LONG(enuk));
       //fallthrough
 #endif
     case 8:

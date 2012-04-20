@@ -41,6 +41,7 @@ const char Str_RXeq[] =  "Rx=" ;
 const char Str_TRE012AG[] =  "TRE012AG" ;
 const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
 const char Str_A_eq[] =  "A =" ;
+const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3" ;
 
 
 #ifndef STAMP
@@ -135,8 +136,8 @@ enum MainViews
   e_outputValues,
   e_outputBars,
   e_inputs1,
-  e_inputs2,
-  e_inputs3,
+//  e_inputs2,
+//  e_inputs3,
   e_timer2,
 #ifdef FRSKY
   e_telemetry,
@@ -712,7 +713,7 @@ for(uint8_t i=0; i<7; i++){
             lcd_outdezAtt(  12*FW, y, (int8_t)(ld->min-100),   attr);
             if(active) {
                 ld->min -=  100;
-		            CHECK_INCDEC_H_MODELVAR( event, ld->min, -limit,limit);
+		            CHECK_INCDEC_H_MODELVAR( event, ld->min, -limit,25);
                 ld->min +=  100;
             }
             break;
@@ -720,7 +721,7 @@ for(uint8_t i=0; i<7; i++){
             lcd_outdezAtt( 17*FW, y, (int8_t)(ld->max+100),    attr);
             if(active) {
                 ld->max +=  100;
-                CHECK_INCDEC_H_MODELVAR( event, ld->max, -limit,limit);
+                CHECK_INCDEC_H_MODELVAR( event, ld->max, -25,limit);
                 ld->max -=  100;
             }
             break;
@@ -744,6 +745,8 @@ if(k==NUM_CHNOUT){
     }
 }
 }
+
+#define PARAM_OFS   17*FW
 
 #ifdef FRSKY
 void menuProcTelemetry(uint8_t event)
@@ -772,9 +775,10 @@ lcd_puts_Pleft(FH, PSTR("UsrProto"));
 uint8_t b ;
 b = g_model.FrSkyUsrProto ;
 lcd_putsAttIdx(  10*FW, FH, PSTR("\005FrHubWSHhi"),b,(sub==subN && subSub==0 ? INVERS:0));
+lcd_putsAttIdx(  16*FW, FH, PSTR("\003MetImp"),b,(sub==subN && subSub==1 ? INVERS:0));
+
 if(sub==subN && subSub==0 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyUsrProto = b ; }
 b = g_model.FrSkyImperial ;
-lcd_putsAttIdx(  16*FW, FH, PSTR("\003MetImp"),b,(sub==subN && subSub==1 ? INVERS:0));
 if(sub==subN && subSub==1 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyImperial = b ; }
 }
 subN++;
@@ -841,12 +845,13 @@ extern uint8_t frskyRSSItype[2] ;
 
 void menuProcTelemetry2(uint8_t event)
 {
-  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 4, {0, 1, 1, 0});
+  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 8, {0, 1, 1, 1, 0});
 
 	uint8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
 	uint8_t blink;
-	uint8_t y = 2*FH;
+	uint8_t y = 1*FH;
+	int16_t value ;
 
 	switch(event)
 	{
@@ -884,11 +889,49 @@ void menuProcTelemetry2(uint8_t event)
     subN++; y+=FH;
 	}
 
+	value = g_model.frskyAlarms.alarmData[0].frskyAlarmLimit << 6 ;
+	lcd_puts_Pleft(3*FH, PSTR("mAh Alarm"));
+  uint8_t attr = ((sub==subN && subSub==0) ? (s_editMode ? BLINK : INVERS) : 0);
+	uint8_t active = (attr && s_editMode) ;
+  lcd_outdezAtt( 14*FW, 3*FH, value, attr ) ;
+	if ( active )
+	{
+  	g_model.frskyAlarms.alarmData[0].frskyAlarmLimit = checkIncDec16(event, g_model.frskyAlarms.alarmData[0].frskyAlarmLimit, 0, 200, EE_MODEL);
+	}
+  attr = ((sub==subN && subSub==1) ? (s_editMode ? BLINK : INVERS) : 0);
+	active = (attr && s_editMode) ;
+	lcd_putsAttIdx(15*FW, 3*FH, Str_Sounds, g_model.frskyAlarms.alarmData[0].frskyAlarmSound,attr);
+	if ( active )
+	{
+  	CHECK_INCDEC_H_MODELVAR( event, g_model.frskyAlarms.alarmData[0].frskyAlarmSound, 0, 15 ) ;
+	}
+  subN++;
+
+
+	lcd_puts_Pleft(4*FH, PSTR("Num Blades"));
+  lcd_putcAtt( 13*FW, 4*FH, g_model.numBlades+'2', (sub==subN) ? INVERS : 0) ;
+  if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.numBlades, 0, 2);
+  subN++;
+  
 	lcd_puts_Pleft(5*FH, PSTR("AltAlarm"));
   lcd_putsAttIdx(11*FW, 5*FH, PSTR("\003OFF122400"),g_model.FrSkyAltAlarm,(sub==subN ? blink:0));
   if(sub==subN) {
   	g_model.FrSkyAltAlarm = checkIncDec16(event, g_model.FrSkyAltAlarm, 0, 2, EE_MODEL);
 	}
+  subN++;
+  
+	lcd_puts_Pleft(6*FH, PSTR("Volt Thres="));
+  lcd_outdezNAtt(  14*FW, 6*FH, g_model.frSkyVoltThreshold * 2 ,((sub==subN) ? blink:0) | PREC2, 4);
+  if(sub==subN)
+	{
+    g_model.frSkyVoltThreshold=checkIncDec16(event, g_model.frSkyVoltThreshold, 0, 210, EE_MODEL);
+  }
+	subN++;
+	
+  lcd_puts_Pleft( 7*FH, PSTR("GpsAltMain") ) ;
+  menu_lcd_onoff( PARAM_OFS, 7*FH, g_model.FrSkyGpsAlt, sub==subN ) ;
+  if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.FrSkyGpsAlt, 0, 1);
+
 }
 
 #endif
@@ -2473,7 +2516,6 @@ void menuProcDiagVers(uint8_t event)
     lcd_puts_Pleft( 6*FH,stamp5 );
 }
 
-#define PARAM_OFS   17*FW
 
 uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int8_t subN, uint8_t event )
 {
@@ -3041,7 +3083,7 @@ void menuProcSetup(uint8_t event)
 								}
 					      //lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Tone1 ""Tone2 ""Tone3 ""Tone4 ""Tone5 ""hTone1""hTone2""hTone3""hTone4""hTone5")+6*b,6,(sub==subN ? INVERS:0));
 					      if(g_eeGeneral.speakerMode == 1){
-					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Warn1 ""Warn2 ""Cheep ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
+					      			lcd_putsAttIdx(PARAM_OFS - FW - 4, y, Str_Sounds,b,(sub==subN ? INVERS:0));
 								}
 					      if(g_eeGeneral.speakerMode == 2){
 					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Trck1 ""Trck2 ""Trck3 ""Trck4 ""Trck4 ""Trck5 ""Trck6 ""Trck7 ""Trck8 ""Trck9 ""Trck10""Trck11""Trck12""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
@@ -3541,6 +3583,48 @@ extern int8_t *TrimPtr[4] ;
 int16_t AltOffset = 0 ;
 #endif
 
+void displayTemp( uint8_t sensor, uint8_t x, uint8_t y, uint8_t size )
+{
+	uint8_t unit ;
+	int16_t value ;
+
+  lcd_puts_P( x, y, PSTR("T1="));
+  value = FrskyHubData[FR_TEMP1] ;
+	if ( sensor == 2 )
+	{
+		lcd_putc( x+FW, y, '2' ) ;
+    value = FrskyHubData[FR_TEMP2] ;
+	}
+	unit = 'C' ;
+  if ( g_model.FrSkyImperial )
+  {
+    value += 18 ;
+    value *= 115 ;
+    value >>= 6 ;
+    unit = 'F' ;
+  }
+	x += 3*FW ;
+	if ( size &= DBLSIZE )
+	{
+		x += 4 ;
+		y -= FH ;												
+	}
+  if (frskyUsrStreaming == 0)
+	{
+		size |= BLINK ;			// Data is invalid
+	}
+  lcd_outdezAtt( x, y, value, size|LEFT);
+	x += 3*FW ;
+	if ( size )
+	{
+		x -= 4*FW+4 ;							
+	}
+  lcd_putc( x, y, unit ) ;
+}
+
+
+static int8_t inputs_subview = 0 ;
+
 void menuProc0(uint8_t event)
 {
   static uint8_t trimSwLock;
@@ -3553,7 +3637,7 @@ void menuProc0(uint8_t event)
 #ifdef FRSKY
         if( (view == e_telemetry) && ((tview & 0x30) == 0x20 ) )
         {
-            AltOffset = -FrskyHubData[16] ;
+            AltOffset = -FrskyHubData[FR_ALT_BARO] ;
         }
         else if( (view == e_telemetry) && ((tview & 0x30) == 0 ) )
         {
@@ -3568,8 +3652,8 @@ void menuProc0(uint8_t event)
         }
         else if( (view == e_telemetry) && ((tview & 0x30) == 0x30 ) )	// GPS
 				{
-					MaxGpsSpeed = 0 ;
-					MaxGpsAlt = 0 ;
+					FrskyHubMax[FR_GPS_SPEED] = 0 ;
+					FrskyHubMax[FR_GPS_ALT] = 0 ;
 				}
         else
         {
@@ -3586,24 +3670,40 @@ void menuProc0(uint8_t event)
         pushMenu(menuProcModelSelect);
         killEvents(event);
         break;
-#ifdef FRSKY
     case EVT_KEY_BREAK(KEY_RIGHT):
+        if(view == e_inputs1)
+				{
+					int8_t x ;
+					x = inputs_subview ;
+					if ( ++x > 2 ) x = 0 ;
+					inputs_subview = x ;
+				}	
+#ifdef FRSKY
         if(view == e_telemetry) {
             g_eeGeneral.view = e_telemetry | ( ( tview + 0x10) & 0x30 ) ;
             //            STORE_GENERALVARS;     //eeWriteGeneral();
             //            eeDirty(EE_GENERAL);
             audioDefevent(AU_MENUS);
         }
+#endif
         break;
     case EVT_KEY_BREAK(KEY_LEFT):
+        if(view == e_inputs1)
+				{
+					int8_t x ;
+					x = inputs_subview ;
+					if ( --x < 0 ) x = 2 ;
+					inputs_subview = x ;
+				}	
+#ifdef FRSKY
         if(view == e_telemetry) {
             g_eeGeneral.view = e_telemetry | ( ( tview - 0x10) & 0x30 );
             //            STORE_GENERALVARS;     //eeWriteGeneral();
             //            eeDirty(EE_GENERAL);
             audioDefevent(AU_MENUS);
         }
-        break;
 #endif
+        break;
     case EVT_KEY_LONG(KEY_LEFT):
         scroll_disabled = 1;
         pushMenu(menuProcSetup);
@@ -3676,6 +3776,7 @@ void menuProc0(uint8_t event)
         killEvents(KEY_UP);
         killEvents(KEY_DOWN);
         trimSwLock = true;
+				inputs_subview = 0 ;
         break;
     }
 
@@ -3792,6 +3893,8 @@ void menuProc0(uint8_t event)
         static uint8_t staticTelemetry[4];
 //        static uint8_t staticRSSI[2];
         static enum AlarmLevel alarmRaised[2];
+        int8_t unit ;
+        int16_t value ;
         if ( (frskyStreaming) || ( tview  == 0x30 ) )
 				{
             uint8_t y0, x0, blink;
@@ -3819,7 +3922,7 @@ void menuProc0(uint8_t event)
                             putsTelemValue( x0-2, 2*FH, staticTelemetry[i], i,  blink|DBLSIZE|LEFT, 1 ) ;
                             if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
 														{
-                              lcd_outdezAtt(x0+FW, 4*FH,  Frsky_current[i].Amp_hours, 0);
+                              lcd_outdezAtt(x0+FW, 4*FH,  FrskyHubData[FR_A1_MAH+i], 0);
 														}
 														else
 														{
@@ -3834,7 +3937,7 @@ void menuProc0(uint8_t event)
                 if (frskyUsrStreaming)
 								{
                 	lcd_puts_Pleft( 1*FH, PSTR("Fuel=")) ;
-									x0 = FrskyHubData[4] ;		// Fuel gauge value
+									x0 = FrskyHubData[FR_FUEL] ;		// Fuel gauge value
                 	lcd_outdezAtt(5 * FW, 1*FH, x0, LEFT) ;
 								}
                 lcd_puts_Pleft( 6*FH, Str_RXeq);
@@ -3850,36 +3953,13 @@ void menuProc0(uint8_t event)
             {
                 if (frskyUsrStreaming)
                 {
-                    int16_t value ;
-                    int8_t unit ;
-                    lcd_puts_Pleft( 2*FH, PSTR("T1="));
-                    unit = 'C' ;
-                    value = FrskyHubData[2] ;
-                    if ( g_model.FrSkyImperial )
-                    {
-                        value += 18 ;
-                        value *= 115 ;
-                        value >>= 6 ;
-                        unit = 'F' ;
-                    }
-                    lcd_putc( 2*FW, 1*FH, unit ) ;
-                    lcd_outdezAtt(3*FW+4, 1*FH, value, DBLSIZE|LEFT);
+									displayTemp( 1, 0, 2*FH, DBLSIZE ) ;
+									displayTemp( 2, 14*FW, 7*FH, 0 ) ;
 
-                    lcd_puts_P(14 * FW, 7*FH, PSTR("T2="));
-                    lcd_putc( 20*FW, 7*FH, unit ) ;
-                    value = FrskyHubData[5] ;
-                    if ( g_model.FrSkyImperial )
-                    {
-                        value += 18 ;
-                        value *= 115 ;
-                        value >>= 6 ;
-                    }
-                    lcd_outdezAtt(17 * FW, 7*FH, value, LEFT);
-
-                    lcd_puts_P(9*FW, 2*FH, PSTR("RPM="));
-                    lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[3]*30, DBLSIZE|LEFT);
+                    lcd_puts_P(10*FW, 2*FH, PSTR("RPM"));
+                    lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[FR_RPM]*30, DBLSIZE|LEFT);
                     lcd_puts_Pleft( 4*FH, Str_ALTeq);
-                    value = FrskyHubData[16] + AltOffset ;
+                    value = FrskyHubData[FR_ALT_BARO] + AltOffset ;
 										if (g_model.FrSkyUsrProto == 1)  // WS How High
 										{
                         unit = 'f' ;  // and ignore met/imp option
@@ -3928,20 +4008,20 @@ void menuProc0(uint8_t event)
 							}
 
                 lcd_puts_Pleft( 2*FH, PSTR("Lat=")) ;
-                lcd_outdezNAtt(8*FW, 2*FH, FrskyHubData[19], LEADING0 | blink, -5);
+                lcd_outdezNAtt(8*FW, 2*FH, FrskyHubData[FR_GPS_LAT], LEADING0 | blink, -5);
                 lcd_putc(8*FW, 2*FH, '.') ;
-                lcd_outdezNAtt(12*FW, 2*FH, FrskyHubData[27], LEADING0 | blink, -4);
+                lcd_outdezNAtt(12*FW, 2*FH, FrskyHubData[FR_GPS_LATd], LEADING0 | blink, -4);
                 lcd_puts_Pleft( 3*FH, PSTR("Lon=")) ;
-                lcd_outdezNAtt(8*FW, 3*FH, FrskyHubData[18], LEADING0 | blink, -5);
+                lcd_outdezNAtt(8*FW, 3*FH, FrskyHubData[FR_GPS_LONG], LEADING0 | blink, -5);
                 lcd_putc(8*FW, 3*FH, '.') ;
-                lcd_outdezNAtt(12*FW, 3*FH, FrskyHubData[26], LEADING0 | blink, -4);
+                lcd_outdezNAtt(12*FW, 3*FH, FrskyHubData[FR_GPS_LONGd], LEADING0 | blink, -4);
                 lcd_puts_Pleft( 4*FH, PSTR("Alt=\011m   Max=")) ;
-                lcd_outdezAtt(20*FW, 4*FH, MaxGpsAlt, 0);
+                lcd_outdezAtt(20*FW, 4*FH, FrskyHubMax[FR_GPS_ALT], 0);
                 
 								lcd_puts_Pleft( 5*FH, PSTR("Spd=\011kts Max=")) ;
-                lcd_outdezAtt(20*FW, 5*FH, MaxGpsSpeed, blink );
+//                lcd_outdezAtt(20*FW, 5*FH, MaxGpsSpeed, blink );
 
-								mspeed = MaxGpsSpeed ;
+								mspeed = FrskyHubMax[FR_GPS_SPEED] ;
                 if ( g_model.FrSkyImperial )
 								{
 									lcd_puts_Pleft( 5*FH, PSTR("\011mph")) ;
@@ -3950,12 +4030,12 @@ void menuProc0(uint8_t event)
                 lcd_outdezAtt(20*FW, 5*FH, mspeed, blink );
               if (frskyUsrStreaming)
 							{
-								mspeed = FrskyHubData[17] ;
+								mspeed = FrskyHubData[FR_GPS_SPEED] ;
                 if ( g_model.FrSkyImperial )
 								{
 									mspeed = ( mspeed * 589 ) >> 9 ;
 								}
-								lcd_outdezAtt(8 * FW, 4*FH, FrskyHubData[1], 0 ) ;
+								lcd_outdezAtt(8 * FW, 4*FH, FrskyHubData[FR_GPS_ALT], 0 ) ;
                 lcd_outdezAtt(8*FW, 5*FH, mspeed, 0);		// Speed
                 
 								lcd_puts_Pleft( 6*FH, PSTR("V1=\007V2=\016V3=")) ;
@@ -4018,12 +4098,19 @@ void menuProc0(uint8_t event)
 	{
 		doMainScreenGrphics() ;
 
-    register uint32_t i ;
-  	register uint32_t a = (view == e_inputs1) ? 0 : 9+(view-3)*6;
-  	register uint32_t b = (view == e_inputs1) ? 6 : 12+(view-3)*6;
-  	for( i=a; i<(a+3); i++) lcd_putsnAtt(2*FW-2 ,(i-a)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-  	for( i=b; i<(b+3); i++) lcd_putsnAtt(17*FW-1,(i-b)*FH+4*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0, 0) ? INVERS : 0);
-
+    int8_t a = inputs_subview ;
+		if ( a != 0 ) a = a * 6 + 3 ;		// 0, 9, 15
+    uint8_t j ;
+		for ( j = 0 ; j < 2 ; j += 1 )
+		{
+			if ( j == 1 )
+			{
+				a = inputs_subview ;
+				a += 1 ;
+				a *= 6 ;		// 6, 12, 18
+			}
+			for(int8_t i=a; i<(a+3); i++) lcd_putsnAtt((2+j*15)*FW-2 ,(i-a+4)*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0) ? INVERS : 0);
+		}
 	}
   else  // New Timer2 display
   {
