@@ -317,15 +317,12 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 #define PPM_BASE    MIX_CYC3
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
 
-#ifdef FRSKY
-#define NUM_TELEMETRY 2
-#define TELEMETRY_CHANNELS "AD1 AD2 "
-#else
-#define NUM_TELEMETRY 0
-#define TELEMETRY_CHANNELS ""
-#endif
+extern const char Str_telemItems[] ;
+extern const int8_t TelemIndex[] ;
+extern int16_t convertTelemValue( int8_t channel, int8_t value) ;
+#define NUM_TELEM_ITEMS 15
 
-#define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT+NUM_TELEMETRY) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
+#define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
 #define NUM_XCHNOUT (NUM_CHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
 
@@ -482,5 +479,18 @@ extern void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, u
 
 extern uint32_t check_soft_power( void ) ;
 
+struct t_timer
+{
+	uint16_t s_sum ;
+	uint8_t lastSwPos ;
+	uint8_t sw_toggled ;
+	uint16_t s_timeCumSw ;  //laufzeit in 1/16 sec
+	uint8_t  s_timerState ;
+	uint16_t s_timeCumThr ;  //gewichtete laufzeit in 1/16 sec
+	uint16_t s_timeCum16ThrP ; //gewichtete laufzeit in 1/16 sec
+	int16_t  s_timerVal ;
+} ;
+
+extern struct t_timer s_timer[] ;
 
 

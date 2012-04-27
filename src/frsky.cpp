@@ -217,7 +217,7 @@ void frsky_proc_user_byte( uint8_t byte )
 		}
 		else
 		{
-			FrskyHubData[16] = ( byte << 8 ) + Frsky_user_lobyte ;  // Store altitude info
+			FrskyHubData[FR_ALT_BARO] = ( byte << 8 ) + Frsky_user_lobyte ;  // Store altitude info
 		}				
 	}
 }
@@ -255,10 +255,10 @@ void processFrskyPacket(uint8_t *packet)
       }
       break;
     case LINKPKT: // A1/A2/RSSI values
-      frskyTelemetry[0].set(packet[1]);
-      frskyTelemetry[1].set(packet[2]);
-      frskyTelemetry[2].set(packet[3]);
-      frskyTelemetry[3].set(packet[4] / 2);
+      frskyTelemetry[0].set(packet[1]); FrskyHubData[FR_A1_COPY] =  frskyTelemetry[0].value ;
+      frskyTelemetry[1].set(packet[2]); FrskyHubData[FR_A2_COPY] =  frskyTelemetry[1].value ;
+      frskyTelemetry[2].set(packet[3]);	FrskyHubData[FR_RXRSI_COPY] =  frskyTelemetry[2].value ;
+      frskyTelemetry[3].set(packet[4] / 2); FrskyHubData[FR_TXRSI_COPY] =  frskyTelemetry[3].value ;
 //      frskyRSSI[0].set(packet[3]);
 //      frskyRSSI[1].set(packet[4] / 2);
       break;

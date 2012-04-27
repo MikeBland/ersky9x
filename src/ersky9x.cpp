@@ -1968,7 +1968,9 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
   else if(idx<=4)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
   else if(idx<=NUM_XCHNRAW)
-    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"TELEMETRY_CHANNELS)+4*(idx-5),4,att);
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16")+4*(idx-5),4,att);
+	else
+  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_XCHNRAW-1),att);
 }
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
@@ -2090,12 +2092,16 @@ void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t 
     //  if (g_model.frsky.channels[channel].type == 0/*v*/)
     if ( (g_model.frsky.channels[channel].type == 0/*v*/) || (g_model.frsky.channels[channel].type == 2/*v*/) )
     {
-        lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
-        if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
+      lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
+      if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
     }
     else
     {
-        lcd_outdezAtt(x, y, value, att);
+      lcd_outdezAtt(x, y, value, att);
+	    if (g_model.frsky.channels[channel].type == 3/*A*/)
+			{
+       	if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'A', att);
+			}
     }
 }
 
@@ -2105,12 +2111,25 @@ void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t 
 
 inline int16_t getValue(uint8_t i)
 {
+	uint8_t j ;
+
   if(i<PPM_BASE) return calibratedStick[i];//-512..512
   else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
   else if(i<CHOUT_BASE) return g_ppmIns[i-PPM_BASE]*2;
   else if(i<CHOUT_BASE+NUM_CHNOUT) return ex_chans[i-CHOUT_BASE];
 #ifdef FRSKY
-  else if(i<CHOUT_BASE+NUM_CHNOUT+NUM_TELEMETRY) return frskyTelemetry[i-CHOUT_BASE-NUM_CHNOUT].value;
+  else if(i<CHOUT_BASE+NUM_CHNOUT+NUM_TELEM_ITEMS)
+	{
+		j = TelemIndex[i-CHOUT_BASE-NUM_CHNOUT] ;
+		if ( j >= 0 )
+		{
+			return FrskyHubData[j] ;
+		}
+		else
+		{
+			return s_timer[j+2].s_timerVal ;
+		}
+	}
 #endif
   else return 0;
 }
@@ -2165,7 +2184,7 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
       x = getValue(cs.v1-1);
 #ifdef FRSKY
       if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
-        y = 125+cs.v2;
+        y = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
       else
 #endif
       y = calc100toRESX(cs.v2);

@@ -35,6 +35,8 @@
 #include "frsky.h"
 #endif
 
+struct t_timer s_timer[2] ;
+
 const char Str_ALTeq[] =  "Alt=" ;
 const char Str_TXeq[] =  "Tx=" ;
 const char Str_RXeq[] =  "Rx=" ;
@@ -42,6 +44,102 @@ const char Str_TRE012AG[] =  "TRE012AG" ;
 const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
 const char Str_A_eq[] =  "A =" ;
 const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3" ;
+
+
+const char Str_telemItems[] = "\004A1= A2= RSSITSSITIM1TIM2ALT GaltGspdT1= T2= RPM FUELMah1Mah2" ;
+const int8_t TelemIndex[] = {FR_A1_COPY, FR_A2_COPY,
+															FR_RXRSI_COPY, FR_TXRSI_COPY,
+															-2, -1, 
+															FR_ALT_BARO, FR_GPS_ALT,
+															FR_GPS_SPEED, FR_TEMP1, FR_TEMP2, FR_RPM,
+														  FR_FUEL, FR_A1_MAH, FR_A2_MAH } ;
+
+
+int16_t convertTelemValue( int8_t channel, int8_t value)
+{
+  int16_t result;
+
+	channel = TelemIndex[channel] ;
+	value += 125 ;
+  switch (channel)
+	{
+    case -2 :
+    case -1 :
+      result = value * 10 ;
+    break;
+    case FR_ALT_BARO:
+    case FR_GPS_ALT:
+      result = value * 4;
+    break;
+    case FR_RPM:
+      result = value * 100;
+    break;
+    case FR_TEMP1:
+    case FR_TEMP2:
+      result = (int16_t)value - 30;
+    break;
+    case FR_A1_MAH:
+    case FR_A2_MAH:
+      result = value * 50;
+    break;
+    default:
+      result = value;
+    break;
+  }
+  return result;
+}
+
+void putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, uint8_t att)
+{
+	channel = pgm_read_byte( &TelemIndex[channel] ) ;
+  switch (channel)
+	{
+    case -2:
+    case -1:
+      putsTime(x-FW-4, y, val, att, att) ;
+    break;
+    
+		case FR_A1_COPY:
+    case FR_A2_COPY:
+      channel -= FR_A1_COPY ;
+      // no break
+      // A1 and A2
+			putsTelemValue( x, y, val, channel, att, 0 ) ;
+    break;
+
+    default:
+      lcd_outdezAtt( x, y, val, att ) ;
+    break;
+  }
+}
+
+
+// This is for the customisable telemetry display
+void display_custom_telemetry_value( uint8_t x, uint8_t y, int8_t index )
+{
+  lcd_putsAttIdx( x, y, Str_telemItems, index, 0 ) ;
+	index = TelemIndex[index] ;
+	if ( index < 0 )
+	{ // A timer
+		putsTime( x+4*FW, y, s_timer[index+2].s_timerVal, 0, 0);
+	}
+	else
+	{ // A telemetry value
+
+
+
+	}
+}
+
+int16_t get_telem_value( uint8_t index )
+{
+	index = TelemIndex[index] ;
+	if ( index < 0 )
+	{ // A timer
+		return s_timer[index+2].s_timerVal ;
+	}
+	return FrskyHubData[index] ;	
+}
 
 
 #ifndef STAMP
@@ -775,10 +873,10 @@ lcd_puts_Pleft(FH, PSTR("UsrProto"));
 uint8_t b ;
 b = g_model.FrSkyUsrProto ;
 lcd_putsAttIdx(  10*FW, FH, PSTR("\005FrHubWSHhi"),b,(sub==subN && subSub==0 ? INVERS:0));
-lcd_putsAttIdx(  16*FW, FH, PSTR("\003MetImp"),b,(sub==subN && subSub==1 ? INVERS:0));
-
 if(sub==subN && subSub==0 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyUsrProto = b ; }
+
 b = g_model.FrSkyImperial ;
+lcd_putsAttIdx(  16*FW, FH, PSTR("\003MetImp"),b,(sub==subN && subSub==1 ? INVERS:0));
 if(sub==subN && subSub==1 && s_editMode) { CHECK_INCDEC_H_MODELVAR(event,b,0,1); g_model.FrSkyImperial = b ; }
 }
 subN++;
@@ -1064,13 +1162,17 @@ for(uint8_t i=0; i<7; i++){
 
     if(cstate == CS_VOFS)
     {
-        putsChnRaw(    12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
+			putsChnRaw(    12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
 #ifdef FRSKY
-        if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
-            lcd_outdezAtt( 20*FW, y, 125+cs.v2  ,subSub==2 ? attr : 0);
-        else
+      if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
+ 			{
+ 				int16_t value = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
+//        lcd_outdezAtt( 20*FW, y, convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ,subSub==2 ? attr : 0);
+				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0);
+			}
+      else
 #endif
-            lcd_outdezAtt( 20*FW, y, cs.v2  ,subSub==2 ? attr : 0);
+        lcd_outdezAtt( 20*FW, y, cs.v2  ,subSub==2 ? attr : 0);
     }
     else if(cstate == CS_VBOOL)
     {
@@ -1096,15 +1198,23 @@ for(uint8_t i=0; i<7; i++){
         case 1:
             switch (cstate) {
             case (CS_VOFS):
+#ifdef FRSKY
+                CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,NUM_XCHNRAW+NUM_TELEM_ITEMS);
+#else
                 CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,NUM_XCHNRAW);
+#endif
                 break;
             case (CS_VBOOL):
                 CHECK_INCDEC_H_MODELVAR( event, cs.v1, -MAX_DRSWITCH,MAX_DRSWITCH);
                 break;
             case (CS_VCOMP):
+#ifdef FRSKY
+                CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,NUM_XCHNRAW+NUM_TELEM_ITEMS);
+#else
                 CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,NUM_XCHNRAW);
-                break;
-            default:
+#endif
+								break;
+						default:
                 break;
             }
             break;
@@ -3137,18 +3247,6 @@ uint16_t s_timeCumAbs;  //laufzeit in 1/16 sec
 static uint16_t s_time;
 static uint8_t s_cnt;
 
-
-struct t_timer
-{
-	uint16_t s_sum ;
-	uint8_t lastSwPos ;
-	uint8_t sw_toggled ;
-	uint16_t s_timeCumSw ;  //laufzeit in 1/16 sec
-	uint8_t  s_timerState ;
-	uint16_t s_timeCumThr ;  //gewichtete laufzeit in 1/16 sec
-	uint16_t s_timeCum16ThrP ; //gewichtete laufzeit in 1/16 sec
-	int16_t  s_timerVal ;
-} s_timer[2] ;
 
 // Timer triggers:
 // OFF - disabled

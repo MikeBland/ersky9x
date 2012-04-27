@@ -18,44 +18,47 @@
 #ifndef FRSKY_H
 #define FRSKY_H
 
-#define HUBDATALENGTH 34
-#define HUBMINMAXLEN	7
 
 // Mapped indices for Hub Data
 #define FR_A1_COPY		0
 #define FR_A2_COPY		1
-#define FR_ALT_BARO		2
-#define FR_ALT_BAROd	3
-#define FR_GPS_ALT		4
-#define FR_GPS_ALTd		5
-#define FR_GPS_SPEED	6
-#define FR_GPS_SPEEDd	7
-#define FR_TEMP1			8 
-#define FR_TEMP2			9 
-#define FR_RPM				10
-#define FR_FUEL				11
-#define FR_A1_MAH			12
-#define FR_A2_MAH			13
-#define FR_CELL_V			14
-#define FR_COURSE			15
-#define FR_COURSEd		16
-#define FR_GPS_DATMON	17
-#define FR_GPS_YEAR		18
-#define FR_GPS_HRMIN	19
-#define FR_GPS_SEC		20
-#define FR_GPS_LONG		21
-#define FR_GPS_LONGd	22
-#define FR_LONG_E_W		23
-#define FR_GPS_LAT		24
-#define FR_GPS_LATd		25
-#define FR_LAT_N_S		26
-#define FR_ACCX				27
-#define FR_ACCY				28
-#define FR_ACCZ				29
-#define FR_CURRENT		30
+#define FR_RXRSI_COPY	2
+#define FR_TXRSI_COPY	3
+#define FR_ALT_BARO		4
+#define FR_ALT_BAROd	5
+#define FR_GPS_ALT		6
+#define FR_GPS_ALTd		7
+#define FR_GPS_SPEED	8 
+#define FR_GPS_SPEEDd	9 
+#define FR_TEMP1			10
+#define FR_TEMP2			11
+#define FR_RPM				12
+#define FR_FUEL				13
+#define FR_A1_MAH			14
+#define FR_A2_MAH			15
+#define FR_CELL_V			16
+#define FR_COURSE			17
+#define FR_COURSEd		18
+#define FR_GPS_DATMON	19
+#define FR_GPS_YEAR		20
+#define FR_GPS_HRMIN	21
+#define FR_GPS_SEC		22
+#define FR_GPS_LONG		23
+#define FR_GPS_LONGd	24
+#define FR_LONG_E_W		25
+#define FR_GPS_LAT		26
+#define FR_GPS_LATd		27
+#define FR_LAT_N_S		28
+#define FR_ACCX				29
+#define FR_ACCY				30
+#define FR_ACCZ				31
+#define FR_CURRENT		32
 // next 2 moved from 58 and 59
-#define FR_V_AMP			31
-#define FR_V_AMPd			32
+#define FR_V_AMP			33
+#define FR_V_AMPd			34
+
+#define HUBDATALENGTH 34
+#define HUBMINMAXLEN	9
 
 /*  FrSky Hub Info
 DataID Meaning       Unit   Range   Note
