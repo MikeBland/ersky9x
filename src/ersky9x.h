@@ -18,9 +18,16 @@
 
 // This version for ARM based ERSKY9X board
 
+#ifndef ersky9x_h
+#define ersky9x_h
+
+#ifdef SIMU
+#include "simpgmspace.h"
+#else
 // Items set to make things compile, will need to be sorted eventually
 #define assert(x)
 #define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
+#endif
 
 #define VERSION	"V0.26"
 
@@ -493,4 +500,4 @@ struct t_timer
 
 extern struct t_timer s_timer[] ;
 
-
+#endif

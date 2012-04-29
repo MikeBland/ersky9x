@@ -119,7 +119,11 @@ uint16_t rxuart( void ) ;
 static void start_timer2( void ) ;
 static void start_timer0( void ) ;
 extern "C" void TC2_IRQHandler( void ) ;
+#ifdef SIMU
+#define sam_boot()
+#else
 extern "C" void sam_boot( void ) ;
+#endif
 void crlf( void ) ;
 void p8hex( uint32_t value ) ;
 void p4hex( uint16_t value ) ;
@@ -1119,7 +1123,7 @@ extern "C" void TC2_IRQHandler()
 // temp1 = average temp1 and temp0
 // temp0 = average new reading and temp0
 
-
+#ifndef SIMU
 uint16_t anaIn(uint8_t chan)
 {
   static uint8_t crossAna[]={1,5,7,0,4,6,2,3,8};
@@ -1130,7 +1134,7 @@ uint16_t anaIn(uint8_t chan)
 	}
   return  *p;
 }
-
+#endif
 
 void getADC_single()
 {
@@ -1329,7 +1333,7 @@ uint8_t Serial_byte ;
 uint8_t Serial_bit_count;
 uint8_t Serial_byte_count ;
 
-
+#ifndef SIMU
 extern "C" void PWM_IRQHandler (void)
 {
 	register Pwm *pwmptr ;
@@ -1406,7 +1410,7 @@ extern "C" void PWM_IRQHandler (void)
 		}
 	}
 }
-
+#endif
 
 void setupPulses()
 {

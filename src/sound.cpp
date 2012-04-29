@@ -247,6 +247,7 @@ void init_dac()
 	NVIC_EnableIRQ(DACC_IRQn) ;
 }
 
+#ifndef SIMU
 extern "C" void DAC_IRQHandler()
 {
 // Data for PDC must NOT be in flash, PDC needs a RAM source.
@@ -265,6 +266,7 @@ extern "C" void DAC_IRQHandler()
 //		DACC->DACC_IDR = DACC_IDR_ENDTX ;
 //	}
 }
+#endif
 
 void end_sound()
 {
@@ -418,6 +420,7 @@ void set_volume( register uint8_t volume )
 	__enable_irq() ;
 }
 
+#ifndef SIMU
 extern "C" void TWI0_IRQHandler()
 {
 	if ( Volume_required >= 0 )
@@ -431,7 +434,7 @@ extern "C" void TWI0_IRQHandler()
 		TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
 	}
 }
-
+#endif
 
 //void audioDefevent(uint8_t e)
 //{

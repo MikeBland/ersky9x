@@ -1467,7 +1467,7 @@ void disable_ssc()
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
 }
 
-
+#ifndef SIMU
 void configure_pins( uint32_t pins, uint16_t config )
 {
 	register Pio *pioptr ;
@@ -1537,5 +1537,5 @@ void configure_pins( uint32_t pins, uint16_t config )
 		pioptr->PIO_PDR = pins ;		
 	}
 }
-
+#endif
 
