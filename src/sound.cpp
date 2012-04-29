@@ -388,13 +388,70 @@ void init_twi()
 	set_volume( 2 ) ;
 }
 
-static int16_t Volume_required ;
+static int8_t Volume_required ;
+static uint8_t Volume_read_pending ;
+static uint8_t CoProc_read_pending ;
+uint8_t Volume_read ;
+uint8_t Coproc_read ;
+int8_t Coproc_valid ;
+static uint8_t Twi_mode ;
+static uint8_t *Twi_read_address ;
+static uint8_t TwiDevice ;
+
+#define TWI_MODE_WRITE	0
+#define TWI_MODE_READ		1
+
+#define TWI_VOLUME	1
+#define TWI_COPROC	2
+
 static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
 {
 	 0,  2,  4,   6,   8,  10,  13,  17,  22,  27,  33,  40,
 	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
 } ;
 
+
+
+void read_coprocessor()
+{
+	__disable_irq() ;
+	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
+	{
+		CoProc_read_pending = 1 ;
+	}
+	else
+	{
+		Coproc_valid = 0 ;
+		TWI0->TWI_MMR = 0x00481000 ;		// Device 90 (>>1) and master is reading
+		TwiDevice = TWI_COPROC ;
+		Twi_mode = TWI_MODE_READ ;
+		Twi_read_address = &Coproc_read ;
+		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+	}
+	__enable_irq() ;
+}
+
+
+void read_volume()
+{
+	__disable_irq() ;
+	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
+	{
+		Volume_read_pending = 1 ;
+	}
+	else
+	{
+		TWI0->TWI_MMR = 0x002F1000 ;		// Device 5E (>>1) and master is reading
+		Twi_mode = TWI_MODE_READ ;
+		Twi_read_address = &Volume_read ;
+		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+	}
+	__enable_irq() ;
+}
+//
+//
 void set_volume( register uint8_t volume )
 {
 //	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
@@ -412,10 +469,12 @@ void set_volume( register uint8_t volume )
 	}
 	else
 	{
+		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
+		TwiDevice = TWI_VOLUME ;
+		Twi_mode = TWI_MODE_WRITE ;
 		TWI0->TWI_THR = volume ;		// Send data
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
-
 	}
 	__enable_irq() ;
 }
@@ -423,15 +482,53 @@ void set_volume( register uint8_t volume )
 #ifndef SIMU
 extern "C" void TWI0_IRQHandler()
 {
+	if ( Twi_mode == TWI_MODE_READ )
+	{
+		*Twi_read_address = TWI0->TWI_RHR ;		// Read data
+		if ( TwiDevice == TWI_COPROC )
+		{
+			Coproc_valid = 1 ;
+		}
+	}
+	
 	if ( Volume_required >= 0 )
 	{
+		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
+		TwiDevice = TWI_VOLUME ;
+		Twi_mode = TWI_MODE_WRITE ;
 		TWI0->TWI_THR = Volume_required ;		// Send data
 		Volume_required = -1 ;
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 	}
+	else if ( CoProc_read_pending )
+	{
+		CoProc_read_pending = 0 ;
+		Coproc_valid = 0 ;
+		TwiDevice = TWI_COPROC ;
+		TWI0->TWI_MMR = 0x00481000 ;		// Device 90 (>>1) and master is reading
+		Twi_mode = TWI_MODE_READ ;
+		Twi_read_address = &Coproc_read ;
+		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+	}
+	else if ( Volume_read_pending )
+	{
+		Volume_read_pending = 0 ;
+		TWI0->TWI_MMR = 0x002F1000 ;		// Device 5E (>>1) and master is reading
+		TwiDevice = TWI_VOLUME ;
+		Twi_mode = TWI_MODE_READ ;
+		Twi_read_address = &Volume_read ;
+		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+	}
 	else
 	{
 		TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
+		if ( TWI0->TWI_SR & TWI_SR_NACK )
+		{
+			Coproc_valid = -1 ;
+			// We had a failure			
+		}
 	}
 }
 #endif

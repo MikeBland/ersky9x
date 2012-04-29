@@ -45,7 +45,8 @@ const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
 const char Str_A_eq[] =  "A =" ;
 const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3" ;
 
-
+// Consider adding receiving telemetry data as an option to test
+// Or make TSSI zero on no telemetry data
 const char Str_telemItems[] = "\004A1= A2= RSSITSSITIM1TIM2ALT GaltGspdT1= T2= RPM FUELMah1Mah2" ;
 const int8_t TelemIndex[] = {FR_A1_COPY, FR_A2_COPY,
 															FR_RXRSI_COPY, FR_TXRSI_COPY,
@@ -55,49 +56,65 @@ const int8_t TelemIndex[] = {FR_A1_COPY, FR_A2_COPY,
 														  FR_FUEL, FR_A1_MAH, FR_A2_MAH } ;
 
 
+// This routine converts an 8 bit value for custom switch use
 int16_t convertTelemValue( int8_t channel, int8_t value)
 {
   int16_t result;
 
 	channel = TelemIndex[channel] ;
-	value += 125 ;
+	result = value + 125 ;
   switch (channel)
 	{
     case -2 :
     case -1 :
-      result = value * 10 ;
+      result *= 10 ;
     break;
     case FR_ALT_BARO:
     case FR_GPS_ALT:
-      result = value * 4;
+      result *= 4;
     break;
     case FR_RPM:
-      result = value * 100;
+      result *= 100;
     break;
     case FR_TEMP1:
     case FR_TEMP2:
-      result = (int16_t)value - 30;
+      result -= 30;
     break;
     case FR_A1_MAH:
     case FR_A2_MAH:
-      result = value * 50;
-    break;
-    default:
-      result = value;
+      result *= 50;
     break;
   }
   return result;
 }
 
-void putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, uint8_t att)
+#define TELEM_LABEL				0x01
+#define TELEM_UNIT    		0x02
+#define TELEM_UNIT_LEFT		0x04
+
+uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, uint8_t att, uint8_t style)
 {
+	uint8_t unit = ' ' ;
+	uint8_t xbase = x ;
+
+	if ( style & TELEM_LABEL )
+	{
+  	lcd_putsAttIdx( x, y, Str_telemItems, channel, 0 ) ;
+		x += 3*FW ;
+		if ( att & DBLSIZE )
+		{
+			x += 4 ;
+			y -= FH ;												
+		}
+	}
+
 	channel = pgm_read_byte( &TelemIndex[channel] ) ;
   switch (channel)
 	{
     case -2:
     case -1:
       putsTime(x-FW-4, y, val, att, att) ;
-    break;
+    return unit ;
     
 		case FR_A1_COPY:
     case FR_A2_COPY:
@@ -105,12 +122,57 @@ void putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, uin
       // no break
       // A1 and A2
 			putsTelemValue( x, y, val, channel, att, 0 ) ;
+    return unit ;
+
+    case FR_TEMP1:
+    case FR_TEMP2:
+			unit = 'C' ;
+  		if ( g_model.FrSkyImperial )
+  		{
+  		  val += 18 ;
+  		  val *= 115 ;
+  		  val >>= 6 ;
+  		  unit = 'F' ;
+  		}
+    break;
+    
+		case FR_ALT_BARO:
+			if (g_model.FrSkyUsrProto == 1)  // WS How High
+			{
+        unit = 'f' ;  // and ignore met/imp option
+				break ;
+			}
+    case FR_GPS_ALT:
+      unit = 'm' ;
+      //                  if ( value < 0 )
+      //                  {
+      //                    value = 0 ;
+      //                  }
+      if ( g_model.FrSkyImperial )
+      {
+        // m to ft *105/32
+        val = val * 3 + ( val >> 2 ) + (val >> 5) ;
+        unit = 'f' ;
+      }
     break;
 
     default:
-      lcd_outdezAtt( x, y, val, att ) ;
     break;
   }
+  lcd_outdezAtt( x, y, val, att ) ;
+	if ( style & TELEM_UNIT )
+	{
+		if ( style & TELEM_UNIT_LEFT )
+		{
+			x = xbase + FW + 4 ;			
+		}
+		else
+		{
+			x = Lcd_lastPos ;
+		}
+  	lcd_putcAtt( x, y, unit, att);
+	}
+	return unit ;
 }
 
 
@@ -1168,7 +1230,7 @@ for(uint8_t i=0; i<7; i++){
  			{
  				int16_t value = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
 //        lcd_outdezAtt( 20*FW, y, convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ,subSub==2 ? attr : 0);
-				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0);
+				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, 0);
 			}
       else
 #endif
@@ -3565,6 +3627,19 @@ void menuProcBattery(uint8_t event)
 		lcd_puts_Pleft( 6*FH, PSTR("CPU temp.\016Max"));
 	  lcd_outdezAtt( 13*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 	  lcd_outdezAtt( 20*FW, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+
+// Temp test code for co-processor
+extern void read_coprocessor( void ) ;
+extern uint8_t Coproc_read ;
+extern uint8_t Coproc_valid ;
+static uint8_t timer ;
+		if ( ++timer >= 50 )
+		{
+			timer = 0 ;
+			read_coprocessor() ;
+		}
+		lcd_puts_Pleft( 1*FH, PSTR("(test) Co Proc"));
+    lcd_outhex4( 15*FW, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
 
 #else
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));

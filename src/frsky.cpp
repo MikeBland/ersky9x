@@ -604,7 +604,13 @@ void check_frsky()
 	
 	rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
 	
-	if (frskyStreaming > 0) frskyStreaming--;
+	if (frskyStreaming > 0)
+	{
+		if ( --frskyStreaming == 0 )
+		{
+ 			FrskyHubData[FR_TXRSI_COPY] = 0 ;
+		}
+	}
   if (frskyUsrStreaming > 0) frskyUsrStreaming--;
 	
   if ( FrskyAlarmSendState )

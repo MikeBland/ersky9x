@@ -797,8 +797,8 @@ void doSplash()
 
   	lcd_clear();
    	lcd_img(0, 0, s9xsplash,0,0);
-   	lcd_putsnAtt( 4*FW, 3*FH, "SKY" , 3, DBLSIZE ) ;
-   	if(!g_eeGeneral.hideNameOnSplash)
+   	
+		if(!g_eeGeneral.hideNameOnSplash)
 		lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
 
   	refreshDisplay();
@@ -2116,6 +2116,7 @@ void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t 
 inline int16_t getValue(uint8_t i)
 {
 	uint8_t j ;
+	int16_t offset = 0 ;
 
   if(i<PPM_BASE) return calibratedStick[i];//-512..512
   else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
@@ -2127,7 +2128,11 @@ inline int16_t getValue(uint8_t i)
 		j = TelemIndex[i-CHOUT_BASE-NUM_CHNOUT] ;
 		if ( j >= 0 )
 		{
-			return FrskyHubData[j] ;
+      if ( j == FR_ALT_BARO )
+			{
+        offset = AltOffset ;
+			}
+			return FrskyHubData[j] + offset ;
 		}
 		else
 		{

@@ -259,25 +259,33 @@ void handle_serial()
 		hapticOff() ;
 	}
 
-//	if ( rxchar == 'W' )
-//	{
-//		if ( Per10ms_action )
-//		{
-//			Per10ms_action = 0 ;			
-//		}
-//		else
-//		{
-//			Per10ms_action = 1 ;
-//		}
-//	}
+extern void read_volume( void ) ;
+extern uint8_t Volume_read ;
+extern void read_coprocessor( void ) ;
+extern uint8_t Coproc_read ;
+extern uint8_t Coproc_valid ;
+	
+	if ( rxchar == 'W' )
+	{
+		read_volume() ;
+		txmit( 'W' ) ;
+		txmit( '-' ) ;
+		p2hex( Volume_read ) ;
+		crlf() ;
+	}
 
-//	if ( rxchar == 'Q' )
-//	{
-//		register uint8_t *p ;
-//		register uint32_t x ;
+	if ( rxchar == 'Q' )
+	{
+		read_coprocessor() ;
+		txmit( 'Q' ) ;
+		txmit( '-' ) ;
+		p2hex( Coproc_read ) ;
+		txmit( ' ' ) ;
+		p2hex( Coproc_valid ) ;
+		crlf() ;
+	}
 
-//		txmit( 'Q' ) ;
-//		p = Spi_rx_buf ;
+
 //		*(p+4) = 0 ;
 //		*(p+5) = 0 ;
 //		*(p+19) = 0 ;
