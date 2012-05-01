@@ -1188,7 +1188,6 @@ void menuProcSafetySwitches(uint8_t event)
 			}
       else if (j == 1)
       {
-					
         putsDrSwitches(7*FW, y, sd->swtch  , attr);
         if(active)
 				{
@@ -1254,7 +1253,7 @@ for(uint8_t i=0; i<7; i++){
  			{
  				int16_t value = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
 //        lcd_outdezAtt( 20*FW, y, convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ,subSub==2 ? attr : 0);
-				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, 0);
+				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, TELEM_UNIT);
 			}
       else
 #endif
