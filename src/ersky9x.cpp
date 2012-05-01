@@ -657,7 +657,7 @@ void mainSequence( uint32_t no_menu )
 
 
 #ifdef FRSKY
-  if ( FrskyAlarmCheckFlag )
+  if ( FrskyAlarmCheckFlag )			// Every 2 seconds
   {
     FrskyAlarmCheckFlag = 0 ;
     // Check for alarms here
@@ -736,6 +736,21 @@ void mainSequence( uint32_t no_menu )
        	}
       }
     }
+		// Now for the Safety/alarm switch alarms
+		{
+			uint8_t i ;
+			for ( i = 0 ; i < NUM_CSW ; i += 1 )
+			{
+    		SafetySwData *sd = &g_model.safetySw[i] ;
+				if (sd->mode == 1)
+				{
+					if(getSwitch( sd->swtch,0))
+					{
+						audio.event( sd->val ) ;
+					}
+				}
+			}
+		}
   }
 #endif
 }

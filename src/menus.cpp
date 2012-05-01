@@ -1158,41 +1158,65 @@ void menuProcTemplates(uint8_t event)  //Issue 73
 
 void menuProcSafetySwitches(uint8_t event)
 {
-    MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1, {0, 1/*repeated*/});
+  MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1, {0, 2/*repeated*/});
 
-uint8_t y = 0;
-uint8_t k = 0;
-int8_t  sub    = mstate2.m_posVert - 1;
-uint8_t subSub = mstate2.m_posHorz;
+	uint8_t y = 0;
+	uint8_t k = 0;
+	int8_t  sub    = mstate2.m_posVert - 1;
+	uint8_t subSub = mstate2.m_posHorz;
 
 	evalOffset(sub, 6);
 
 //  lcd_puts_P( 0*FW, 1*FH,PSTR("ch    sw     val"));
-for(uint8_t i=0; i<7; i++){
+	for(uint8_t i=0; i<7; i++){
     y=(i+1)*FH;
     k=i+s_pgOfs;
     if(k==NUM_CHNOUT) break;
     SafetySwData *sd = &g_model.safetySw[k];
     putsChn(0,y,k+1,0);
-    for(uint8_t j=0; j<2;j++){
-        uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
-				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
-        if (j == 0)
-        {
-            putsDrSwitches(5*FW, y, sd->swtch  , attr);
-            if(active) {
-                CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH,MAX_DRSWITCH);
-            }
+    for(uint8_t j=0; j<3;j++)
+		{
+      uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
+			uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+      if (j == 0)
+			{
+				lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : 'S', attr ) ;
+        if(active)
+				{
+          CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 1 ) ;
+        }
+			}
+      else if (j == 1)
+      {
+					
+        putsDrSwitches(7*FW, y, sd->swtch  , attr);
+        if(active)
+				{
+          CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH,MAX_DRSWITCH);
+        }
+			}
+			else
+			{
+				int8_t min, max ;
+				if ( sd->mode == 1 )
+				{
+					lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
+					min = 0 ;
+					max = 15 ;
 				}
 				else
 				{
-            lcd_outdezAtt(  16*FW, y, sd->val,   attr);
-            if(active) {
-                CHECK_INCDEC_H_MODELVAR( event, sd->val, -125,125);
-            }
+        	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
+					min = -125 ;
+					max = 125 ;
+				}
+        if(active)
+				{
+          CHECK_INCDEC_H_MODELVAR( event, sd->val, min,max);
         }
+      }
     }
-}
+	}
 
 }
 
@@ -3624,8 +3648,8 @@ void menuProcBattery(uint8_t event)
 	  lcd_outdezAtt( 20*FW, 3*FH, Current_max*10*current_scale/8192 ,0 ) ;
 		lcd_puts_Pleft( 4*FH, PSTR("mAh"));
 	  lcd_outdezAtt( 13*FW, 4*FH, MAh_used + Current_used*current_scale/8192/36 ,PREC1 ) ;
-		lcd_puts_Pleft( 6*FH, PSTR("CPU temp.\016Max"));
-	  lcd_outdezAtt( 13*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+		lcd_puts_Pleft( 6*FH, PSTR("CPU temp.\014C Max\024C"));
+	  lcd_outdezAtt( 12*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 	  lcd_outdezAtt( 20*FW, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 
 // Temp test code for co-processor
@@ -4788,7 +4812,10 @@ void perOut(int16_t *chanOut, uint8_t att)
         if(g_model.limitData[i].revert) q=-q;// finally do the reverse.
 
         if(g_model.safetySw[i].swtch)  //if safety sw available for channel check and replace val if needed
+					if ( g_model.safetySw[i].mode != 1 )	// And not used as an alarm
+					{
             if(getSwitch(g_model.safetySw[i].swtch,0)) q = calc100toRESX(g_model.safetySw[i].val);
+					}
 
 //        cli();
         chanOut[i] = q; //copy consistent word to int-level

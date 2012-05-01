@@ -173,12 +173,13 @@ typedef struct t_MixData {
 
 typedef struct t_CSwData { // Custom Switches data
   int8_t  v1; //input
-  int8_t  v2; //offset
+  int8_t  v2; 		//offset
   uint8_t func;
 } __attribute__((packed)) CSwData;
 
 typedef struct t_SafetySwData { // Custom Switches data
-  int8_t  swtch;
+  int8_t  swtch:6;
+	uint8_t mode:2; // Safety (0,2,3) or alarm (1)
   int8_t  val;
 } __attribute__((packed)) SafetySwData;
 
