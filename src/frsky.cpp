@@ -44,7 +44,7 @@
 const uint8_t Fr_indices[] = 
 {
 	HUBDATALENGTH-1,
-	FR_GPS_ALT,
+	FR_GPS_ALT | 0x80,
 	FR_TEMP1,
 	FR_RPM,
 	FR_FUEL,
@@ -53,10 +53,10 @@ const uint8_t Fr_indices[] =
 	FR_GPS_ALTd,
 	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
 	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
-	FR_ALT_BARO,
-	FR_GPS_SPEED,
-	FR_GPS_LONG,
-	FR_GPS_LAT,
+	FR_ALT_BARO | 0x80,
+	FR_GPS_SPEED | 0x80,
+	FR_GPS_LONG | 0x80,
+	FR_GPS_LAT | 0x80,
 	FR_COURSE,
 	FR_GPS_DATMON,
 	FR_GPS_YEAR,
@@ -75,7 +75,7 @@ const uint8_t Fr_indices[] =
 	FR_ACCZ,
 	HUBDATALENGTH-1,
 	FR_CURRENT,
-	FR_V_AMP,
+	FR_V_AMP | 0x80,
 	FR_V_AMPd
 } ;
 
@@ -154,7 +154,7 @@ void frsky_proc_user_byte( uint8_t byte )
 						{
 							byte -= 17 ;		// Move voltage-amp sensors							
 						}
-					  Frsky_user_id	= Fr_indices[byte] ;
+					  Frsky_user_id	= Fr_indices[byte] & 0x7F ;
 						Frsky_user_state = 2 ;
 					}
   	      else if ( Frsky_user_state == 2 )

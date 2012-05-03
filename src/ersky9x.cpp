@@ -392,6 +392,7 @@ int main (void)
 	start_timer0() ;
 	init_adc() ;
 	init_pwm() ;
+	init_SDcard() ;
 
 //	g_LightOffCounter = 1000 ;
 	__enable_irq() ;
@@ -2208,7 +2209,7 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
       x = getValue(cs.v1-1);
 #ifdef FRSKY
       if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
-        y = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
+        y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
       else
 #endif
       y = calc100toRESX(cs.v2);

@@ -85,4 +85,6 @@ extern void disable_ssc( void ) ;
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 
 extern void configure_pins( uint32_t pins, uint16_t config ) ;
+extern void init_SDcard( void ) ;
+
 

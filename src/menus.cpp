@@ -45,19 +45,39 @@ const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
 const char Str_A_eq[] =  "A =" ;
 const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3" ;
 
+#define TIMER1		-2
+#define TIMER2		-1
+
+#define TEL_ITEM_A1			0
+#define TEL_ITEM_A2			1
+#define TEL_ITEM_RSSI		2
+#define TEL_ITEM_TSSI		3
+#define TEL_ITEM_TIM1		4
+#define TEL_ITEM_TIM2		5
+#define TEL_ITEM_BALT		6
+#define TEL_ITEM_GALT		7
+#define TEL_ITEM_GSPD		8
+#define TEL_ITEM_T1			9
+#define TEL_ITEM_T2			10
+#define TEL_ITEM_RPM		11
+#define TEL_ITEM_FUEL		12
+#define TEL_ITEM_MAH1		13
+#define TEL_ITEM_MAH2		14
+
+
 // Consider adding receiving telemetry data as an option to test
 // Or make TSSI zero on no telemetry data
 const char Str_telemItems[] = "\004A1= A2= RSSITSSITIM1TIM2ALT GaltGspdT1= T2= RPM FUELMah1Mah2" ;
 const int8_t TelemIndex[] = {FR_A1_COPY, FR_A2_COPY,
 															FR_RXRSI_COPY, FR_TXRSI_COPY,
-															-2, -1, 
+															TIMER1, TIMER2,
 															FR_ALT_BARO, FR_GPS_ALT,
 															FR_GPS_SPEED, FR_TEMP1, FR_TEMP2, FR_RPM,
 														  FR_FUEL, FR_A1_MAH, FR_A2_MAH } ;
 
 
 // This routine converts an 8 bit value for custom switch use
-int16_t convertTelemValue( int8_t channel, int8_t value)
+int16_t convertTelemConstant( int8_t channel, int8_t value)
 {
   int16_t result;
 
@@ -65,8 +85,8 @@ int16_t convertTelemValue( int8_t channel, int8_t value)
 	result = value + 125 ;
   switch (channel)
 	{
-    case -2 :
-    case -1 :
+    case TIMER1 :
+    case TIMER2 :
       result *= 10 ;
     break;
     case FR_ALT_BARO:
@@ -108,11 +128,11 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 		}
 	}
 
-	channel = pgm_read_byte( &TelemIndex[channel] ) ;
+	channel = TelemIndex[channel] ;
   switch (channel)
 	{
-    case -2:
-    case -1:
+    case TIMER1 :
+    case TIMER2 :
       putsTime(x-FW-4, y, val, att, att) ;
     return unit ;
     
@@ -144,10 +164,6 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			}
     case FR_GPS_ALT:
       unit = 'm' ;
-      //                  if ( value < 0 )
-      //                  {
-      //                    value = 0 ;
-      //                  }
       if ( g_model.FrSkyImperial )
       {
         // m to ft *105/32
@@ -160,11 +176,12 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
     break;
   }
   lcd_outdezAtt( x, y, val, att ) ;
-	if ( style & TELEM_UNIT )
+	if ( style & ( TELEM_UNIT | TELEM_UNIT_LEFT ) )
 	{
 		if ( style & TELEM_UNIT_LEFT )
 		{
 			x = xbase + FW + 4 ;			
+			att &= ~DBLSIZE ;			 
 		}
 		else
 		{
@@ -1199,15 +1216,16 @@ void menuProcSafetySwitches(uint8_t event)
 				int8_t min, max ;
 				if ( sd->mode == 1 )
 				{
-					lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
 					min = 0 ;
 					max = 15 ;
+					sd->val = limit( min, sd->val, max) ;
+					lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
 				}
 				else
 				{
-        	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
 					min = -125 ;
 					max = 125 ;
+        	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
 				}
         if(active)
 				{
@@ -1251,7 +1269,7 @@ for(uint8_t i=0; i<7; i++){
 #ifdef FRSKY
       if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
  			{
- 				int16_t value = convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
+				int16_t value = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
 //        lcd_outdezAtt( 20*FW, y, convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ,subSub==2 ? attr : 0);
 				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, TELEM_UNIT);
 			}
@@ -3407,7 +3425,7 @@ void timer(int16_t throttle_val)
 		}
 
     s_timer[timer].s_sum += val ;   // Add val in
-    if(( get_tmr10ms()-s_time)<100)
+    if( ( (uint16_t)( get_tmr10ms()-s_time) ) < 100 )		// BEWARE of 32 bit processor extending 16 bit values
 		{
 			if ( timer == 0 )
 			{
@@ -3781,41 +3799,44 @@ int16_t AltOffset = 0 ;
 
 void displayTemp( uint8_t sensor, uint8_t x, uint8_t y, uint8_t size )
 {
-	uint8_t unit ;
-	int16_t value ;
+//	uint8_t unit ;
+//	int16_t value ;
 
-  lcd_puts_P( x, y, PSTR("T1="));
-  value = FrskyHubData[FR_TEMP1] ;
-	if ( sensor == 2 )
-	{
-		lcd_putc( x+FW, y, '2' ) ;
-    value = FrskyHubData[FR_TEMP2] ;
-	}
-	unit = 'C' ;
-  if ( g_model.FrSkyImperial )
-  {
-    value += 18 ;
-    value *= 115 ;
-    value >>= 6 ;
-    unit = 'F' ;
-  }
-	x += 3*FW ;
-	if ( size &= DBLSIZE )
-	{
-		x += 4 ;
-		y -= FH ;												
-	}
-  if (frskyUsrStreaming == 0)
-	{
-		size |= BLINK ;			// Data is invalid
-	}
-  lcd_outdezAtt( x, y, value, size|LEFT);
-	x += 3*FW ;
-	if ( size )
-	{
-		x -= 4*FW+4 ;							
-	}
-  lcd_putc( x, y, unit ) ;
+//  lcd_puts_P( x, y, PSTR("T1="));
+//  value = FrskyHubData[FR_TEMP1] ;
+//	if ( sensor == 2 )
+//	{
+//		lcd_putc( x+FW, y, '2' ) ;
+//    value = FrskyHubData[FR_TEMP2] ;
+//	}
+//	unit = 'C' ;
+//  if ( g_model.FrSkyImperial )
+//  {
+//    value += 18 ;
+//    value *= 115 ;
+//    value >>= 6 ;
+//    unit = 'F' ;
+//  }
+//	x += 3*FW ;
+//	if ( size &= DBLSIZE )
+//	{
+//		x += 4 ;
+//		y -= FH ;												
+//	}
+//  if (frskyUsrStreaming == 0)
+//	{
+//		size |= BLINK ;			// Data is invalid
+//	}
+//  lcd_outdezAtt( x, y, value, size|LEFT);
+//	x += 3*FW ;
+//	if ( size )
+//	{
+//		x -= 4*FW+4 ;							
+//	}
+//  lcd_putc( x, y, unit ) ;
+
+	putsTelemetryChannel( x, y, (int8_t)sensor+TEL_ITEM_T1-1, FrskyHubData[FR_TEMP1+sensor-1], size | LEFT, 
+																( size & DBLSIZE ) ? (TELEM_LABEL | TELEM_UNIT_LEFT) : (TELEM_LABEL | TELEM_UNIT) ) ;
 }
 
 
@@ -3826,6 +3847,7 @@ void menuProc0(uint8_t event)
   static uint8_t trimSwLock;
   uint8_t view = g_eeGeneral.view & 0xf;
   uint8_t tview = g_eeGeneral.view & 0x30 ;
+    static uint8_t displayCount = 0;
 	
 	switch(event)
 	{
@@ -3936,7 +3958,8 @@ void menuProc0(uint8_t event)
         NMEA_EnableRXD(); // enable NMEA-Telemetry reception
         chainMenu(menuProcNMEA);
 #else
-				g_eeGeneral.view = e_telemetry | tview ;
+				view = e_telemetry ;
+				g_eeGeneral.view = view | tview ;
         audioDefevent(AU_MENUS);
 //        chainMenu(menuProcStatistic2);
 #endif
@@ -4000,7 +4023,10 @@ void menuProc0(uint8_t event)
   	}
 
     lcd_putsAttIdx(x+4*FW, 2*FH,PSTR("\003ExpExFFneMedCrs"),g_model.trimInc, 0);
-  	lcd_putsnAtt(x+8*FW-FW/2,2*FH,PSTR("   TTm")+3*g_model.thrTrim,3, 0);
+		if ( g_model.thrTrim )
+		{
+			lcd_puts_P(x+8*FW-FW/2,2*FH,PSTR("TTm"));
+		}
 
   	//trim sliders
   	for( i=0 ; i<4 ; i++ )
@@ -4085,11 +4111,10 @@ void menuProc0(uint8_t event)
   }
 #ifdef FRSKY
     else if(view == e_telemetry) {
-        static uint8_t displayCount = 0;
         static uint8_t staticTelemetry[4];
 //        static uint8_t staticRSSI[2];
         static enum AlarmLevel alarmRaised[2];
-        int8_t unit ;
+//        int8_t unit ;
         int16_t value ;
         if ( (frskyStreaming) || ( tview  == 0x30 ) )
 				{
@@ -4154,28 +4179,26 @@ void menuProc0(uint8_t event)
 
                     lcd_puts_P(10*FW, 2*FH, PSTR("RPM"));
                     lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[FR_RPM]*30, DBLSIZE|LEFT);
-                    lcd_puts_Pleft( 4*FH, Str_ALTeq);
+
+//                    lcd_puts_Pleft( 4*FH, Str_ALTeq);
                     value = FrskyHubData[FR_ALT_BARO] + AltOffset ;
-										if (g_model.FrSkyUsrProto == 1)  // WS How High
-										{
-                        unit = 'f' ;  // and ignore met/imp option
-										}
-										else
-										{
-                      unit = 'm' ;
-                    //                  if ( value < 0 )
-                    //                  {
-                    //                    value = 0 ;
-                    //                  }
-                      if ( g_model.FrSkyImperial )
-                      {
-                        // m to ft *105/32
-                       	value = value * 3 + ( value >> 2 ) + (value >> 5) ;
-                        unit = 'f' ;
-                      }
-										}
-                    lcd_putc( 3*FW, 3*FH, unit ) ;
-                    lcd_outdezAtt(4*FW, 3*FH, value, DBLSIZE|LEFT);
+//										if (g_model.FrSkyUsrProto == 1)  // WS How High
+//										{
+//                        unit = 'f' ;  // and ignore met/imp option
+//										}
+//										else
+//										{
+//                      unit = 'm' ;
+//                      if ( g_model.FrSkyImperial )
+//                      {
+//                        // m to ft *105/32
+//                       	value = value * 3 + ( value >> 2 ) + (value >> 5) ;
+//                        unit = 'f' ;
+//                      }
+//										}
+//                    lcd_putc( 3*FW, 3*FH, unit ) ;
+//                    lcd_outdezAtt(4*FW, 3*FH, value, DBLSIZE|LEFT);
+									putsTelemetryChannel( 0, 4*FH, TEL_ITEM_BALT, value, DBLSIZE | LEFT, (TELEM_LABEL | TELEM_UNIT_LEFT)) ;
                 }	
                 if (g_model.frsky.channels[0].ratio)
                 {
