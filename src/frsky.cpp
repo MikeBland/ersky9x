@@ -23,6 +23,8 @@
 #include "myeeprom.h"
 #include "drivers.h"
 #include "audio.h"
+#include "AT91SAM3S4.h"
+#include "core_cm3.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -85,8 +87,8 @@ uint8_t frskyTxBuffer[19];   // Ditto for transmit buffer
 uint8_t FrskyRxBufferReady = 0;
 uint8_t frskyStreaming = 0;
 uint8_t frskyUsrStreaming = 0;
-uint8_t FrskyAlarmTimer = 200 ;		// Units of 10 mS
-uint8_t FrskyAlarmCheckFlag = 0 ;
+//uint8_t FrskyAlarmTimer = 200 ;		// Units of 10 mS
+//uint8_t FrskyAlarmCheckFlag = 0 ;
 
 FrskyData frskyTelemetry[4];
 //FrskyData frskyRSSI[2];
@@ -111,10 +113,56 @@ int16_t FrskyHubData[HUBDATALENGTH] ;  // All 38 words
 int16_t FrskyHubMin[HUBMINMAXLEN] ;
 int16_t FrskyHubMax[HUBMINMAXLEN] ;
 
-//uint8_t MaxGpsSpeed ;
-//uint16_t MaxGpsAlt ;
 uint8_t FrskyVolts[12];
 uint8_t FrskyBattCells=0;
+
+
+void store_hub_data( uint8_t index, uint16_t value )
+{
+	if ( index < HUBDATALENGTH )
+	{
+		FrskyHubData[index] = value ;
+		if ( g_model.FrSkyGpsAlt )
+		{
+			if ( index == FR_GPS_ALT )
+			{
+				FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] ;		// Copy Gps Alt instead
+				index = FR_ALT_BARO ;			// For max and min
+			}
+		}
+		if ( index < HUBMINMAXLEN )
+		{
+			if ( FrskyHubMax[index] < FrskyHubData[index] )
+			{	FrskyHubMax[index] = FrskyHubData[index] ;
+			}
+			if ( FrskyHubMin[index] > FrskyHubData[index] )
+			{	FrskyHubMin[index] = FrskyHubData[index] ;
+			}	
+		}
+		if ( index == FR_CELL_V )			// Cell Voltage
+		{
+			// It appears the cell voltage bytes are in the wrong order
+//  							uint8_t battnumber = ( FrskyHubData[6] >> 12 ) & 0x000F ;
+  		uint8_t battnumber = ((uint8_t)value >> 4 ) & 0x000F ;
+  		if (FrskyBattCells < battnumber+1)
+			{
+ 				if (battnumber+1>=6)
+				{
+  				FrskyBattCells=6;
+  			}
+				else
+				{
+  				FrskyBattCells=battnumber+1;
+  			}
+  		}
+  		FrskyVolts[battnumber] = ( ( ( value & 0x0F ) << 8 ) + (value >> 8) ) / 10 ;
+		}
+		if ( index == FR_RPM )			// RPM
+		{
+			FrskyHubData[FR_RPM] *= (g_model.numBlades == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
+		}
+	}	
+}
 
 
 void frsky_proc_user_byte( uint8_t byte )
@@ -154,7 +202,7 @@ void frsky_proc_user_byte( uint8_t byte )
 						{
 							byte -= 17 ;		// Move voltage-amp sensors							
 						}
-					  Frsky_user_id	= Fr_indices[byte] & 0x7F ;
+					  Frsky_user_id	= Fr_indices[byte] ;
 						Frsky_user_state = 2 ;
 					}
   	      else if ( Frsky_user_state == 2 )
@@ -164,45 +212,7 @@ void frsky_proc_user_byte( uint8_t byte )
 					}
 					else
 					{
-						if ( Frsky_user_id < HUBDATALENGTH )
-						{
-						  FrskyHubData[Frsky_user_id] = ( byte << 8 ) + Frsky_user_lobyte ;
-							if ( g_model.FrSkyGpsAlt )
-							{
-					  		FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] ;		// Copy Gps Alt instead
-							}
-							if ( Frsky_user_id < HUBMINMAXLEN )
-							{
-								if ( FrskyHubMax[Frsky_user_id] < FrskyHubData[Frsky_user_id] )
-								{	FrskyHubMax[Frsky_user_id] = FrskyHubData[Frsky_user_id] ;
-								}
-								if ( FrskyHubMin[Frsky_user_id] > FrskyHubData[Frsky_user_id] )
-								{	FrskyHubMin[Frsky_user_id] = FrskyHubData[Frsky_user_id] ;
-								}	
-							}
-							if ( Frsky_user_id == FR_CELL_V )			// Cell Voltage
-							{
-								// It appears the cell voltage bytes are in the wrong order
-//  							uint8_t battnumber = ( FrskyHubData[6] >> 12 ) & 0x000F ;
-  							uint8_t battnumber = ( Frsky_user_lobyte >> 4 ) & 0x000F ;
-  							if (FrskyBattCells < battnumber+1)
-								{
- 							  	if (battnumber+1>=6)
-									{
-  								  FrskyBattCells=6;
-  								}
-									else
-									{
-  								  FrskyBattCells=battnumber+1;
-  								}
-  							}
-  							FrskyVolts[battnumber] = ( ( ( Frsky_user_lobyte & 0x0F ) << 8 ) + byte ) / 10 ;
-							}
-							if ( Frsky_user_id == FR_RPM )			// RPM
-							{
-								FrskyHubData[FR_RPM] *= (g_model.numBlades == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
-							}
-						}	
+						store_hub_data( Frsky_user_id & 0x7F, ( byte << 8 ) + Frsky_user_lobyte ) ;
 						Frsky_user_state = 0 ;
 					}
 				}
@@ -596,6 +606,7 @@ void resetTelemetry()
 //  memset(frskyRSSI, 0, sizeof(frskyRSSI));
 }
 
+
 // Called every 10 mS in interrupt routine
 void check_frsky()
 {
@@ -636,11 +647,11 @@ void check_frsky()
 	}
 
 	// See if time for alarm checking
-	if (--FrskyAlarmTimer == 0 )
-	{
-		FrskyAlarmTimer = 200 ;		// Restart timer
-		FrskyAlarmCheckFlag = 1 ;	// Flag time to check alarms
-	}
+//	if (--FrskyAlarmTimer == 0 )
+//	{
+//		FrskyAlarmTimer = 200 ;		// Restart timer
+//		FrskyAlarmCheckFlag = 1 ;	// Flag time to check alarms
+//	}
 }
 
 // New model loaded
@@ -653,6 +664,67 @@ void FRSKY_setModelAlarms(void)
 	Frsky_current[1].Amp_hour_boundary = 360000L/ g_model.frsky.channels[1].ratio ;
 }
 
+struct FrSky_Q_t FrSky_Queue ;
+
+void put_frsky_q( uint8_t index, uint16_t value )
+{
+	volatile struct FrSky_Q_item_t *r ;	// volatile = Force compiler to use pointer
+
+	r = &FrSky_Queue.items[FrSky_Queue.in_index] ;
+	if ( FrSky_Queue.count < 7 )
+	{
+		r->index = index ;
+		r->value = value ;
+		++FrSky_Queue.in_index &= 7 ;
+		FrSky_Queue.count += 1 ;
+	}
+}
+
+// If index bit 7 is zero - process now
+// else wait until item further down q has bit 7 zero
+
+void process_frsky_q()
+{
+	volatile struct FrSky_Q_item_t *r ;	// volatile = Force compiler to use pointer
+	uint8_t x ;
+	uint8_t y ;
+	uint8_t z ;
+
+	// Find last item with zero in bit 7 of index
+	x = FrSky_Queue.count ;
+	z = FrSky_Queue.out_index ;
+	while ( x )
+	{
+		y = (z+x-1) & 0x07 ;
+		if ( ( FrSky_Queue.items[y].index & 0x80 ) == 0 )
+		{
+			break ;		
+		}
+		x -= 1 ;		
+	}
+	y = x ;
+	while ( x )
+	{
+		r = &FrSky_Queue.items[z] ;
+
+		store_hub_data( r->index & 0x7F, r->value ) ;
+		++z &= 0x07 ;
+	}
+	
+	FrSky_Queue.out_index = z ;	
+	__disable_irq() ;
+	FrSky_Queue.count -= y ;
+	__enable_irq() ;
+
+}
+
+
+//uint32_t GpsPosLat ;
+
+//void testgps()
+//{
+//  GpsPosLat = (((uint32_t)(uint16_t)FrskyHubData[FR_GPS_LAT] / 100) * 1000000) + (((uint32_t)((uint16_t)FrskyHubData[FR_GPS_LAT] % 100) * 10000 + (uint16_t)FrskyHubData[FR_GPS_LATd]) * 5) / 3;
+//}
 
 
 

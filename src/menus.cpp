@@ -3681,6 +3681,10 @@ static uint8_t timer ;
 		}
 		lcd_puts_Pleft( 1*FH, PSTR("(test) Co Proc"));
     lcd_outhex4( 15*FW, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+// Rotary encoder test/debug
+extern uint32_t Rotary_position ;
+extern uint32_t Rotary_count ;
+    lcd_outhex4( 15*FW, 0*FH, ( Rotary_count << 8 ) | Rotary_position ) ;
 
 #else
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));

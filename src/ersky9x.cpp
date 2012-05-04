@@ -48,7 +48,6 @@
 #include "sound.h"
 #include "lcd.h"
 #include "myeeprom.h"
-#include "s9xsplash.lbm"
 #include "drivers.h"
 #include "file.h"
 #include "menus.h"
@@ -56,10 +55,10 @@
 #include "frsky.h"
 #endif
 
-//const pm_uchar splashdata[] PROGMEM = { 'S','P','S',0,
-//#include "s9xsplash.lbm"
-//	'S','P','E',0};
-//const pm_uchar * s9xsplash = splashdata+4;
+const uint8_t splashdata[] = { 'S','P','S',0,
+#include "s9xsplash.lbm"
+	'S','P','E',0};
+//const uchar *s9xsplash = splashdata+4;
 
 #include "debug.h"
 
@@ -234,6 +233,9 @@ ModelData  g_model;
 //new audio object
 audioQueue  audio;
 
+
+uint8_t AlarmTimer = 200 ;		// Units of 10 mS
+uint8_t AlarmCheckFlag = 0 ;
 
 const char modi12x3[]=
   "RUD ELE THR AIL "
@@ -655,15 +657,14 @@ void mainSequence( uint32_t no_menu )
 
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
-
-
-#ifdef FRSKY
-  if ( FrskyAlarmCheckFlag )			// Every 2 seconds
+  if ( AlarmCheckFlag )
   {
-    FrskyAlarmCheckFlag = 0 ;
+    AlarmCheckFlag = 0 ;
     // Check for alarms here
     // Including Altitude limit
 
+
+#ifdef FRSKY
     if (frskyUsrStreaming)
     {
       int16_t limit = g_model.FrSkyAltAlarm ;
@@ -737,6 +738,8 @@ void mainSequence( uint32_t no_menu )
        	}
       }
     }
+#endif
+		
 		// Now for the Safety/alarm switch alarms
 		{
 			uint8_t i ;
@@ -753,7 +756,6 @@ void mainSequence( uint32_t no_menu )
 			}
 		}
   }
-#endif
 }
 
 inline uint8_t keyDown()
@@ -807,31 +809,72 @@ uint16_t stickMoveValue()
 
 void doSplash()
 {
-  if(!g_eeGeneral.disableSplashScreen)
+	uint32_t i ;
+
+extern uint8_t DisplayBuf[] ;
+  
+	if(!g_eeGeneral.disableSplashScreen)
   {
    	check_backlight() ;
-
-  	lcd_clear();
-   	lcd_img(0, 0, s9xsplash,0,0);
-   	
-		if(!g_eeGeneral.hideNameOnSplash)
-		lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
-
-  	refreshDisplay();
     lcdSetRefVolt(g_eeGeneral.contrast);
-
   	clearKeyEvents();
 
-  	for(uint32_t i=0; i<32; i++)
+  	for( i=0; i<32; i++)
     	getADC_filt(); // init ADC array
 
   	uint16_t inacSum = stickMoveValue();
-    	    //        for(uint8_t i=0; i<4; i++)
-    	    //           inacSum += anaIn(i)/INAC_DEVISOR;
+
+  	
+
+		//        for(uint8_t i=0; i<4; i++)
+		//           inacSum += anaIn(i)/INAC_DEVISOR;
 
   	uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
-  	while(tgtime != get_tmr10ms())
+  	uint16_t scrtime = get_tmr10ms() ;
+//		lcd_clear();
+// 		lcd_img(0, 0, &splashdata[4],0,0);
+//  	refreshDisplay();
+		
+		i = 0 ;
+  	while(tgtime > get_tmr10ms())
   	{
+			if ( scrtime < get_tmr10ms() )
+			{
+				scrtime += 4 ;
+				if ( i < 128 )
+				{
+					uint8_t *p ;
+					uint8_t *q ;
+					uint8_t x ;
+					uint8_t y ;
+					uint8_t z ;
+					i += 4 ;
+					lcd_clear();
+  	 			lcd_img(0, 0, &splashdata[4],0,0);
+					for ( y = 0 ; y < 8 ; y += 1 )
+					{
+						z = 128 - i ;
+						p = &DisplayBuf[y*128];
+						q = p + z ;
+						for ( x = 0 ; x < i ; x += 1 )
+						{
+							*p++ = *q++ ;
+						}
+						while( x < 128 )
+						{
+							*p++ = 0 ;
+							x += 1 ;
+						}				
+					}
+					if ( i >= 128 )
+					{
+						if(!g_eeGeneral.hideNameOnSplash)
+						lcd_putsnAtt( 0*FW, 7*FH, g_eeGeneral.ownerName ,sizeof(g_eeGeneral.ownerName),0);
+					} 
+  				refreshDisplay();
+				}
+			}
+
     	getADC_filt();
     	uint16_t tsum = stickMoveValue();
 	//    for(uint8_t i=0; i<4; i++)
@@ -1084,6 +1127,11 @@ static void start_timer0()
 	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 }
 
+
+
+uint32_t Rotary_position ;
+uint32_t Rotary_count ;
+
 extern "C" void TC2_IRQHandler()
 {
   register uint32_t dummy;
@@ -1108,6 +1156,31 @@ extern "C" void TC2_IRQHandler()
 //		Timer2_count += 1 ;
 		pre_scale = 0 ;
   	per10ms();
+		if (--AlarmTimer == 0 )
+		{
+			AlarmTimer = 200 ;		// Restart timer
+			AlarmCheckFlag = 1 ;	// Flag time to check alarms
+		}
+	}
+	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
+	dummy >>= 19 ;
+	dummy &= 0x05 ;			// pick out the three bits
+	if ( dummy != ( Rotary_position & 0x05 ) )
+	{
+		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x04) >> 2 ) )
+		{
+			Rotary_count -= 1 ;
+		}
+		else
+		{
+			Rotary_count += 1 ;
+		}
+		Rotary_position = dummy ;
+	}
+	dummy = PIOB->PIO_PDSR & 0x40 ;		// Read the switch
+	if ( ( Rotary_position & 0x40 ) != dummy )
+	{
+		Rotary_position ^= 0x40 ;
 	}
 }
 

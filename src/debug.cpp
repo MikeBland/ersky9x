@@ -50,7 +50,7 @@
 #include "debug.h"
 #include "file.h"
 
-#include "s9xsplash.lbm"
+//#include "s9xsplash.lbm"
 
 //extern uint32_t Per10ms_action ;
 //extern uint32_t Permenu_action ;

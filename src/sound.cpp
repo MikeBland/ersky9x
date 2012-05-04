@@ -422,7 +422,7 @@ void read_coprocessor()
 	else
 	{
 		Coproc_valid = 0 ;
-		TWI0->TWI_MMR = 0x00481000 ;		// Device 90 (>>1) and master is reading
+		TWI0->TWI_MMR = 0x00351000 ;		// Device 90 (>>1) and master is reading
 		TwiDevice = TWI_COPROC ;
 		Twi_mode = TWI_MODE_READ ;
 		Twi_read_address = &Coproc_read ;
@@ -505,7 +505,7 @@ extern "C" void TWI0_IRQHandler()
 		CoProc_read_pending = 0 ;
 		Coproc_valid = 0 ;
 		TwiDevice = TWI_COPROC ;
-		TWI0->TWI_MMR = 0x00481000 ;		// Device 90 (>>1) and master is reading
+		TWI0->TWI_MMR = 0x00351000 ;		// Device 90 (>>1) and master is reading
 		Twi_mode = TWI_MODE_READ ;
 		Twi_read_address = &Coproc_read ;
 		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx

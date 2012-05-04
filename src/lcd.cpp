@@ -97,7 +97,7 @@ void lcd_vline( uint8_t x, uint8_t y, int8_t h ) ;
 
 void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mode )
 {
-  register PROGMEM   *q = imgdat;
+  register const unsigned char *q = imgdat ;
   register uint8_t w    = *q++ ;
   register uint32_t hb   = (*q++ +7) / 8 ;
   register uint8_t sze1 = *q++ ;

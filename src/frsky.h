@@ -171,6 +171,23 @@ uint16_t Amp_hour_boundary ;
 uint16_t Amp_hour_prescale ;
 } ;
  
+struct FrSky_Q_item_t
+{
+	uint8_t index ;
+	uint16_t value ;	
+} ;
+
+struct FrSky_Q_t
+{
+	uint8_t in_index ;
+	uint8_t out_index ;
+	volatile uint8_t count ;
+	struct FrSky_Q_item_t items[8] ;
+} ;
+
+extern void put_frsky_q( uint8_t index, uint16_t value ) ;
+extern void process_frsky_q( void ) ;
+
 extern Frsky_current_info Frsky_current[2] ;
 
 // Global Fr-Sky telemetry data variables
