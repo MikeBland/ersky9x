@@ -61,8 +61,12 @@ static void disp_256( uint32_t address, uint32_t lines ) ;
 
 #ifdef	DEBUG
 uint32_t Mem_address ;
+uint32_t Next_mem_address ;
+
 uint32_t Memaddmode ;
 uint32_t SoundCheck ;
+
+uint32_t Sdcard_data[128] ;
 
 void handle_serial()
 {
@@ -99,7 +103,12 @@ void handle_serial()
 		else if ( rxchar == 13 )
 		{
 			crlf() ;
+			if ( Mem_address == 0 )
+			{
+				Mem_address = Next_mem_address ;
+			}
 			disp_256( Mem_address, 4 ) ;
+			Next_mem_address = Mem_address + 64 ;
 			Memaddmode = 0 ;				
 		}
 		else if ( rxchar == 8 )
@@ -307,8 +316,125 @@ extern uint8_t Coproc_valid ;
 //		crlf() ;
 //	}
 
-//	if ( rxchar == 'E' )
-//	{
+#define SD_ST_EMPTY		0
+#define SD_ST_IDLE		1
+#define SD_ST_READY		2
+#define SD_ST_IDENT		3
+#define SD_ST_STBY		4
+#define SD_ST_TRAN		5
+#define SD_ST_DATA		6
+
+	if ( rxchar == 'E' )
+	{
+		uint32_t i ;
+//		static uint32_t card_state = 0 ;
+
+//		txmit( 'E' ) ;
+//		txmit( '-' ) ;
+//		switch ( card_state )
+//		{
+//			case SD_ST_EMPTY :
+//				i = ( PIOB->PIO_PDSR & PIO_PB7 ) ? 0 : 1 ;
+//				txmit( 'e' ) ;
+//				txmit( ' ' ) ;
+//  			p2hex( i ) ;
+//				if ( i )
+//				{
+//					card_state = SD_ST_IDLE ;
+//				}
+//				crlf() ;
+//			break ;
+
+//			case SD_ST_IDLE :
+//				i = sd_acmd41() ;
+//				txmit( 'L' ) ;
+//				txmit( ' ' ) ;
+//				p8hex( i ) ;
+//				crlf() ;
+//				if ( i & 0x80000000 )
+//				{
+//					card_state = SD_ST_READY ;
+//				}
+//			break ;
+
+//			case SD_ST_READY :
+//				i = sd_cmd2() ;
+//				card_state = SD_ST_IDENT ;
+//				txmit( 'R' ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[0] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[1] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[2] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[3] ) ;
+//				crlf() ;
+//			break ;
+
+//			case SD_ST_IDENT :
+//				i = sd_cmd3() ;
+//				card_state = SD_ST_STBY ;
+//				Sd_rca = i ;
+//				txmit( 'T' ) ;
+//				txmit( ' ' ) ;
+//				p8hex( i ) ;
+//				crlf() ;
+//			break ;
+
+//			case SD_ST_STBY :
+//				i = sd_cmd9() ;
+//				txmit( 'S' ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[0] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[1] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[2] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[3] ) ;
+//				txmit( '-' ) ;
+//				p8hex(HSMCI->HSMCI_SR) ;
+//				txmit( ' ' ) ;
+//				p8hex(HSMCI->HSMCI_SR) ;
+//				i = sd_cmd7() ;
+//				crlf() ;
+//				card_state = SD_ST_TRAN ;
+//			break ;
+
+static uint32_t SdAddress = 0 ;
+
+//			case SD_ST_TRAN :
+//				txmit( 't' ) ;
+//				txmit( ' ' ) ;
+//				Sd_128_resp[0] = 0 ;
+//				Sd_128_resp[1] = 0 ;
+//				i = sd_acmd51( Sd_128_resp ) ;
+//				p8hex( Sd_128_resp[0] ) ;
+//				txmit( ' ' ) ;
+//				p8hex( Sd_128_resp[1] ) ;
+//				card_state = SD_ST_DATA ;
+//				i = sd_acmd6() ;
+//				txmit( '+' ) ;
+//				p8hex( i ) ;
+//				crlf() ;
+//				SdAddress = 0 ;
+//			break ;
+			
+//			case SD_ST_DATA :
+//				txmit( 'D' ) ;
+//				txmit( ' ' ) ;
+				i = sd_read_block( SdAddress, Sdcard_data ) ;
+				p8hex( SdAddress ) ;
+				txmit( ':' ) ;
+				p8hex( i ) ;
+				crlf() ;
+				SdAddress += 1 ;
+//			break ;
+//		}
+	}
+
+
 //		register uint8_t *p ;
 //		register uint32_t x ;
 
@@ -331,6 +457,14 @@ extern uint8_t Coproc_valid ;
 //		p2hex( *(p+3) ) ;
 //		crlf() ;
 //	}
+
+	if ( rxchar == 'F' )
+	{
+		txmit( 'F' ) ;
+		txmit( '-' ) ;
+  	p2hex( ( PIOB->PIO_PDSR & PIO_PB7 ) ? 0 : 1 ) ;
+		crlf() ;
+	}	
 	
 //	if ( rxchar == 'F' )
 //	{

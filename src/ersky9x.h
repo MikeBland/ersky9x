@@ -123,6 +123,7 @@ enum EnumKeys {
 
 #define SW_BASE      SW_ThrCt
 #define SW_BASE_DIAG SW_ThrCt
+#define MAX_PSWITCH   (SW_Trainer-SW_ThrCt+1)  // 9 physical switches
 #define MAX_DRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_CSW)
 
 #define SWP_RUD (SW_RuddDR-SW_BASE)
@@ -153,7 +154,7 @@ enum EnumKeys {
 
 #define SWITCHES_STR "THR""RUD""ELE""ID0""ID1""ID2""AIL""GEA""TRN""SW1""SW2""SW3""SW4""SW5""SW6""SW7""SW8""SW9""SWA""SWB""SWC"
 #define NUM_CSW  12 //number of custom switches
-
+#define CSW_INDEX	9	// Index of first custom switch
 
 
 #define NUM_KEYS TRM_RH_UP+1
@@ -265,6 +266,7 @@ extern uint8_t Ee_lock ;
 #define EE_GENERAL 1
 #define EE_MODEL   2
 #define EE_TRIM    4           // Store model because of trim
+#define INCDEC_SWITCH   0x08
 
 
 #define TMR_VAROFS  4
@@ -327,7 +329,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const char Str_telemItems[] ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 15
+#define NUM_TELEM_ITEMS 16
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
@@ -361,14 +363,15 @@ const char modn12x3[]= {
     4, 2, 3, 1,
     4, 3, 2, 1 };
 
-extern const uint8_t chout_ar[] ;
+extern const uint8_t bchout_ar[] ;
 
 //convert from mode 1 to mode g_eeGeneral.stickMode
 //NOTICE!  =>  1..4 -> 1..4
 extern uint8_t convert_mode_helper(uint8_t x) ;
 
 #define CONVERT_MODE(x)  (((x)<=4) ? convert_mode_helper(x) : (x))
-#define CHANNEL_ORDER(x) (chout_ar[g_eeGeneral.templateSetup*4 + (x)-1])
+//#define CHANNEL_ORDER(x) (chout_ar[g_eeGeneral.templateSetup*4 + (x)-1])
+#define CHANNEL_ORDER(x) ( ( (bchout_ar[g_eeGeneral.templateSetup] >> (6-(x-1) * 2)) & 3 ) + 1 )
 #define THR_STICK       (2-(g_eeGeneral.stickMode&1))
 #define ELE_STICK       (1+(g_eeGeneral.stickMode&1))
 #define AIL_STICK       ((g_eeGeneral.stickMode&2) ? 0 : 3)
@@ -402,6 +405,9 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 
 #define CHECK_INCDEC_H_MODELVAR( event, var, min, max)     \
     var = checkIncDec_hm(event,var,min,max)
+
+#define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
+  var = checkIncDec(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
 
 extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_CHNOUT];
@@ -476,6 +482,7 @@ void    popMenu(bool uppermost=false);
 
 
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
+extern int8_t getMovedSwitch( void ) ;
 extern uint8_t g_vbat100mV ;
 //extern uint16_t Timer2 ;
 extern void doSplash( void ) ;

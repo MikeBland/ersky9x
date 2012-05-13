@@ -56,9 +56,11 @@
 // next 2 moved from 58 and 59
 #define FR_V_AMP			33
 #define FR_V_AMPd			34
+#define FR_CELL_MIN		35
 
-#define HUBDATALENGTH 34
+#define HUBDATALENGTH 36
 #define HUBMINMAXLEN	9
+#define HUBOFFSETLEN	7			// Items with an offset field
 
 /*  FrSky Hub Info
 DataID Meaning       Unit   Range   Note
@@ -161,6 +163,7 @@ struct FrskyData {
   uint8_t min;
   uint8_t max;
 	uint8_t offset ;
+	uint16_t averaging_total ;
   void set(uint8_t value);
 	void setoffset();
 };

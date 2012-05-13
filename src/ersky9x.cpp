@@ -228,6 +228,11 @@ ModelData  g_model;
                                 2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
                                 3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
                                 4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
+const uint8_t bchout_ar[] = {
+															0x1B, 0x1E, 0x27, 0x2D, 0x36, 0x39,
+															0x4B, 0x4E, 0x63, 0x6C, 0x72, 0x78,
+                              0x87, 0x8D, 0x93, 0x9C, 0xB1, 0xB4,
+                              0xC6, 0xC9, 0xD2, 0xD8, 0xE1, 0xE4		} ;
 
 
 //new audio object
@@ -242,6 +247,7 @@ const char modi12x3[]=
   "RUD THR ELE AIL "
   "AIL ELE THR RUD "
   "AIL THR ELE RUD ";
+// Now indexed using modn12x3
 
 MenuFuncP g_menuStack[5];
 
@@ -428,8 +434,9 @@ int main (void)
 
 	// Choose here between PPM and PXX
 
-  pushMenu(menuProcModelSelect);
-  popMenu(true);  // this is so the first instance of [MENU LONG] doesn't freak out!
+//  pushMenu(menuProcModelSelect);
+//  popMenu(true);
+  g_menuStack[1] = menuProcModelSelect ;	// this is so the first instance of [MENU LONG] doesn't freak out!
 
   //we assume that startup is like pressing a switch and moving sticks.  Hence the lightcounter is set
   //if we have a switch on backlight it will be able to turn on the backlight.
@@ -653,6 +660,7 @@ void mainSequence( uint32_t no_menu )
 			Current_used += Current_accumulator / 100 ;			// milliAmpSeconds (but scaled)
 			Current_accumulator = 0 ;
 		}
+		sd_poll_10mS() ;
 	}
 
 	t0 = getTmr2MHz() - t0;
@@ -929,6 +937,15 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
       s_editMode = false;
       newval=!val;
       killEvents(event);
+  }
+
+  if (s_editMode>0 && (i_flags & INCDEC_SWITCH))
+	{
+    uint8_t swtch = getMovedSwitch();
+    if (swtch)
+		{
+      newval = (val == swtch ? -swtch : swtch);
+    }
   }
 
   //change values based on P1
@@ -2060,6 +2077,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
     lcd_putsnAtt(x,y,PSTR("----"),4,att);
   else if(idx<=4)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
+//    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
   else if(idx<=NUM_XCHNRAW)
     lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16")+4*(idx-5),4,att);
 	else
@@ -2357,6 +2375,47 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 	Last_switch[cs_index] = ret_value ;
 	return swtch>0 ? ret_value : !ret_value ;
 
+}
+
+
+int8_t getMovedSwitch()
+{
+  static uint8_t switches_states = 0;
+  static uint16_t s_last_time = 0;
+
+  int8_t result = 0;
+
+  for (uint8_t i=MAX_PSWITCH; i>0; i--) {
+    bool prev;
+    uint8_t mask = 0;
+    if (i <= 3) {
+      mask = (1<<(i-1));
+      prev = (switches_states & mask);
+    }
+    else if (i <= 6) {
+      prev = ((switches_states & 0x18) == ((i-3) << 3));
+    }
+    else {
+      mask = (1<<(i-2));
+      prev = (switches_states & mask);
+    }
+    bool next = getSwitch(i, 0, 0) ;
+    if (prev != next) {
+      if (i!=MAX_PSWITCH || next==true)
+	      result = i;
+      if (mask)
+        switches_states ^= mask;
+      else
+        switches_states = (switches_states & 0xE7) | ((i-3) << 3);
+    }
+  }
+
+  if (get_tmr10ms() - s_last_time > 10)
+    result = 0;
+
+  s_last_time = get_tmr10ms();
+
+  return result;
 }
 
 

@@ -156,6 +156,10 @@ void store_hub_data( uint8_t index, uint16_t value )
   			}
   		}
   		FrskyVolts[battnumber] = ( ( ( value & 0x0F ) << 8 ) + (value >> 8) ) / 10 ;
+			if ( FrskyVolts[battnumber] < FrskyHubData[FR_CELL_MIN] )
+			{
+				FrskyHubData[FR_CELL_MIN] = FrskyVolts[battnumber] ;
+			}
 		}
 		if ( index == FR_RPM )			// RPM
 		{
@@ -247,6 +251,8 @@ void frskyPushValue(uint8_t & i, uint8_t value);
     - User Data packets
 */
 
+uint8_t LinkAveCount ;
+
 void processFrskyPacket(uint8_t *packet)
 {
   // What type of packet?
@@ -265,10 +271,15 @@ void processFrskyPacket(uint8_t *packet)
       }
       break;
     case LINKPKT: // A1/A2/RSSI values
+			LinkAveCount += 1 ;
       frskyTelemetry[0].set(packet[1]); FrskyHubData[FR_A1_COPY] =  frskyTelemetry[0].value ;
       frskyTelemetry[1].set(packet[2]); FrskyHubData[FR_A2_COPY] =  frskyTelemetry[1].value ;
       frskyTelemetry[2].set(packet[3]);	FrskyHubData[FR_RXRSI_COPY] =  frskyTelemetry[2].value ;
       frskyTelemetry[3].set(packet[4] / 2); FrskyHubData[FR_TXRSI_COPY] =  frskyTelemetry[3].value ;
+			if ( LinkAveCount > 15 )
+			{
+				LinkAveCount = 0 ;
+			}
 //      frskyRSSI[0].set(packet[3]);
 //      frskyRSSI[1].set(packet[4] / 2);
       break;
@@ -575,34 +586,46 @@ void frskyPushValue(uint8_t & i, uint8_t value)
 
 void FrskyData::setoffset()
 {
-//	uint8_t x ;
-//	x = value + offset ;
-	offset = value ;
+	uint8_t x ;
+	x = value + offset ;
+	offset = x ;
 	value = 0 ;
 }
 
 void FrskyData::set(uint8_t value)
 {
-   if ( value > offset )
-	 {
-	   value -= offset ;
-	 }
-	 else
-	 {
-	 	 value = 0 ;
-	 }
-   this->value = value;
+  if ( value > offset )
+	{
+	  value -= offset ;
+	}
+	else
+	{
+		value = 0 ;
+	}
+	averaging_total += value ;
+	if ( LinkAveCount > 15 )
+	{
+		this->value = averaging_total >> 4 ;
+		averaging_total = 0 ;
    if (max < value)
      max = value;
    if (!min || min > value)
      min = value;
- }
+	}
+}
 
 void resetTelemetry()
 {
-  memset(frskyTelemetry, 0, sizeof(frskyTelemetry));
+	uint32_t i ;
+	for ( i = 0 ; i < 4 ; i += 1 )
+	{
+		frskyTelemetry[i].min = 0 ;
+		frskyTelemetry[i].max = 0 ;
+	}
+//  memset(frskyTelemetry, 0, sizeof(frskyTelemetry));
 	FrskyHubData[FR_A1_MAH] = 0 ;
 	FrskyHubData[FR_A2_MAH] = 0 ;
+	FrskyHubData[FR_CELL_MIN] = 210 ;			// 4.2 volts
 //  memset(frskyRSSI, 0, sizeof(frskyRSSI));
 }
 
