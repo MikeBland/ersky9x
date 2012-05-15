@@ -2028,7 +2028,16 @@ void sd_poll_10mS()
 	{
 		Card_state = SD_ST_EMPTY ;
 		Sd_rca = 0 ;
-
+		Card_ID[0] = 0 ;
+		Card_ID[1] = 0 ;
+		Card_ID[2] = 0 ;
+		Card_ID[3] = 0 ;
+		Card_CSD[0] = 0 ;
+		Card_CSD[1] = 0 ;
+		Card_CSD[2] = 0 ;
+		Card_CSD[3] = 0 ;
+		Card_SCR[0] = 0 ;
+		Card_SCR[1] = 0 ;
 	}
 
 	switch ( Card_state )
@@ -2238,7 +2247,7 @@ DRESULT disk_read (
 	
 	if (count == 1)
 	{	/* Single block read */
-		result = sd_read_block( sector << 9, ( uint32_t *)buff ) ;
+		result = sd_read_block( sector, ( uint32_t *)buff ) ;
 		if ( result )
 		{
 			count = 0 ;

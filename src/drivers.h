@@ -99,6 +99,8 @@ extern uint32_t Sd_128_resp[4] ;
 extern uint32_t Sd_rca ;
 //extern uint32_t Cmd_55_resp ;
 
+extern uint32_t Card_state ;
+
 extern uint32_t SD_SetBusWidth( uint32_t busWidth) ;
 extern void SD_EnableHsMode( uint8_t hsEnable) ;
 extern uint32_t SD_SetSpeed( uint32_t mciSpeed ) ;

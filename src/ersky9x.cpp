@@ -507,8 +507,6 @@ int main (void)
 			goto_usb = 1 ;
 		}
   
-		mainSequence( MENUS ) ;
-
 #ifdef REVB	
 		if ( ( check_soft_power() == POWER_OFF ) || ( goto_usb ) )		// power now off
 		{
@@ -565,6 +563,8 @@ int main (void)
 		{
 			break ;		
 		}
+		mainSequence( MENUS ) ;
+
 	}
 
 	lcd_clear() ;

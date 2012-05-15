@@ -4895,8 +4895,11 @@ void menuProcSDstat(uint8_t event)
 	evalOffset(sub, 1);
 
 	lcd_puts_Pleft( 1*FH, PSTR("\004Ready"));
-	if (sd_card_ready() )
-	{
+	
+	lcd_outhex4( 10*FW, 1*FH, Card_state ) ;
+	
+//	if (sd_card_ready() )		// Moved for debugging
+//	{
 		y = 2*FH ;
 		x = 4*FW ;
 		lcd_puts_Pleft( y, PSTR("CID"));
@@ -4934,6 +4937,8 @@ void menuProcSDstat(uint8_t event)
 		  lcd_outhex4( x+4*FW, y, Card_SCR[i] ) ;
 			x += 8*FW ;
 		}
+	if (sd_card_ready() )
+	{
 	}
 	else
 	{
