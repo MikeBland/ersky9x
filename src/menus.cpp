@@ -3653,6 +3653,9 @@ void menuProcBattery(uint8_t event)
     break;
 			
     case EVT_KEY_FIRST(KEY_DOWN):
+//			Program_coprocessor = 1 ;
+//    	killEvents(event) ;
+//    break;
     case EVT_KEY_FIRST(KEY_EXIT):
       chainMenu(menuProc0);
     break;
@@ -3700,14 +3703,23 @@ void menuProcBattery(uint8_t event)
 	  lcd_outdezAtt( 20*FW, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 
 // Temp test code for co-processor
-extern void read_coprocessor( void ) ;
-extern uint8_t Coproc_read ;
-extern uint8_t Coproc_valid ;
 static uint8_t timer ;
+//static uint8_t cp_type ;
+//static uint8_t tbuffer[10] ;
+
 		if ( ++timer >= 50 )
 		{
 			timer = 0 ;
-			read_coprocessor() ;
+//			if ( cp_type == 0 )
+//			{
+//				cp_type = 1 ;
+				read_coprocessor() ;
+//			}
+//			else
+//			{
+//				cp_type = 0 ;
+//				write_coprocessor( tbuffer, 6 ) ;
+//			}
 		}
 		lcd_puts_Pleft( 1*FH, PSTR("(test) Co Proc"));
     lcd_outhex4( 15*FW, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;

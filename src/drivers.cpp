@@ -1545,12 +1545,14 @@ void configure_pins( uint32_t pins, uint16_t config )
 
 // States for initialising card
 #define SD_ST_EMPTY		0
-#define SD_ST_IDLE		1
-#define SD_ST_READY		2
-#define SD_ST_IDENT		3
-#define SD_ST_STBY		4
-#define SD_ST_TRAN		5
-#define SD_ST_DATA		6
+#define SD_ST_INIT1		1
+#define SD_ST_INIT2		2
+#define SD_ST_IDLE		3
+#define SD_ST_READY		4
+#define SD_ST_IDENT		5
+#define SD_ST_STBY		6
+#define SD_ST_TRAN		7
+#define SD_ST_DATA		8
 
 
 uint32_t Card_ID[4] ;
@@ -1560,6 +1562,7 @@ uint32_t Card_state = SD_ST_EMPTY ;
 uint32_t Sd_128_resp[4] ;
 uint32_t Sd_rca ;
 //uint32_t Cmd_55_resp ;
+uint32_t Cmd_8_resp ;
 
 /**
  * Initializes a MCI peripheral.
@@ -1727,6 +1730,7 @@ void init_SDcard()
 }
 
 
+
 void sd_cmd55()
 {
 	uint32_t i ;
@@ -1749,6 +1753,56 @@ void sd_cmd55()
 }
 
 
+uint32_t sd_cmd0()
+{
+	uint32_t i ;
+  Hsmci *phsmci = HSMCI ;
+
+	if ( CardIsConnected() )
+	{
+		phsmci->HSMCI_ARGR = 0 ;
+		phsmci->HSMCI_CMDR = 0x00001000 ;
+
+		for ( i = 0 ; i < 30000 ; i += 1 )
+		{
+			if ( phsmci->HSMCI_SR & HSMCI_SR_CMDRDY )
+			{
+				break ;				
+			}			
+		}
+		return phsmci->HSMCI_RSPR[0] ;
+	}
+	else
+	{
+		return 0 ;
+	}
+}
+
+uint32_t sd_cmd8()
+{
+	uint32_t i ;
+  Hsmci *phsmci = HSMCI ;
+
+	if ( CardIsConnected() )
+	{
+		phsmci->HSMCI_ARGR = 0X000001AA ;
+		phsmci->HSMCI_CMDR = 0x00001048 ;
+
+		for ( i = 0 ; i < 30000 ; i += 1 )
+		{
+			if ( phsmci->HSMCI_SR & HSMCI_SR_CMDRDY )
+			{
+				break ;				
+			}			
+		}
+		return Cmd_8_resp = phsmci->HSMCI_RSPR[0] ;
+	}
+	else
+	{
+		return 0 ;
+	}
+}
+
 
 uint32_t sd_acmd41()
 {
@@ -1757,8 +1811,9 @@ uint32_t sd_acmd41()
 
 	if ( CardIsConnected() )
 	{
-		sd_cmd55() ;	 
+		sd_cmd55() ;
 		phsmci->HSMCI_ARGR = 0X001F8000 ;
+//		phsmci->HSMCI_ARGR = 0X40000000 ;
 		phsmci->HSMCI_CMDR = 0x00001069 ;
 
 		for ( i = 0 ; i < 30000 ; i += 1 )
@@ -2045,8 +2100,23 @@ void sd_poll_10mS()
 		case SD_ST_EMPTY :
 			if ( CardIsConnected() )
 			{
-				Card_state = SD_ST_IDLE ;
+				Card_state = SD_ST_INIT1 ;
 			}
+		break ;
+
+		case SD_ST_INIT1 :
+			
+			i = sd_cmd0() ;
+			
+			Card_state = SD_ST_INIT2 ;
+			
+		break ;
+		
+		case SD_ST_INIT2 :
+			i = sd_cmd8() ;
+			
+			Card_state = SD_ST_IDLE ;
+			
 		break ;
 
 		case SD_ST_IDLE :
@@ -2131,6 +2201,12 @@ uint32_t sd_read_block( uint32_t block_no, uint32_t *data )
 
 /*
  Notes on SD card:
+
+1) CMD8 fails and CMD58 fails: must be MMC, thus initialize using CMD1
+2) CMD8 fails and CMD58 passes: must be Ver1.x Standard Capacity SD Memory Card
+3) CMD8 passes and CMD58 passes (CCS = 0): must be Ver2.00 or later Standard Capacity SD Memory Card
+4) CMD8 passes and CMD58 passes (CCS = 1): must be Ver2.00 or later High Capacity SD Memory Card
+5) CMD8 passes and CMD58 passes but indicates non compatible voltage range: unusable card 
 
 On card present
 1. Send CMD 55 (resp 48bit)

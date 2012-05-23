@@ -272,7 +272,7 @@ extern void read_volume( void ) ;
 extern uint8_t Volume_read ;
 extern void read_coprocessor( void ) ;
 extern uint8_t Coproc_read ;
-extern uint8_t Coproc_valid ;
+extern int8_t Coproc_valid ;
 	
 	if ( rxchar == 'W' )
 	{

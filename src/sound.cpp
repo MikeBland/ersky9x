@@ -45,6 +45,7 @@
 #include "myeeprom.h"
 #include "drivers.h"
 
+
 void start_sound( void ) ;
 void buzzer_on( void ) ;
 void buzzer_off( void ) ;
@@ -376,7 +377,7 @@ void init_twi()
   pioptr->PIO_ABCDSR[1] &= ~0x00000018 ;	// Peripheral A
   pioptr->PIO_PDR = 0x00000018 ;					// Assign to peripheral
 	
-	timing = Master_frequency * 5 / 1000000 ;		// 5uS high and low
+	timing = Master_frequency * 5 / 2000000 ;		// 2.5uS high and low (200 kHz)
 	timing += 15 - 4 ;
 	timing /= 16 ;
 	timing |= timing << 8 ;
@@ -391,18 +392,39 @@ void init_twi()
 static int8_t Volume_required ;
 static uint8_t Volume_read_pending ;
 static uint8_t CoProc_read_pending ;
+static uint8_t CoProc_write_pending ;
+static uint8_t CoProc_appgo_pending ;
 uint8_t Volume_read ;
 uint8_t Coproc_read ;
 int8_t Coproc_valid ;
-static uint8_t Twi_mode ;
+//static uint8_t Twi_mode ;
 static uint8_t *Twi_read_address ;
-static uint8_t TwiDevice ;
+//static uint8_t TwiDevice ;
+static uint8_t TwiOperation ;
+//const uint8_t *CoProgBufPtr ;
+//uint8_t Program_coprocessor ;
+//uint8_t Program_blocks_written ;
 
-#define TWI_MODE_WRITE	0
-#define TWI_MODE_READ		1
+//#define TWI_MODE_WRITE	0
+//#define TWI_MODE_READ		1
 
-#define TWI_VOLUME	1
-#define TWI_COPROC	2
+//#define TWI_VOLUME	1
+//#define TWI_COPROC	2
+
+#define TWI_NONE		    	0
+#define TWI_READ_VOL    	1
+#define TWI_WRITE_VOL     2
+#define TWI_READ_COPROC   3
+#define TWI_COPROC_APPGO  4
+#define TWI_WAIT_STOP		  5
+#define TWI_WRITE_COPROC	6
+
+// Commands to the coprocessor bootloader/application
+#define TWI_CMD_PAGEUPDATE        	0x01	// TWI Command to program a flash page
+#define TWI_CMD_EXECUTEAPP        	0x02	// TWI Command to jump to the application program
+#define TWI_CMD_SETREAD_ADDRESS			0x03	// TWI Command to set address to read from
+#define TWI_CMD_WRITE_DATA         	0x04	// TWI Command send data to the application
+
 
 static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
 {
@@ -410,48 +432,78 @@ static const uint8_t Volume_scale[NUM_VOL_LEVELS] =
 	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
 } ;
 
+#define COPROC_RX_BUXSIZE		22
+uint8_t Co_proc_status[COPROC_RX_BUXSIZE] ;
+uint8_t *Co_proc_write_ptr ;
+uint32_t Co_proc_write_count ;
 
 
-void read_coprocessor()
+// This is called from an interrupt routine, or
+// interrupts must be disabled while it is called
+// from elsewhere.
+void i2c_check_for_request()
 {
-	__disable_irq() ;
 	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
 	{
-		CoProc_read_pending = 1 ;
+		return ;		// Busy
 	}
-	else
+	
+	if ( Volume_required >= 0 )				// Set volume to this value
+	{
+		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
+		TwiOperation = TWI_WRITE_VOL ;
+		TWI0->TWI_THR = Volume_required ;		// Send data
+		Volume_required = -1 ;
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+	}
+	else if ( CoProc_read_pending )
 	{
 		Coproc_valid = 0 ;
-		TWI0->TWI_MMR = 0x00351000 ;		// Device 90 (>>1) and master is reading
-		TwiDevice = TWI_COPROC ;
-		Twi_mode = TWI_MODE_READ ;
-		Twi_read_address = &Coproc_read ;
-		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
-		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+		CoProc_read_pending = 0 ;
+		TWI0->TWI_MMR = 0x00351000 ;		// Device 35 and master is reading
+		TwiOperation = TWI_READ_COPROC ;
+		TWI0->TWI_RPR = (uint32_t)&Co_proc_status[0] ;
+		TWI0->TWI_RCR = COPROC_RX_BUXSIZE - 1 ;
+		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+		{
+			(void) TWI0->TWI_RHR ;
+		}
+		TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start transfers
+		TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
+		TWI0->TWI_IER = TWI_IER_RXBUFF | TWI_IER_TXCOMP ;
 	}
-	__enable_irq() ;
-}
-
-
-void read_volume()
-{
-	__disable_irq() ;
-	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
+	else if ( Volume_read_pending )
 	{
-		Volume_read_pending = 1 ;
-	}
-	else
-	{
+		Volume_read_pending = 0 ;
 		TWI0->TWI_MMR = 0x002F1000 ;		// Device 5E (>>1) and master is reading
-		Twi_mode = TWI_MODE_READ ;
+		TwiOperation = TWI_READ_VOL ;
 		Twi_read_address = &Volume_read ;
 		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
 	}
-	__enable_irq() ;
+	else if ( CoProc_appgo_pending )
+	{
+		CoProc_appgo_pending = 0 ;
+		TWI0->TWI_MMR = 0x00350000 ;		// Device 35 and master is writing
+		TwiOperation = TWI_COPROC_APPGO ;
+		TWI0->TWI_THR = TWI_CMD_EXECUTEAPP ;	// Send appgo command
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+	}
+	else if ( CoProc_write_pending )
+	{
+		CoProc_write_pending = 0 ;
+		TWI0->TWI_MMR = 0x00350000 ;		// Device 35 and master is writing
+		TwiOperation = TWI_WRITE_COPROC ;
+		TWI0->TWI_TPR = (uint32_t)Co_proc_write_ptr ;
+		TWI0->TWI_RCR = Co_proc_write_count ;
+		TWI0->TWI_THR = TWI_CMD_WRITE_DATA ;	// Send write command
+		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
+		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+	}
 }
-//
-//
+
 void set_volume( register uint8_t volume )
 {
 //	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
@@ -461,75 +513,141 @@ void set_volume( register uint8_t volume )
 		volume = NUM_VOL_LEVELS - 1 ;		
 	}
 	volume = Volume_scale[volume] ;
-
+	Volume_required = volume ;
 	__disable_irq() ;
-	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
-	{
-		Volume_required = volume ;
-	}
-	else
-	{
-		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
-		TwiDevice = TWI_VOLUME ;
-		Twi_mode = TWI_MODE_WRITE ;
-		TWI0->TWI_THR = volume ;		// Send data
-		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
-		TWI0->TWI_IER = TWI_IER_TXCOMP ;
-	}
+	i2c_check_for_request() ;
 	__enable_irq() ;
 }
+
+void read_volume()
+{
+	Volume_read_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
+
+void read_coprocessor()
+{
+	CoProc_read_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}	
+
+void write_coprocessor( uint8_t *ptr, uint32_t count )
+{
+	Co_proc_write_ptr = ptr ;
+	Co_proc_write_count = count ;
+	CoProc_write_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}	
+
+void appgo_coprocessor()
+{
+	CoProc_appgo_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}	
+
+//
+//
+//void set_volume( register uint8_t volume )
+//{
+////	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
+	
+//	if ( volume >= NUM_VOL_LEVELS )
+//	{
+//		volume = NUM_VOL_LEVELS - 1 ;		
+//	}
+//	volume = Volume_scale[volume] ;
+
+//	__disable_irq() ;
+//	if ( TWI0->TWI_IMR & TWI_IMR_TXCOMP )
+//	{
+//		Volume_required = volume ;
+//	}
+//	else
+//	{
+//		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
+//		TwiDevice = TWI_VOLUME ;
+//		Twi_mode = TWI_MODE_WRITE ;
+//		TWI0->TWI_THR = volume ;		// Send data
+//		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+//		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+//	}
+//	__enable_irq() ;
+//}
 
 #ifndef SIMU
 extern "C" void TWI0_IRQHandler()
 {
-	if ( Twi_mode == TWI_MODE_READ )
+	if ( TwiOperation == TWI_READ_VOL )
 	{
-		*Twi_read_address = TWI0->TWI_RHR ;		// Read data
-		if ( TwiDevice == TWI_COPROC )
+		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
 		{
-			Coproc_valid = 1 ;
+			*Twi_read_address = TWI0->TWI_RHR ;		// Read data
 		}
 	}
+
+	if ( TwiOperation == TWI_READ_COPROC )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_RXBUFF )
+		{
+			TWI0->TWI_IDR = TWI_IDR_RXBUFF ;
+			TwiOperation = TWI_WAIT_STOP ;
+			TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			TWI0->TWI_RCR = 1 ;						// Last byte
+			return ;
+		}
+		else
+		{
+			Coproc_valid = -1 ;			
+		}
+	}		
+			
+	if ( TwiOperation == TWI_WAIT_STOP )
+	{
+		Coproc_valid = 1 ;
+		Coproc_read = Co_proc_status[0] ;
+		if ( Coproc_read & 0x80 )			// Bootloader
+		{
+			CoProc_appgo_pending = 1 ;	// Action application
+		}
+		TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
+		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+		{
+			(void) TWI0->TWI_RHR ;			// Discard any rubbish data
+		}
+	}
+
+//	if ( TwiOperation == TWI_WRITE_VOL )
+//	{
+		
+//	}
+
+	if ( TwiOperation == TWI_WRITE_COPROC )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_TXBUFE )
+		{
+			TWI0->TWI_IDR = TWI_IDR_TXBUFE ;
+			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+			TWI0->TWI_PTCR = TWI_PTCR_TXTDIS ;	// Stop transfers
+			TwiOperation = TWI_NONE ;
+			return ;
+		}
+	}
+	 
+	TWI0->TWI_IDR = TWI_IDR_TXCOMP | TWI_IDR_TXBUFE | TWI_PTCR_TXTDIS ;
+	if ( TWI0->TWI_SR & TWI_SR_NACK )
+	{
+	}
+	TwiOperation = TWI_NONE ;	
+	i2c_check_for_request() ;
 	
-	if ( Volume_required >= 0 )
-	{
-		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
-		TwiDevice = TWI_VOLUME ;
-		Twi_mode = TWI_MODE_WRITE ;
-		TWI0->TWI_THR = Volume_required ;		// Send data
-		Volume_required = -1 ;
-		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
-	}
-	else if ( CoProc_read_pending )
-	{
-		CoProc_read_pending = 0 ;
-		Coproc_valid = 0 ;
-		TwiDevice = TWI_COPROC ;
-		TWI0->TWI_MMR = 0x00351000 ;		// Device 90 (>>1) and master is reading
-		Twi_mode = TWI_MODE_READ ;
-		Twi_read_address = &Coproc_read ;
-		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
-		TWI0->TWI_IER = TWI_IER_TXCOMP ;
-	}
-	else if ( Volume_read_pending )
-	{
-		Volume_read_pending = 0 ;
-		TWI0->TWI_MMR = 0x002F1000 ;		// Device 5E (>>1) and master is reading
-		TwiDevice = TWI_VOLUME ;
-		Twi_mode = TWI_MODE_READ ;
-		Twi_read_address = &Volume_read ;
-		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
-		TWI0->TWI_IER = TWI_IER_TXCOMP ;
-	}
-	else
-	{
-		TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
-		if ( TWI0->TWI_SR & TWI_SR_NACK )
-		{
-			Coproc_valid = -1 ;
-			// We had a failure			
-		}
-	}
 }
 #endif
 
