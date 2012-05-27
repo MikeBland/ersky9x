@@ -1563,7 +1563,7 @@ uint32_t Sd_128_resp[4] ;
 uint32_t Sd_rca ;
 //uint32_t Cmd_55_resp ;
 uint32_t Cmd_8_resp ;
-
+uint32_t Cmd_A41_resp ;
 /**
  * Initializes a MCI peripheral.
  */
@@ -1812,7 +1812,7 @@ uint32_t sd_acmd41()
 	if ( CardIsConnected() )
 	{
 		sd_cmd55() ;
-		phsmci->HSMCI_ARGR = 0X001F8000 ;
+		phsmci->HSMCI_ARGR = 0X403F8000 ;
 //		phsmci->HSMCI_ARGR = 0X40000000 ;
 		phsmci->HSMCI_CMDR = 0x00001069 ;
 
@@ -1823,7 +1823,7 @@ uint32_t sd_acmd41()
 				break ;				
 			}			
 		}
-		return phsmci->HSMCI_RSPR[0] ;
+		return Cmd_A41_resp = phsmci->HSMCI_RSPR[0] ;
 	}
 	else
 	{

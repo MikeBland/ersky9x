@@ -36,38 +36,38 @@ DYN = OFF
 
 # Makefile for compiling applet-serialflash applet.
 
-ifeq (atsam3s4,$(CHIP))
-BOARD_DIR = at91sam3s4-ek
-endif
+#ifeq (atsam3s4,$(CHIP))
+#BOARD_DIR = at91sam3s4-ek
+#endif
 
-ifeq (atsam3s2,$(CHIP))
-BOARD_DIR = at91sam3s2-ek
-endif
+#ifeq (atsam3s2,$(CHIP))
+#BOARD_DIR = at91sam3s2-ek
+#endif
 
-ifeq (sam9g15,$(CHIP))
-BOARD =sam9g15_ek
-BOARD_DIR = at91sam9g15-ek
-endif
+#ifeq (sam9g15,$(CHIP))
+#BOARD =sam9g15_ek
+#BOARD_DIR = at91sam9g15-ek
+#endif
 
-ifeq (sam9g25,$(CHIP))
-BOARD =sam9g25_ek
-BOARD_DIR = at91sam9g25-ek
-endif
+#ifeq (sam9g25,$(CHIP))
+#BOARD =sam9g25_ek
+#BOARD_DIR = at91sam9g25-ek
+#endif
 
-ifeq (sam9g35,$(CHIP))
-BOARD =sam9g35_ek
-BOARD_DIR = at91sam9g35-ek
-endif
+#ifeq (sam9g35,$(CHIP))
+#BOARD =sam9g35_ek
+#BOARD_DIR = at91sam9g35-ek
+#endif
 
-ifeq (sam9x25,$(CHIP))
-BOARD =sam9x25_ek
-BOARD_DIR = at91sam9x25-ek
-endif
+#ifeq (sam9x25,$(CHIP))
+#BOARD =sam9x25_ek
+#BOARD_DIR = at91sam9x25-ek
+#endif
 
-ifeq (sam9x35,$(CHIP))
-BOARD =sam9x35_ek
-BOARD_DIR = at91sam9x35-ek
-endif
+#ifeq (sam9x35,$(CHIP))
+#BOARD =sam9x35_ek
+#BOARD_DIR = at91sam9x35-ek
+#endif
 
 # Defines which are the available memory targets for the AT91SAM3S-EK board.
 MEMORIES = sram
@@ -231,7 +231,7 @@ clean:
 %.lss: %.elf
 	@echo
 	@echo $(MSG_EXTENDED_LISTING) $@
-ifeq (atsam3s4,$(CHIP))
-BOARD_DIR = at91sam3s4-ek
-endif
+#ifeq (atsam3s4,$(CHIP))
+#BOARD_DIR = at91sam3s4-ek
+#endif
 	$(OBJDUMP) -h -S $< > $@

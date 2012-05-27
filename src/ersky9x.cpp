@@ -151,6 +151,7 @@ static void config_free_pins( void ) ;
 void checkTHR( void ) ;
 static void checkSwitches( void ) ;
 void check_backlight( void ) ;
+void checkQuickSelect( void ) ;
 
 static uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
@@ -259,6 +260,7 @@ uint8_t g_vbat100mV = 98 ;
 //int16_t calibratedStick[7] ;
 //int16_t g_chans512[NUM_CHNOUT] ;
 uint8_t heartbeat ;
+uint8_t heartbeat_running ;
 
 //uint8_t Timer2_running = 0 ;
 //uint8_t Timer2_pre = 0 ;
@@ -425,7 +427,10 @@ int main (void)
 	init_eeprom() ;	
 	 
 	eeReadAll() ;
-	
+
+//  uint8_t cModel = g_eeGeneral.currModel;
+  checkQuickSelect();
+	 
 //  lcdSetRefVolt(30) ;
   lcdSetRefVolt(g_eeGeneral.contrast) ;
 	set_volume( g_eeGeneral.volume ) ;
@@ -474,6 +479,7 @@ int main (void)
 #endif
 
 	goto_usb = 0 ;
+	heartbeat_running = 1 ;
   while (1)
   {
 //	  PMC->PMC_PCER0 = 0x1800 ;				// Enable clocks to PIOB and PIOA
@@ -781,6 +787,18 @@ void clearKeyEvents()
 				// Detected USB
 				break ;
 			}
+			if ( heartbeat_running )
+			{
+  			if(heartbeat == 0x3)
+  			{
+  			  heartbeat = 0;
+  			  wdt_reset();
+  			}
+			}
+			else
+			{
+				wdt_reset() ;
+			}
 		}	
     putEvent(0);
 }
@@ -824,6 +842,8 @@ extern uint8_t DisplayBuf[] ;
 	if(!g_eeGeneral.disableSplashScreen)
   {
    	check_backlight() ;
+    lcd_clear();
+		refreshDisplay();
     lcdSetRefVolt(g_eeGeneral.contrast);
   	clearKeyEvents();
 
@@ -2418,6 +2438,33 @@ int8_t getMovedSwitch()
   return result;
 }
 
+void checkQuickSelect()
+{
+  uint8_t i = keyDown(); //check for keystate
+  uint8_t j;
+  for(j=1; j<8; j++)
+      if(i & (1<<j)) break;
+  j--;
+
+  if(j<6)
+	{
+    if(!ee32ModelExists(j))
+			return ;
+    if( g_eeGeneral.currModel != j )
+		{
+	    ee32LoadModel(g_eeGeneral.currModel = j);
+	    STORE_GENERALVARS;
+		}
+    lcd_clear();
+    lcd_putsAtt(64-7*FW,0*FH,PSTR("LOADING"),DBLSIZE);
+
+    for(uint8_t i=0;i<sizeof(g_model.name);i++)
+      lcd_putcAtt(FW*2+i*2*FW-i-2, 3*FH, g_model.name[i],DBLSIZE);
+
+    refreshDisplay();
+    clearKeyEvents(); // wait for user to release key
+  }
+}
 
 void alertMessages( const char * s, const char * t )
 {
@@ -2502,6 +2549,7 @@ void checkTHR()
 		check_backlight() ;
   }
 }
+
 
 
 void putWarnSwitch( uint8_t x, const char * s )
