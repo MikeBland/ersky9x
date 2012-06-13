@@ -200,7 +200,7 @@ void StopEepromThread()
 
 void eeprom_read_block (void *pointer_ram,
     const void *pointer_eeprom,
-    size_t size)
+    uint32_t size)
 {
   assert(size);
 

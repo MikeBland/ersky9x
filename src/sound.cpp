@@ -242,8 +242,10 @@ void init_dac()
 #endif
 	dacptr->DACC_CDR = 2048 ;						// Half amplitude
 // Data for PDC must NOT be in flash, PDC needs a RAM source.
+#ifndef SIMU
 	dacptr->DACC_TPR = (uint32_t) Sine_values ;
 	dacptr->DACC_TNPR = (uint32_t) Sine_values ;
+#endif
 	dacptr->DACC_TCR = 50 ;		// words, 100 16 bit values
 	dacptr->DACC_TNCR = 50 ;	// words, 100 16 bit values
 	dacptr->DACC_PTCR = DACC_PTCR_TXTEN ;
@@ -465,7 +467,9 @@ void i2c_check_for_request()
 		CoProc_read_pending = 0 ;
 		TWI0->TWI_MMR = 0x00351000 ;		// Device 35 and master is reading
 		TwiOperation = TWI_READ_COPROC ;
+#ifndef SIMU
 		TWI0->TWI_RPR = (uint32_t)&Co_proc_status[0] ;
+#endif
 		TWI0->TWI_RCR = COPROC_RX_BUXSIZE - 1 ;
 		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
 		{
@@ -498,7 +502,9 @@ void i2c_check_for_request()
 		CoProc_write_pending = 0 ;
 		TWI0->TWI_MMR = 0x00350000 ;		// Device 35 and master is writing
 		TwiOperation = TWI_WRITE_COPROC ;
+#ifndef SIMU
 		TWI0->TWI_TPR = (uint32_t)Co_proc_write_ptr ;
+#endif
 		TWI0->TWI_RCR = Co_proc_write_count ;
 		TWI0->TWI_THR = TWI_CMD_WRITE_DATA ;	// Send write command
 		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
