@@ -86,6 +86,7 @@ void sig(int sgn)
 #undef max
 
 #define APM
+#define __REV
 
 typedef const unsigned char pm_uchar;
 typedef const char pm_char;
@@ -94,9 +95,10 @@ typedef const uint8_t pm_uint8_t;
 typedef const int16_t pm_int16_t;
 typedef const int8_t pm_int8_t;
 
-extern sem_t eeprom_write_sem;
+extern sem_t *eeprom_write_sem;
 #if defined(PCBARM)
 extern Pio Pioa, Piob, Pioc;
+extern Twi Twio;
 extern Usart Usart0;
 #undef USART0
 #define USART0 (&Usart0)
@@ -106,6 +108,11 @@ extern Usart Usart0;
 #define PIOB (&Piob)
 #undef PIOC
 #define PIOC (&Pioc)
+#undef TWI0
+#define TWI0 (&Twio)
+extern Pwm pwm;
+#undef PWM
+#define PWM (&pwm)
 extern uint32_t eeprom_pointer;
 extern char* eeprom_buffer_data;
 extern volatile int32_t eeprom_buffer_size;
@@ -120,10 +127,6 @@ extern void rxPdcUsart( void (*pChProcess)(uint8_t x) );
 #define PIOB 0
 #define PIOC 0
 #endif
-
-#define loop_until_bit_is_set( port, bitnum) \
-  while ( 0/*! ( (port) & (1 << (bitnum)) )*/ ) ;
-
 
 #define PORTA dummyport
 #define PORTB portb
@@ -187,6 +190,7 @@ extern void rxPdcUsart( void (*pChProcess)(uint8_t x) );
 
 #define TIMSK  dummyport
 #define TIMSK1 dummyport
+#define TIMSK3 dummyport
 #define TIMSK4 dummyport
 #define ETIMSK  dummyport
 #define ETIMSK1 dummyport

@@ -102,7 +102,7 @@ void setSwitch(uint8_t idx, uint8_t func, int8_t v1, int8_t v2)
     g_model.customSw[idx-1].v2   = v2;
 }
 
-__attribute__((noinline)) uint8_t convert_mode_helper(uint8_t x)
+uint8_t convert_mode_helper(uint8_t x)
 {
     return modn12x3[ g_eeGeneral.stickMode*4 + (x) - 1] ;
 }

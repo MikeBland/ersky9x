@@ -32,6 +32,10 @@
  */
 
 #include "ersky9x.h"
+#include "file.h"
+#include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
 
 volatile uint8_t pinb=0xff, pinc=0xff, pind, pine=0xff, ping=0xff, pinh=0xff, pinj=0xff, pinl=0;
 uint8_t portb, portc, porth=0, dummyport;
@@ -39,58 +43,33 @@ uint16_t dummyport16;
 const char *eepromFile = NULL;
 FILE *fp = NULL;
 
-#if defined(PCBARM)
 Pio Pioa, Piob, Pioc;
+Twi Twio;
 Usart Usart0;
+Pwm pwm;
 uint32_t eeprom_pointer;
 char* eeprom_buffer_data;
 volatile int32_t eeprom_buffer_size;
 bool eeprom_read_operation;
 #define EESIZE (128*4096)
 void configure_pins( uint32_t pins, uint16_t config ) { }
-#else
-extern uint16_t eeprom_pointer;
-extern const char* eeprom_buffer_data;
-#endif
 
 uint8_t eeprom[EESIZE];
-sem_t eeprom_write_sem;
+sem_t *eeprom_write_sem;
 
 void setSwitch(int8_t swtch)
 {
   switch (swtch) {
     case DSW_ID0:
-#if defined(PCBARM)
       PIOC->PIO_PDSR &= ~0x00004000;
-#elif defined(PCBV4)
-      ping |=  (1<<INP_G_ID1);
-      pinb &= ~(1<<INP_B_ID2);
-#else
-      ping |=  (1<<INP_G_ID1);
-      pine &= ~(1<<INP_E_ID2);
-#endif
+      PIOC->PIO_PDSR |= 0x00000800;
       break;
     case DSW_ID1:
-#if defined(PCBARM)
       PIOC->PIO_PDSR |= 0x00004800;
-#elif defined(PCBV4)
-      ping &= ~(1<<INP_G_ID1);
-      pinb &= ~(1<<INP_B_ID2);
-#else
-      ping &= ~(1<<INP_G_ID1);
-      pine &= ~(1<<INP_E_ID2);
-#endif
       break;
     case DSW_ID2:
-#if defined(PCBARM)
       PIOC->PIO_PDSR &= ~0x00000800;
-#elif defined(PCBV4)
-      ping &= ~(1<<INP_G_ID1);
-      pinb |=  (1<<INP_B_ID2);
-#else
-      ping &= ~(1<<INP_G_ID1);
-      pine |=  (1<<INP_E_ID2);
-#endif
+      PIOC->PIO_PDSR |= 0x00004000;
       break;
     default:
       break;
@@ -100,18 +79,15 @@ void setSwitch(int8_t swtch)
 bool eeprom_thread_running = true;
 void *eeprom_write_function(void *)
 {
-  while (!sem_wait(&eeprom_write_sem)) {
-
+  while (!sem_wait(eeprom_write_sem)) {
     if (!eeprom_thread_running)
       return NULL;
-#if defined(PCBARM)
     if (eeprom_read_operation) {
       assert(eeprom_buffer_size);
       eeprom_read_block(eeprom_buffer_data, (const void *)(int64_t)eeprom_pointer, eeprom_buffer_size);
       // TODO sleep()
     }
     else {
-#endif
     if (fp) {
       if (fseek(fp, eeprom_pointer, SEEK_SET) == -1)
         perror("error in fseek");
@@ -121,9 +97,6 @@ void *eeprom_write_function(void *)
       if (fp) {
         if (fwrite(eeprom_buffer_data, 1, 1, fp) != 1)
           perror("error in fwrite");
-#if !defined(PCBARM)
-        sleep(5/*ms*/);
-#endif
       }
       else {
         memcpy(&eeprom[eeprom_pointer], eeprom_buffer_data, 1);
@@ -135,12 +108,9 @@ void *eeprom_write_function(void *)
         fflush(fp);
       }
     }
-#if defined(PCBARM)
     }
     Spi_complete = 1;
-#endif
   }
-
   return 0;
 }
 
@@ -154,29 +124,25 @@ void *main_thread(void *)
 
   try {
 #endif
+
+    // TODO s_current_protocol = 255;
+
+    g_menuStackPtr = 0;
     g_menuStack[0] = menuProc0;
     g_menuStack[1] = menuProcModelSelect;
 
-#ifdef PCBARM
     init_eeprom();
-#endif
 
     eeReadAll(); //load general setup and selected model
 
     if (main_thread_running == 1) {
-#ifdef SPLASH
       doSplash();
-#endif
-#if !defined(PCBARM)
-      checkLowEEPROM();
-#endif
       checkTHR();
       checkSwitches();
-#warning TODO
-#if 0
-      checkAlarm();
-#endif
+      // TODO not in ersky9x? checkAlarm();
     }
+
+    // TODO s_current_protocol = 0;
 
     while (main_thread_running) {
       perMain(0);
@@ -215,7 +181,12 @@ void StartEepromThread(const char *filename)
       fp = fopen(eepromFile, "w+");
     if (!fp) perror("error in fopen");
   }
-  sem_init(&eeprom_write_sem, 0, 0);
+#ifdef __APPLE__
+  eeprom_write_sem = sem_open("eepromsemaphore", O_CREAT);
+#else
+  eeprom_write_sem = (sem_t *)malloc(sizeof(sem_t));
+  sem_init(eeprom_write_sem, 0, 0);
+#endif
   eeprom_thread_running = true;
   assert(!pthread_create(&eeprom_thread_pid, NULL, &eeprom_write_function, NULL));
 }
@@ -223,7 +194,7 @@ void StartEepromThread(const char *filename)
 void StopEepromThread()
 {
   eeprom_thread_running = false;
-  sem_post(&eeprom_write_sem);
+  sem_post(eeprom_write_sem);
   pthread_join(eeprom_thread_pid, NULL);
 }
 
@@ -247,14 +218,3 @@ uint16_t stack_free()
 {
   return 500;
 }
-
-#if 0
-static void EeFsDump(){
-  for(int i=0; i<EESIZE; i++)
-  {
-    printf("%02x ",eeprom[i]);
-    if(i%16 == 15) puts("");
-  }
-  puts("");
-}
-#endif

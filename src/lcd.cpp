@@ -541,6 +541,10 @@ void lcd_vline( uint8_t x, uint8_t y, int8_t h )
 
 
 
+#ifdef SIMU
+bool lcd_refresh = true;
+uint8_t lcd_buf[DISPLAY_W*DISPLAY_H/8];
+#endif
 
 
 
@@ -645,6 +649,7 @@ void lcd_init()
 
 void lcdSetRefVolt(uint8_t val)
 {
+#ifndef SIMU
 	register Pio *pioptr ;
 	pioptr = PIOC ;
 
@@ -666,6 +671,7 @@ void lcdSetRefVolt(uint8_t val)
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 #endif 
+#endif
 }
 
 
@@ -706,7 +712,13 @@ void lcdSendCtl(uint8_t val)
 	pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
 }
 
-
+#ifdef SIMU
+void refreshDisplay()
+{
+  memcpy(lcd_buf, DisplayBuf, sizeof(DisplayBuf));
+  lcd_refresh = true;
+}
+#else
 void refreshDisplay()
 {
 	register Pio *pioptr ;
@@ -788,7 +800,7 @@ void refreshDisplay()
 #endif 
 	pioptr->PIO_ODSR = 0xFE ;					// Drive D0 low
 }
-
+#endif
 
 
 

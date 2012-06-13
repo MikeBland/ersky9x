@@ -252,6 +252,16 @@ void ee32_update_name( uint32_t id, uint8_t *source )
 // Read eeprom data starting at random address
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate )
 {
+#ifdef SIMU
+  assert(size);
+  eeprom_pointer = eeAddress;
+  eeprom_buffer_data = (char*)buffer;
+  eeprom_buffer_size = size;
+  eeprom_read_operation = true;
+  Spi_complete = false;
+  sem_post(eeprom_write_sem);
+  int x;
+#else
 	register uint8_t *p ;
 	register uint32_t x ;
 
@@ -261,6 +271,7 @@ uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint3
 	*(p+2) = eeAddress >> 8 ;
 	*(p+3) = eeAddress ;		// 3 bytes address
 	spi_PDC_action( p, 0, buffer, 4, size ) ;
+#endif
 
 	if ( immediate )
 	{
@@ -271,9 +282,12 @@ uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint3
 		if ( Spi_complete )
 		{
 			break ;				
-		}        			
+		}
+#ifdef SIMU
+    sleep(5/*ms*/);
+#endif
 	}
-	return x ; 
+	return x ;
 }
 
 

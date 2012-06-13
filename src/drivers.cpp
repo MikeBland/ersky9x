@@ -19,7 +19,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "AT91SAM3S4.h"
+#ifndef SIMU
 #include "core_cm3.h"
+#endif
 
 #include "ersky9x.h"
 #include "myeeprom.h"
@@ -784,6 +786,7 @@ uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uin
 
 uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
 {
+#ifndef SIMU
 	register Spi *spiptr ;
 //	register uint32_t result ;
 	register uint32_t condition ;
@@ -833,7 +836,7 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 		}
 	}
 	spiptr->SPI_IER = condition ; 
-
+#endif
 	return 0 ;
 }
 
@@ -1009,6 +1012,7 @@ void endPdcUsartReceive()
 
 void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 {
+#if !defined(SIMU)
   register Usart *pUsart = SECOND_USART;
 	uint8_t *ptr ;
 	uint8_t *endPtr ;
@@ -1043,6 +1047,7 @@ void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 		TelemetryActiveBuffer ^= 1 ;		// Other buffer is active
 		rxPdcUsart( pChProcess ) ;			// Get any chars from second buffer
 	}
+#endif
 }
 
 uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
@@ -1324,6 +1329,7 @@ void init_adc()
 // Start TIMER3 for input capture
 void start_timer3()
 {
+#ifndef SIMU
   register Tc *ptc ;
 //	register Pio *pioptr ;
 
@@ -1345,11 +1351,13 @@ void start_timer3()
 	NVIC_SetPriority( TC3_IRQn, 15 ) ; // Low ppiority interrupt
 	NVIC_EnableIRQ(TC3_IRQn) ;
 	ptc->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;
+#endif
 }
 
 // Start Timer4 to provide 0.5uS clock for input capture
 void start_timer4()
 {
+#ifndef SIMU
   register Tc *ptc ;
 	register uint32_t timer ;
 
@@ -1367,6 +1375,7 @@ void start_timer4()
 	ptc->TC_CHANNEL[1].TC_CMR = 0x0009C000 ;	// 0000 0000 0000 1001 1100 0000 0100 0000
 																						// MCK/2, set @ RA, Clear @ RC waveform
 	ptc->TC_CHANNEL[1].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+#endif
 }
 
 void start_ppm_capture()
@@ -1960,6 +1969,7 @@ uint32_t sd_cmd7()
 // Get SCR
 uint32_t sd_acmd51( uint32_t *presult )
 {
+#ifndef SIMU
 	uint32_t i ;
 	uint32_t j = 0 ;
   Hsmci *phsmci = HSMCI ;
@@ -1995,6 +2005,9 @@ uint32_t sd_acmd51( uint32_t *presult )
 	{
 		return 0 ;
 	}
+#else
+	return 0;
+#endif
 }
 
 #define SD_SET_BUS_WIDTH            (6 | HSMCI_CMDR_SPCMD_STD | HSMCI_CMDR_RSPTYP_48_BIT \
@@ -2234,9 +2247,11 @@ Now decide what the card can do!
 
 */
 
-
+#ifndef SIMU
 #include "ff.h"
 #include "diskio.h"
+#endif
+
 
 /* FAT sub-type boundaries */
 /* Note that the FAT spec by Microsoft says 4085 but Windows works with 4087! */
@@ -2308,7 +2323,7 @@ Now decide what the card can do!
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
-
+#ifndef SIMU
 DRESULT disk_read (
 				   BYTE drv,			/* Physical drive nmuber (0) */
 				   BYTE *buff,			/* Pointer to the data buffer to store read data */
@@ -2361,6 +2376,7 @@ DRESULT disk_read (
 /*-----------------------------------------------------------------------*/
 
 //static
+
 BYTE check_fs (	/* 0:The FAT BR, 1:Valid BR but not an FAT, 2:Not a BR, 3:Disk error */
 	FATFS *fs,	/* File system object */
 	DWORD sect	/* Sector# (lba) to check if it is an FAT boot record or not */
@@ -2379,7 +2395,7 @@ BYTE check_fs (	/* 0:The FAT BR, 1:Valid BR but not an FAT, 2:Not a BR, 3:Disk e
 	return 1;
 }
 
-
+#endif
 
 
 

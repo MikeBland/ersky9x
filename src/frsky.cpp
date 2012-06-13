@@ -24,7 +24,9 @@
 #include "drivers.h"
 #include "audio.h"
 #include "AT91SAM3S4.h"
+#ifndef SIMU
 #include "core_cm3.h"
+#endif
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -682,9 +684,10 @@ void FRSKY_setModelAlarms(void)
 {
 	FrskyBattCells = 0 ;
   FrskyAlarmSendState |= 0x0F ;
-	
-  Frsky_current[0].Amp_hour_boundary = 360000L/ g_model.frsky.channels[0].ratio ;
-	Frsky_current[1].Amp_hour_boundary = 360000L/ g_model.frsky.channels[1].ratio ;
+#ifndef SIMU
+  Frsky_current[0].Amp_hour_boundary = 360000L/ g_model.frsky.channels[0].ratio ; // <= (!) division per 0!
+	Frsky_current[1].Amp_hour_boundary = 360000L/ g_model.frsky.channels[1].ratio ; // <= (!) division per 0!
+#endif
 }
 
 struct FrSky_Q_t FrSky_Queue ;

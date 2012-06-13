@@ -4490,10 +4490,14 @@ void perOut(int16_t *chanOut, uint8_t att)
             //Normalization  [0..2048] ->   [-1024..1024]
 
             int16_t v = anaIn(i);
+
+#ifndef SIMU
             v -= g_eeGeneral.calibMid[i];
             v  =  v * (int32_t)RESX /  (max((int16_t)100,(v>0 ?
                                                               g_eeGeneral.calibSpanPos[i] :
                                                               g_eeGeneral.calibSpanNeg[i])));
+#endif
+
             if(v <= -RESX) v = -RESX;
             if(v >=  RESX) v =  RESX;
 	  				if ( g_eeGeneral.throttleReversed )

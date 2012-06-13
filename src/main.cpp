@@ -39,7 +39,9 @@
 #include <string.h>
 
 #include "AT91SAM3S2.h"
+#ifndef SIMU
 #include "core_cm3.h"
+#endif
 
 
 #include "ersky9x.h"

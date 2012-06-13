@@ -380,6 +380,7 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define STORE_MODELVARS_TRIM   eeDirty(EE_MODEL|EE_TRIM)
 #define STORE_MODELVARS   eeDirty(EE_MODEL)
 #define STORE_GENERALVARS eeDirty(EE_GENERAL)
+
 #define BACKLIGHT_ON    (PWM->PWM_CH_NUM[0].PWM_CDTY = g_eeGeneral.bright)
 #define BACKLIGHT_OFF   (PWM->PWM_CH_NUM[0].PWM_CDTY = 100)
 

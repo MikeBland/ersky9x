@@ -40,7 +40,9 @@
 
 
 #include "AT91SAM3S4.h"
+#ifndef SIMU
 #include "core_cm3.h"
+#endif
 
 
 #include "ersky9x.h"
@@ -805,6 +807,7 @@ void clearKeyEvents()
 
 uint32_t check_power_or_usb()
 {
+#ifdef SIMU
 	if ( check_soft_power() == POWER_OFF )		// power now off
 	{
 		return 1 ;
@@ -813,6 +816,7 @@ uint32_t check_power_or_usb()
 	{
 		return 1 ;			// Detected USB
 	}
+#endif
 	return 0 ;
 }
 
@@ -847,8 +851,10 @@ extern uint8_t DisplayBuf[] ;
     lcdSetRefVolt(g_eeGeneral.contrast);
   	clearKeyEvents();
 
+#ifndef SIMU
   	for( i=0; i<32; i++)
     	getADC_filt(); // init ADC array
+#endif
 
   	uint16_t inacSum = stickMoveValue();
 
@@ -903,7 +909,13 @@ extern uint8_t DisplayBuf[] ;
 				}
 			}
 
-    	getADC_filt();
+#ifdef SIMU
+        if (!main_thread_running) return;
+        sleep(1/*ms*/);
+#else
+        getADC_filt();
+#endif
+
     	uint16_t tsum = stickMoveValue();
 	//    for(uint8_t i=0; i<4; i++)
 	//       tsum += anaIn(i)/INAC_DEVISOR;
@@ -2493,6 +2505,11 @@ void alert(const char * s, bool defaults)
   clearKeyEvents();
   while(1)
   {
+#ifdef SIMU
+    if (!main_thread_running) return;
+    sleep(1/*ms*/);
+#endif
+
     if(keyDown())
     {
       return;  //wait for key release
@@ -2521,9 +2538,13 @@ void checkTHR()
 
   int thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
 
+#ifdef SIMU
+  int16_t lowLim = THRCHK_DEADBAND - 1024 ;
+#else
   int16_t lowLim = THRCHK_DEADBAND + g_eeGeneral.calibMid[thrchn] - g_eeGeneral.calibSpanNeg[thrchn];// + g_eeGeneral.calibSpanNeg[thrchn]/8;
-
   getADC_single();   // if thr is down - do not display warning at all
+#endif
+
   int16_t v      = anaIn(thrchn);
   if((v<=lowLim) || (keyDown()))
   {
@@ -2536,7 +2557,13 @@ void checkTHR()
 	//loop until throttle stick is low
   while (1)
   {
+#ifdef SIMU
+      if (!main_thread_running) return;
+      sleep(1/*ms*/);
+#else
       getADC_single();
+#endif
+
       int16_t v      = anaIn(thrchn);
       if((v<=lowLim) || (keyDown()))
       {
@@ -2579,7 +2606,7 @@ static void checkSwitches()
     {
         bool t=keyState((EnumKeys)(SW_BASE_DIAG+7-j));
 				i <<= 1 ;
-        i |= t;
+        i |= (uint32_t)t;  // (!) casted to avoid a warning
     }
 //        alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
 
@@ -2625,6 +2652,11 @@ static void checkSwitches()
 		if ( check_power_or_usb() ) return ;		// Usb on or power off
 
 		check_backlight() ;
+
+#ifdef SIMU
+    if (!main_thread_running) return;
+    sleep(1/*ms*/);
+#endif
   }
 }
 
@@ -2682,6 +2714,9 @@ static void init_soft_power()
 //  2 if power switch off, trainer power on
 uint32_t check_soft_power()
 {
+#ifdef SIMU
+  return POWER_ON;
+#endif
 #ifdef REVB	
 	if ( PIOC->PIO_PDSR & PIO_PC17 )		// Power on
 	{
