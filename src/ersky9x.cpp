@@ -287,6 +287,52 @@ uint8_t heartbeat_running ;
 //    lcd_vline(xx+1,yy-ll,ll); \
 	*/
 
+static void checkAlarm() // added by Gohst
+{
+    if(g_eeGeneral.disableAlarmWarning) return;
+    if(!g_eeGeneral.beeperVal) alert(PSTR("Alarms Disabled"));
+}
+
+static void checkWarnings()
+{
+    if(sysFlags && sysFLAG_OLD_EEPROM)
+    {
+        alert(PSTR(" Old Version EEPROM   CHECK SETTINGS/CALIB")); //will update on next save
+        sysFlags &= ~(sysFLAG_OLD_EEPROM); //clear flag
+    }
+}
+
+inline uint8_t keyDown()
+{
+    return ~read_keys() & 0x7E ;
+}
+
+void clearKeyEvents()
+{
+    while(keyDown())
+		{
+			  // loop until all keys are up
+			if ( PIOC->PIO_PDSR & 0x02000000 )
+			{
+				// Detected USB
+				break ;
+			}
+			if ( heartbeat_running )
+			{
+  			if(heartbeat == 0x3)
+  			{
+  			  heartbeat = 0;
+  			  wdt_reset();
+  			}
+			}
+			else
+			{
+				wdt_reset() ;
+			}
+		}	
+    putEvent(0);
+}
+
 
 /*=========================================================================*/
 /*  DEFINE: All code exported                                              */
@@ -319,6 +365,7 @@ uint8_t heartbeat_running ;
 // The stock Beeper is on PA16 on the prototype board, use PA25 (LCD_CS2) on REVB.
 
 
+extern uint8_t CustomDisplayIndex[6] ;
 
 int main (void)
 {
@@ -398,7 +445,6 @@ int main (void)
 
 	UART_Configure( 9600, Master_frequency ) ;
 	UART2_Configure( 9600, Master_frequency ) ;		// Testing
-	UART3_Configure( 115200, Master_frequency ) ;		// Testing
 
 	start_timer2() ;
 	start_timer0() ;
@@ -430,6 +476,28 @@ int main (void)
 	 
 	eeReadAll() ;
 
+	{
+		uint32_t brate ;
+		switch ( g_eeGeneral.bt_baudrate )
+		{
+			default :
+			case 0 :
+				brate = 115200 ;
+			break ;
+			case 1 :
+				brate = 9600 ;
+			break ;
+			case 2 :
+				brate = 19200 ;
+			break ;
+		}
+		UART3_Configure( brate, Master_frequency ) ;		// Testing
+	}
+
+#ifdef FRSKY
+  FRSKY_Init();
+#endif
+
 //  uint8_t cModel = g_eeGeneral.currModel;
   checkQuickSelect();
 	 
@@ -440,6 +508,13 @@ int main (void)
 	MAh_used = g_eeGeneral.mAh_used ;
 
 	// Choose here between PPM and PXX
+	
+	CustomDisplayIndex[0] = 5 ;
+//	CustomDisplayIndex[1] = 0 ;
+//	CustomDisplayIndex[2] = 0 ;
+//	CustomDisplayIndex[3] = 0 ;
+	CustomDisplayIndex[4] = 1 ;
+	CustomDisplayIndex[5] = 2 ;
 
 //  pushMenu(menuProcModelSelect);
 //  popMenu(true);
@@ -466,6 +541,9 @@ int main (void)
   getADC_single();
   checkTHR();
   checkSwitches();
+	checkAlarm();
+	checkWarnings();
+	clearKeyEvents(); //make sure no keys are down before proceeding
 
 //	lcd_clear() ;
 //	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
@@ -476,9 +554,7 @@ int main (void)
 
 	start_ppm_capture() ;
 
-#ifdef FRSKY
-    FRSKY_Init();
-#endif
+  FrskyAlarmSendState |= 0x40 ;
 
 	goto_usb = 0 ;
 	heartbeat_running = 1 ;
@@ -772,37 +848,6 @@ void mainSequence( uint32_t no_menu )
 			}
 		}
   }
-}
-
-inline uint8_t keyDown()
-{
-    return ~read_keys() & 0x7E ;
-}
-
-void clearKeyEvents()
-{
-    while(keyDown())
-		{
-			  // loop until all keys are up
-			if ( PIOC->PIO_PDSR & 0x02000000 )
-			{
-				// Detected USB
-				break ;
-			}
-			if ( heartbeat_running )
-			{
-  			if(heartbeat == 0x3)
-  			{
-  			  heartbeat = 0;
-  			  wdt_reset();
-  			}
-			}
-			else
-			{
-				wdt_reset() ;
-			}
-		}	
-    putEvent(0);
 }
 
 uint32_t check_power_or_usb()
@@ -2085,8 +2130,8 @@ void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
   }
 
   lcd_putcAtt(x, y, ':',att&att2);
-  lcd_outdezNAtt(x+ ((att&DBLSIZE) ? 2 : 0), y, tme/60, LEADING0|att,2);
-  x += (att&DBLSIZE) ? FWNUM*6-2 : FW*3-1;
+  lcd_outdezNAtt(x/*+ ((att&DBLSIZE) ? 2 : 0)*/, y, tme/60, LEADING0|att,2);
+  x += (att&DBLSIZE) ? FWNUM*6-4 : FW*3-3;
   lcd_outdezNAtt(x, y, tme%60, LEADING0|att2,2);
 }
 
@@ -2176,12 +2221,13 @@ const char *get_switches_string()
 }	
 
 #ifdef FRSKY
-void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
+uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
 {
     uint32_t value ;
     //  uint8_t ratio ;
     uint16_t ratio ;
     uint8_t times2 ;
+    uint8_t unit = ' ' ;
 
     value = val ;
     if (g_model.frsky.channels[channel].type == 2/*V*/)
@@ -2236,16 +2282,19 @@ void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t 
     if ( (g_model.frsky.channels[channel].type == 0/*v*/) || (g_model.frsky.channels[channel].type == 2/*v*/) )
     {
       lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
-      if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
+			unit = 'v' ;
+      if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
     }
     else
     {
       lcd_outdezAtt(x, y, value, att);
 	    if (g_model.frsky.channels[channel].type == 3/*A*/)
 			{
-       	if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'A', att);
+					unit = 'A' ;
+       	if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
 			}
     }
+		return unit ;
 }
 
 

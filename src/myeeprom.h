@@ -128,6 +128,7 @@ PACK(typedef struct t_EEGeneral {
 	uint16_t	mAh_used ;
 	uint16_t	run_time ;
 	int8_t		current_calib ;
+	uint8_t		bt_baudrate ;
 }) EEGeneral;
 
 
@@ -275,6 +276,7 @@ PACK(typedef struct t_ModelData {
   FrSkyData frsky;
 	TimerMode timer[2] ;
 	FrSkyAlarmData frskyAlarms ;
+// Add 6 bytes for custom telemetry screen
 }) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))

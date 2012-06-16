@@ -329,7 +329,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const char Str_telemItems[] ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 16
+#define NUM_TELEM_ITEMS 17
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
@@ -489,7 +489,7 @@ extern uint8_t g_vbat100mV ;
 extern void doSplash( void ) ;
 extern void mainSequence( uint32_t no_menu ) ;
 #ifdef FRSKY
-extern void putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
+extern uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
 #endif
 
 extern uint32_t check_soft_power( void ) ;

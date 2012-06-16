@@ -160,11 +160,12 @@ enum AlarmLevel {
 
 struct FrskyData {
   uint8_t value;
+  uint8_t raw;
   uint8_t min;
   uint8_t max;
 	uint8_t offset ;
 	uint16_t averaging_total ;
-  void set(uint8_t value);
+  void set(uint8_t value, uint8_t copy);
 	void setoffset();
 };
 

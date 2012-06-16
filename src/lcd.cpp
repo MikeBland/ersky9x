@@ -334,12 +334,12 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
   if (mode & DBLSIZE)
   {
     fw += FWNUM ;
-    xinc = 2*FW;
+    xinc = 2*FWNUM;
     Lcd_lastPos = 2*FW;
   }
   else
   {
-    xinc = FW ;
+    xinc = FWNUM ;
     Lcd_lastPos = FW;
   }
 
