@@ -99,6 +99,10 @@ SRC  = core_cm3.c \
 
 CPPSRC = stamp.cpp \
          drivers.cpp \
+         diskio.cpp \
+         sdcard_driver.cpp \
+         ff.cpp \
+         gtime.cpp \
          sound.cpp \
          lcd.cpp \
          debug.cpp \

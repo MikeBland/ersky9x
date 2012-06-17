@@ -21,6 +21,8 @@
 #ifndef ersky9x_h
 #define ersky9x_h
 
+#include <stdint.h>
+
 #ifdef SIMU
 #include "simpgmspace.h"
 #else

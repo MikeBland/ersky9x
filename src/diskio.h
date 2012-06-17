@@ -38,6 +38,8 @@
 #ifndef DEF_DISKIO
 #define DEF_DISKIO
 
+#include "board.h"
+#include "core_cm3.h"
 #include "integer.h"
 
 #define DN_MCI		0	/* Physical drive number for MCI */
@@ -111,5 +113,34 @@ void disk_timerproc (void);
 
 
 volatile extern BYTE Timer1, Timer2;	/* 100Hz decrement timer */
+
+//------------------------------------------------------------------------------
+/// Detect if SD card is connected
+//------------------------------------------------------------------------------
+#define CardIsConnected() ( (PIOB->PIO_PDSR & PIO_PB7) == 0 )
+
+extern uint32_t Card_ID[4] ;
+extern uint32_t Card_SCR[2] ;
+extern uint32_t Card_CSD[4] ;
+extern uint32_t Sd_128_resp[4] ;
+extern uint32_t Sd_rca ;
+//extern uint32_t Cmd_55_resp ;
+
+extern uint32_t SD_SetBusWidth( uint32_t busWidth) ;
+extern void SD_EnableHsMode( uint8_t hsEnable) ;
+extern uint32_t SD_SetSpeed( uint32_t mciSpeed ) ;
+extern void SD_Reset( uint8_t keepSettings) ;
+extern void sd_cmd55( void ) ;
+extern uint32_t sd_acmd41( void ) ;
+extern uint32_t sd_cmd2( void ) ;
+extern uint32_t sd_cmd3( void ) ;
+extern uint32_t sd_cmd7( void ) ;
+extern uint32_t sd_cmd9( void ) ;
+extern uint32_t sd_acmd6( void ) ;
+extern uint32_t sd_acmd51( uint32_t *presult ) ;
+extern void sd_poll_10mS( void ) ;
+extern uint32_t sd_card_ready( void ) ;
+extern uint32_t sd_read_block( uint32_t block_no, uint32_t *data ) ;
+
 
 #endif
