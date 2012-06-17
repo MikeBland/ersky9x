@@ -57,8 +57,11 @@
 #include "frsky.h"
 #endif
 
+#ifndef SIMU
 #include "coos.h"
+#endif
 
+#ifndef SIMU
 #define MAIN_STACK_SIZE		300
 #define BT_STACK_SIZE			100
 OS_TID MainTask;
@@ -69,7 +72,7 @@ OS_STK Bt_stk[BT_STACK_SIZE] ;
 
 OS_TCID tmrBt1S;
 OS_FlagID Bt1SFlag;
-
+#endif
 
 const uint8_t splashdata[] = { 'S','P','S',0,
 #include "s9xsplash.lbm"
@@ -577,6 +580,7 @@ int main (void)
 
 	heartbeat_running = 1 ;
 
+#ifndef SIMU
 
 	CoInitOS();
 
@@ -588,7 +592,9 @@ int main (void)
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
 
 	CoStartOS();
-  while(1);
+
+	while(1);
+#endif
   /*
    * Prevent compiler warnings
    */
@@ -603,6 +609,7 @@ int main (void)
   return(0);
 }
 
+#ifndef SIMU
 void tmrBt_Handle( void )
 {
 	CoSetFlag(Bt1SFlag);		// 1 second return,set flag
@@ -618,6 +625,7 @@ void bt_task(void* pdata)
 		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 	}
 }
+#endif
 
 // This is the main task for the RTOS
 void main_loop(void* pdata)
@@ -716,7 +724,9 @@ void main_loop(void* pdata)
 			break ;		
 		}
 		mainSequence( MENUS ) ;
+#ifndef SIMU
 		CoTickDelay(1) ;					// 2mS for now
+#endif
 	}
 
 	lcd_clear() ;
@@ -725,10 +735,12 @@ void main_loop(void* pdata)
 	lcd_putcAtt( 72, 24, 'B', DBLSIZE ) ;
 	refreshDisplay() ;
 
+#ifndef SIMU
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
 	SysTick->CTRL = 0 ;				// Turn off systick
+#endif
 	endPdcUsartReceive() ;		// Terminate any serial reception
 	soft_power_off() ;
 	end_ppm_capture() ;
@@ -2398,12 +2410,12 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   bool ret_value ;
   uint8_t cs_index ;
   
-	if(level>5) return FALSE ; //prevent recursive loop going too deep
+	if(level>5) return false ; //prevent recursive loop going too deep
 
   switch(swtch){
     case  0:            return  nc;
-    case  MAX_DRSWITCH: return  TRUE ;
-    case -MAX_DRSWITCH: return  FALSE ;
+    case  MAX_DRSWITCH: return  true ;
+    case -MAX_DRSWITCH: return  false ;
   }
 
   uint8_t dir = swtch>0;

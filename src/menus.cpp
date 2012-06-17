@@ -5006,8 +5006,6 @@ void perOut(int16_t *chanOut, uint8_t att)
 
 void menuProcSDstat(uint8_t event)
 {
-	uint32_t i ;
-	uint8_t x, y ;
   MENU("SD CARD STAT", menuTabDiag, e_Setup3, 1, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
@@ -5020,7 +5018,10 @@ void menuProcSDstat(uint8_t event)
 	lcd_puts_Pleft( 1*FH, PSTR("\004Ready"));
 
 #ifndef SIMU
-	
+
+	uint32_t i ;
+	uint8_t x, y ;
+
 	lcd_outhex4( 10*FW, 1*FH, Card_state ) ;
 	
 //	if (sd_card_ready() )		// Moved for debugging
