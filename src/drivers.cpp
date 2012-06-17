@@ -1353,7 +1353,7 @@ void start_timer3()
 //  pioptr->PIO_ABCDSR[0] |= 0x00800000 ;		// Peripheral B = TIOA3
 //  pioptr->PIO_ABCDSR[1] &= ~0x00800000 ;	// Peripheral B
 //	pioptr->PIO_PDR = 0x00800000L ;		// Disable bit C23 (TIOA3) Assign to peripheral
-	NVIC_SetPriority( TC3_IRQn, 15 ) ; // Low priority interrupt
+	NVIC_SetPriority( TC3_IRQn, 14 ) ; // Low priority interrupt
 	NVIC_EnableIRQ(TC3_IRQn) ;
 	ptc->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;
 #endif

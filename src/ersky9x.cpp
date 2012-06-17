@@ -57,6 +57,20 @@
 #include "frsky.h"
 #endif
 
+#include "coos.h"
+
+#define MAIN_STACK_SIZE		300
+#define BT_STACK_SIZE			100
+OS_TID MainTask;
+OS_STK main_stk[MAIN_STACK_SIZE] ;
+
+OS_TID BtTask;
+OS_STK Bt_stk[BT_STACK_SIZE] ;
+
+OS_TCID tmrBt1S;
+OS_FlagID Bt1SFlag;
+
+
 const uint8_t splashdata[] = { 'S','P','S',0,
 #include "s9xsplash.lbm"
 	'S','P','E',0};
@@ -65,8 +79,8 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 #include "debug.h"
 
 
-#define TRUE	1
-#define FALSE	0
+//#define TRUE	1
+//#define FALSE	0
 
 //#define bool uint32_t
 
@@ -107,6 +121,9 @@ extern uint16_t g_timeMain;
 
 
 
+void tmrBt_Handle( void ) ;
+void bt_task(void* pdata) ;
+void main_loop( void* pdata ) ;
 void mainSequence( uint32_t no_menu ) ;
 void doSplash( void ) ;
 void perMain( uint32_t no_menu ) ;
@@ -369,7 +386,7 @@ extern uint8_t CustomDisplayIndex[6] ;
 
 int main (void)
 {
-	register uint32_t goto_usb ;
+//	register uint32_t goto_usb ;
 	register Pio *pioptr ;
 	// Debug variable
 //	uint32_t both_on ;
@@ -556,8 +573,57 @@ int main (void)
 
   FrskyAlarmSendState |= 0x40 ;
 
-	goto_usb = 0 ;
 	heartbeat_running = 1 ;
+
+
+	CoInitOS();
+
+	Bt1SFlag = CoCreateFlag(TRUE,FALSE);		// Auto-reset, start FALSE
+	tmrBt1S = CoCreateTmr(TMR_TYPE_PERIODIC,1000/(1000/CFG_SYSTICK_FREQ),1000/(1000/CFG_SYSTICK_FREQ),tmrBt_Handle);
+	
+	BtTask = CoCreateTask(bt_task,NULL,19,&Bt_stk[BT_STACK_SIZE-1],BT_STACK_SIZE);
+
+	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
+
+	CoStartOS();
+  while(1);
+  /*
+   * Prevent compiler warnings
+   */
+//  (void)c;
+
+  /*
+   * This return here make no sense.
+   * But to prevent the compiler warning:
+   * "return type of 'main' is not 'int'
+   * we use an int as return :-)
+   */
+  return(0);
+}
+
+void tmrBt_Handle( void )
+{
+	CoSetFlag(Bt1SFlag);		// 1 second return,set flag
+}
+
+void bt_task(void* pdata)
+{
+	CoStartTmr(tmrBt1S);
+	while(1)
+	{
+//		// A new second is come
+		CoWaitForSingleFlag(Bt1SFlag,0);
+		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
+	}
+}
+
+// This is the main task for the RTOS
+void main_loop(void* pdata)
+{
+	register uint32_t goto_usb ;
+	register Pio *pioptr ;
+	
+	goto_usb = 0 ;
   while (1)
   {
 //	  PMC->PMC_PCER0 = 0x1800 ;				// Enable clocks to PIOB and PIOA
@@ -648,7 +714,7 @@ int main (void)
 			break ;		
 		}
 		mainSequence( MENUS ) ;
-
+		CoTickDelay(1) ;					// 2mS for now
 	}
 
 	lcd_clear() ;
@@ -660,6 +726,7 @@ int main (void)
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
+	SysTick->CTRL = 0 ;				// Turn off systick
 	endPdcUsartReceive() ;		// Terminate any serial reception
 	soft_power_off() ;
 	end_ppm_capture() ;
@@ -673,19 +740,6 @@ int main (void)
 //	NVIC_DisableIRQ(PWM_IRQn) ;
 	disable_ssc() ;
 	sam_boot() ;
-
-  /*
-   * Prevent compiler warnings
-   */
-//  (void)c;
-
-  /*
-   * This return here make no sense.
-   * But to prevent the compiler warning:
-   * "return type of 'main' is not 'int'
-   * we use an int as return :-)
-   */
-  return(0);
 }
 
 static inline uint16_t getTmr2MHz()
@@ -740,7 +794,7 @@ void mainSequence( uint32_t no_menu )
 		if ( ++OneSecTimer >= 100 )
 		{
 			OneSecTimer -= 100 ;
-			txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
+//			txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 			Current_used += Current_accumulator / 100 ;			// milliAmpSeconds (but scaled)
 			Current_accumulator = 0 ;
 		}
@@ -852,7 +906,7 @@ void mainSequence( uint32_t no_menu )
 
 uint32_t check_power_or_usb()
 {
-#ifdef SIMU
+#ifndef SIMU
 	if ( check_soft_power() == POWER_OFF )		// power now off
 	{
 		return 1 ;

@@ -95,7 +95,8 @@ UADEFS =
 SRC  = core_cm3.c \
        board_lowlevel.c \
        crt.c \
-       vectors_sam3s.c
+       vectors_sam3s.c \
+       coos.c
 
 CPPSRC = stamp.cpp \
          drivers.cpp \
