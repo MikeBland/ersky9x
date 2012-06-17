@@ -5018,6 +5018,8 @@ void menuProcSDstat(uint8_t event)
 	evalOffset(sub, 1);
 
 	lcd_puts_Pleft( 1*FH, PSTR("\004Ready"));
+
+#ifndef SIMU
 	
 	lcd_outhex4( 10*FW, 1*FH, Card_state ) ;
 	
@@ -5067,6 +5069,7 @@ void menuProcSDstat(uint8_t event)
 	{
 		lcd_puts_Pleft( 1*FH, PSTR("NOT"));
 	}
+#endif
 }
 
 

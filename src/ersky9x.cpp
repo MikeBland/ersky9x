@@ -467,7 +467,9 @@ int main (void)
 	start_timer0() ;
 	init_adc() ;
 	init_pwm() ;
+#ifndef SIMU
 	init_SDcard() ;
+#endif
 
 //	g_LightOffCounter = 1000 ;
 	__enable_irq() ;
@@ -798,7 +800,9 @@ void mainSequence( uint32_t no_menu )
 			Current_used += Current_accumulator / 100 ;			// milliAmpSeconds (but scaled)
 			Current_accumulator = 0 ;
 		}
+#ifndef SIMU
 		sd_poll_10mS() ;
+#endif
 	}
 
 	t0 = getTmr2MHz() - t0;
