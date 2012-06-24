@@ -64,14 +64,21 @@
 #ifndef SIMU
 #define MAIN_STACK_SIZE		300
 #define BT_STACK_SIZE			100
+#define DEBUG_STACK_SIZE	100
+
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
 
 OS_TID BtTask;
 OS_STK Bt_stk[BT_STACK_SIZE] ;
 
-OS_TCID tmrBt1S;
-OS_FlagID Bt1SFlag;
+#ifdef	DEBUG
+OS_TID DebugTask;
+OS_STK debug_stk[DEBUG_STACK_SIZE] ;
+#endif
+
+//OS_TCID tmrBt1S;
+//OS_FlagID Bt1SFlag;
 #endif
 
 const uint8_t splashdata[] = { 'S','P','S',0,
@@ -150,7 +157,7 @@ void p8hex( uint32_t value ) ;
 void p4hex( uint16_t value ) ;
 void p2hex( unsigned char c ) ;
 void hex_digit_send( unsigned char c ) ;
-void handle_serial( void ) ;
+void handle_serial( void* pdata ) ;
 uint16_t anaIn( uint8_t chan ) ;
 void getADC_single( void ) ;
 void getADC_osmp( void ) ;
@@ -195,6 +202,8 @@ void setupPulsesPXX( void ) ;
 static void init_soft_power( void ) ;
 uint32_t check_soft_power( void ) ;
 void soft_power_off( void ) ;
+static void init_rotary_encoder( void ) ;
+static void stop_rotary_encoder( void ) ;
 
 
 
@@ -379,15 +388,15 @@ void clearKeyEvents()
 
 
 // Tested
-// RF-power-in			PC17
-// PPM-jack-in			PC19
+// RF-power-in			PC17	(prototype)
+// PPM-jack-in			PC19	(prototype)
 
 // The stock Beeper is on PA16 on the prototype board, use PA25 (LCD_CS2) on REVB.
 
 
-extern uint8_t CustomDisplayIndex[6] ;
+//extern uint8_t CustomDisplayIndex[6] ;
 
-int main (void)
+int main(void)
 {
 //	register uint32_t goto_usb ;
 	register Pio *pioptr ;
@@ -531,12 +540,12 @@ int main (void)
 
 	// Choose here between PPM and PXX
 	
-	CustomDisplayIndex[0] = 5 ;
+//	CustomDisplayIndex[0] = 5 ;
 //	CustomDisplayIndex[1] = 0 ;
 //	CustomDisplayIndex[2] = 0 ;
 //	CustomDisplayIndex[3] = 0 ;
-	CustomDisplayIndex[4] = 1 ;
-	CustomDisplayIndex[5] = 2 ;
+//	CustomDisplayIndex[4] = 1 ;
+//	CustomDisplayIndex[5] = 2 ;
 
 //  pushMenu(menuProcModelSelect);
 //  popMenu(true);
@@ -584,12 +593,20 @@ int main (void)
 
 	CoInitOS();
 
-	Bt1SFlag = CoCreateFlag(TRUE,FALSE);		// Auto-reset, start FALSE
-	tmrBt1S = CoCreateTmr(TMR_TYPE_PERIODIC,1000/(1000/CFG_SYSTICK_FREQ),1000/(1000/CFG_SYSTICK_FREQ),tmrBt_Handle);
+//	Bt1SFlag = CoCreateFlag(TRUE,FALSE);		// Auto-reset, start FALSE
+//	tmrBt1S = CoCreateTmr(TMR_TYPE_PERIODIC,1000/(1000/CFG_SYSTICK_FREQ),1000/(1000/CFG_SYSTICK_FREQ),tmrBt_Handle);
 	
 	BtTask = CoCreateTask(bt_task,NULL,19,&Bt_stk[BT_STACK_SIZE-1],BT_STACK_SIZE);
 
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
+
+
+#ifdef	DEBUG
+
+	DebugTask = CoCreateTaskEx( handle_serial,NULL,18,&debug_stk[DEBUG_STACK_SIZE-1],DEBUG_STACK_SIZE, 1, FALSE );
+
+#endif 
+	init_rotary_encoder() ;
 
 	CoStartOS();
 
@@ -610,22 +627,70 @@ int main (void)
 }
 
 #ifndef SIMU
-void tmrBt_Handle( void )
+//void tmrBt_Handle( void )
+//{
+//	CoSetFlag(Bt1SFlag);		// 1 second return,set flag
+//}
+
+OS_FlagID Bt_flag ;
+struct t_fifo32 Bt_fifo ;
+struct t_serial_tx Bt_tx ;
+uint8_t BtTxBuffer[32] ;
+
+void bt_send_buffer()
 {
-	CoSetFlag(Bt1SFlag);		// 1 second return,set flag
+	Bt_tx.buffer = BtTxBuffer ;
+	txPdcBt( &Bt_tx ) ;
+	while ( Bt_tx.ready == 1 )
+	{
+		// Wait
+		CoTickDelay(1) ;					// 2mS for now
+	}
+	Bt_tx.size = 0 ;
 }
 
 void bt_task(void* pdata)
 {
-	CoStartTmr(tmrBt1S);
+	uint32_t x ;
+	int32_t y ;
+//	static uint32_t count ;
+	Bt_flag = CoCreateFlag(TRUE,0) ;
+	Bt_tx.size = 0 ;
+//	CoStartTmr(tmrBt1S);
+//int32_t get_fifo32( struct t_fifo32 *pfifo )
 	while(1)
 	{
 //		// A new second is come
-		CoWaitForSingleFlag(Bt1SFlag,0);
-		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
+		x = CoWaitForSingleFlag( Bt_flag, 10 ) ;		// Wait for data in Fifo
+		if ( x == E_OK )
+		{
+			// We have some data in the Fifo
+			while ( ( y = get_fifo32( &Bt_fifo ) ) != -1 )
+			{
+				BtTxBuffer[Bt_tx.size++] = y ;
+				if ( Bt_tx.size > 31 )
+				{
+					bt_send_buffer() ;
+				}
+			}
+		}
+		else if ( Bt_tx.size )
+		{
+			bt_send_buffer() ;
+		}
+//		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 	}
 }
 #endif
+
+
+
+void telem_byte_to_bt( uint8_t data )
+{
+	put_fifo32( &Bt_fifo, data ) ;
+	CoSetFlag( Bt_flag ) ;			// Tell the Bt task something to do
+}
+
 
 // This is the main task for the RTOS
 void main_loop(void* pdata)
@@ -646,7 +711,9 @@ void main_loop(void* pdata)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 #ifdef	DEBUG
-		handle_serial() ;
+		
+//		handle_serial() ;
+
 //		{
 //			uint16_t rxchar ;
 //			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
@@ -741,7 +808,9 @@ void main_loop(void* pdata)
 	// BEFORE calling sam_boot()
 	SysTick->CTRL = 0 ;				// Turn off systick
 #endif
+	stop_rotary_encoder() ;
 	endPdcUsartReceive() ;		// Terminate any serial reception
+	end_bt_tx_interrupt() ;
 	soft_power_off() ;
 	end_ppm_capture() ;
 	end_spi() ;
@@ -1292,9 +1361,54 @@ static void start_timer0()
 }
 
 
+volatile uint32_t Rotary_position ;
+volatile uint32_t Rotary_count ;
 
-uint32_t Rotary_position ;
-uint32_t Rotary_count ;
+static void init_rotary_encoder()
+{
+	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;	// 19 and 21 are rotary encoder
+	configure_pins( PIO_PB6, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;		// rotary encoder switch
+	PIOC->PIO_IER = PIO_PC19 | PIO_PC21 ;
+	NVIC_EnableIRQ(PIOC_IRQn) ;
+}
+
+static void stop_rotary_encoder()
+{
+	NVIC_DisableIRQ(PIOC_IRQn) ;
+	PIOC->PIO_IDR = PIO_PC19 | PIO_PC21 ;
+}
+
+extern "C" void PIOC_IRQHandler()
+{
+  register uint32_t dummy;
+	
+	dummy = PIOC->PIO_ISR ;			// Read and clear status register
+	(void) dummy ;		// Discard value - prevents compiler warning
+
+	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
+	dummy >>= 19 ;
+	dummy &= 0x05 ;			// pick out the three bits
+	if ( dummy != ( Rotary_position & 0x05 ) )
+	{
+		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x04) >> 2 ) )
+		{
+			Rotary_count -= 1 ;
+		}
+		else
+		{
+			Rotary_count += 1 ;
+		}
+		Rotary_position &= ~0x45 ;
+		Rotary_position |= dummy ;
+	}
+	// Now for testing only
+//	dummy = PIOB->PIO_PDSR & 0x40 ;		// Read the switch
+//	if ( ( Rotary_position & 0x40 ) != dummy )
+//	{
+//		Rotary_position ^= 0x40 ;
+//	}
+}
+
 
 extern "C" void TC2_IRQHandler()
 {
@@ -1326,21 +1440,22 @@ extern "C" void TC2_IRQHandler()
 			AlarmCheckFlag = 1 ;	// Flag time to check alarms
 		}
 	}
-	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
-	dummy >>= 19 ;
-	dummy &= 0x05 ;			// pick out the three bits
-	if ( dummy != ( Rotary_position & 0x05 ) )
-	{
-		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x04) >> 2 ) )
-		{
-			Rotary_count -= 1 ;
-		}
-		else
-		{
-			Rotary_count += 1 ;
-		}
-		Rotary_position = dummy ;
-	}
+//	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
+//	dummy >>= 19 ;
+//	dummy &= 0x05 ;			// pick out the three bits
+//	if ( dummy != ( Rotary_position & 0x05 ) )
+//	{
+//		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x04) >> 2 ) )
+//		{
+//			Rotary_count -= 1 ;
+//		}
+//		else
+//		{
+//			Rotary_count += 1 ;
+//		}
+//		Rotary_position = dummy ;
+//	}
+	// Remove the following when properly implemented, this for testing
 	dummy = PIOB->PIO_PDSR & 0x40 ;		// Read the switch
 	if ( ( Rotary_position & 0x40 ) != dummy )
 	{
@@ -2105,9 +2220,10 @@ static void config_free_pins()
 {
 	
 #ifdef REVB
-	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+//	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+	configure_pins( PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
 
-	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
+//	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;	// 19 and 21 are rotary encoder
 #else 
 	register Pio *pioptr ;
 

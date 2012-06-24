@@ -271,12 +271,14 @@ PACK(typedef struct t_ModelData {
   CSwData   customSw[NUM_CSW];
 //  uint8_t   rxnum;
   uint8_t   frSkyVoltThreshold ;
-  uint8_t   res3[2];
+  uint8_t   bt_telemetry;
+  uint8_t   res3;
   SafetySwData  safetySw[NUM_CHNOUT];
   FrSkyData frsky;
 	TimerMode timer[2] ;
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
+	uint8_t customDisplayIndex[6] ;
 }) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))

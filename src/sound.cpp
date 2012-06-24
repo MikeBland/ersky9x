@@ -69,18 +69,12 @@ extern uint32_t Master_frequency ;
 
 volatile uint8_t Buzzer_count ;
 
-struct t_sound_globals
-{
-	uint32_t Next_freq ;
-	volatile uint32_t Sound_time ;
-	uint32_t Frequency ;
-	volatile uint32_t Tone_timer ;		// Modified in interrupt routine
-	volatile uint8_t Tone_ms_timer ;
-	uint32_t Frequency_increment ;
-	uint32_t Next_frequency_increment ;
-} Sound_g ;
 
+struct t_sound_globals Sound_g ;
 
+struct t_VoiceBuffer VoiceBuffer[2] ;
+
+	
 // Must NOT be in flash, PDC needs a RAM source.
 uint16_t Sine_values[] =
 {
@@ -221,6 +215,7 @@ void start_timer1()
 
 
 
+
 // Configure DAC1 (or DAC0 for REVB)
 // Not sure why PB14 has not be allocated to the DAC, although it is an EXTRA function
 // So maybe it is automatically done
@@ -293,27 +288,41 @@ void sound_5ms()
 		
 	if ( Sound_g.Tone_ms_timer == 0 )
 	{
-		if ( Sound_g.Sound_time )
-		{
-			Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
-			if ( Sound_g.Next_freq )		// 0 => silence for time
+//	if (	Sound_g.VoiceRequest )
+//	{
+//  	Sound_g.VoiceActive = 1 ;
+//	}			 
+//	if (	Sound_g.VoiceActive )
+//	{
+//		if ( Sound_g.Sound_time )
+//		{
+//			Sound_g.Sound_time = 0 ;
+//		}			 
+//	}
+//		else
+//		{
+			if ( Sound_g.Sound_time )
 			{
-				Sound_g.Frequency = Sound_g.Next_freq ;
-				Sound_g.Frequency_increment = Sound_g.Next_frequency_increment ;
-				set_frequency( Sound_g.Frequency ) ;
-				tone_start( 0 ) ;
+				Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
+				if ( Sound_g.Next_freq )		// 0 => silence for time
+				{
+					Sound_g.Frequency = Sound_g.Next_freq ;
+					Sound_g.Frequency_increment = Sound_g.Next_frequency_increment ;
+					set_frequency( Sound_g.Frequency ) ;
+					tone_start( 0 ) ;
+				}
+				else
+				{
+					DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Silence
+				}
+				Sound_g.Sound_time = 0 ;
 			}
 			else
 			{
-				DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Silence
+				DACC->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
+				Sound_g.Tone_timer = 0 ;	
 			}
-			Sound_g.Sound_time = 0 ;
-		}
-		else
-		{
-			DACC->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
-			Sound_g.Tone_timer = 0 ;	
-		}
+//		}
 	}
 	else if ( ( Sound_g.Tone_ms_timer & 1 ) == 0 )		// Every 10 mS
 	{
@@ -327,6 +336,28 @@ void sound_5ms()
 		}
 	}
 }
+
+uint32_t voiceRequest( uint32_t voice_on )
+{
+	//	if ( voice_on )
+	//	{
+	//		if ( Sound_g.Tone_ms_timer == 0 )
+	//		{
+	//	  	Sound_g.VoiceActive = 1 ;
+	//			return 1
+	//		else
+	//		{
+	//	  	Sound_g.VoiceRequest = 1 ;
+	//			return 0 ;
+	//		}
+	//	}
+	//	else
+	//	{
+	//  	Sound_g.VoiceActive = 0 ;
+	//	}
+	return 0 ;
+}
+
 
 // frequency in Hz, time in mS
 void playTone( uint32_t frequency, uint32_t time )

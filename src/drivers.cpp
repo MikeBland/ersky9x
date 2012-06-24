@@ -26,7 +26,9 @@
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "drivers.h"
+#include "lcd.h"
 #include "debug.h"
+#include "coos.h"
 
 // Timer usage
 // TIMER3 for input capture
@@ -39,14 +41,6 @@
 uint16_t Analog_values[NUMBER_ANALOG] ;
 uint16_t Temperature ;				// Raw temp reading
 uint16_t Max_temperature ;		// Max raw temp reading
-
-//struct t_fifo32
-//{
-//	uint8_t fifo[32] ;
-//	uint32_t in ;
-//	uint32_t out ;
-//	volatile uint32_t count ;
-//} ;
 
 
 #define RX_UART_BUFFER_SIZE	32
@@ -317,8 +311,8 @@ uint32_t read_keys()
 {
 	register uint32_t x ;
 	register uint32_t y ;
-	
-	x = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
+
+	x = LcdLock ? LcdInputs : PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
 #ifdef REVB
 	y = x & 0x00000020 ;		// RIGHT
 	if ( x & 0x00000004 )
@@ -490,6 +484,31 @@ void per10ms()
   }
 }
 
+void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
+{
+	pfifo->fifo[pfifo->in] = byte ;
+	CoSchedLock() ;
+	pfifo->count += 1 ;
+	CoSchedUnlock() ;
+	pfifo->in = ( pfifo->in + 1) & 0x1F ;
+}
+
+int32_t get_fifo32( struct t_fifo32 *pfifo )
+{
+	int32_t rxbyte ;
+	if ( pfifo->count )						// Look for char available
+	{
+		rxbyte = pfifo->fifo[pfifo->out] ;
+		CoSchedLock() ;
+		pfifo->count -= 1 ;
+		CoSchedUnlock() ;
+		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
+		return rxbyte ;
+	}
+	return -1 ;
+
+	
+}
 
 //void put_frsky_fifo( uint8_t c )
 //{
@@ -1069,6 +1088,7 @@ uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 	return 0 ;
 }
 
+
 uint32_t txPdcPending()
 {
   register Usart *pUsart = SECOND_USART;
@@ -1084,6 +1104,43 @@ uint32_t txPdcPending()
 	return x ;
 }
 
+
+struct t_serial_tx *Current_bt ;
+
+uint32_t txPdcBt( struct t_serial_tx *data )
+{
+  Uart *pUart=BT_USART ;
+		
+	if ( pUart->UART_TNCR == 0 )
+	{
+		Current_bt = data ;
+		data->ready = 1 ;
+#ifndef SIMU
+	  pUart->UART_TPR = (uint32_t)data->buffer ;
+#endif
+		pUart->UART_TCR = data->size ;
+		pUart->UART_PTCR = US_PTCR_TXTEN ;
+		pUart->UART_IER = UART_IER_TXBUFE ;
+		NVIC_EnableIRQ(UART1_IRQn) ;
+		return 1 ;			// Sent OK
+	}
+	return 0 ;				// Busy
+}
+
+void end_bt_tx_interrupt()
+{
+  Uart *pUart=BT_USART ;
+	pUart->UART_IDR = UART_IDR_TXBUFE ;
+	NVIC_DisableIRQ(UART1_IRQn) ;
+}
+
+extern "C" void UART1_IRQHandler() //Bt tx complete
+{
+  Uart *pUart=BT_USART ;
+	pUart->UART_IDR = UART_IDR_TXBUFE ;
+	pUart->UART_PTCR = US_PTCR_TXTDIS ;
+	Current_bt->ready = 0 ;	
+}
 
 
 /**

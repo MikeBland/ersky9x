@@ -67,7 +67,7 @@ const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""C
 #define TEL_ITEM_CVLT		15
 #define TEL_ITEM_BATT		16
 
-uint8_t CustomDisplayIndex[6] ;
+//uint8_t CustomDisplayIndex[6] ;
 
 // TSSI set to zero on no telemetry data
 const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBatt" ;
@@ -76,7 +76,7 @@ const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 															TIMER1, TIMER2,
 															FR_ALT_BARO, FR_GPS_ALT,
 															FR_GPS_SPEED, FR_TEMP1, FR_TEMP2, FR_RPM,
-														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN } ;
+														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN, BATTERY } ;
 
 
 // This routine converts an 8 bit value for custom switch use
@@ -1099,7 +1099,7 @@ extern uint8_t frskyRSSItype[2] ;
 
 void menuProcTelemetry2(uint8_t event)
 {
-  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 14, {0, 1, 1, 1, 0});
+  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 15, {0, 1, 1, 1, 0});
 
 	uint8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
@@ -1189,7 +1189,7 @@ void menuProcTelemetry2(uint8_t event)
   	menu_lcd_onoff( PARAM_OFS, 7*FH, g_model.FrSkyGpsAlt, sub==subN ) ;
   	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.FrSkyGpsAlt, 0, 1);
 	}
-	else
+	else if ( sub < 14 )
 	{
 		uint8_t subN = 8 ;
 
@@ -1197,19 +1197,25 @@ void menuProcTelemetry2(uint8_t event)
 		for (uint8_t j=0; j<6; j++)
 		{
 	  	uint8_t attr = ((sub==subN) ? (s_editMode ? BLINK : INVERS) : 0);
-			if ( CustomDisplayIndex[j] )
+			if ( g_model.customDisplayIndex[j] )
 			{
- 				lcd_putsAttIdx( 0, j*FH + 2*FH, Str_telemItems, CustomDisplayIndex[j]-1, attr ) ;
+ 				lcd_putsAttIdx( 0, j*FH + 2*FH, Str_telemItems, g_model.customDisplayIndex[j]-1, attr ) ;
 			}
 			else
 			{
     		lcd_putsAtt(  0, j*FH + 2*FH, PSTR("----"), attr ) ;
 			}
-	  	if(sub==subN) CustomDisplayIndex[j] = checkIncDec( event, CustomDisplayIndex[j], 0, NUM_TELEM_ITEMS, 0 ) ;
+	  	if(sub==subN) g_model.customDisplayIndex[j] = checkIncDec( event, g_model.customDisplayIndex[j], 0, NUM_TELEM_ITEMS, EE_MODEL ) ;
 			subN++;
 		}
 	}
-
+	else
+	{
+		uint8_t subN = 14 ;
+  	lcd_puts_Pleft( FH, PSTR("BT Telemetry") );
+  	menu_lcd_onoff( PARAM_OFS, FH, g_model.bt_telemetry, sub==subN ) ;
+  	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.bt_telemetry, 0, 1);
+	}
 }
 
 #endif
@@ -4434,9 +4440,9 @@ void menuProc0(uint8_t event)
 							
               for (uint8_t i=0; i<6; i++)
 							{
-								if ( CustomDisplayIndex[i] )
+								if ( g_model.customDisplayIndex[i] )
 								{
-									putsTelemetryChannel( (i&1)?64:0, (i&0x0E)*FH+2*FH, CustomDisplayIndex[i]-1, get_telemetry_value(CustomDisplayIndex[i]-1),
+									putsTelemetryChannel( (i&1)?64:0, (i&0x0E)*FH+2*FH, g_model.customDisplayIndex[i]-1, get_telemetry_value(g_model.customDisplayIndex[i]-1),
 																							 DBLSIZE, TELEM_LABEL|TELEM_UNIT|TELEM_UNIT_LEFT|TELEM_VALUE_RIGHT ) ;
 								}
 							}

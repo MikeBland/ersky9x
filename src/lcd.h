@@ -45,6 +45,9 @@
 
 
 
+extern uint8_t LcdLock ;
+extern uint8_t LcdInputs ;
+
 extern uint8_t Lcd_lastPos;
 
 extern void lcd_putc(uint8_t x,uint8_t y,const char c ) ;

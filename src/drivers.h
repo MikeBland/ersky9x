@@ -22,6 +22,27 @@
 #define PIN_HIGH				0x100
 
 
+struct t_fifo32
+{
+	uint8_t fifo[32] ;
+	uint32_t in ;
+	uint32_t out ;
+	volatile uint32_t count ;
+} ;
+
+struct t_serial_tx
+{
+	uint8_t *buffer ;
+	uint16_t size ;
+	volatile uint16_t ready ;
+} ;
+
+extern void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte ) ;
+extern int32_t get_fifo32( struct t_fifo32 *pfifo ) ;
+
+extern struct t_serial_tx Bt_tx ;
+extern uint32_t txPdcBt( struct t_serial_tx *data ) ;
+extern void end_bt_tx_interrupt() ;
 
 extern uint16_t Analog_values[NUMBER_ANALOG] ;
 extern uint16_t Temperature ;		// Raw temp reading

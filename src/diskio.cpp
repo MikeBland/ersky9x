@@ -61,6 +61,7 @@ uint32_t Sd_128_resp[4] ;
 uint32_t Sd_rca ;
 uint32_t Cmd_8_resp ;
 uint32_t Cmd_A41_resp ;
+uint32_t SpeedAllowed ;
 
 /**
  * Configure the  MCI SDCBUS in the MCI_SDCR register. Only two modes available
@@ -480,7 +481,14 @@ uint32_t sd_acmd6()
                         return 0 ;
                 }
                 SD_SetBusWidth( HSMCI_SDCR_SDCBUS_4 ) ;
-                SD_SetSpeed( 9000000 ) ;
+								uint32_t j ;
+								j = SpeedAllowed ;
+								if ( j > 9000000 )
+								{
+									j = 9000000 ;									
+								}
+
+                SD_SetSpeed( j ) ;
                 return i ; //phsmci->HSMCI_RSPR[0] ;
         }
         else
@@ -488,6 +496,8 @@ uint32_t sd_acmd6()
                 return 0 ;
         }
 }
+
+const uint8_t SpeedTable[] = { 1, 10, 12, 13, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80 } ;
 
 // This routine is called every 10 mS, and checks for card
 // insertion and removal.
@@ -552,6 +562,28 @@ void sd_poll_10mS()
                         Card_CSD[1] = Sd_128_resp[1] ;
                         Card_CSD[2] = Sd_128_resp[2] ;
                         Card_CSD[3] = Sd_128_resp[3] ;
+												// Calc transmission speed
+												i = Card_CSD[0] & 0x0000007F ;
+												{
+													uint32_t j ;
+													j = i >> 3 ;
+													j = SpeedTable[j] ;
+													j *= 10000 ;
+													i &= 7 ;
+													if ( i-- )
+													{
+														j *= 10 ;														
+													}
+													if ( i-- )
+													{
+														j *= 10 ;														
+													}
+													if ( i )
+													{
+														j *= 10 ;														
+													}
+													SpeedAllowed = j ;
+												}
                         i = sd_cmd7() ;         // Select Card
 //                      txmit( '+' ) ;
 //                      p8hex( i ) ;
@@ -633,7 +665,9 @@ uint32_t sd_read_block(uint32_t block_no, uint32_t *data)
       uint8_t retry = 100;
       while (retry-- > 0) {
         CoTickDelay(1); // 2ms
-        if (phsmci->HSMCI_SR & HSMCI_SR_ENDRX) {
+        if (phsmci->HSMCI_SR & HSMCI_SR_ENDRX)
+				{
+//      		phsmci->HSMCI_PTCR = HSMCI_PTCR_RXTDIS;
           result = 1;
           break;
         }
@@ -641,7 +675,7 @@ uint32_t sd_read_block(uint32_t block_no, uint32_t *data)
 
     }
   }
-
+	phsmci->HSMCI_PTCR = HSMCI_PTCR_RXTDIS;
   phsmci->HSMCI_MR &= ~HSMCI_MR_PDCMODE;
   return result;
 }
@@ -666,7 +700,9 @@ uint32_t sd_write_block( uint32_t block_no, uint32_t *data )
       uint8_t retry = 100;
       while (retry-- > 0) {
         CoTickDelay(1); // 2ms
-        if (phsmci->HSMCI_SR & HSMCI_SR_NOTBUSY) {
+        if (phsmci->HSMCI_SR & HSMCI_SR_NOTBUSY)
+				{
+//      		phsmci->HSMCI_PTCR = HSMCI_PTCR_TXTDIS;
           result = 1;
           break;
         }
@@ -675,6 +711,7 @@ uint32_t sd_write_block( uint32_t block_no, uint32_t *data )
     }
   }
 
+	phsmci->HSMCI_PTCR = HSMCI_PTCR_TXTDIS;
   phsmci->HSMCI_MR &= ~HSMCI_MR_PDCMODE;
   return result;
 }

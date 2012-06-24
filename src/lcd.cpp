@@ -581,14 +581,23 @@ void lcd_clear()
 #define LCD_CS1   0x04000000L
 #define LCD_RES   0x08000000L
 
+
+uint8_t LcdLock ;
+uint8_t LcdInputs ;
+
 void lcd_init()
 {
 	register Pio *pioptr ;
   // /home/thus/txt/datasheets/lcd/KS0713.pdf
   // ~/txt/flieger/ST7565RV17.pdf  from http://www.glyn.de/content.asp?wdid=132&sid=
 
+
 #ifdef REVB
 	configure_pins( LCD_A0, PIN_ENABLE | PIN_LOW | PIN_OUTPUT | PIN_PORTA | PIN_NO_PULLUP ) ;
+
+// read the inputs, and lock the LCD lines
+	LcdInputs = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
+	LcdLock = 1 ;
 //	pioptr = PIOA ;
 //	pioptr->PIO_PER = LCD_A0 ;		// Enable bit 7 (LCD-A0)
 //	pioptr->PIO_CODR = LCD_A0 ;
@@ -643,7 +652,7 @@ void lcd_init()
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 #endif 
-
+	LcdLock = 0 ;
 }
 
 
@@ -652,6 +661,10 @@ void lcdSetRefVolt(uint8_t val)
 #ifndef SIMU
 	register Pio *pioptr ;
 	pioptr = PIOC ;
+
+// read the inputs, and lock the LCD lines
+	LcdInputs = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
+	LcdLock = 1 ;
 
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
 
@@ -672,6 +685,7 @@ void lcdSetRefVolt(uint8_t val)
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 #endif 
 #endif
+	LcdLock = 0 ;
 }
 
 
@@ -740,6 +754,10 @@ void refreshDisplay()
 	pioptr->PIO_OER = 0x00000080 ;		// Set bit 7 output
 #endif 
 
+// read the inputs, and lock the LCD lines
+	LcdInputs = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
+	LcdLock = 1 ;
+
 	pioptr = PIOC ;
 #ifdef REVB
 	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,15,13,12,7-0 output
@@ -799,6 +817,9 @@ void refreshDisplay()
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 #endif 
 	pioptr->PIO_ODSR = 0xFE ;					// Drive D0 low
+
+	LcdLock = 0 ;
+
 }
 #endif
 

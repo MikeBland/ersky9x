@@ -86,7 +86,7 @@ const uint8_t Fr_indices[] =
 uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
 uint8_t frskyTxBuffer[19];   // Ditto for transmit buffer
 //uint8_t frskyTxBufferCount = 0;
-uint8_t FrskyRxBufferReady = 0;
+//uint8_t FrskyRxBufferReady = 0;
 uint8_t frskyStreaming = 0;
 uint8_t frskyUsrStreaming = 0;
 //uint8_t FrskyAlarmTimer = 200 ;		// Units of 10 mS
@@ -311,7 +311,7 @@ void processFrskyPacket(uint8_t *packet)
     break;
   }
 
-  FrskyRxBufferReady = 0;
+//  FrskyRxBufferReady = 0;
   frskyStreaming = FRSKY_TIMEOUT10ms; // reset counter only if valid frsky packets are being detected
 }
 
@@ -331,9 +331,14 @@ void frsky_receive_byte( uint8_t data )
 {
   static uint8_t numPktBytes = 0;
   static uint8_t dataState = frskyDataIdle;
+
+	if ( g_model.bt_telemetry )
+	{
+		telem_byte_to_bt( data ) ;
+	}
   
-  if (FrskyRxBufferReady == 0) // can't get more data if the buffer hasn't been cleared
-  {
+//  if (FrskyRxBufferReady == 0) // can't get more data if the buffer hasn't been cleared
+//  {
     switch (dataState) 
     {
       case frskyDataStart:
@@ -374,7 +379,7 @@ void frsky_receive_byte( uint8_t data )
         break;
 
     } // switch
-  } // if (FrskyRxBufferReady == 0)
+//  } // if (FrskyRxBufferReady == 0)
 }
 
 /*

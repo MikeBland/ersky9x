@@ -87,6 +87,29 @@ extern "C" void TWI0_IRQHandler( void ) ;
 extern void audioDefevent( uint8_t e ) ;
 extern void hapticOff(void) ;
 extern void hapticOn( uint32_t pwmPercent ) ;
+extern uint32_t voiceRequest( uint32_t voice_on ) ;
 
+struct t_sound_globals
+{
+	uint32_t Next_freq ;
+	volatile uint32_t Sound_time ;
+	uint32_t Frequency ;
+	volatile uint32_t Tone_timer ;		// Modified in interrupt routine
+	uint32_t Frequency_increment ;
+	uint32_t Next_frequency_increment ;
+	volatile uint8_t Tone_ms_timer ;
+	uint8_t VoiceActive ;
+	uint8_t VoiceRequest ;
+} ;
+
+struct t_VoiceBuffer
+{
+	uint16_t count ;
+	uint16_t sent ;
+	uint16_t data[512] ;		// 46 mS at 11025 sample rate
+} ;
+
+extern struct t_sound_globals Sound_g ;
+extern struct t_VoiceBuffer VoiceBuffer[] ;
 
 

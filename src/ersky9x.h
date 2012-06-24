@@ -492,6 +492,7 @@ extern void doSplash( void ) ;
 extern void mainSequence( uint32_t no_menu ) ;
 #ifdef FRSKY
 extern uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
+extern void telem_byte_to_bt( uint8_t data ) ;
 #endif
 
 extern uint32_t check_soft_power( void ) ;
