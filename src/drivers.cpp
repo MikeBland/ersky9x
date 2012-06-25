@@ -487,9 +487,13 @@ void per10ms()
 void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
 {
 	pfifo->fifo[pfifo->in] = byte ;
+#ifndef SIMU
 	CoSchedLock() ;
+#endif
 	pfifo->count += 1 ;
+#ifndef SIMU
 	CoSchedUnlock() ;
+#endif
 	pfifo->in = ( pfifo->in + 1) & 0x1F ;
 }
 
@@ -499,9 +503,13 @@ int32_t get_fifo32( struct t_fifo32 *pfifo )
 	if ( pfifo->count )						// Look for char available
 	{
 		rxbyte = pfifo->fifo[pfifo->out] ;
+#ifndef SIMU
 		CoSchedLock() ;
+#endif
 		pfifo->count -= 1 ;
+#ifndef SIMU
 		CoSchedUnlock() ;
+#endif
 		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
 		return rxbyte ;
 	}

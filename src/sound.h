@@ -32,6 +32,8 @@
 *
 ****************************************************************************/
 
+#ifndef sound_h
+#define sound_h
 
 extern void write_coprocessor( uint8_t *ptr, uint32_t count ) ;
 extern void read_coprocessor( void ) ;
@@ -112,4 +114,4 @@ struct t_VoiceBuffer
 extern struct t_sound_globals Sound_g ;
 extern struct t_VoiceBuffer VoiceBuffer[] ;
 
-
+#endif

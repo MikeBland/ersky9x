@@ -1,4 +1,5 @@
-
+#ifndef drivers_h
+#define drivers_h
 
 #define PIN_ENABLE			0x001
 #define PIN_PERIPHERAL	0x000
@@ -139,8 +140,4 @@ extern void sd_poll_10mS( void ) ;
 extern uint32_t sd_card_ready( void ) ;
 extern uint32_t sd_read_block( uint32_t block_no, uint32_t *data ) ;
 
-
-
-
-
-
+#endif
