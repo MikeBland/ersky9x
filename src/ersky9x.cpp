@@ -58,7 +58,7 @@
 #endif
 
 #ifndef SIMU
-#include "coos.h"
+#include "CoOS.h"
 #endif
 
 #ifndef SIMU

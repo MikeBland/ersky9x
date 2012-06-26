@@ -53,7 +53,7 @@
 
 
 #ifndef SIMU
-#include "coos.h"
+#include "CoOS.h"
 #endif
 
 //#include "s9xsplash.lbm"

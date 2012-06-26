@@ -28,7 +28,7 @@
 #include "drivers.h"
 #include "lcd.h"
 #include "debug.h"
-#include "coos.h"
+#include "CoOS.h"
 
 // Timer usage
 // TIMER3 for input capture
