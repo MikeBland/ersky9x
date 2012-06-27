@@ -80,7 +80,9 @@ const uint8_t Fr_indices[] =
 	HUBDATALENGTH-1,
 	FR_CURRENT,
 	FR_V_AMP | 0x80,
-	FR_V_AMPd
+	FR_V_AMPd,
+	HUBDATALENGTH-1,
+	HUBDATALENGTH-1
 } ;
 
 uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
@@ -117,7 +119,7 @@ int16_t FrskyHubMax[HUBMINMAXLEN] ;
 
 uint8_t FrskyVolts[12];
 uint8_t FrskyBattCells=0;
-
+uint16_t Frsky_Amp_hour_prescale ;
 
 void store_hub_data( uint8_t index, uint16_t value )
 {
@@ -634,6 +636,8 @@ void resetTelemetry()
 	FrskyHubData[FR_A1_MAH] = 0 ;
 	FrskyHubData[FR_A2_MAH] = 0 ;
 	FrskyHubData[FR_CELL_MIN] = 210 ;			// 4.2 volts
+	Frsky_Amp_hour_prescale = 0 ;
+	FrskyHubData[FR_AMP_MAH] = 0 ;
 //  memset(frskyRSSI, 0, sizeof(frskyRSSI));
 }
 
@@ -671,11 +675,21 @@ void check_frsky()
 			
 			if ( (  Frsky_current[i].Amp_hour_prescale += frskyTelemetry[i].value ) >  Frsky_current[i].Amp_hour_boundary )
 			{
-				 Frsky_current[i].Amp_hour_prescale -=  Frsky_current[i].Amp_hour_boundary ;
+				Frsky_current[i].Amp_hour_prescale -=  Frsky_current[i].Amp_hour_boundary ;
 				FrskyHubData[FR_A1_MAH+i] += 1 ;
 			}
   	}	
 	}
+
+	// FrSky Current sensor (in amps)
+	// add this every 10 ms, when over 360, we have 1 mAh
+	// 
+	if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 360 )
+	{
+		Frsky_Amp_hour_prescale -= 360 ;
+		FrskyHubData[FR_AMP_MAH] += 1 ;
+	}
+
 
 	// See if time for alarm checking
 //	if (--FrskyAlarmTimer == 0 )

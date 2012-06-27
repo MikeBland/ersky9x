@@ -331,7 +331,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const char Str_telemItems[] ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 17
+#define NUM_TELEM_ITEMS 19
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4

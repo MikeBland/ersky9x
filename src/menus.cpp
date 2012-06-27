@@ -66,17 +66,20 @@ const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""C
 #define TEL_ITEM_MAH2		14
 #define TEL_ITEM_CVLT		15
 #define TEL_ITEM_BATT		16
+#define TEL_ITEM_AMPS		17
+#define TEL_ITEM_MAHC		18
 
 //uint8_t CustomDisplayIndex[6] ;
 
 // TSSI set to zero on no telemetry data
-const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBatt" ;
+const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah " ;
 const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 															FR_RXRSI_COPY, FR_TXRSI_COPY,
 															TIMER1, TIMER2,
 															FR_ALT_BARO, FR_GPS_ALT,
 															FR_GPS_SPEED, FR_TEMP1, FR_TEMP2, FR_RPM,
-														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN, BATTERY } ;
+														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,
+															BATTERY, FR_CURRENT, FR_AMP_MAH } ;
 
 
 // This routine converts an 8 bit value for custom switch use
@@ -119,6 +122,7 @@ int16_t convertTelemConstant( int8_t channel, int8_t value)
     break;
     case FR_A1_MAH:
     case FR_A2_MAH:
+		case FR_AMP_MAH :
       result *= 50;
     break;
 
@@ -2851,97 +2855,112 @@ uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int
 
 void menuProcSetup1(uint8_t event)
 {
-  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 8, {0/*, 0*/});
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 9, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
 //	bool    edit;
 //	uint8_t blink ;
 
-	evalOffset(sub, 5);
+//	evalOffset(sub, 5);
 	uint8_t y = 1*FH;
-	uint8_t subN = 1;
 	uint8_t current_volume ;
+	uint8_t subN ;
 
-	current_volume = g_eeGeneral.volume ;
-  lcd_puts_Pleft(    y, PSTR("Volume"));
-	lcd_outdezAtt( 14*FW, y, current_volume, (sub==subN) ? INVERS : 0 ) ;
-  if(sub==subN)
+	if ( sub < 8 )
 	{
-		CHECK_INCDEC_H_GENVAR(event,current_volume,0,NUM_VOL_LEVELS-1);
-		if ( current_volume != g_eeGeneral.volume )
+		subN = 1;
+		current_volume = g_eeGeneral.volume ;
+  	lcd_puts_Pleft(    y, PSTR("Volume"));
+		lcd_outdezAtt( 14*FW, y, current_volume, (sub==subN) ? INVERS : 0 ) ;
+  	if(sub==subN)
 		{
-			set_volume( g_eeGeneral.volume = current_volume ) ;
-		}
-	}
-  if((y+=FH)>7*FH) return;
-	subN++;
-	
-// audio start by rob
-    if(s_pgOfs<subN) {
-        lcd_puts_P(0, y,PSTR("Speaker Pitch"));
-        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.speakerPitch,(sub==subN ? INVERS : 0)|LEFT);
-        if(sub==subN) {
-            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.speakerPitch, 1, 100);
-        }
-        if((y+=FH)>7*FH) return;
-    }subN++;
-	
-    if(s_pgOfs<subN) {
-        lcd_puts_P(0, y,PSTR("Haptic Strength"));
-        lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.hapticStrength,(sub==subN ? INVERS : 0)|LEFT);
-        if(sub==subN) {
-            CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.hapticStrength, 0, 5);
-        }
-        if((y+=FH)>7*FH) return;
-    }subN++;	
- //audio end by rob   
-
-  lcd_puts_Pleft(    y, PSTR("Brightness"));
-	lcd_outdezAtt( 14*FW, y, 100-g_eeGeneral.bright, (sub==subN) ? INVERS : 0 ) ;
-  if(sub==subN)
-	{
-		uint8_t b ;
-		b = 100 - g_eeGeneral.bright ;
-		CHECK_INCDEC_H_GENVAR( event, b, 0, 100 ) ;
-		g_eeGeneral.bright = 100 - b ;
-		PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
-	}
-  if((y+=FH)>7*FH) return;
-	subN++;
-
-  g_eeGeneral.optrexDisplay = onoffMenuItem( g_eeGeneral.optrexDisplay, y, PSTR("Optrex Display"), sub, subN, event ) ;
-  if((y+=FH)>7*FH) return;
-	subN++;
-
-  lcd_puts_Pleft( y, PSTR("Capacity Alarm"));
-	lcd_outdezAtt( PARAM_OFS, y, g_eeGeneral.mAh_alarm*50, (sub==subN) ? INVERS : 0 ) ;
-  if(sub==subN)
-	{
-		CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.mAh_alarm,0,100);
-	}
-  if((y+=FH)>7*FH) return;
-	subN++;
-  lcd_puts_Pleft( y, PSTR("Bt baudrate"));
-  lcd_putsAttIdx(  PARAM_OFS, y, PSTR("\006115200  9600 19200"),g_eeGeneral.bt_baudrate,(sub==subN ? BLINK:0));
-  if(sub==subN)
-	{
-		uint8_t b ;
-		b = g_eeGeneral.bt_baudrate ;
-		CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.bt_baudrate,0,2);
-		if ( b != g_eeGeneral.bt_baudrate )
-		{
-			uint32_t baudrate = 115200 ;
-			if ( b )
+			CHECK_INCDEC_H_GENVAR(event,current_volume,0,NUM_VOL_LEVELS-1);
+			if ( current_volume != g_eeGeneral.volume )
 			{
-				baudrate = ( b == 1 ) ? 9600 : 19200 ;				
+				set_volume( g_eeGeneral.volume = current_volume ) ;
 			}
-			UART3_Configure( baudrate, Master_frequency ) ;
 		}
-	}
-  if((y+=FH)>7*FH) return;
-//	subN++;
+  	if((y+=FH)>7*FH) return;
+		subN++;
+	
+	// audio start by rob
+  	  if(s_pgOfs<subN) {
+  	      lcd_puts_P(0, y,PSTR("Speaker Pitch"));
+  	      lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.speakerPitch,(sub==subN ? INVERS : 0)|LEFT);
+  	      if(sub==subN) {
+  	          CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.speakerPitch, 1, 100);
+  	      }
+  	      if((y+=FH)>7*FH) return;
+  	  }subN++;
+	
+  	  if(s_pgOfs<subN) {
+  	      lcd_puts_P(0, y,PSTR("Haptic Strength"));
+  	      lcd_outdezAtt(PARAM_OFS,y,g_eeGeneral.hapticStrength,(sub==subN ? INVERS : 0)|LEFT);
+  	      if(sub==subN) {
+  	          CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.hapticStrength, 0, 5);
+  	      }
+  	      if((y+=FH)>7*FH) return;
+  	  }subN++;	
+ 	//audio end by rob   
 
+  	lcd_puts_Pleft(    y, PSTR("Brightness"));
+		lcd_outdezAtt( 14*FW, y, 100-g_eeGeneral.bright, (sub==subN) ? INVERS : 0 ) ;
+  	if(sub==subN)
+		{
+			uint8_t b ;
+			b = 100 - g_eeGeneral.bright ;
+			CHECK_INCDEC_H_GENVAR( event, b, 0, 100 ) ;
+			g_eeGeneral.bright = 100 - b ;
+			PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
+		}
+  	if((y+=FH)>7*FH) return;
+		subN++;
+
+  	g_eeGeneral.optrexDisplay = onoffMenuItem( g_eeGeneral.optrexDisplay, y, PSTR("Optrex Display"), sub, subN, event ) ;
+  	if((y+=FH)>7*FH) return;
+		subN++;
+
+  	lcd_puts_Pleft( y, PSTR("Capacity Alarm"));
+		lcd_outdezAtt( PARAM_OFS, y, g_eeGeneral.mAh_alarm*50, (sub==subN) ? INVERS : 0 ) ;
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.mAh_alarm,0,100);
+		}
+  	if((y+=FH)>7*FH) return;
+		subN++;
+  	lcd_puts_Pleft( y, PSTR("Bt baudrate"));
+  	lcd_putsAttIdx(  PARAM_OFS-3*FW, y, PSTR("\006115200  9600 19200"),g_eeGeneral.bt_baudrate,(sub==subN ? BLINK:0));
+  	if(sub==subN)
+		{
+			uint8_t b ;
+			b = g_eeGeneral.bt_baudrate ;
+			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.bt_baudrate,0,2);
+			if ( b != g_eeGeneral.bt_baudrate )
+			{
+				uint32_t baudrate = 115200 ;
+				if ( b )
+				{
+					baudrate = ( b == 1 ) ? 9600 : 19200 ;				
+				}
+				UART3_Configure( baudrate, Master_frequency ) ;
+			}
+		}
+  	if((y+=FH)>7*FH) return;
+		subN++;
+	}
+	else// sub 8+
+	{
+		subN = 8 ;
+  	lcd_puts_Pleft( FH, PSTR("Rotary Divisor"));
+  	lcd_putsAttIdx(  PARAM_OFS, y, PSTR("\00114"),g_eeGeneral.rotaryDivisor,(sub==subN ? BLINK:0));
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.rotaryDivisor,0,1);
+		}
+  	if((y+=FH)>7*FH) return;
+		subN++;
+	}
 }
 
 
@@ -4488,7 +4507,23 @@ void menuProc0(uint8_t event)
 				a += 1 ;
 				a *= 6 ;		// 6, 12, 18
 			}
-			for(int8_t i=a; i<(a+3); i++) lcd_putsnAtt((2+j*15)*FW-2 ,(i-a+4)*FH,get_switches_string()+3*i,3,getSwitch(i+1, 0) ? INVERS : 0);
+			for(int8_t i=a; i<(a+3); i++)
+			{
+				uint8_t s = i ;
+				if ( i == 8 )
+				{
+					s = 3 ;
+					if ( ! getSwitch( s+1, 0 ) )		// ID0 ?
+					{
+						s = 4 ;
+						if ( ! getSwitch( s+1, 0 ) )		// ID1 ?
+						{
+							s = 5 ;
+						}
+					}
+				}
+				lcd_putsnAtt((2+j*15)*FW-2 ,(i-a+4)*FH,get_switches_string()+3*s,3,getSwitch(i+1, 0) ? INVERS : 0);
+			}
 		}
 	}
   else  // New Timer2 display

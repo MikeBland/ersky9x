@@ -484,15 +484,36 @@ void per10ms()
   }
 }
 
+
+static inline uint32_t __xget_PRIMASK(void)
+{
+  uint32_t result=0;
+
+  __ASM volatile ("MRS %0, primask" : "=r" (result) );
+  return(result);
+}
+
+static inline void __xset_PRIMASK(uint32_t priMask)
+{
+  __ASM volatile ("MSR primask, %0" : : "r" (priMask) );
+}
+
+
+
 void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
 {
+//	uint32_t int_state ;
 	pfifo->fifo[pfifo->in] = byte ;
 #ifndef SIMU
-	CoSchedLock() ;
+//	int_state = __xget_PRIMASK() ;
+	__disable_irq() ;
+//	CoSchedLock() ;
 #endif
 	pfifo->count += 1 ;
 #ifndef SIMU
-	CoSchedUnlock() ;
+		__enable_irq() ;
+//	__xset_PRIMASK( int_state ) ;
+//	CoSchedUnlock() ;
 #endif
 	pfifo->in = ( pfifo->in + 1) & 0x1F ;
 }
@@ -504,11 +525,13 @@ int32_t get_fifo32( struct t_fifo32 *pfifo )
 	{
 		rxbyte = pfifo->fifo[pfifo->out] ;
 #ifndef SIMU
-		CoSchedLock() ;
+	__disable_irq() ;
+//		CoSchedLock() ;
 #endif
 		pfifo->count -= 1 ;
 #ifndef SIMU
-		CoSchedUnlock() ;
+//		CoSchedUnlock() ;
+		__enable_irq() ;
 #endif
 		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
 		return rxbyte ;

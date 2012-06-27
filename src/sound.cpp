@@ -359,6 +359,16 @@ uint32_t voiceRequest( uint32_t voice_on )
 }
 
 
+void wavU8Convert( uint8_t *src, uint16_t *dest , uint32_t count )
+{
+	while( count-- )
+	{
+		*dest++ = *src++ << 4 ;
+	}
+}
+
+
+
 // frequency in Hz, time in mS
 void playTone( uint32_t frequency, uint32_t time )
 {

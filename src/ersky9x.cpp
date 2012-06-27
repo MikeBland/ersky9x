@@ -129,6 +129,10 @@ extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
 extern uint16_t g_timeMain;
 
+volatile int32_t Rotary_position ;
+volatile int32_t Rotary_count ;
+int32_t LastRotaryValue ;
+int32_t Rotary_diff ;
 
 
 void tmrBt_Handle( void ) ;
@@ -1168,8 +1172,8 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   }
 
   //change values based on P1
-  newval -= p1valdiff;
-
+  newval -= p1valdiff ;
+	newval += Rotary_diff ;
   if(newval>i_max)
   {
     newval = i_max;
@@ -1253,6 +1257,18 @@ void perMain( uint32_t no_menu )
   {
     p1valdiff = 0 ;			
 	}
+
+	if ( g_eeGeneral.rotaryDivisor == 1)
+	{
+		Rotary_diff = ( Rotary_count - LastRotaryValue ) / 4 ;
+		LastRotaryValue += Rotary_diff * 4 ;
+	}
+	else
+	{
+		Rotary_diff = Rotary_count - LastRotaryValue ;
+		LastRotaryValue = Rotary_count ;
+	}
+
 
 #ifdef FRSKY
 	check_frsky() ;
@@ -1364,15 +1380,21 @@ static void start_timer0()
 }
 
 
-volatile uint32_t Rotary_position ;
-volatile uint32_t Rotary_count ;
 
 static void init_rotary_encoder()
 {
+  register uint32_t dummy;
+
 	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;	// 19 and 21 are rotary encoder
 	configure_pins( PIO_PB6, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;		// rotary encoder switch
 	PIOC->PIO_IER = PIO_PC19 | PIO_PC21 ;
+	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
+	dummy >>= 19 ;
+	dummy &= 0x05 ;			// pick out the three bits
+	Rotary_position &= ~0x45 ;
+	Rotary_position |= dummy ;
 	NVIC_EnableIRQ(PIOC_IRQn) ;
+	LastRotaryValue = Rotary_count ;
 }
 
 static void stop_rotary_encoder()

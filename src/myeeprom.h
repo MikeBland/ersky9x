@@ -129,6 +129,7 @@ PACK(typedef struct t_EEGeneral {
 	uint16_t	run_time ;
 	int8_t		current_calib ;
 	uint8_t		bt_baudrate ;
+	uint8_t		rotaryDivisor ;
 }) EEGeneral;
 
 
