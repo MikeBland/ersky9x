@@ -488,14 +488,17 @@ void per10ms()
 static inline uint32_t __xget_PRIMASK(void)
 {
   uint32_t result=0;
-
+#ifndef SIMU
   __ASM volatile ("MRS %0, primask" : "=r" (result) );
+#endif
   return(result);
 }
 
 static inline void __xset_PRIMASK(uint32_t priMask)
 {
+#ifndef SIMU
   __ASM volatile ("MSR primask, %0" : : "r" (priMask) );
+#endif
 }
 
 
