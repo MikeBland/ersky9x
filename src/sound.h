@@ -89,7 +89,10 @@ extern "C" void TWI0_IRQHandler( void ) ;
 extern void audioDefevent( uint8_t e ) ;
 extern void hapticOff(void) ;
 extern void hapticOn( uint32_t pwmPercent ) ;
-extern uint32_t voiceRequest( uint32_t voice_on ) ;
+void startVoice( uint32_t count ) ;			// count of filled in buffers
+void appendVoice( uint32_t index ) ;		// index of next buffer
+extern void wavU8Convert( uint8_t *src, uint16_t *dest , uint32_t count ) ;
+extern void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count ) ;
 
 struct t_sound_globals
 {
@@ -104,11 +107,19 @@ struct t_sound_globals
 	uint8_t VoiceRequest ;
 } ;
 
+
+// Bits in t_VoiceBuffer.flags
+#define VF_SENT			0x01
+#define VF_LAST			0x02
+
+#define	VOICE_BUFFER_SIZE		512
+
 struct t_VoiceBuffer
 {
 	uint16_t count ;
-	uint16_t sent ;
-	uint16_t data[512] ;		// 46 mS at 11025 sample rate
+	uint16_t flags ;
+	uint32_t frequency ;
+	uint16_t data[VOICE_BUFFER_SIZE] ;		// 46 mS at 11025 sample rate
 } ;
 
 extern struct t_sound_globals Sound_g ;

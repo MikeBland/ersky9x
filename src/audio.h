@@ -173,6 +173,7 @@ class audioQueue
 extern audioQueue audio;
 
 void audioDefevent(uint8_t e);
+void audioVoiceDefevent( uint8_t e, uint8_t v) ;
 
 #define AUDIO_KEYPAD_UP()   audioDefevent(AU_KEYPAD_UP)
 #define AUDIO_KEYPAD_DOWN() audioDefevent(AU_KEYPAD_DOWN)
@@ -195,5 +196,70 @@ void audioDefevent(uint8_t e);
 
 #define AUDIO_DRIVER()      audio.driver()
 #define AUDIO_HEARTBEAT()   audio.heartbeat()
+
+#define VOICE_Q_LENGTH		8
+
+struct t_voice
+{
+	uint8_t VoiceQueueCount ;
+	uint8_t VoiceQueueInIndex ;
+	uint8_t VoiceQueueOutIndex ;
+	uint8_t VoiceQueue[VOICE_Q_LENGTH] ;
+} ;
+
+extern struct t_voice Voice ;
+
+extern void putVoiceQueue( uint8_t value ) ;
+extern void voice_task(void* pdata) ;
+
+
+// Defines for voice messages
+
+#define	V_ZERO					0
+#define	V_ONE						1
+#define	V_TWO						2
+#define	V_THREE					3
+
+#define V_WARNING				21
+#define V_ERROR					22
+#define V_ALERT					23
+#define V_FEET					24
+#define V_FOOT					25
+
+#define	V_HELLO					28
+
+#define V_POINT					35
+#define V_VOLTS					36
+#define V_VOLT					37
+#define	V_MINUTES				38
+#define	V_MINUTE				39
+#define	V_FORTY					40
+
+#define	V_30SECS				41
+#define	V_20SECS				42
+#define	V_10SECS				43
+
+
+#define V_PERCENT				44
+#define	V_INACTIVE			45
+#define	V_BATTERY_LOW		46
+#define	V_DEGREES				47
+#define	V_DEGREE				48
+#define	V_CAPACITY			49
+
+#define V_AMPS					51
+#define V_AMP						52
+#define	V_SECONDS				53
+#define	V_SECOND				54
+#define	V_DB						55
+#define	V_METRES				56
+#define	V_METRE					57
+
+
+#define V_HUNDRED			 100
+
+
+
+
 
 #endif // audio_h

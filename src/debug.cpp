@@ -63,7 +63,14 @@
 void disp_256( uint32_t address, uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
+FILINFO FileInfo ;
 
+//uint16_t DacData0[512] ;
+//uint16_t DacData1[512] ;
+//uint16_t DacData2[512] ;
+//uint16_t DacSize0 ;
+//uint16_t DacSize1 ;
+//uint16_t DacSize2 ;
 
 #ifdef	DEBUG
 uint32_t Mem_address ;
@@ -72,7 +79,7 @@ uint32_t Next_mem_address ;
 uint32_t Memaddmode ;
 uint32_t SoundCheck ;
 
-uint32_t Sdcard_data[128] ;
+uint8_t Sdcard_data[1024] ;
 
 FIL T_file ;
 FATFS g_FATFS_Obj ;
@@ -137,6 +144,135 @@ void handle_serial(void* pdata)
 				Memaddmode = 0 ;				
 			}		
 
+		}
+
+
+		if ( ( rxchar == 'M' ) || ( rxchar == 'N' ) )
+		{
+			FRESULT fr ;
+			UINT nread ;
+			uint32_t x ;
+			uint32_t w8or16 ;
+			
+			txmit( rxchar ) ;
+			txmit( ' ' ) ;
+  		fr = f_mount(0, &g_FATFS_Obj);
+			p2hex( fr ) ;
+			txmit( ' ' ) ;
+  		if ( fr == FR_OK)
+			{
+				fr = f_stat( (rxchar == 'M') ? "0000.wav" : "0001.wav", &FileInfo ) ;
+				p2hex( fr ) ;
+				txmit( ' ' ) ;
+				p8hex( FileInfo.fsize ) ;
+				fr = f_open( &T_file, (rxchar == 'M') ? "0000.wav" : "0001.wav", FA_READ ) ;
+				p2hex( fr ) ;
+				txmit( ' ' ) ;
+				if ( fr == FR_OK )
+				{
+					fr = f_read( &T_file, Sdcard_data, 1024, &nread ) ;
+					p2hex( fr ) ;
+					txmit( ' ' ) ;
+					p4hex( nread ) ;
+					txmit( ' ' ) ;
+					x = Sdcard_data[34] + ( Sdcard_data[35] << 8 ) ;		// sample size
+					p4hex( x ) ;
+					w8or16 = x ;
+					txmit( ' ' ) ;
+					x = Sdcard_data[24] + ( Sdcard_data[25] << 8 ) ;		// sample rate
+					p4hex( x ) ;
+					crlf() ;
+					txmit( '+' ) ;
+					// 8 bit unsigned 11025 Hz
+
+					if ( w8or16 == 8 )
+					{
+						wavU8Convert( &Sdcard_data[44], VoiceBuffer[0].data, 512-44 ) ;
+						VoiceBuffer[0].count = 512-44 ;
+					}
+					else if ( w8or16 == 16 )
+					{
+						wavU16Convert( (uint16_t*)&Sdcard_data[44], VoiceBuffer[0].data, 512-44/2 ) ;
+						VoiceBuffer[0].count = 512-44/2 ;
+					}
+					else
+					{
+						break ;		// can't convert
+					}
+					VoiceBuffer[0].frequency = x ;		// sample rate
+
+					if ( w8or16 == 8 )
+					{
+						wavU8Convert( &Sdcard_data[512], VoiceBuffer[1].data, 512 ) ;
+					}
+					else
+					{
+						fr = f_read( &T_file, (uint8_t *)Sdcard_data, 1024, &nread ) ;
+						p2hex( fr ) ;
+						txmit( ' ' ) ;
+						p4hex( nread ) ;
+						txmit( ' ' ) ;
+						wavU16Convert( (uint16_t*)&Sdcard_data[0], VoiceBuffer[1].data, 512 ) ;
+					}
+					VoiceBuffer[1].count = 512 ;
+					VoiceBuffer[1].frequency = 0 ;
+					
+					fr = f_read( &T_file, (uint8_t *)Sdcard_data, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+					if ( w8or16 == 8 )
+					{
+						wavU8Convert( &Sdcard_data[0], VoiceBuffer[2].data, 512 ) ;
+					}
+					else
+					{
+						wavU16Convert( (uint16_t*)&Sdcard_data[0], VoiceBuffer[2].data, 512 ) ;
+					}
+					VoiceBuffer[2].count = 512 ;
+					VoiceBuffer[2].frequency = 0 ;
+					startVoice( 3 ) ;
+//							rxchar = 0xFFFF ;
+					for(x = 0;;)
+					{
+						fr = f_read( &T_file, (uint8_t *)Sdcard_data, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+						txmit( ' ' ) ;
+						p4hex( nread ) ;
+						if ( nread == 0 )
+						{
+							break ;
+						}
+	  				while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
+						{
+							CoTickDelay(1) ;					// 2mS for now
+//								if ( ( rxchar = rxuart() ) != 0xFFFF )
+//								{
+//									break ;
+//								}
+						}
+//								if ( rxchar != 0xFFFF )
+//								{
+//									break ;
+//								}
+						if ( w8or16 == 8 )
+						{
+							wavU8Convert( &Sdcard_data[0], VoiceBuffer[x].data, nread ) ;
+						}
+						else
+						{
+							nread /= 2 ;
+							wavU16Convert( (uint16_t*)&Sdcard_data[0], VoiceBuffer[x].data, nread ) ;
+						}
+						VoiceBuffer[x].count = nread ;
+						VoiceBuffer[x].frequency = 0 ;
+						appendVoice( x ) ;					// index of next buffer
+						x += 1 ;
+						if ( x > 2 )
+						{
+							x = 0 ;							
+						}
+					}
+					fr = f_close( &T_file ) ;
+					p2hex( fr ) ;
+				}
+			}
 		}
 
 		if ( rxchar == 'J' )
@@ -469,7 +605,7 @@ void handle_serial(void* pdata)
 	//				txmit( 'D' ) ;
 	//				txmit( ' ' ) ;
 					SdAddress = 0x39FF ;
-					i = sd_read_block( SdAddress, Sdcard_data ) ;
+					i = sd_read_block( SdAddress, (uint32_t *)Sdcard_data ) ;
 					p8hex( SdAddress ) ;
 					txmit( ':' ) ;
 					p8hex( i ) ;
@@ -488,7 +624,7 @@ void handle_serial(void* pdata)
 
 			for ( j = 0 ; j < 128 ; j += 1 )
 			{
-				i = sd_read_block( SdAddress, Sdcard_data ) ;
+				i = sd_read_block( SdAddress, (uint32_t *)Sdcard_data ) ;
 				p8hex( SdAddress ) ;
 				txmit( ':' ) ;
 				p8hex( i ) ;

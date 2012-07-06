@@ -64,13 +64,17 @@
 #ifndef SIMU
 #define MAIN_STACK_SIZE		300
 #define BT_STACK_SIZE			100
-#define DEBUG_STACK_SIZE	100
+#define DEBUG_STACK_SIZE	130
+#define VOICE_STACK_SIZE	130
 
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
 
 OS_TID BtTask;
 OS_STK Bt_stk[BT_STACK_SIZE] ;
+
+OS_TID VoiceTask;
+OS_STK voice_stk[DEBUG_STACK_SIZE] ;
 
 #ifdef	DEBUG
 OS_TID DebugTask;
@@ -565,11 +569,11 @@ int main(void)
 
   // moved here and logic added to only play statup tone if splash screen enabled.
   // that way we save a bit, but keep the option for end users!
-  if(g_eeGeneral.speakerMode == 1)
+  if((g_eeGeneral.speakerMode & 1) == 1)
 	{
     if(!g_eeGeneral.disableSplashScreen)
     {
-      audioDefevent(AU_TADA);
+			audioVoiceDefevent( AU_TADA, V_HELLO ) ;
     }
   }
 	doSplash() ;
@@ -604,6 +608,7 @@ int main(void)
 
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
 
+	VoiceTask = CoCreateTaskEx( voice_task,NULL,17,&voice_stk[VOICE_STACK_SIZE-1], VOICE_STACK_SIZE, 1, FALSE );
 
 #ifdef	DEBUG
 
@@ -653,6 +658,31 @@ void bt_send_buffer()
 	Bt_tx.size = 0 ;
 }
 
+/*
+Commands to BT module
+AT+VERSION 	Returns the software version of the module
+AT+BAUDx 	Sets the baud rate of the module:
+1 	1200
+2 	2400
+3 	4800
+4 	9600 (Default)
+5 	19200
+6 	38400
+7 	57600
+8 	115200
+9 	230400
+AT+NAME<name here> 	Sets the name of the module
+
+Any name can be specified up to 20 characters
+AT+PINxxxx 	Sets the pairing password of the device
+
+Any 4 digit number can be used, the default pincode is 1234
+AT+PN 	Sets the parity of the module 
+
+So we could send AT+VERSION at different baudrates until we get a response
+Then we can change the baudrate to the required value.
+Or maybe just AT and get OK back
+*/
 void bt_task(void* pdata)
 {
 	uint32_t x ;
@@ -660,6 +690,19 @@ void bt_task(void* pdata)
 //	static uint32_t count ;
 	Bt_flag = CoCreateFlag(TRUE,0) ;
 	Bt_tx.size = 0 ;
+
+// Look for BT module baudrate, try 115200, and 9600
+
+/*
+ 	
+	UART3_Configure( 9600, Master_frequency ) ;		// Testing
+	BtTxBuffer[0] = 'A' ;
+	BtTxBuffer[1] = 'T' ;
+	Bt_tx.size = 2 ;
+	bt_send_buffer() ;
+
+*/
+
 //	CoStartTmr(tmrBt1S);
 //int32_t get_fifo32( struct t_fifo32 *pfifo )
 	while(1)
@@ -969,7 +1012,14 @@ void mainSequence( uint32_t no_menu )
 						{
     		      if ( ( FrskyHubData[FR_A1_MAH+i] >> 6 ) >= g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
 							{
-								audio.event( g_model.frskyAlarms.alarmData[0].frskyAlarmSound ) ;
+								if ( g_eeGeneral.speakerMode & 2 )
+								{
+									putVoiceQueue( V_CAPACITY ) ;
+								}
+								else
+								{
+									audio.event( g_model.frskyAlarms.alarmData[0].frskyAlarmSound ) ;
+								}
 							}
 						}
 					}
@@ -981,7 +1031,15 @@ void mainSequence( uint32_t no_menu )
 		// Now for the Safety/alarm switch alarms
 		{
 			uint8_t i ;
-			for ( i = 0 ; i < NUM_CSW ; i += 1 )
+			static uint8_t periodCounter ;
+			
+			periodCounter += 0x11 ;
+			periodCounter &= 0xF7 ;
+			if ( periodCounter > 0x5F )
+			{
+				periodCounter &= 0x0F ;
+			}
+			for ( i = 0 ; i < NUM_CHNOUT ; i += 1 )
 			{
     		SafetySwData *sd = &g_model.safetySw[i] ;
 				if (sd->mode == 1)
@@ -991,8 +1049,46 @@ void mainSequence( uint32_t no_menu )
 						audio.event( sd->val ) ;
 					}
 				}
+				if (sd->mode == 2)
+				{
+					if ( sd->swtch > MAX_DRSWITCH )
+					{
+						switch ( sd->swtch - MAX_DRSWITCH -1 )
+						{
+							case 0 :
+								if ( ( periodCounter & 3 ) == 0 )
+								{
+									voice_telem_item( sd->val ) ;
+								}
+							break ;
+							case 1 :
+								if ( ( periodCounter & 0xF0 ) == 0 )
+								{
+									voice_telem_item( sd->val ) ;
+								}
+							break ;
+							case 2 :
+								if ( ( periodCounter & 7 ) == 2 )
+								{
+									voice_telem_item( sd->val ) ;
+								}
+							break ;
+						}
+					}
+					else if ( ( periodCounter & 1 ) == 0 )		// Every 4 seconds
+					{
+						if(getSwitch( sd->swtch,0))
+						{
+							putVoiceQueue( sd->val + 128 ) ;
+						}
+					}
+				}
 			}
 		}
+		// New switch voices
+		// New entries, Switch, (on/off/both), voice file index
+
+
   }
 }
 
@@ -1318,12 +1414,12 @@ void perMain( uint32_t no_menu )
 				{
 					if( (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49) )
 					{
-            audioDefevent(AU_TX_BATTERY_LOW);
+            audioVoiceDefevent(AU_TX_BATTERY_LOW, V_BATTERY_LOW);
             if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
 					}
-					if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(488 + g_eeGeneral.current_calib)/8192/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
+					else if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(488 + g_eeGeneral.current_calib)/8192/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
 					{
-            audioDefevent(AU_TX_BATTERY_LOW);
+            audioVoiceDefevent(AU_TX_BATTERY_LOW, V_BATTERY_LOW);
 					}
         }
     break ;
@@ -2431,6 +2527,38 @@ const char *get_switches_string()
   return PSTR(SWITCHES_STR)	;
 }	
 
+
+uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att )
+{
+  uint32_t value ;
+	uint16_t ratio ;
+	
+  value = val ;
+  ratio = g_model.frsky.channels[channel].ratio ;
+  if ( times2 )
+  {
+      ratio <<= 1 ;
+  }
+  value *= ratio ;
+	if (g_model.frsky.channels[channel].type == 3/*A*/)
+  {
+      value /= 100 ;
+      *p_att |= PREC1 ;
+  }
+  else if ( ratio < 100 )
+  {
+      value *= 2 ;
+      value /= 51 ;  // Same as *10 /255 but without overflow
+      *p_att |= PREC2 ;
+  }
+  else
+  {
+      value /= 255 ;
+  }
+	return value ;
+}
+
+
 #ifdef FRSKY
 uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
 {
@@ -2761,7 +2889,7 @@ void alert(const char * s, bool defaults)
   refreshDisplay();
   lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
 
-  audioDefevent(AU_ERROR);
+  audioVoiceDefevent(AU_ERROR, V_ERROR);
   clearKeyEvents();
   while(1)
   {
@@ -2999,6 +3127,13 @@ void soft_power_off()
 	
 	configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
 #endif
+}
+
+uint8_t *cpystr( uint8_t *dest, uint8_t *source )
+{
+  while ( (*dest++ = *source++) )
+    ;
+  return dest - 1 ;
 }
 
 

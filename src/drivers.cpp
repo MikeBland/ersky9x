@@ -485,38 +485,15 @@ void per10ms()
 }
 
 
-static inline uint32_t __xget_PRIMASK(void)
-{
-  uint32_t result=0;
-#ifndef SIMU
-  __ASM volatile ("MRS %0, primask" : "=r" (result) );
-#endif
-  return(result);
-}
-
-static inline void __xset_PRIMASK(uint32_t priMask)
-{
-#ifndef SIMU
-  __ASM volatile ("MSR primask, %0" : : "r" (priMask) );
-#endif
-}
-
-
-
 void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
 {
-//	uint32_t int_state ;
 	pfifo->fifo[pfifo->in] = byte ;
 #ifndef SIMU
-//	int_state = __xget_PRIMASK() ;
 	__disable_irq() ;
-//	CoSchedLock() ;
 #endif
 	pfifo->count += 1 ;
 #ifndef SIMU
 		__enable_irq() ;
-//	__xset_PRIMASK( int_state ) ;
-//	CoSchedUnlock() ;
 #endif
 	pfifo->in = ( pfifo->in + 1) & 0x1F ;
 }
@@ -529,11 +506,9 @@ int32_t get_fifo32( struct t_fifo32 *pfifo )
 		rxbyte = pfifo->fifo[pfifo->out] ;
 #ifndef SIMU
 	__disable_irq() ;
-//		CoSchedLock() ;
 #endif
 		pfifo->count -= 1 ;
 #ifndef SIMU
-//		CoSchedUnlock() ;
 		__enable_irq() ;
 #endif
 		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
@@ -753,89 +728,6 @@ uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uin
 	return result ;
 }
 
-// The following superceded by the PDC version after
-//uint32_t spi_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
-//{
-//	register Spi *spiptr ;
-//	register uint32_t result ;
-
-////  PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-
-//	result = 0 ; 
-//	spiptr = SPI ;
-//	spiptr->SPI_CR = 1 ;								// Enable
-//	(void) spiptr->SPI_RDR ;		// Dump any rx data
-//	while( comlen || count )
-//	{
-//		result = 0 ;
-//		while( ( spiptr->SPI_SR & SPI_SR_TXEMPTY ) == 0 )
-//		{
-//			// wait
-//			if ( ++result > 10000 )
-//			{
-//				result = 0xFFFF ;
-//				break ;				
-//			}
-//		}
-//		if ( result > 10000 )
-//		{
-//			break ;
-//		}
-////		if ( count == 1 )
-////		{
-////			spiptr->SPI_CR = SPI_CR_LASTXFER ;		// LastXfer bit
-////		}
-//		spiptr->SPI_TDR = comlen ? *command++ : tx ? *tx++ : 0 ;
-//		result = 0 ;
-//		while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-//		{
-//			// wait for received
-//			if ( ++result > 10000 )
-//			{
-//				result = 0x2FFFF ;
-//				break ;				
-//			}
-//		}
-//		if ( result > 10000 )
-//		{
-//			break ;
-//		}
-//		if ( !comlen )
-//		{
-//			if ( rx )
-//		{
-//				*rx++ = spiptr->SPI_RDR ;
-//			}
-//			else
-//			{
-//				(void) spiptr->SPI_RDR ;
-//			}
-//		}
-//		else
-//		{
-//			(void) spiptr->SPI_RDR ;
-//		}
-//		if ( comlen )
-//		{
-//			comlen -= 1 ;			
-//		}
-//		else
-//		{
-//			count -= 1 ;
-//		}
-//	}
-//	if ( result <= 10000 )
-//	{
-//		result = 0 ;
-//	}
-//	spiptr->SPI_CR = 2 ;								// Disable
-//	(void) spiptr->SPI_SR ;							// Clear error flags
-
-//// Power save
-////  PMC->PMC_PCER0 &= ~0x00200000L ;		// Disable peripheral clock to SPI
-
-//	return result ;
-//}
 
 uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
 {
@@ -1392,34 +1284,6 @@ void init_adc()
 	padc->ADC_CGR = 0 ;  // Gain = 1, all channels
 	padc->ADC_COR = 0 ;  // Single ended, 0 offset, all channels
 }
-
-
-//void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom)
-//{
-//	eeprom[pointer_eeprom] = dat ;
-//	Eeprom_image_updated = 1 ;
-//}
-
-//void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size)
-//{
-//  const char* pointer_ram = (const char*)i_pointer_ram;
-//  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
-//  while(size){
-//    eeprom_write_byte_cmp(*pointer_ram++,pointer_eeprom++);
-//    size--;
-//  }
-//}
-
-//void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size )
-//{
-//  char *pointer_ram = (char*)i_pointer_ram;
-//  uint32_t    pointer_eeprom = (uint32_t)i_pointer_eeprom;
-//	while ( size )
-//	{
-//		*pointer_ram++ = eeprom[pointer_eeprom++] ;
-//		size -= 1 ;		
-//	}
-//}
 
 
 // Start TIMER3 for input capture

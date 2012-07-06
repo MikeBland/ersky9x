@@ -13,13 +13,23 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
+#include "AT91SAM3S4.h"
+#include "core_cm3.h"
 #include "ersky9x.h"
 #include "audio.h"
 #include "sound.h"
 #include "myeeprom.h"
+#include "diskio.h"
+#include "ff.h"
+
+#ifndef SIMU
+#include "CoOS.h"
+#endif
 
 //#define SPEAKER_OFF  PORTE &= ~(1 << OUT_E_BUZZER) // speaker output 'low'
 
+struct t_voice Voice ;
 
 audioQueue::audioQueue()
 {
@@ -321,13 +331,230 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 
 void audioDefevent(uint8_t e)
 {
-	if ( g_eeGeneral.speakerMode == 0 )
+	if ( (g_eeGeneral.speakerMode & 1) == 0 )
 	{
 		buzzer_sound( 4 ) ;
 	}
-	else if ( g_eeGeneral.speakerMode == 1 )
+	else if ( ( g_eeGeneral.speakerMode & 1 )== 1 )
 	{
 		audio.event(e, BEEP_DEFAULT_FREQ);
 //		playTone( 2000, 60 ) ;		// 2KHz, 60mS
 	}
 }
+
+void audioVoiceDefevent( uint8_t e, uint8_t v)
+{
+	if ( g_eeGeneral.speakerMode & 2 )
+	{
+		putVoiceQueue( v ) ;
+	}
+	else
+	{
+    audioDefevent( e ) ;
+	}
+}
+
+
+
+// Announce a value using voice
+void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
+{
+//	uint8_t unit_value ;
+//	uint8_t hundred_value ;
+	uint8_t decimals = 0 ;
+	div_t qr ;
+
+	if ( num_decimals == 1 )
+	{
+		qr = div( value, 10 ) ;
+		decimals = qr.rem ;
+		value = qr.quot ;
+	}
+
+	qr = div( value, 100 ) ;
+	if ( qr.quot )
+	{
+		putVoiceQueue( qr.quot ) ;
+		putVoiceQueue( V_HUNDRED ) ;
+		qr = div( qr.rem, 10 ) ;
+		if ( qr.quot )
+		{
+			putVoiceQueue( qr.quot ) ;
+		}
+	}
+	else
+	{
+		if ( value > 19 )
+		{
+			qr = div( value, 10 ) ;
+			putVoiceQueue( value-qr.rem ) ;
+			if ( qr.rem )
+			{
+				putVoiceQueue( qr.rem ) ;
+			}
+		}
+		else
+		{
+			putVoiceQueue( value ) ;
+		}
+	}
+
+	if ( num_decimals == 1 )
+	{
+		putVoiceQueue( V_POINT ) ;
+		putVoiceQueue( decimals ) ;
+	}
+		 
+	if ( units_index )
+	{
+		putVoiceQueue( units_index ) ;
+	}
+}
+
+void putVoiceQueue( uint8_t value )
+{
+	struct t_voice *vptr ;
+	vptr = &Voice ;
+	
+	if ( vptr->VoiceQueueCount < VOICE_Q_LENGTH )
+	{
+		vptr->VoiceQueue[vptr->VoiceQueueInIndex++] = value ;
+		vptr->VoiceQueueInIndex &= ( VOICE_Q_LENGTH - 1 ) ;
+		__disable_irq() ;
+		vptr->VoiceQueueCount += 1 ;
+		__enable_irq() ;
+	}
+}
+
+TCHAR VoiceFilename[48] ;
+uint8_t FileData[1024] ;
+FATFS g_FATFS ;
+FIL Vfile ;
+
+void voice_task(void* pdata)
+{
+	uint32_t v_index ;
+	FRESULT fr ;
+	UINT nread ;
+	uint32_t x ;
+	uint32_t w8or16 ;
+
+	for(;;)
+	{
+		while ( !sd_card_ready() )
+		{
+			CoTickDelay(5) ;					// 10mS for now
+		}
+  	fr = f_mount(0, &g_FATFS) ;
+		if ( fr == FR_OK)
+		{
+	
+			while ( Voice.VoiceQueueCount == 0 )
+			{
+				CoTickDelay(3) ;					// 6mS for now
+			}
+
+			v_index = Voice.VoiceQueue[Voice.VoiceQueueOutIndex++] ;
+
+			{	// Create filename
+				TCHAR *ptr ;
+				ptr = (TCHAR *)cpystr( ( uint8_t*)VoiceFilename, ( uint8_t*)"\\voice\\" ) ;
+				*ptr++ = '0' ;
+				*(ptr + 2) = '0' + v_index % 10 ;
+				x = v_index / 10 ;
+				*(ptr + 1) = '0' + x % 10 ;
+				x /= 10 ;
+				*ptr = '0' + x % 10 ;
+				cpystr( ( uint8_t*)(ptr+3), ( uint8_t*)".wav" ) ;
+			}
+					
+			fr = f_open( &Vfile, VoiceFilename, FA_READ ) ;
+			if ( fr == FR_OK )
+			{
+				fr = f_read( &Vfile, FileData, 1024, &nread ) ;
+				x = FileData[34] + ( FileData[35] << 8 ) ;		// sample size
+				w8or16 = x ;
+				x = FileData[24] + ( FileData[25] << 8 ) ;		// sample rate
+				if ( w8or16 == 8 )
+				{
+					wavU8Convert( &FileData[44], VoiceBuffer[0].data, 512-44 ) ;
+					VoiceBuffer[0].count = 512-44 ;
+				}
+				else if ( w8or16 == 16 )
+				{
+					wavU16Convert( (uint16_t*)&FileData[44], VoiceBuffer[0].data, 512-44/2 ) ;
+					VoiceBuffer[0].count = 512-44/2 ;
+				}
+				else
+				{
+					w8or16 = 0 ;		// can't convert
+				}
+				
+				if ( w8or16 )
+				{
+					VoiceBuffer[0].frequency = x ;		// sample rate
+
+					if ( w8or16 == 8 )
+					{
+						wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
+					}
+					else
+					{
+						fr = f_read( &Vfile, (uint8_t *)FileData, 1024, &nread ) ;
+						wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].data, 512 ) ;
+					}
+					VoiceBuffer[1].count = 512 ;
+					VoiceBuffer[1].frequency = 0 ;
+					
+					fr = f_read( &Vfile, (uint8_t *)FileData, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+					if ( w8or16 == 8 )
+					{
+						wavU8Convert( &FileData[0], VoiceBuffer[2].data, 512 ) ;
+					}
+					else
+					{
+						wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[2].data, 512 ) ;
+					}
+					VoiceBuffer[2].count = 512 ;
+					VoiceBuffer[2].frequency = 0 ;
+					startVoice( 3 ) ;
+					for(x = 0;;)
+					{
+						fr = f_read( &Vfile, (uint8_t *)FileData, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+						if ( nread == 0 )
+						{
+							break ;
+						}
+	  				while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
+						{
+							CoTickDelay(1) ;					// 2mS for now
+						}
+						if ( w8or16 == 8 )
+						{
+							wavU8Convert( &FileData[0], VoiceBuffer[x].data, nread ) ;
+						}
+						else
+						{
+							nread /= 2 ;
+							wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].data, nread ) ;
+						}
+						VoiceBuffer[x].count = nread ;
+						VoiceBuffer[x].frequency = 0 ;
+						appendVoice( x ) ;					// index of next buffer
+						x += 1 ;
+						if ( x > 2 )
+						{
+							x = 0 ;							
+						}
+					}
+				}
+				fr = f_close( &Vfile ) ;
+			}
+			Voice.VoiceQueueOutIndex &= ( VOICE_Q_LENGTH - 1 ) ;
+			__disable_irq() ;
+			Voice.VoiceQueueCount -= 1 ;
+			__enable_irq() ;
+		}
+	} // for(;;)
+}
+

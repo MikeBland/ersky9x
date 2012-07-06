@@ -81,6 +81,103 @@ const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,
 															BATTERY, FR_CURRENT, FR_AMP_MAH } ;
 
+// TXRSSI is always considered valid as it is forced to zero on loss of telemetry
+// Values are 0 - always valid, 1 - need telemetry, 2 - need hub
+const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2 } ;
+
+
+int16_t m_to_ft( int16_t metres )
+{
+  // m to ft *105/32
+  return metres * 3 + ( metres >> 2 ) + (metres >> 5) ;
+}
+									 
+uint8_t telemItemValid( uint8_t index )
+{
+#ifdef FRSKY
+	uint8_t x ;
+
+	x = pgm_read_byte( &TelemValid[index] ) ;
+	if ( x == 0 )
+	{
+		return 1 ;
+	}
+	if ( x == 1 )
+	{
+		if ( frskyStreaming )
+		{
+			return 1 ;
+		}
+	}
+	if ( frskyUsrStreaming )
+	{
+		return 1 ;
+	}
+	return 0 ;	
+#else
+	return 1 ;
+#endif
+}
+
+int16_t get_telemetry_value( int8_t channel ) ;
+
+void voice_telem_item( int8_t index )
+{
+	int16_t value ;
+	uint8_t spoken = 0 ;
+	uint8_t unit = 0 ;
+	uint8_t num_decimals = 0 ;
+#ifdef FRSKY
+	uint8_t att = 0 ;
+#endif
+
+	value = get_telemetry_value( index ) ;
+	index = pgm_read_byte( &TelemIndex[index] ) ;
+
+  switch (index)
+	{
+		case BATTERY:
+			unit = V_VOLTS ;			
+			num_decimals = 1 ;
+		break ;
+
+#ifdef FRSKY
+		case FR_A1_COPY:
+    case FR_A2_COPY:
+			value = scale_telem_value( value, index-FR_A1_COPY, (g_model.frsky.channels[index-FR_A1_COPY].type == 2/*V*/), &att ) ;
+			unit = V_VOLTS ;			
+			num_decimals = 1 ;
+		break ;
+
+		case FR_ALT_BARO:
+      unit = V_METRES ;
+			if (g_model.FrSkyUsrProto == 1)  // WS How High
+			{
+        unit = V_FEET ;  // and ignore met/imp option
+			}
+      else if ( g_model.FrSkyImperial )
+      {
+        // m to ft *105/32
+        value = m_to_ft( value ) ;
+        unit = V_FEET ;
+      }
+		break ;
+		 
+
+		case FR_TEMP1:
+		case FR_TEMP2:
+			unit = V_DEGREES ;			
+		break ;
+#endif
+
+	}
+
+	if ( spoken == 0 )
+	{
+		voice_numeric( value, num_decimals, unit ) ;
+	}
+}
+
 
 // This routine converts an 8 bit value for custom switch use
 int16_t convertTelemConstant( int8_t channel, int8_t value)
@@ -1171,7 +1268,7 @@ void menuProcTelemetry2(uint8_t event)
 
 		lcd_puts_Pleft(4*FH, PSTR("Num Blades"));
   	lcd_putcAtt( 13*FW, 4*FH, g_model.numBlades+'2', (sub==subN) ? INVERS : 0) ;
-  	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.numBlades, 0, 2);
+  	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.numBlades, 0, 3);
   	subN++;
   
 		lcd_puts_Pleft(5*FH, PSTR("AltAlarm"));
@@ -1308,18 +1405,30 @@ void menuProcSafetySwitches(uint8_t event)
 			uint8_t active = (attr && (s_editMode || p1valdiff)) ;
       if (j == 0)
 			{
-				lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : 'S', attr ) ;
+				lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : (sd->mode == 2) ? 'V' : 'S', attr ) ;
         if(active)
 				{
-          CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 1 ) ;
+          CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 2 ) ;
         }
 			}
       else if (j == 1)
       {
-        putsDrSwitches(7*FW, y, sd->swtch  , attr);
+				int8_t max = MAX_DRSWITCH ;
+				if ( sd->mode == 2 )
+				{
+					max = MAX_DRSWITCH+3 ;
+				}	 
+				if ( sd->swtch > MAX_DRSWITCH )
+				{
+					lcd_putsAttIdx( 7*FW, y, PSTR("\007 8 Secs12 Secs16 Secs"), sd->swtch-MAX_DRSWITCH-1, attr ) ;
+				}
+				else
+				{
+	        putsDrSwitches(7*FW, y, sd->swtch  , attr);
+				}
         if(active)
 				{
-          CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH,MAX_DRSWITCH);
+          CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH, max);
         }
 			}
 			else
@@ -1331,6 +1440,23 @@ void menuProcSafetySwitches(uint8_t event)
 					max = 15 ;
 					sd->val = limit( min, sd->val, max) ;
 					lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
+				}
+				else if ( sd->mode == 2 )
+				{
+					if ( sd->swtch > MAX_DRSWITCH )
+					{
+						min = 0 ;
+						max = NUM_TELEM_ITEMS-1 ;
+						sd->val = limit( min, sd->val, max) ;
+						lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->val, attr ) ;
+					}
+					else
+					{
+						min = -128 ;
+						max = 111 ;
+						sd->val = limit( min, sd->val, max) ;
+      				lcd_outdezAtt( 16*FW, y, sd->val+128, attr);
+					}
 				}
 				else
 				{
@@ -3085,7 +3211,7 @@ void menuProcSetup(uint8_t event)
 #ifdef FRSKY
 	uint8_t vCountItems = 23 ; //21 is default
   int8_t sw_offset = -5 ;
-	switch (g_eeGeneral.speakerMode)
+	switch (g_eeGeneral.speakerMode & 1)
 	{
 //	//beeper
 //	case 0 :
@@ -3100,7 +3226,7 @@ void menuProcSetup(uint8_t event)
 //						vCountItems = 24;
 //						break;	  	
 	}		
-	if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
+	if( (g_eeGeneral.speakerMode & 1) == 1 ) //|| g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
 	{ // add in alert red/org/yel
 			vCountItems += 3;
 			sw_offset -= 3 ;
@@ -3216,8 +3342,8 @@ void menuProcSetup(uint8_t event)
     uint8_t b ;
     b = g_eeGeneral.speakerMode ;
     lcd_puts_P(0, y,PSTR("Sound Mode"));
-    lcd_putsAttIdx(PARAM_OFS - FW - 4, y, PSTR("\006Beeper""Speakr"),b,(sub==subN ? INVERS:0));
-    if(sub==subN) { CHECK_INCDEC_H_GENVAR(event, b, 0, 1); g_eeGeneral.speakerMode = b ; }	// 0 to 2 later
+    lcd_putsAttIdx( 11*FW, y, PSTR("\012Beeper    ""Speaker   ""BeeprVoice""SpekrVoice"),b,(sub==subN ? INVERS:0));
+    if(sub==subN) { CHECK_INCDEC_H_GENVAR(event, b, 0, 3); g_eeGeneral.speakerMode = b ; }	// 0 to 2 later
     if((y+=FH)>7*FH) return;
   }subN++;
 
@@ -3409,14 +3535,16 @@ void menuProcSetup(uint8_t event)
 //frsky alert mappings
 #ifdef FRSKY
 
-		if(g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2){
+		if((g_eeGeneral.speakerMode & 1) == 1 /*|| g_eeGeneral.speakerMode == 2*/){
+//		if(g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2){
 						if(s_pgOfs<subN) {
 				        g_eeGeneral.frskyinternalalarm = onoffMenuItem( g_eeGeneral.frskyinternalalarm, y, PSTR("Int. Frsky alarm"), sub, subN, event ) ;
 				        if((y+=FH)>7*FH) return;
 				    }subN++;
 		}		    
 				    
-    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1){ 
+    if(((g_eeGeneral.speakerMode & 1) == 1 /*|| g_eeGeneral.speakerMode == 2*/) && g_eeGeneral.frskyinternalalarm == 1){ 
+//    if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1){ 
     
 
 					  
@@ -3444,12 +3572,12 @@ void menuProcSetup(uint8_t event)
 					        lcd_puts_P(0, y,PSTR("Alert [Red]"));
 								}
 					      //lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Tone1 ""Tone2 ""Tone3 ""Tone4 ""Tone5 ""hTone1""hTone2""hTone3""hTone4""hTone5")+6*b,6,(sub==subN ? INVERS:0));
-					      if(g_eeGeneral.speakerMode == 1){
+					      if((g_eeGeneral.speakerMode & 1) == 1){
 					      			lcd_putsAttIdx(PARAM_OFS - FW - 4, y, Str_Sounds,b,(sub==subN ? INVERS:0));
 								}
-					      if(g_eeGeneral.speakerMode == 2){
-					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Trck1 ""Trck2 ""Trck3 ""Trck4 ""Trck4 ""Trck5 ""Trck6 ""Trck7 ""Trck8 ""Trck9 ""Trck10""Trck11""Trck12""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
-								}								
+//					      if(g_eeGeneral.speakerMode == 2){
+//					      			lcd_putsnAtt(PARAM_OFS - FW - 4, y, PSTR("Trck1 ""Trck2 ""Trck3 ""Trck4 ""Trck4 ""Trck5 ""Trck6 ""Trck7 ""Trck8 ""Trck9 ""Trck10""Trck11""Trck12""Haptc1""Haptc2""Haptc3")+6*b,6,(sub==subN ? INVERS:0));
+//								}								
 					      if(sub==subN)
 								{
 									//CHECK_INCDEC_H_GENVAR(event, b, 0, 9);
@@ -3624,7 +3752,7 @@ void timer(int16_t throttle_val)
         if(tma != TMRMODE_NONE) s_timer[timer].s_timerState=TMR_RUNNING;
         break;
     case TMR_RUNNING:
-        if(s_timer[timer].s_timerVal<=0 && tv) s_timer[timer].s_timerState=TMR_BEEPING;
+        if(s_timer[timer].s_timerVal<0 && tv) s_timer[timer].s_timerState=TMR_BEEPING;
         break;
     case TMR_BEEPING:
         if(s_timer[timer].s_timerVal <= -MAX_ALERT_TIME)   s_timer[timer].s_timerState=TMR_STOPPED;
@@ -3647,17 +3775,25 @@ void timer(int16_t throttle_val)
         {
             if(g_eeGeneral.preBeep && g_model.timer[0].tmrVal) // beep when 30, 15, 10, 5,4,3,2,1 seconds remaining
             {
-              	if(s_timer[0].s_timerVal==30) {audioDefevent(AU_TIMER_30);}
-              	if(s_timer[0].s_timerVal==20) {audioDefevent(AU_TIMER_20);}
-                if(s_timer[0].s_timerVal==10) {audioDefevent(AU_TIMER_10);}
-                if(s_timer[0].s_timerVal<= 3) {audioDefevent(AU_TIMER_LT3);}
-
-                if(g_eeGeneral.flashBeep && (s_timer[0].s_timerVal==30 || s_timer[0].s_timerVal==20 || s_timer[0].s_timerVal==10 || s_timer[0].s_timerVal<=3))
+              	if(s_timer[0].s_timerVal==30) {audioVoiceDefevent(AU_TIMER_30, V_30SECS);}
+              	if(s_timer[0].s_timerVal==20) {audioVoiceDefevent(AU_TIMER_20, V_20SECS);}
+                if(s_timer[0].s_timerVal==10) {audioVoiceDefevent(AU_TIMER_10, V_10SECS);}
+                if(s_timer[0].s_timerVal<= 5) {if(s_timer[0].s_timerVal>= 0) {audioVoiceDefevent(AU_TIMER_LT3, s_timer[0].s_timerVal) ;} else audioDefevent(AU_TIMER_LT3);}
+								if(g_eeGeneral.flashBeep && (s_timer[0].s_timerVal==30 || s_timer[0].s_timerVal==20 || s_timer[0].s_timerVal==10 || s_timer[0].s_timerVal<=3))
                     g_LightOffCounter = FLASH_DURATION;
             }
             if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrDir ? g_model.timer[0].tmrVal-s_timer[0].s_timerVal : s_timer[0].s_timerVal)%60)==0)) //short beep every minute
             {
-                audioDefevent(AU_WARNING1);
+								if ( g_eeGeneral.speakerMode & 2 )
+								{
+									uint8_t mins ;
+									mins = s_timer[0].s_timerVal/60 ;
+									if ( mins ) {voice_numeric( mins, 0, V_MINUTES ) ;}
+								}
+								else
+								{
+                	audioDefevent(AU_WARNING1);
+								}
                 if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
             }
         }
@@ -3818,8 +3954,8 @@ void menuProcBattery(uint8_t event)
 		lcd_puts_Pleft( 4*FH, PSTR("mAh"));
 	  lcd_outdezAtt( 13*FW, 4*FH, MAh_used + Current_used*current_scale/8192/36 ,PREC1 ) ;
 		lcd_puts_Pleft( 6*FH, PSTR("CPU temp.\014C Max\024C"));
-	  lcd_outdezAtt( 12*FW, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
-	  lcd_outdezAtt( 20*FW, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+	  lcd_outdezAtt( 12*FW-2, 6*FH, (((((int32_t)Temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
+	  lcd_outdezAtt( 20*FW-2, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 
 // Temp test code for co-processor
 static uint8_t timer ;
@@ -4593,29 +4729,30 @@ void perOut(int16_t *chanOut, uint8_t att)
     uint8_t  anaCenter = 0;
     uint16_t d = 0;
 
-    if(tick10ms) {
-        if(s_noHi) s_noHi--;
-        uint16_t tsum = 0;
-        for(uint8_t i=0;i<4;i++) tsum += anas[i];
-        if(abs(int16_t(tsum-inacSum))>INACTIVITY_THRESHOLD){
-            inacSum = tsum;
-            stickMoved = 1;  // reset in perMain
+    if(tick10ms)
+		{
+      if(s_noHi) s_noHi--;
+      uint16_t tsum = 0;
+      for(uint8_t i=0;i<4;i++) tsum += anas[i];
+      if(abs(int16_t(tsum-inacSum))>INACTIVITY_THRESHOLD){
+          inacSum = tsum;
+          stickMoved = 1;  // reset in perMain
+      }
+      if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49))
+			{
+        if (++inacPrescale > 15 )
+        {
+          inacCounter++;
+          inacPrescale = 0 ;
         }
-        if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49))
-				{
-            if (++inacPrescale > 15 )
-            {
-                inacCounter++;
-                inacPrescale = 0 ;
-            }
-            uint16_t tsum = 0;
-            for(uint8_t i=0;i<4;i++) tsum += anas[i];
-            if(stickMoved) inacCounter=0;
-            if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
-                if((inacCounter&0x3)==1) {
-                    audioDefevent(AU_INACTIVITY);
-                }
-        }
+//        uint16_t tsum = 0;
+//        for(uint8_t i=0;i<4;i++) tsum += anas[i];
+        if(stickMoved) inacCounter=0;
+        if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
+          if((inacCounter&0x1F)==1) {
+            audioVoiceDefevent( AU_INACTIVITY, V_INACTIVE ) ;
+          }
+      }
     }
     {
         uint8_t ele_stick, ail_stick ;

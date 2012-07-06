@@ -46,6 +46,7 @@
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "drivers.h"
+#include "audio.h"
 
 
 void start_sound( void ) ;
@@ -72,23 +73,48 @@ volatile uint8_t Buzzer_count ;
 
 struct t_sound_globals Sound_g ;
 
-struct t_VoiceBuffer VoiceBuffer[2] ;
+struct t_VoiceBuffer VoiceBuffer[3] ;
 
-	
+#define SOUND_NONE	0
+#define SOUND_TONE	1
+#define SOUND_VOICE	2
+#define SOUND_STOP	3
+
+struct t_VoiceBuffer *PtrVoiceBuffer[3] ;
+uint8_t VoiceCount ;
+uint8_t SoundType ;
+
+	 
 // Must NOT be in flash, PDC needs a RAM source.
+//uint16_t Sine_values[] =
+//{
+//2048,2173,2298,2422,2545,2666,2784,2899,3011,3119,
+//3223,3322,3417,3505,3589,3666,3736,3800,3857,3907,
+//3950,3985,4012,4032,4044,4048,4044,4032,4012,3985,
+//3950,3907,3857,3800,3736,3666,3589,3505,3417,3322,
+//3223,3119,3011,2899,2784,2666,2545,2422,2298,2173,
+//2048,1922,1797,1673,1550,1429,1311,1196,1084, 976,
+// 872, 773, 678, 590, 506, 429, 359, 295, 238, 188,
+// 145, 110,  83,  63,  51,  48,  51,  63,  83, 110,
+// 145, 188, 238, 295, 359, 429, 506, 590, 678, 773,
+// 872, 976,1084,1196,1311,1429,1550,1673,1797,1922
+//} ;
+
+// Amplitude reduced to 30% to allow for voice volume
 uint16_t Sine_values[] =
 {
-2048,2173,2298,2422,2545,2666,2784,2899,3011,3119,
-3223,3322,3417,3505,3589,3666,3736,3800,3857,3907,
-3950,3985,4012,4032,4044,4048,4044,4032,4012,3985,
-3950,3907,3857,3800,3736,3666,3589,3505,3417,3322,
-3223,3119,3011,2899,2784,2666,2545,2422,2298,2173,
-2048,1922,1797,1673,1550,1429,1311,1196,1084, 976,
- 872, 773, 678, 590, 506, 429, 359, 295, 238, 188,
- 145, 110,  83,  63,  51,  48,  51,  63,  83, 110,
- 145, 188, 238, 295, 359, 429, 506, 590, 678, 773,
- 872, 976,1084,1196,1311,1429,1550,1673,1797,1922
+2048,2085,2123,2160,2197,2233,2268,2303,2336,2369,
+2400,2430,2458,2485,2510,2533,2554,2573,2590,2605,
+2618,2629,2637,2643,2646,2648,2646,2643,2637,2629,
+2618,2605,2590,2573,2554,2533,2510,2485,2458,2430,
+2400,2369,2336,2303,2268,2233,2197,2160,2123,2085,
+2048,2010,1972,1935,1898,1862,1826,1792,1758,1726,
+1695,1665,1637,1610,1585,1562,1541,1522,1505,1490,
+1477,1466,1458,1452,1448,1448,1448,1452,1458,1466,
+1477,1490,1505,1522,1541,1562,1585,1610,1637,1665,
+1695,1726,1758,1792,1826,1862,1898,1935,1972,2010
 } ;
+
 
 // Must NOT be in flash, PDC needs a RAM source.
 // We'll use these for higher frequencies
@@ -174,7 +200,7 @@ void set_frequency( uint32_t frequency )
   register Tc *ptc ;
 	register uint32_t timer ;
 
-	timer = Master_frequency / (800 * frequency) ;		// MCK/8 and 100 000 Hz
+	timer = Master_frequency / (8 * frequency) ;		// MCK/8 and 100 000 Hz
 	if ( timer > 65535 )
 	{
 		timer = 65535 ;		
@@ -216,12 +242,15 @@ void start_timer1()
 
 
 
+
 // Configure DAC1 (or DAC0 for REVB)
 // Not sure why PB14 has not be allocated to the DAC, although it is an EXTRA function
 // So maybe it is automatically done
 void init_dac()
 {
 	register Dacc *dacptr ;
+
+	SoundType = SOUND_NONE ;
 
   PMC->PMC_PCER0 |= 0x40000000L ;		// Enable peripheral clock to DAC
 	dacptr = DACC ;
@@ -247,30 +276,103 @@ void init_dac()
 	NVIC_EnableIRQ(DACC_IRQn) ;
 }
 
+//#ifndef SIMU
+//extern "C" void DAC_IRQHandler()
+//{
+//	register Dacc *dacptr ;
+
+//	dacptr = DACC ;
+//// Data for PDC must NOT be in flash, PDC needs a RAM source.
+//	if ( SoundType == SOUND_STOP )
+//	{
+//		if ( dacptr->DACC_ISR & DACC_ISR_TXBUFE ;	// All sent
+//		{
+//			dacptr->DACC_IDR = DACC_IDR_TXBUFE ;	// Kill interrupt
+//			SoundType = SOUND_NONE ;		// Tell everyone else
+//		}
+//		else
+//		{
+//			dacptr->DACC_IDR = DACC_IDR_ENDTX ;		// Stop sending
+//			dacptr->DACC_IER = DACC_IER_TXBUFE ;	// Wait for finished
+//		}
+//	}
+//	else if ( SoundType == SOUND_TONE )
+//	{
+//		if ( Sound_g.Tone_timer )
+//		{
+//			if ( --Sound_g.Tone_timer == 0 )
+//			{
+//				dacptr->DACC_IDR = DACC_IDR_ENDTX ;
+//				SoundType = SOUND_STOP ;
+//			}
+//			else
+//			{
+//				dacptr->DACC_TNPR = (uint32_t) Sine_values ;
+//				dacptr->DACC_TNCR = 50 ;	// words, 100 16 bit values
+//			}
+//		}
+//	}							 
+//	else if ( SoundType == SOUND_VOICE )
+//	{
+//		VoiceBuffer[VoiceIndex[0]].flags |= VF_SENT ;		// Tell caller
+
+//		VoiceIndex[0] = VoiceIndex[1] ;
+//		VoiceIndex[1] = VoiceIndex[2] ;
+//		VoiceCount -= 1 ;
+
+
+
+
+//	}
+//	else if ( SoundType == SOUND_NONE )
+//	{
+//		dacptr->DACC_IDR = DACC_IDR_ENDTX ;		// Kill interrupt
+//		dacptr->DACC_IDR = DACC_IDR_TXBUFE ;	// Kill interrupt
+//	}
+//}
+//#endif
+
 #ifndef SIMU
 extern "C" void DAC_IRQHandler()
 {
 // Data for PDC must NOT be in flash, PDC needs a RAM source.
-	DACC->DACC_TNPR = (uint32_t) Sine_values ;
-	DACC->DACC_TNCR = 50 ;	// words, 100 16 bit values
-	if ( Sound_g.Tone_timer )
+	if ( Sound_g.VoiceActive )
 	{
-		if ( --Sound_g.Tone_timer == 0 )
+		PtrVoiceBuffer[0]->flags |= VF_SENT ;		// Flag sent
+		PtrVoiceBuffer[0] = PtrVoiceBuffer[1] ;
+		PtrVoiceBuffer[1] = PtrVoiceBuffer[2] ;
+		VoiceCount -= 1 ;
+		if ( VoiceCount == 0 )		// Run out of buffers
 		{
+			Sound_g.VoiceActive = 0 ;
 			DACC->DACC_IDR = DACC_IDR_ENDTX ;
 		}
+		else
+		{
+			DACC->DACC_TNCR = PtrVoiceBuffer[1]->count / 2 ;		// words, 100 16 bit values
+			DACC->DACC_TNPR = (uint32_t) PtrVoiceBuffer[1]->data ;
+		}
 	}
-//	if ( Tone_ms_timer == 0 )
-//	{
-//		Tone_ms_timer = -1 ;
-//		DACC->DACC_IDR = DACC_IDR_ENDTX ;
-//	}
+	else
+	{
+		DACC->DACC_TNPR = (uint32_t) Sine_values ;
+		DACC->DACC_TNCR = 50 ;	// words, 100 16 bit values
+		if ( Sound_g.Tone_timer )
+		{
+			if ( --Sound_g.Tone_timer == 0 )
+			{
+				DACC->DACC_IDR = DACC_IDR_ENDTX ;
+			}
+		}
+	}
 }
 #endif
 
+
 void end_sound()
 {
-	DACC->DACC_IDR = DACC_IDR_ENDTX ;
+	DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Kill interrupt
+	DACC->DACC_IDR = DACC_IDR_TXBUFE ;	// Kill interrupt
 	NVIC_DisableIRQ(DACC_IRQn) ;
 	TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
 	NVIC_DisableIRQ(TWI0_IRQn) ;
@@ -281,6 +383,9 @@ void end_sound()
 // Called every 5mS from interrupt routine
 void sound_5ms()
 {
+	register Dacc *dacptr ;
+
+	dacptr = DACC ;
 	if ( Sound_g.Tone_ms_timer > 0 )
 	{
 		Sound_g.Tone_ms_timer -= 1 ;
@@ -288,41 +393,63 @@ void sound_5ms()
 		
 	if ( Sound_g.Tone_ms_timer == 0 )
 	{
-//	if (	Sound_g.VoiceRequest )
-//	{
-//  	Sound_g.VoiceActive = 1 ;
-//	}			 
-//	if (	Sound_g.VoiceActive )
-//	{
-//		if ( Sound_g.Sound_time )
-//		{
-//			Sound_g.Sound_time = 0 ;
-//		}			 
-//	}
-//		else
-//		{
-			if ( Sound_g.Sound_time )
+		if ( Sound_g.VoiceRequest )
+		{
+			dacptr->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
+			Sound_g.Sound_time = 0 ;						// Remove any pending tone requests
+			if ( dacptr->DACC_ISR & DACC_ISR_TXBUFE )	// All sent
 			{
-				Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
-				if ( Sound_g.Next_freq )		// 0 => silence for time
-				{
-					Sound_g.Frequency = Sound_g.Next_freq ;
-					Sound_g.Frequency_increment = Sound_g.Next_frequency_increment ;
-					set_frequency( Sound_g.Frequency ) ;
-					tone_start( 0 ) ;
-				}
-				else
-				{
-					DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Silence
-				}
-				Sound_g.Sound_time = 0 ;
+				// Now we can send the voice file
+				Sound_g.VoiceRequest = 0 ;
+				Sound_g.VoiceActive = 1 ;
+
+				set_frequency( VoiceBuffer[0].frequency ? VoiceBuffer[0].frequency : 11025 ) ;
+#ifndef SIMU
+				dacptr->DACC_TPR = (uint32_t) VoiceBuffer[0].data ;
+				dacptr->DACC_TCR = VoiceBuffer[0].count / 2 ;		// words, 100 16 bit values
+			
+				dacptr->DACC_TNPR = (uint32_t) VoiceBuffer[1].data ;
+				dacptr->DACC_TNCR = VoiceBuffer[1].count / 2 ;		// words, 100 16 bit values
+				dacptr->DACC_PTCR = DACC_PTCR_TXTEN ;
+#endif
+				dacptr->DACC_IER = DACC_IER_ENDTX ;
+			}
+			return ;
+		}
+		
+		if ( ( Sound_g.VoiceActive ) || ( Voice.VoiceQueueCount ) )
+		{
+			Sound_g.Sound_time = 0 ;						// Remove any pending tone requests
+			return ;
+		}
+				
+		if ( Sound_g.Sound_time )
+		{
+			Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
+			if ( Sound_g.Next_freq )		// 0 => silence for time
+			{
+				Sound_g.Frequency = Sound_g.Next_freq ;
+				Sound_g.Frequency_increment = Sound_g.Next_frequency_increment ;
+				set_frequency( Sound_g.Frequency * 100 ) ;
+#ifndef SIMU
+				dacptr->DACC_TPR = (uint32_t) Sine_values ;
+				dacptr->DACC_TNPR = (uint32_t) Sine_values ;
+#endif
+				dacptr->DACC_TCR = 50 ;		// words, 100 16 bit values
+				dacptr->DACC_TNCR = 50 ;	// words, 100 16 bit values
+				tone_start( 0 ) ;
 			}
 			else
 			{
-				DACC->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
-				Sound_g.Tone_timer = 0 ;	
+				dacptr->DACC_IDR = DACC_IDR_ENDTX ;		// Silence
 			}
-//		}
+			Sound_g.Sound_time = 0 ;
+		}
+		else
+		{
+			dacptr->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
+			Sound_g.Tone_timer = 0 ;	
+		}
 	}
 	else if ( ( Sound_g.Tone_ms_timer & 1 ) == 0 )		// Every 10 mS
 	{
@@ -331,31 +458,10 @@ void sound_5ms()
 			if ( Sound_g.Frequency_increment )
 			{
 				Sound_g.Frequency += Sound_g.Frequency_increment ;
-				set_frequency( Sound_g.Frequency ) ;
+				set_frequency( Sound_g.Frequency * 100 ) ;
 			}
 		}
 	}
-}
-
-uint32_t voiceRequest( uint32_t voice_on )
-{
-	//	if ( voice_on )
-	//	{
-	//		if ( Sound_g.Tone_ms_timer == 0 )
-	//		{
-	//	  	Sound_g.VoiceActive = 1 ;
-	//			return 1
-	//		else
-	//		{
-	//	  	Sound_g.VoiceRequest = 1 ;
-	//			return 0 ;
-	//		}
-	//	}
-	//	else
-	//	{
-	//  	Sound_g.VoiceActive = 0 ;
-	//	}
-	return 0 ;
 }
 
 
@@ -367,7 +473,46 @@ void wavU8Convert( uint8_t *src, uint16_t *dest , uint32_t count )
 	}
 }
 
+void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count )
+{
+	while( count-- )
+	{
+		*dest++ = (uint16_t)( (int16_t )*src++ + 32768) >> 4 ;
+	}
+}
 
+
+void startVoice( uint32_t count )		// count of filled in buffers
+{
+	VoiceBuffer[0].flags &= ~VF_SENT ;
+	PtrVoiceBuffer[0] = &VoiceBuffer[0] ;
+	if ( count > 1 )
+	{
+		VoiceBuffer[1].flags &= ~VF_SENT ;
+		PtrVoiceBuffer[1] = &VoiceBuffer[1] ;
+	}
+	if ( count > 2 )
+	{
+		VoiceBuffer[2].flags &= ~VF_SENT ;
+		PtrVoiceBuffer[2] = &VoiceBuffer[2] ;
+	}
+	VoiceCount = count ;
+	Sound_g.VoiceRequest = 1 ;
+}
+
+
+void appendVoice( uint32_t index )		// index of next buffer
+{
+	VoiceBuffer[index].flags &= ~VF_SENT ;
+	__disable_irq() ;
+	PtrVoiceBuffer[VoiceCount++] = &VoiceBuffer[index] ;
+	if ( VoiceCount == 2 )
+	{
+		DACC->DACC_TNPR = (uint32_t) VoiceBuffer[index].data ;
+		DACC->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+	}
+	__enable_irq() ;
+}
 
 // frequency in Hz, time in mS
 void playTone( uint32_t frequency, uint32_t time )
@@ -700,19 +845,6 @@ extern "C" void TWI0_IRQHandler()
 }
 #endif
 
-//void audioDefevent(uint8_t e)
-//{
-//	if ( g_eeGeneral.speakerMode == 0 )
-//	{
-//		buzzer_sound( 4 ) ;
-//	}
-//	else if ( g_eeGeneral.speakerMode == 1 )
-//	{
-////		tone_start( 50 ) ;
-//		playTone( 2000, 60 ) ;		// 2KHz, 60mS
-//	}
-////	audio.event(e,BEEP_DEFAULT_FREQ);
-//}
 
 void hapticOff()
 {

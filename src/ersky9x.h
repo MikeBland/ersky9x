@@ -493,7 +493,13 @@ extern void mainSequence( uint32_t no_menu ) ;
 #ifdef FRSKY
 extern uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
 extern void telem_byte_to_bt( uint8_t data ) ;
+extern uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att ) ;
 #endif
+
+extern void putVoiceQueue( uint8_t value ) ;
+void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index ) ;
+extern void voice_telem_item( int8_t index ) ;
+extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
 
 extern uint32_t check_soft_power( void ) ;
 

@@ -167,7 +167,7 @@ void store_hub_data( uint8_t index, uint16_t value )
 		}
 		if ( index == FR_RPM )			// RPM
 		{
-			FrskyHubData[FR_RPM] *= (g_model.numBlades == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
+			FrskyHubData[FR_RPM] *= 60/(g_model.numBlades + 2) ;// == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
 		}
 	}	
 }
@@ -544,7 +544,7 @@ void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
 {
 	uint8_t alarmLevel = ALARM_LEVEL(idx, alarm);
 			
-	if((g_eeGeneral.speakerMode == 1 || g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
+	if(((g_eeGeneral.speakerMode &1) == 1 /*|| g_eeGeneral.speakerMode == 2*/) && g_eeGeneral.frskyinternalalarm == 1)
 	{   // this check is done here so haptic still works even if frsky beeper used.
 		switch (alarmLevel)
 		{
