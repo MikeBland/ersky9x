@@ -1383,7 +1383,7 @@ void menuProcTemplates(uint8_t event)  //Issue 73
 
 void menuProcSafetySwitches(uint8_t event)
 {
-  MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1, {0, 2/*repeated*/});
+  MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1 + NUM_VS_SWITCHES, {0, 2/*repeated*/});
 
 	uint8_t y = 0;
 	uint8_t k = 0;
@@ -1393,85 +1393,125 @@ void menuProcSafetySwitches(uint8_t event)
 	evalOffset(sub, 6);
 
 //  lcd_puts_P( 0*FW, 1*FH,PSTR("ch    sw     val"));
-	for(uint8_t i=0; i<7; i++){
+	for(uint8_t i=0; i<7; i++)
+	{
     y=(i+1)*FH;
     k=i+s_pgOfs;
-    if(k==NUM_CHNOUT) break;
-    SafetySwData *sd = &g_model.safetySw[k];
-    putsChn(0,y,k+1,0);
-    for(uint8_t j=0; j<3;j++)
+    if(k<NUM_CHNOUT)
 		{
-      uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
-			uint8_t active = (attr && (s_editMode || p1valdiff)) ;
-      if (j == 0)
+    	SafetySwData *sd = &g_model.safetySw[k];
+    	putsChn(0,y,k+1,0);
+    	for(uint8_t j=0; j<3;j++)
 			{
-				lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : (sd->mode == 2) ? 'V' : 'S', attr ) ;
-        if(active)
+    	  uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
+				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+    	  if (j == 0)
 				{
-          CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 2 ) ;
-        }
-			}
-      else if (j == 1)
-      {
-				int8_t max = MAX_DRSWITCH ;
-				if ( sd->mode == 2 )
-				{
-					max = MAX_DRSWITCH+3 ;
-				}	 
-				if ( sd->swtch > MAX_DRSWITCH )
-				{
-					lcd_putsAttIdx( 7*FW, y, PSTR("\007 8 Secs12 Secs16 Secs"), sd->swtch-MAX_DRSWITCH-1, attr ) ;
+					lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : (sd->mode == 2) ? 'V' : 'S', attr ) ;
+    	    if(active)
+					{
+    	      CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 2 ) ;
+    	    }
 				}
-				else
-				{
-	        putsDrSwitches(7*FW, y, sd->swtch  , attr);
-				}
-        if(active)
-				{
-          CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH, max);
-        }
-			}
-			else
-			{
-				int8_t min, max ;
-				if ( sd->mode == 1 )
-				{
-					min = 0 ;
-					max = 15 ;
-					sd->val = limit( min, sd->val, max) ;
-					lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
-				}
-				else if ( sd->mode == 2 )
-				{
+    	  else if (j == 1)
+    	  {
+					int8_t max = MAX_DRSWITCH ;
+					if ( sd->mode == 2 )
+					{
+						max = MAX_DRSWITCH+3 ;
+					}	 
 					if ( sd->swtch > MAX_DRSWITCH )
 					{
-						min = 0 ;
-						max = NUM_TELEM_ITEMS-1 ;
-						sd->val = limit( min, sd->val, max) ;
-						lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->val, attr ) ;
+						lcd_putsAttIdx( 7*FW, y, PSTR("\007 8 Secs12 Secs16 Secs"), sd->swtch-MAX_DRSWITCH-1, attr ) ;
 					}
 					else
 					{
-						min = -128 ;
-						max = 111 ;
-						sd->val = limit( min, sd->val, max) ;
-      				lcd_outdezAtt( 16*FW, y, sd->val+128, attr);
+	  	      putsDrSwitches(7*FW, y, sd->swtch  , attr);
 					}
+    	    if(active)
+					{
+    	      CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH, max);
+    	    }
 				}
 				else
 				{
-					min = -125 ;
-					max = 125 ;
-        	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
-				}
-        if(active)
-				{
-          CHECK_INCDEC_H_MODELVAR( event, sd->val, min,max);
-        }
-      }
-    }
-	}
+					int8_t min, max ;
+					if ( sd->mode == 1 )
+					{
+						min = 0 ;
+						max = 15 ;
+						sd->val = limit( min, sd->val, max) ;
+						lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
+					}
+					else if ( sd->mode == 2 )
+					{
+						if ( sd->swtch > MAX_DRSWITCH )
+						{
+							min = 0 ;
+							max = NUM_TELEM_ITEMS-1 ;
+							sd->val = limit( min, sd->val, max) ;
+							lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->val, attr ) ;
+						}
+						else
+						{
+							min = -128 ;
+							max = 111 ;
+							sd->val = limit( min, sd->val, max) ;
+    	  				lcd_outdezAtt( 16*FW, y, sd->val+128, attr);
+						}
+					}
+					else
+					{
+						min = -125 ;
+						max = 125 ;
+    	    	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
+					}
+    	    if(active)
+					{
+    	      CHECK_INCDEC_H_MODELVAR( event, sd->val, min,max);
+    	    }
+    	  }
+    	}
+		}
+		// And now the voice switches
+		// ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
 
+		else if(k<NUM_CHNOUT+NUM_VS_SWITCHES)
+		{
+    	k -= NUM_CHNOUT ;		// Index to VoiceSwData
+    	lcd_putsnAtt( 0*FW , y, PSTR("VS"),2, 0 ) ;
+    	lcd_putcAtt(  2*FW , y, k + (k>8 ? 'A'-9: '1'), 0 ) ;
+    	for(uint8_t j=0; j<3;j++)
+			{
+    	  uint8_t attr = ((sub==(k+NUM_CHNOUT) && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
+				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+    	  if (j == 0)
+				{
+  	      putsDrSwitches(5*FW, y, VoiceSwData[k].swtch  , attr);
+    	    if(active)
+					{
+    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].swtch, 0, MAX_DRSWITCH-1 ) ;
+    	    }
+				}
+    	  else if (j == 1)
+    	  {
+					lcd_putsAttIdx( 10*FW, y, PSTR("\006ON    OFF   BOTH  15Secs30Secs60Secs"), VoiceSwData[k].mode, attr ) ;
+    	    if(active)
+					{
+    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].mode, 0, 5 ) ;
+    	    }
+				}
+				else
+				{
+  				lcd_outdezAtt( 17*FW, y, VoiceSwData[k].val, attr) ;
+    	    if(active)
+					{
+            VoiceSwData[k].val = checkIncDec16(event, VoiceSwData[k].val, 0, 250, EE_MODEL);
+    	    }
+				}	 
+		  }
+		}
+	}
 }
 
 void menuProcSwitches(uint8_t event)  //Issue 78
@@ -3226,7 +3266,7 @@ void menuProcSetup(uint8_t event)
 //						vCountItems = 24;
 //						break;	  	
 	}		
-	if( (g_eeGeneral.speakerMode & 1) == 1 ) //|| g_eeGeneral.speakerMode == 2) && g_eeGeneral.frskyinternalalarm == 1)
+	if ( ( (g_eeGeneral.speakerMode & 1) == 1 ) /*|| g_eeGeneral.speakerMode == 2)*/ && ( g_eeGeneral.frskyinternalalarm == 1) )
 	{ // add in alert red/org/yel
 			vCountItems += 3;
 			sw_offset -= 3 ;
@@ -5170,7 +5210,7 @@ void perOut(int16_t *chanOut, uint8_t att)
         if(g_model.limitData[i].revert) q=-q;// finally do the reverse.
 
         if(g_model.safetySw[i].swtch)  //if safety sw available for channel check and replace val if needed
-					if ( g_model.safetySw[i].mode != 1 )	// And not used as an alarm
+					if ( ( g_model.safetySw[i].mode != 1 ) && ( g_model.safetySw[i].mode != 2 ) )	// And not used as an alarm
 					{
             if(getSwitch(g_model.safetySw[i].swtch,0)) q = calc100toRESX(g_model.safetySw[i].val);
 					}

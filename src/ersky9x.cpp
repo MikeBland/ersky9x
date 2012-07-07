@@ -137,6 +137,7 @@ volatile int32_t Rotary_position ;
 volatile int32_t Rotary_count ;
 int32_t LastRotaryValue ;
 int32_t Rotary_diff ;
+uint8_t Vs_state[NUM_VS_SWITCHES] ;
 
 
 void tmrBt_Handle( void ) ;
@@ -262,6 +263,7 @@ uint8_t pxxFlag = 0 ;
 
 EEGeneral  g_eeGeneral;
 ModelData  g_model;
+voiceSwData VoiceSwData[NUM_VS_SWITCHES] ;		// In Ram for testing
 
  const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
                                 1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
@@ -281,6 +283,8 @@ audioQueue  audio;
 
 uint8_t AlarmTimer = 200 ;		// Units of 10 mS
 uint8_t AlarmCheckFlag = 0 ;
+uint8_t VoiceTimer = 10 ;		// Units of 10 mS
+uint8_t VoiceCheckFlag = 0 ;
 
 const char modi12x3[]=
   "RUD ELE THR AIL "
@@ -596,6 +600,16 @@ int main(void)
   FrskyAlarmSendState |= 0x40 ;
 
 	heartbeat_running = 1 ;
+
+	{
+		uint32_t i;
+
+		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
+		{
+			Vs_state[i] = getSwitch( VoiceSwData[i].swtch, 0 ) ;
+		}
+	}
+
 
 #ifndef SIMU
 
@@ -1085,11 +1099,55 @@ void mainSequence( uint32_t no_menu )
 				}
 			}
 		}
-		// New switch voices
-		// New entries, Switch, (on/off/both), voice file index
-
-
   }
+	// New switch voices
+	// New entries, Switch, (on/off/both), voice file index
+
+  if ( VoiceCheckFlag )
+  {
+		uint32_t i ;
+		static uint32_t timer ;
+    
+		VoiceCheckFlag = 0 ;
+		timer += 1 ;
+		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
+		{
+			uint8_t curent_state ;
+			if ( VoiceSwData[i].swtch )		// Configured
+			{
+				curent_state = getSwitch( VoiceSwData[i].swtch, 0 ) ;
+				if ( ( VoiceSwData[i].mode == 0 ) || (VoiceSwData[i].mode == 2 ) )
+				{ // ON
+					if ( ( Vs_state[i] == 0 ) && curent_state )
+					{
+						putVoiceQueue( VoiceSwData[i].val ) ;
+					}
+				}
+				if ( ( VoiceSwData[i].mode == 1 ) || (VoiceSwData[i].mode == 2 ) )
+				{ // OFF
+					if ( ( Vs_state[i] == 1 ) && !curent_state )
+					{
+						putVoiceQueue( VoiceSwData[i].val + ( VoiceSwData[i].mode == 1 ) ? 0 : 1 ) ;
+					}
+				}
+				if ( VoiceSwData[i].mode > 2 )
+				{ // 15, 30 or 60 secs
+					if ( curent_state )
+					{
+						uint32_t mask ;
+						mask = 150 ;
+						if ( VoiceSwData[i].mode == 4 ) mask = 300 ;
+						if ( VoiceSwData[i].mode == 5 ) mask = 600 ;
+						if ( timer % mask == 0 )
+						{
+							putVoiceQueue( VoiceSwData[i].val ) ;
+						}
+					}
+				}
+				Vs_state[i] = curent_state ;
+			}
+		}
+	}
 }
 
 uint32_t check_power_or_usb()
@@ -1560,6 +1618,12 @@ extern "C" void TC2_IRQHandler()
 			AlarmTimer = 200 ;		// Restart timer
 			AlarmCheckFlag = 1 ;	// Flag time to check alarms
 		}
+		if (--VoiceTimer == 0 )
+		{
+			VoiceTimer = 10 ;		// Restart timer
+			VoiceCheckFlag = 1 ;	// Flag time to check alarms
+		}
+
 	}
 //	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
 //	dummy >>= 19 ;

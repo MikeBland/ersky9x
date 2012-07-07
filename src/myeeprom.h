@@ -229,6 +229,13 @@ PACK(typedef struct t_PhaseData {
 }) PhaseData;
 
 
+PACK(typedef struct t_swVoice {
+  uint8_t  swtch:5 ;
+	uint8_t mode:3 ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
+  uint8_t  val ;
+}) voiceSwData ;
+
+
 PACK(typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
   uint8_t   reserved_spare;		//used to be MDVERS - now depreciated
@@ -288,6 +295,7 @@ PACK(typedef struct t_ModelData {
 extern EEGeneral g_eeGeneral;
 extern ModelData g_model;
 
+extern voiceSwData VoiceSwData[] ;
 
 #endif
 /*eof*/

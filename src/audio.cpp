@@ -379,7 +379,7 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 		qr = div( qr.rem, 10 ) ;
 		if ( qr.quot )
 		{
-			putVoiceQueue( qr.quot ) ;
+			putVoiceQueue( qr.quot*10 ) ;
 		}
 	}
 	else

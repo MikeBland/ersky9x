@@ -390,6 +390,7 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define NO_MENU		1
 #define MENUS			0
 
+#define NUM_VS_SWITCHES			2
 
 typedef void (*MenuFuncP)(uint8_t event);
 
