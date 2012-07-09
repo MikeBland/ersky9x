@@ -886,6 +886,7 @@ void main_loop(void* pdata)
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
 //	NVIC_DisableIRQ(PWM_IRQn) ;
 	disable_ssc() ;
+	UART_Stop() ;
 	sam_boot() ;
 }
 
@@ -1130,7 +1131,14 @@ void mainSequence( uint32_t no_menu )
 						putVoiceQueue( VoiceSwData[i].val + ( VoiceSwData[i].mode == 1 ) ? 0 : 1 ) ;
 					}
 				}
-				if ( VoiceSwData[i].mode > 2 )
+				if ( VoiceSwData[i].mode > 5 )
+				{
+					if ( ( Vs_state[i] == 0 ) && curent_state )
+					{
+						voice_telem_item( VoiceSwData[i].val ) ;
+					}					
+				}
+				else if ( VoiceSwData[i].mode > 2 )
 				{ // 15, 30 or 60 secs
 					if ( curent_state )
 					{

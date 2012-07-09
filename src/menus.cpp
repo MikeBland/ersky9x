@@ -609,10 +609,10 @@ void MState2::check_submenu_simple(uint8_t event, uint8_t maxrow)
 void DisplayScreenIndex(uint8_t index, uint8_t count, uint8_t attr)
 {
 	uint8_t x ;
-	lcd_outdezAtt(128,0,count,attr);
+	lcd_outdezAtt(127,0,count,attr);
 	x = 1+128-FW*(count>9 ? 3 : 2) ;
   lcd_putcAtt(x,0,'/',attr);
-  lcd_outdezAtt(x,0,index+1,attr);
+  lcd_outdezAtt(x-1,0,index+1,attr);
 }
 
 #define MAXCOL(row) (horTab ? pgm_read_byte(horTab+min(row, horTabMax)) : (const uint8_t)0)
@@ -1495,18 +1495,29 @@ void menuProcSafetySwitches(uint8_t event)
 				}
     	  else if (j == 1)
     	  {
-					lcd_putsAttIdx( 10*FW, y, PSTR("\006ON    OFF   BOTH  15Secs30Secs60Secs"), VoiceSwData[k].mode, attr ) ;
+					lcd_putsAttIdx( 10*FW, y, PSTR("\006ON    OFF   BOTH  15Secs30Secs60SecsVaribl"), VoiceSwData[k].mode, attr ) ;
     	    if(active)
 					{
-    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].mode, 0, 5 ) ;
+    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].mode, 0, 6 ) ;
     	    }
 				}
 				else
 				{
-  				lcd_outdezAtt( 17*FW, y, VoiceSwData[k].val, attr) ;
+					uint8_t max ;
+					if ( VoiceSwData[k].mode > 5 )
+					{
+						max = NUM_TELEM_ITEMS-1 ;
+						VoiceSwData[k].val = limit( (uint8_t)0, VoiceSwData[k].val, max) ;
+						lcd_putsAttIdx( 16*FW, y, Str_telemItems, VoiceSwData[k].val, attr ) ;
+					}
+					else
+					{
+						max = 250 ;
+  					lcd_outdezAtt( 17*FW, y, VoiceSwData[k].val, attr) ;
+					}
     	    if(active)
 					{
-            VoiceSwData[k].val = checkIncDec16(event, VoiceSwData[k].val, 0, 250, EE_MODEL);
+            VoiceSwData[k].val = checkIncDec16(event, VoiceSwData[k].val, 0, max, EE_MODEL);
     	    }
 				}	 
 		  }
@@ -3801,15 +3812,13 @@ void timer(int16_t throttle_val)
     case TMR_STOPPED:
         break;
     }
-    if( g_model.timer[timer].tmrDir) s_timer[timer].s_timerVal = tv-s_timer[timer].s_timerVal; //if counting backwards - display backwards
-//    if( tv==0) s_timer[timer].s_timerVal = tv-s_timer[timer].s_timerVal; //if counting backwards - display backwards
-	}
-    
-		
-		static int16_t last_tmr;
 
-    if(last_tmr != s_timer[0].s_timerVal)  //beep only if seconds advance
-    {
+		if ( timer == 0 )
+		{
+			static int16_t last_tmr;
+
+  	  if(last_tmr != s_timer[0].s_timerVal)  //beep only if seconds advance
+    	{
     		last_tmr = s_timer[0].s_timerVal;
         if(s_timer[0].s_timerState==TMR_RUNNING)
         {
@@ -3842,7 +3851,11 @@ void timer(int16_t throttle_val)
             audioDefevent(AU_TIMER_LT3);
             if(g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
         }
-    }
+    	}
+		}
+    if( g_model.timer[timer].tmrDir) s_timer[timer].s_timerVal = tv-s_timer[timer].s_timerVal; //if counting backwards - display backwards
+//    if( tv==0) s_timer[timer].s_timerVal = tv-s_timer[timer].s_timerVal; //if counting backwards - display backwards
+	}
 }
 
 
@@ -4777,6 +4790,7 @@ void perOut(int16_t *chanOut, uint8_t att)
       if(abs(int16_t(tsum-inacSum))>INACTIVITY_THRESHOLD){
           inacSum = tsum;
           stickMoved = 1;  // reset in perMain
+	        inacCounter=0;
       }
       if( (g_eeGeneral.inactivityTimer + 10) && (g_vbat100mV>49))
 			{
@@ -4784,14 +4798,13 @@ void perOut(int16_t *chanOut, uint8_t att)
         {
           inacCounter++;
           inacPrescale = 0 ;
-        }
 //        uint16_t tsum = 0;
 //        for(uint8_t i=0;i<4;i++) tsum += anas[i];
-        if(stickMoved) inacCounter=0;
-        if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
+  	      if(inacCounter>((uint16_t)(g_eeGeneral.inactivityTimer+10)*(100*60/16)))
           if((inacCounter&0x1F)==1) {
             audioVoiceDefevent( AU_INACTIVITY, V_INACTIVE ) ;
           }
+        }
       }
     }
     {

@@ -54,6 +54,7 @@ struct t_rxUartBuffer
 struct t_rxUartBuffer TelemetryInBuffer[2] ;
 uint32_t TelemetryActiveBuffer ;
 
+struct t_fifo32 Console_fifo ;
 
 
 volatile uint32_t Spi_complete ;
@@ -827,7 +828,22 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Enable receiver and transmitter */
   pUart->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
+  pUart->UART_IER = UART_IER_RXRDY ;
 
+	NVIC_EnableIRQ(UART0_IRQn) ;
+
+}
+
+void UART_Stop()
+{
+  CONSOLE_USART->UART_IDR = UART_IDR_RXRDY ;
+	NVIC_DisableIRQ(UART0_IRQn) ;
+}
+
+
+extern "C" void UART0_IRQHandler()
+{
+	put_fifo32( &Console_fifo, CONSOLE_USART->UART_RHR ) ;	
 }
 
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
@@ -1098,13 +1114,15 @@ void uputs( register char *string )
 
 uint16_t rxuart()
 {
-  Uart *pUart=CONSOLE_USART ;
+	return get_fifo32( &Console_fifo ) ;
+  
+//	Uart *pUart=CONSOLE_USART ;
 
-  if (pUart->UART_SR & UART_SR_RXRDY)
-	{
-		return pUart->UART_RHR ;
-	}
-	return 0xFFFF ;
+//  if (pUart->UART_SR & UART_SR_RXRDY)
+//	{
+//		return pUart->UART_RHR ;
+//	}
+//	return 0xFFFF ;
 }
 
 void txmit2nd( uint8_t c )
