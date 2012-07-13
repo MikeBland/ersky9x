@@ -672,6 +672,50 @@ void bt_send_buffer()
 	Bt_tx.size = 0 ;
 }
 
+
+uint32_t poll_bt_device()
+{
+	uint16_t x ;
+	uint32_t y ;
+	uint16_t rxchar ;
+
+	x = 'O' ;
+	BtTxBuffer[0] = 'A' ;
+	BtTxBuffer[1] = 'T' ;
+	Bt_tx.size = 2 ;
+	bt_send_buffer() ;
+	for( y = 0 ; y < 300 ;  y += 1 )
+	{
+		if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+		{
+			if ( rxchar == x )
+			{
+				if ( x == 'O' )
+				{
+					x = 'K' ;
+				}
+				else
+				{
+					break ;			// Found "OK"
+				}
+			}
+		}
+		else
+		{
+			CoTickDelay(1) ;					// 2mS
+		}				 
+	}
+	if ( y < 300 )
+	{
+		return 1 ;
+	}
+	else
+	{
+		return 0 ;
+	}
+}
+
+
 /*
 Commands to BT module
 AT+VERSION 	Returns the software version of the module
@@ -697,6 +741,9 @@ So we could send AT+VERSION at different baudrates until we get a response
 Then we can change the baudrate to the required value.
 Or maybe just AT and get OK back
 */
+
+uint32_t Bt_ok ;
+
 void bt_task(void* pdata)
 {
 	uint32_t x ;
@@ -706,19 +753,11 @@ void bt_task(void* pdata)
 	Bt_tx.size = 0 ;
 
 // Look for BT module baudrate, try 115200, and 9600
+// Already initialised to g_eeGeneral.bt_baudrate
+// 0 : 115200, 1 : 9600, 2 : 19200
+	
+	Bt_ok = poll_bt_device() ;		// Do we get a response?
 
-/*
- 	
-	UART3_Configure( 9600, Master_frequency ) ;		// Testing
-	BtTxBuffer[0] = 'A' ;
-	BtTxBuffer[1] = 'T' ;
-	Bt_tx.size = 2 ;
-	bt_send_buffer() ;
-
-*/
-
-//	CoStartTmr(tmrBt1S);
-//int32_t get_fifo32( struct t_fifo32 *pfifo )
 	while(1)
 	{
 //		// A new second is come
@@ -820,8 +859,8 @@ void main_loop(void* pdata)
   	    STORE_GENERALVARS ;
 			}
 
-  		uint16_t tgtime = get_tmr10ms() + (1*100) ; //100 - 1 second for test
-	  	while(tgtime != get_tmr10ms())
+  		uint16_t tgtime = get_tmr10ms() ;
+	  	while( (get_tmr10ms() - tgtime ) < 100 ) //100 - 1 second for test
   		{
 				if ( check_soft_power() )
 				{
@@ -832,7 +871,7 @@ void main_loop(void* pdata)
 				if ( ee32_check_finished() == 0 )
 				{
 					lcd_putsn_P( 5*FW, 5*FH, "EEPROM BUSY", 11 ) ;
-					tgtime = get_tmr10ms() + (1*100) ; //100 - 1 more second
+					tgtime = get_tmr10ms() ;
 				}
 				else
 				{
@@ -887,6 +926,7 @@ void main_loop(void* pdata)
 //	NVIC_DisableIRQ(PWM_IRQn) ;
 	disable_ssc() ;
 	UART_Stop() ;
+	Bt_UART_Stop() ;
 	sam_boot() ;
 }
 
@@ -1128,7 +1168,7 @@ void mainSequence( uint32_t no_menu )
 				{ // OFF
 					if ( ( Vs_state[i] == 1 ) && !curent_state )
 					{
-						putVoiceQueue( VoiceSwData[i].val + ( VoiceSwData[i].mode == 1 ) ? 0 : 1 ) ;
+						putVoiceQueue( VoiceSwData[i].val + ( ( VoiceSwData[i].mode == 1 ) ? 0 : 1 ) ) ;
 					}
 				}
 				if ( VoiceSwData[i].mode > 5 )

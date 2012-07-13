@@ -82,6 +82,7 @@ enum EnumKeys {
     TRM_RV_UP   ,
     TRM_RH_DWN  ,
     TRM_RH_UP   ,
+	  BTN_RE,
     //SW_NC     ,
     //SW_ON     ,
     SW_ThrCt  ,
@@ -159,7 +160,7 @@ enum EnumKeys {
 #define CSW_INDEX	9	// Index of first custom switch
 
 
-#define NUM_KEYS TRM_RH_UP+1
+#define NUM_KEYS BTN_RE+1
 #define TRM_BASE TRM_LH_DWN
 
 #define _MSK_KEY_REPT    0x40

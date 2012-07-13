@@ -204,7 +204,9 @@ struct t_voice
 	uint8_t VoiceQueueCount ;
 	uint8_t VoiceQueueInIndex ;
 	uint8_t VoiceQueueOutIndex ;
+	uint8_t VoiceLock ;
 	uint8_t VoiceQueue[VOICE_Q_LENGTH] ;
+
 } ;
 
 extern struct t_voice Voice ;

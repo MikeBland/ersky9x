@@ -50,6 +50,7 @@
 #include "debug.h"
 #include "file.h"
 #include "ff.h"
+#include "Audio.h"
 
 
 #ifndef SIMU
@@ -432,8 +433,8 @@ void handle_serial(void* pdata)
 			int32_t result ;
 int32_t Ymodem_Receive( uint8_t *buf ) ;
 			txmit( 'Y' ) ;
-//			result = Ymodem_Receive( Ymbuffer ) ;
-//			p8hex( result ) ;
+			result = Ymodem_Receive( Ymbuffer ) ;
+			p8hex( result ) ;
 			crlf() ;
 		}
 
@@ -672,6 +673,41 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 			crlf() ;
 		}	
 	
+		if ( rxchar == 'U' )
+		{
+			uint32_t xfer ;
+			uint32_t done = 0 ;
+
+			txmit( 'U' ) ;
+			crlf() ;
+			for(;;)
+			{
+				xfer = 0 ;
+				if ( ( rxchar = rxuart() ) != 0xFFFF )
+				{
+					if ( rxchar == 27 )		// ESCAPE
+					{
+						break ;						
+					}
+					txmitBt( rxchar ) ;
+					xfer = 1 ;
+				}
+				if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+				{
+					if ( rxchar == 27 )		// ESCAPE
+					{
+						break ;						
+					}
+					txmit( rxchar ) ;
+					xfer = 1 ;
+				}
+				if ( xfer == 0 )
+				{
+					CoTickDelay(1) ;					// 2mS
+				}				 
+	    }
+	  }
+	
 	//	if ( rxchar == 'F' )
 	//	{
 	//		register uint8_t *p ;
@@ -871,6 +907,9 @@ void disp_256( register uint32_t address, register uint32_t lines )
 }
 
 
+
+
+
 #define PACKET_SEQNO_INDEX      (1)
 #define PACKET_SEQNO_COMP_INDEX (2)
 
@@ -932,22 +971,11 @@ extern struct t_fifo32 Console_fifo ;
 static int32_t Receive_Byte (uint8_t *c, uint32_t timeout)
 {
 	uint16_t rxchar ;
-	uint32_t x ;
 
-	x = 0 ;
 	while ( ( rxchar = rxuart() ) == 0xFFFF )
 	{
-		CoTickDelay(1) ;					// 10mS for now
+		CoTickDelay(1) ;					// 2mS
 		timeout -= 1 ;
-		x += 1 ;
-		if ( ( x & 15 ) == 0 )
-		{
-			txmitBt( '.' ) ;
-			if ( Console_fifo.count )
-			{
-				txmitBt( '*' ) ;
-			}
-		}
 		if ( timeout == 0 )
 		{
 			break ;			
@@ -1086,14 +1114,30 @@ int32_t size = 0 ;
 *******************************************************************************/
 
 // Send debug using void txmitBt( uint8_t c ) for testing
+FIL Tfile ;
 
 int32_t Ymodem_Receive (uint8_t *buf)
 {
   uint8_t *file_ptr, *buf_ptr;
   int32_t i, j, packet_length, session_done, file_done, packets_received, errors, session_begin ;
-
+	FRESULT fr ;
+	uint32_t written ;
   /* Initialize FlashDestination variable */
 //  FlashDestination = ApplicationAddress;
+
+  
+	for(;;)
+	{
+		CoSchedLock() ;
+		if ( Voice.VoiceLock == 0 )
+		{
+			break ;
+		}
+    CoSchedUnlock() ;
+		CoTickDelay(1) ;					// 2mS
+	}
+	Voice.VoiceLock = 1 ;
+  CoSchedUnlock() ;
 
 	size = 0 ;
   for (session_done = 0, errors = 0, session_begin = 0; ;)
@@ -1116,6 +1160,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
               /* End of transmission */
             case 0:
 							txmitBt( 'D' ) ;
+							fr = f_close( &Tfile ) ;
               Send_Byte(ACK);
               file_done = 1;
               break;
@@ -1144,6 +1189,11 @@ int32_t Ymodem_Receive (uint8_t *buf)
 											size *= 10 ;
 											size += *file_ptr++ - '0' ;
                     }
+//										f_unlink ( "Ymodtemp" ) ;					/* Delete any existing temp file */
+											fr = f_open( &Tfile, "Ymodtemp", FA_WRITE | FA_CREATE_ALWAYS ) ;
+
+		  // Check fr value here
+
                     /* Test the size of the image to be sent */
                     /* Image size is greater than Flash size */
 //                    if (size > (FLASH_SIZE - 1))
@@ -1207,6 +1257,28 @@ int32_t Ymodem_Receive (uint8_t *buf)
 										*ptr++ = packet_data[i] ;
 									}
 								}
+								if ( packets_received == 1 )
+								{
+									fr = f_write( &Tfile, &packet_data[3], 128, (UINT *)&written ) ;
+									txmitBt( '^' ) ;
+									if ( fr == FR_OK )
+									{
+										txmitBt( 'o' ) ;
+									}
+									else
+									{
+										txmitBt( 'e' ) ;
+										txmitBt( fr+'@' ) ;
+									}
+									if ( written == 128 )
+									{
+										txmitBt( 'w' ) ;
+									}
+									else
+									{
+										txmitBt( 'x' ) ;
+									}
+								}
                 packets_received ++;
                 session_begin = 1;
               }
@@ -1247,6 +1319,12 @@ int32_t Ymodem_Receive (uint8_t *buf)
     }
   }
 	txmitBt( 'P' ) ;
+
+
+//FRESULT f_unlink (const TCHAR*);					/* Delete an existing file or directory */
+//FRESULT f_rename (const TCHAR*, const TCHAR*);		/* Rename/Move a file or directory */
+
+	Voice.VoiceLock = 0 ;
   return (int32_t)size ;
 }
 

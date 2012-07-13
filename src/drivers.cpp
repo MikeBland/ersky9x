@@ -55,6 +55,7 @@ struct t_rxUartBuffer TelemetryInBuffer[2] ;
 uint32_t TelemetryActiveBuffer ;
 
 struct t_fifo32 Console_fifo ;
+struct t_fifo32 BtRx_fifo ;
 
 
 volatile uint32_t Spi_complete ;
@@ -448,15 +449,6 @@ void per10ms()
   g_tmr10ms++;
   g_blinkTmr10ms++;
 
-//	if ( PIOC->PIO_ODSR & 0x00080000 )
-//	{
-//		PIOC->PIO_CODR = 0x00200000L ;	// Set bit C19 OFF
-//	}
-//	else
-//	{
-//		PIOC->PIO_SODR = 0x00200000L ;	// Set bit C19 ON
-//	}
-
   uint8_t enuk = KEY_MENU;
   uint8_t    in = ~read_keys() ;
   for( i=1; i<7; i++)
@@ -483,6 +475,7 @@ void per10ms()
     keys[enuk].input(in & i,(EnumKeys)enuk);
     ++enuk;
   }
+   keys[enuk].input( ~PIOB->PIO_PDSR & 0x40,(EnumKeys)enuk); // Rotary Enc. Switch
 }
 
 
@@ -881,8 +874,17 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Enable receiver and transmitter */
   pUart->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
+  pUart->UART_IER = UART_IER_RXRDY ;
+	NVIC_EnableIRQ(UART1_IRQn) ;
 
 }
+
+void Bt_UART_Stop()
+{
+  BT_USART->UART_IDR = UART_IDR_RXRDY ;
+	NVIC_DisableIRQ(UART1_IRQn) ;
+}
+
 
 // USART0 configuration, we will use this for FrSky etc
 // Work in Progress, UNTESTED
@@ -1076,12 +1078,19 @@ void end_bt_tx_interrupt()
 	NVIC_DisableIRQ(UART1_IRQn) ;
 }
 
-extern "C" void UART1_IRQHandler() //Bt tx complete
+extern "C" void UART1_IRQHandler()
 {
   Uart *pUart=BT_USART ;
-	pUart->UART_IDR = UART_IDR_TXBUFE ;
-	pUart->UART_PTCR = US_PTCR_TXTDIS ;
-	Current_bt->ready = 0 ;	
+	if ( pUart->UART_SR & UART_SR_TXBUFE )
+	{
+		pUart->UART_IDR = UART_IDR_TXBUFE ;
+		pUart->UART_PTCR = US_PTCR_TXTDIS ;
+		Current_bt->ready = 0 ;	
+	}
+	if ( pUart->UART_SR & UART_SR_RXRDY )
+	{
+		put_fifo32( &BtRx_fifo, pUart->UART_RHR ) ;	
+	}
 }
 
 
@@ -1167,13 +1176,7 @@ void txmitBt( uint8_t c )
 
 uint16_t rxBtuart()
 {
-  Uart *pUart=BT_USART ;
-
-  if (pUart->UART_SR & UART_SR_RXRDY)
-	{
-		return pUart->UART_RHR ;
-	}
-	return 0xFFFF ;
+	return get_fifo32( &BtRx_fifo ) ;
 }
 
 // Send a <cr><lf> combination to the serial port

@@ -57,6 +57,7 @@ extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void UART_Stop( void ) ;
+extern void Bt_UART_Stop( void ) ;
 extern void txmit( uint8_t c ) ;
 extern void uputs( register char *string ) ;
 extern uint16_t rxuart( void ) ;

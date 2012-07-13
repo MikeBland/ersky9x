@@ -35,6 +35,8 @@
 #include "frsky.h"
 #endif
 
+extern int32_t Rotary_diff ;
+
 struct t_timer s_timer[2] ;
 
 const char Str_ALTeq[] =  "Alt=" ;
@@ -581,6 +583,15 @@ MenuFuncP menuTabDiag[] =
 	menuProcSDstat
 };
 
+// Rotary Encoder states
+#define RE_IDLE				0
+#define RE_MENU_LR		1
+#define RE_MENU_UD		2
+#define RE_ITEMLR			3
+#define RE_ITEM_EDIT	4
+
+uint8_t Re_state ;
+
 const char *get_curve_string()
 {
     return PSTR(CURV_STR)	;
@@ -647,11 +658,21 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
     uint8_t attr = m_posVert==0 ? INVERS : 0;
 
 
+		if ( Rotary_diff > 0 )
+		{
+   	  scrollLR = -1;
+		}
+		else if ( Rotary_diff < 0 )
+		{
+   	  scrollLR = 1;
+		}
+		Rotary_diff = 0 ;
+
     if(m_posVert==0)
     {
-      if(scrollLR && !s_editMode)
+      if( scrollLR && !s_editMode)
       {
-        int8_t cc = curr - scrollLR;
+        int8_t cc = curr - scrollLR ;
         if(cc<1) cc = 0;
         if(cc>(menuTabSize-1)) cc = menuTabSize-1;
 
@@ -738,6 +759,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         s_editMode = false;
         //init();BLINK_SYNC;
     break;
+    case EVT_KEY_BREAK(BTN_RE):
     case EVT_KEY_FIRST(KEY_MENU):
         if (maxcol > 0)
             s_editMode = !s_editMode;
@@ -748,6 +770,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         popMenu(false);
     break;
         //fallthrough
+    case EVT_KEY_LONG(BTN_RE):
     case EVT_KEY_BREAK(KEY_EXIT):
         if(s_editMode) {
             s_editMode = false;
@@ -4230,6 +4253,7 @@ void menuProc0(uint8_t event)
         else
         {
 #endif
+    case  EVT_KEY_LONG(BTN_RE):// go to last menu
 		        scroll_disabled = 1;
             pushMenu(lastPopMenu());
             killEvents(event);

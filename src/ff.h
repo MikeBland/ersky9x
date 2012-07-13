@@ -447,7 +447,7 @@ FRESULT f_unlink (const TCHAR*);					/* Delete an existing file or directory */
 FRESULT	f_mkdir (const TCHAR*);						/* Create a new directory */
 FRESULT f_chmod (const TCHAR*, BYTE, BYTE);			/* Change attriburte of the file/dir */
 FRESULT f_utime (const TCHAR*, const FILINFO*);		/* Change timestamp of the file/dir */
-FRESULT f_rename (const TCHAR*, const TCHAR*);		/* Rename/Move a file or directory */
+FRESULT f_rename (const TCHAR *oldf, const TCHAR *newf);		/* Rename/Move a file or directory */
 #endif
 
 #if _USE_FORWARD
