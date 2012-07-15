@@ -469,7 +469,7 @@ bool eeDuplicateModel(uint8_t id);
 extern char idx2char(uint8_t idx) ;
 extern uint8_t char2idx(char c) ;
 
-extern int16_t            g_ppmIns[8];
+extern int16_t            g_ppmIns[];
 extern uint8_t ppmInState ; //0=unsync 1..8= wait for value i-1
 
 /// goto given Menu, but substitute current menu in menuStack

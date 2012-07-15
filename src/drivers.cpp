@@ -1379,7 +1379,6 @@ void end_ppm_capture()
 // (The timer is free-running and is thus not reset to zero at each capture interval.)
 // Timer 4 generates the 2MHz clock to clock Timer 3
 
-uint16_t Temp_captures[8] ;
 
 extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 {
@@ -1390,29 +1389,26 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 	capture = TC1->TC_CHANNEL[0].TC_RA ;
 	(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
   
-//	cli();
-//  ETIMSK &= ~(1<<TICIE3); //stop reentrance
-//  sei();
 
   val = (capture - lastCapt) / 2 ;
   lastCapt = capture;
 
   // We prcoess g_ppmInsright here to make servo movement as smooth as possible
   //    while under trainee control
-  if(ppmInState && ppmInState<=8){
-    if(val>800 && val<2200)
+  if (val>4000 && val < 16000) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
+    ppmInState = 1; // triggered
+  else
+  {
+  	if(ppmInState && ppmInState<=8)
 		{
-			Temp_captures[ppmInState - 1] = capture ;
-      g_ppmIns[ppmInState++ - 1] =
-        (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
+    	if(val>800 && val<2200)
+			{
+  	    g_ppmIns[ppmInState++ - 1] =
+    	    (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
 
-    }else{
-      ppmInState=0; // not triggered
-    }
-  }else{
-    if(val>4000 && val < 16000)
-    {
-      ppmInState=1; // triggered
+	    }else{
+  	    ppmInState=0; // not triggered
+    	}
     }
   }
 

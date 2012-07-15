@@ -658,15 +658,18 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
     uint8_t attr = m_posVert==0 ? INVERS : 0;
 
 
-		if ( Rotary_diff > 0 )
+		if ( s_editMode == 0 )
 		{
-   	  scrollLR = -1;
+			if ( Rotary_diff > 0 )
+			{
+   		  scrollLR = -1;
+			}
+			else if ( Rotary_diff < 0 )
+			{
+   		  scrollLR = 1;
+			}
+			Rotary_diff = 0 ;
 		}
-		else if ( Rotary_diff < 0 )
-		{
-   	  scrollLR = 1;
-		}
-		Rotary_diff = 0 ;
 
     if(m_posVert==0)
     {
