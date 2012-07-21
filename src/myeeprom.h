@@ -184,9 +184,21 @@ PACK(typedef struct t_CSwData { // Custom Switches data
 }) CSwData;
 
 PACK(typedef struct t_SafetySwData { // Custom Switches data
-  int8_t  swtch:6;
-	uint8_t mode:2; // Safety (0,2,3) or alarm (1)
-  int8_t  val;
+	union opt
+	{
+		struct ss
+		{	
+	    int8_t  swtch:6;
+			uint8_t mode:2;
+    	int8_t  val;
+		} ss ;
+		struct vs
+		{
+  		uint8_t vswtch:5 ;
+			uint8_t vmode:3 ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs, Varibl
+    	uint8_t vval;
+		} vs ;
+	} opt ;
 }) SafetySwData;
 
 PACK(typedef struct t_FrSkyChannelData {
@@ -238,11 +250,9 @@ PACK(typedef struct t_swVoice {
 
 PACK(typedef struct t_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
-  uint8_t   reserved_spare;		//used to be MDVERS - now depreciated
+  uint8_t   modelVoice ;		// Index to model name voice (261+value)
   uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
-//    uint8_t   sparex:1;     // was tmrDir, now use tmrVal>0 => count down
-    uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
-//    uint8_t   tmrDir:1;     // was tmrDir, now use tmrVal>0 => count down
+  uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
   uint8_t   spare22:1 ;  			// Start timer2 using throttle
   uint8_t   FrSkyUsrProto:1 ; // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
@@ -280,7 +290,7 @@ PACK(typedef struct t_ModelData {
 //  uint8_t   rxnum;
   uint8_t   frSkyVoltThreshold ;
   uint8_t   bt_telemetry;
-  uint8_t   res3;
+  uint8_t   numVoice;		// 0-16, rest are Safety switches
   SafetySwData  safetySw[NUM_CHNOUT];
   FrSkyData frsky;
 	TimerMode timer[2] ;

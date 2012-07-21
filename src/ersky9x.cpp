@@ -281,10 +281,12 @@ const uint8_t bchout_ar[] = {
 audioQueue  audio;
 
 
-uint8_t AlarmTimer = 200 ;		// Units of 10 mS
+uint8_t AlarmTimer = 100 ;		// Units of 10 mS
 uint8_t AlarmCheckFlag = 0 ;
+uint8_t CsCheckFlag = 0 ;
 uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
+int8_t  CsTimer[NUM_CSW] ;
 
 const char modi12x3[]=
   "RUD ELE THR AIL "
@@ -588,6 +590,7 @@ int main(void)
 	checkWarnings();
 	clearKeyEvents(); //make sure no keys are down before proceeding
 
+	putVoiceQueue( g_model.modelVoice + 260 ) ;
 //	lcd_clear() ;
 //	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
 //	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
@@ -919,6 +922,13 @@ void main_loop(void* pdata)
 	end_spi() ;
 	end_sound() ;
 	TC0->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;
+	TC0->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
+	TC0->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
+	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
+	TC1->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
+	TC1->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
+	TC1->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
+	PWM->PWM_DIS = PWM_DIS_CHID0 | PWM_DIS_CHID1 | PWM_DIS_CHID2 | PWM_DIS_CHID3 ;	// Disable all
 	NVIC_DisableIRQ(TC2_IRQn) ;
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
 	disable_main_ppm() ;
@@ -946,6 +956,7 @@ extern int16_t AltOffset ;
 void mainSequence( uint32_t no_menu )
 {
   uint16_t t0 = getTmr2MHz();
+	uint8_t numSafety = 16 - g_model.numVoice ;
 	
 	if ( g_eeGeneral.filterInput == 1 )
 	{
@@ -993,7 +1004,7 @@ void mainSequence( uint32_t no_menu )
 
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
-  if ( AlarmCheckFlag )
+  if ( AlarmCheckFlag == 2 )
   {
     AlarmCheckFlag = 0 ;
     // Check for alarms here
@@ -1004,6 +1015,7 @@ void mainSequence( uint32_t no_menu )
     if (frskyUsrStreaming)
     {
       int16_t limit = g_model.FrSkyAltAlarm ;
+      int16_t altitude ;
       if ( limit )
       {
         if (limit == 2)  // 400
@@ -1014,7 +1026,15 @@ void mainSequence( uint32_t no_menu )
         {
           limit = 122 ;	//m
         }
-        if ( ( FrskyHubData[FR_ALT_BARO] + AltOffset ) > limit )
+				altitude = FrskyHubData[FR_ALT_BARO] + AltOffset ;
+				if (g_model.FrSkyUsrProto == 0)  // Hub
+				{
+      		if ( g_model.FrSkyImperial )
+					{
+        		altitude = m_to_ft( altitude ) ;
+					}
+				}
+        if ( altitude > limit )
         {
           audioDefevent(AU_WARNING2) ;
         }
@@ -1094,47 +1114,47 @@ void mainSequence( uint32_t no_menu )
 			{
 				periodCounter &= 0x0F ;
 			}
-			for ( i = 0 ; i < NUM_CHNOUT ; i += 1 )
+			for ( i = 0 ; i < numSafety ; i += 1 )
 			{
     		SafetySwData *sd = &g_model.safetySw[i] ;
-				if (sd->mode == 1)
+				if (sd->opt.ss.mode == 1)
 				{
-					if(getSwitch( sd->swtch,0))
+					if(getSwitch( sd->opt.ss.swtch,0))
 					{
-						audio.event( sd->val ) ;
+						audio.event( ((g_eeGeneral.speakerMode & 1) == 0) ? 1 : sd->opt.ss.val ) ;
 					}
 				}
-				if (sd->mode == 2)
+				if (sd->opt.ss.mode == 2)
 				{
-					if ( sd->swtch > MAX_DRSWITCH )
+					if ( sd->opt.ss.swtch > MAX_DRSWITCH )
 					{
-						switch ( sd->swtch - MAX_DRSWITCH -1 )
+						switch ( sd->opt.ss.swtch - MAX_DRSWITCH -1 )
 						{
 							case 0 :
 								if ( ( periodCounter & 3 ) == 0 )
 								{
-									voice_telem_item( sd->val ) ;
+									voice_telem_item( sd->opt.ss.val ) ;
 								}
 							break ;
 							case 1 :
 								if ( ( periodCounter & 0xF0 ) == 0 )
 								{
-									voice_telem_item( sd->val ) ;
+									voice_telem_item( sd->opt.ss.val ) ;
 								}
 							break ;
 							case 2 :
 								if ( ( periodCounter & 7 ) == 2 )
 								{
-									voice_telem_item( sd->val ) ;
+									voice_telem_item( sd->opt.ss.val ) ;
 								}
 							break ;
 						}
 					}
 					else if ( ( periodCounter & 1 ) == 0 )		// Every 4 seconds
 					{
-						if(getSwitch( sd->swtch,0))
+						if(getSwitch( sd->opt.ss.swtch,0))
 						{
-							putVoiceQueue( sd->val + 128 ) ;
+							putVoiceQueue( sd->opt.ss.val + 128 ) ;
 						}
 					}
 				}
@@ -1149,50 +1169,94 @@ void mainSequence( uint32_t no_menu )
 		uint32_t i ;
 		static uint32_t timer ;
     
-		VoiceCheckFlag = 0 ;
 		timer += 1 ;
-		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
+		
+		for ( i = numSafety ; i < NUM_CHNOUT ; i += 1 )
 		{
 			uint8_t curent_state ;
-			if ( VoiceSwData[i].swtch )		// Configured
+			uint8_t mode ;
+    	SafetySwData *sd = &g_model.safetySw[i];
+			
+			mode = sd->opt.vs.vmode ;
+			if ( sd->opt.vs.vswtch )		// Configured
 			{
-				curent_state = getSwitch( VoiceSwData[i].swtch, 0 ) ;
-				if ( ( VoiceSwData[i].mode == 0 ) || (VoiceSwData[i].mode == 2 ) )
-				{ // ON
-					if ( ( Vs_state[i] == 0 ) && curent_state )
-					{
-						putVoiceQueue( VoiceSwData[i].val ) ;
-					}
-				}
-				if ( ( VoiceSwData[i].mode == 1 ) || (VoiceSwData[i].mode == 2 ) )
-				{ // OFF
-					if ( ( Vs_state[i] == 1 ) && !curent_state )
-					{
-						putVoiceQueue( VoiceSwData[i].val + ( ( VoiceSwData[i].mode == 1 ) ? 0 : 1 ) ) ;
-					}
-				}
-				if ( VoiceSwData[i].mode > 5 )
+				curent_state = getSwitch( sd->opt.vs.vswtch, 0 ) ;
+				if ( VoiceCheckFlag != 2 )
 				{
-					if ( ( Vs_state[i] == 0 ) && curent_state )
-					{
-						voice_telem_item( VoiceSwData[i].val ) ;
-					}					
-				}
-				else if ( VoiceSwData[i].mode > 2 )
-				{ // 15, 30 or 60 secs
-					if ( curent_state )
-					{
-						uint32_t mask ;
-						mask = 150 ;
-						if ( VoiceSwData[i].mode == 4 ) mask = 300 ;
-						if ( VoiceSwData[i].mode == 5 ) mask = 600 ;
-						if ( timer % mask == 0 )
+					if ( ( mode == 0 ) || ( mode == 2 ) )
+					{ // ON
+						if ( ( Vs_state[i] == 0 ) && curent_state )
 						{
-							putVoiceQueue( VoiceSwData[i].val ) ;
+							putVoiceQueue( sd->opt.vs.vval ) ;
+						}
+					}
+					if ( ( mode == 1 ) || ( mode == 2 ) )
+					{ // OFF
+						if ( ( Vs_state[i] == 1 ) && !curent_state )
+						{
+							uint8_t x ;
+							x = sd->opt.vs.vval ;
+							if ( mode == 2 )
+							{
+								x += 1 ;							
+							}
+							putVoiceQueue( x ) ;
+						}
+					}
+					if ( mode > 5 )
+					{
+						if ( ( Vs_state[i] == 0 ) && curent_state )
+						{
+							voice_telem_item( sd->opt.vs.vval ) ;
+						}					
+					}
+					else if ( mode > 2 )
+					{ // 15, 30 or 60 secs
+						if ( curent_state )
+						{
+							uint16_t mask ;
+							mask = 150 ;
+							if ( mode == 4 ) mask = 300 ;
+							if ( mode == 5 ) mask = 600 ;
+							if ( timer % mask == 0 )
+							{
+								putVoiceQueue( sd->opt.vs.vval ) ;
+							}
 						}
 					}
 				}
 				Vs_state[i] = curent_state ;
+			}
+		}
+		VoiceCheckFlag = 0 ;
+	}
+	if ( CsCheckFlag )		// Custom Switch Timers
+	{
+		CsCheckFlag = 0 ;
+		uint8_t i ;
+		
+		for ( i = 0 ; i < NUM_CSW ; i += 1 )
+		{
+    	CSwData &cs = g_model.customSw[i];
+    	uint8_t cstate = CS_STATE(cs.func);
+
+    	if(cstate == CS_TIMER)
+			{
+				if ( CsTimer[i] == 0 )
+				{
+					CsTimer[i] = -cs.v1-1 ;
+				}
+				else if ( CsTimer[i] < 0 )
+				{
+					if ( ++CsTimer[i] == 0 )
+					{
+						CsTimer[i] = cs.v2 ;
+					}
+				}
+				else  // if ( CsTimer[i] > 0 )
+				{
+					CsTimer[i] -= 1 ;
+				}
 			}
 		}
 	}
@@ -1663,8 +1727,9 @@ extern "C" void TC2_IRQHandler()
   	per10ms();
 		if (--AlarmTimer == 0 )
 		{
-			AlarmTimer = 200 ;		// Restart timer
-			AlarmCheckFlag = 1 ;	// Flag time to check alarms
+			AlarmTimer = 100 ;		// Restart timer
+			AlarmCheckFlag += 1 ;	// Flag time to check alarms
+			CsCheckFlag = 1 ;
 		}
 		if (--VoiceTimer == 0 )
 		{
@@ -2799,6 +2864,11 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
     case -MAX_DRSWITCH: return  false ;
   }
 
+	if ( swtch > MAX_DRSWITCH )
+	{
+		return false ;
+	}
+
   uint8_t dir = swtch>0;
   if(abs(swtch)<(MAX_DRSWITCH-NUM_CSW)) {
     if(!dir) return ! keyState((enum EnumKeys)(SW_BASE-swtch-1));
@@ -2823,6 +2893,7 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   int8_t b = cs.v2;
   int16_t x = 0;
   int16_t y = 0;
+	uint8_t valid = 1 ;
 
   // init values only if needed
   uint8_t s = CS_STATE(cs.func);
@@ -2832,7 +2903,10 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
       x = getValue(cs.v1-1);
 #ifdef FRSKY
       if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
+			{
         y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
+				valid = telemItemValid( cs.v1-CHOUT_BASE-NUM_CHNOUT-1 ) ;
+			}
       else
 #endif
       y = calc100toRESX(cs.v2);
@@ -2900,10 +2974,17 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   case (CS_ELESS):
       ret_value = (x<=y);
       break;
+  case (CS_TIME):
+      ret_value = CsTimer[cs_index] >= 0 ;
+      break;
   default:
       ret_value = false;
       break;
   }
+	if ( valid == 0 )			// Catch telemetry values not present
+	{
+     ret_value = false;
+	}
 	Last_switch[cs_index] = ret_value ;
 	return swtch>0 ? ret_value : !ret_value ;
 

@@ -36,6 +36,7 @@
 #endif
 
 extern int32_t Rotary_diff ;
+extern int16_t AltOffset ;
 
 struct t_timer s_timer[2] ;
 
@@ -148,10 +149,15 @@ void voice_telem_item( int8_t index )
     case FR_A2_COPY:
 			value = scale_telem_value( value, index-FR_A1_COPY, (g_model.frsky.channels[index-FR_A1_COPY].type == 2/*V*/), &att ) ;
 			unit = V_VOLTS ;			
+			if (g_model.frsky.channels[index-FR_A1_COPY].type == 3)
+			{
+				unit = V_AMPS ;
+			}
 			num_decimals = 1 ;
 		break ;
 
 		case FR_ALT_BARO:
+			value += AltOffset ;
       unit = V_METRES ;
 			if (g_model.FrSkyUsrProto == 1)  // WS How High
 			{
@@ -1409,7 +1415,7 @@ void menuProcTemplates(uint8_t event)  //Issue 73
 
 void menuProcSafetySwitches(uint8_t event)
 {
-  MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1 + NUM_VS_SWITCHES, {0, 2/*repeated*/});
+	MENU("SAFETY SWITCHES", menuTabModel, e_SafetySwitches, NUM_CHNOUT+1+1, {0, 0, 2/*repeated*/});
 
 	uint8_t y = 0;
 	uint8_t k = 0;
@@ -1423,130 +1429,140 @@ void menuProcSafetySwitches(uint8_t event)
 	{
     y=(i+1)*FH;
     k=i+s_pgOfs;
-    if(k<NUM_CHNOUT)
+		if ( k == 0 )
 		{
-    	SafetySwData *sd = &g_model.safetySw[k];
-    	putsChn(0,y,k+1,0);
-    	for(uint8_t j=0; j<3;j++)
+  	  lcd_puts_Pleft( y, PSTR("Number Voice Sw") ) ;
+  	  uint8_t attr = ((sub==k) ? (s_editMode ? BLINK : INVERS) : 0);
+			lcd_outdezAtt(  18*FW, y,g_model.numVoice, attr);
+ 		  if(sub==k)
 			{
-    	  uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
-				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
-    	  if (j == 0)
+  	    CHECK_INCDEC_H_MODELVAR( event, g_model.numVoice, 0, 16 ) ;
+  	  }
+		}
+  	else if(k<NUM_CHNOUT+1)
+		{
+			uint8_t numSafety = 16 - g_model.numVoice ;
+    	SafetySwData *sd = &g_model.safetySw[k-1];
+    	putsChn(0,y,k,0);
+			if ( k <= numSafety )
+			{
+  	  	for(uint8_t j=0; j<3;j++)
 				{
-					lcd_putcAtt( 5*FW, y, (sd->mode == 1) ? 'A' : (sd->mode == 2) ? 'V' : 'S', attr ) ;
-    	    if(active)
+    		  uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
+					uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+  	  	  if (j == 0)
 					{
-    	      CHECK_INCDEC_H_MODELVAR( event, sd->mode, 0, 2 ) ;
-    	    }
-				}
-    	  else if (j == 1)
-    	  {
-					int8_t max = MAX_DRSWITCH ;
-					if ( sd->mode == 2 )
-					{
-						max = MAX_DRSWITCH+3 ;
-					}	 
-					if ( sd->swtch > MAX_DRSWITCH )
-					{
-						lcd_putsAttIdx( 7*FW, y, PSTR("\007 8 Secs12 Secs16 Secs"), sd->swtch-MAX_DRSWITCH-1, attr ) ;
-					}
-					else
-					{
-	  	      putsDrSwitches(7*FW, y, sd->swtch  , attr);
-					}
-    	    if(active)
-					{
-    	      CHECK_INCDEC_H_MODELVAR( event, sd->swtch, -MAX_DRSWITCH, max);
-    	    }
-				}
-				else
-				{
-					int8_t min, max ;
-					if ( sd->mode == 1 )
-					{
-						min = 0 ;
-						max = 15 ;
-						sd->val = limit( min, sd->val, max) ;
-						lcd_putsAttIdx(15*FW, y, Str_Sounds, sd->val,attr);
-					}
-					else if ( sd->mode == 2 )
-					{
-						if ( sd->swtch > MAX_DRSWITCH )
+						lcd_putcAtt( 5*FW, y, (sd->opt.ss.mode == 1) ? 'A' : (sd->opt.ss.mode == 2) ? 'V' : 'S', attr ) ;
+	      	  if(active)
 						{
-							min = 0 ;
-							max = NUM_TELEM_ITEMS-1 ;
-							sd->val = limit( min, sd->val, max) ;
-							lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->val, attr ) ;
+	  	        CHECK_INCDEC_H_MODELVAR( event, sd->opt.ss.mode, 0, 2 ) ;
+  	  	    }
+					}
+	    	  else if (j == 1)
+  	  	  {
+						int8_t max = MAX_DRSWITCH ;
+						if ( sd->opt.ss.mode == 2 )
+						{
+							max = MAX_DRSWITCH+3 ;
+						}	 
+						if ( sd->opt.ss.swtch > MAX_DRSWITCH )
+						{
+							lcd_putsAttIdx( 7*FW, y, PSTR("\007 8 Secs12 Secs16 Secs"), sd->opt.ss.swtch-MAX_DRSWITCH-1, attr ) ;
 						}
 						else
 						{
-							min = -128 ;
-							max = 111 ;
-							sd->val = limit( min, sd->val, max) ;
-    	  				lcd_outdezAtt( 16*FW, y, sd->val+128, attr);
+          	  putsDrSwitches(7*FW, y, sd->opt.ss.swtch, attr);
 						}
+	    	    if(active)
+						{
+              CHECK_INCDEC_H_MODELVAR( event, sd->opt.ss.swtch, -MAX_DRSWITCH, max ) ;
+    		    }
 					}
 					else
 					{
-						min = -125 ;
-						max = 125 ;
-    	    	lcd_outdezAtt(  15*FW, y, sd->val,   attr);
+						int8_t min, max ;
+						if ( sd->opt.ss.mode == 1 )
+						{
+							min = 0 ;
+							max = 15 ;
+							sd->opt.ss.val = limit( min, sd->opt.ss.val, max) ;
+							lcd_putsAttIdx(16*FW, y, Str_Sounds, sd->opt.ss.val,attr);
+						}
+						else if ( sd->opt.ss.mode == 2 )
+						{
+							if ( sd->opt.ss.swtch > MAX_DRSWITCH )
+							{
+								min = 0 ;
+								max = NUM_TELEM_ITEMS-1 ;
+								sd->opt.ss.val = limit( min, sd->opt.ss.val, max) ;
+  							lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->opt.ss.val, attr ) ;
+							}
+							else
+							{
+								min = -128 ;
+								max = 111 ;
+								sd->opt.ss.val = limit( min, sd->opt.ss.val, max) ;
+        				lcd_outdezAtt( 16*FW, y, sd->opt.ss.val+128, attr);
+							}
+						}
+						else
+						{
+							min = -125 ;
+							max = 125 ;
+        			lcd_outdezAtt(  16*FW, y, sd->opt.ss.val, attr);
+						}
+  	  	    if(active)
+						{
+		          CHECK_INCDEC_H_MODELVAR( event, sd->opt.ss.val, min,max);
+    	  	  }
 					}
-    	    if(active)
-					{
-    	      CHECK_INCDEC_H_MODELVAR( event, sd->val, min,max);
-    	    }
     	  }
     	}
-		}
-		// And now the voice switches
-		// ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
-
-		else if(k<NUM_CHNOUT+NUM_VS_SWITCHES)
-		{
-    	k -= NUM_CHNOUT ;		// Index to VoiceSwData
-    	lcd_putsnAtt( 0*FW , y, PSTR("VS"),2, 0 ) ;
-    	lcd_putcAtt(  2*FW , y, k + (k>8 ? 'A'-9: '1'), 0 ) ;
-    	for(uint8_t j=0; j<3;j++)
+			else
 			{
-    	  uint8_t attr = ((sub==(k+NUM_CHNOUT) && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
-				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
-    	  if (j == 0)
+	  	  lcd_puts_Pleft( y, PSTR("VS") ) ;
+    		for(uint8_t j=0; j<3;j++)
 				{
-  	      putsDrSwitches(5*FW, y, VoiceSwData[k].swtch  , attr);
-    	    if(active)
+    	    uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
+					uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+    		  if (j == 0)
 					{
-    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].swtch, 0, MAX_DRSWITCH-1 ) ;
-    	    }
-				}
-    	  else if (j == 1)
-    	  {
-					lcd_putsAttIdx( 10*FW, y, PSTR("\006ON    OFF   BOTH  15Secs30Secs60SecsVaribl"), VoiceSwData[k].mode, attr ) ;
-    	    if(active)
-					{
-    	      CHECK_INCDEC_H_MODELVAR( event, VoiceSwData[k].mode, 0, 6 ) ;
-    	    }
-				}
-				else
-				{
-					uint8_t max ;
-					if ( VoiceSwData[k].mode > 5 )
-					{
-						max = NUM_TELEM_ITEMS-1 ;
-						VoiceSwData[k].val = limit( (uint8_t)0, VoiceSwData[k].val, max) ;
-						lcd_putsAttIdx( 16*FW, y, Str_telemItems, VoiceSwData[k].val, attr ) ;
+  			    putsDrSwitches(5*FW, y, sd->opt.vs.vswtch, attr);
+    		    if(active)
+						{
+    			    CHECK_INCDEC_H_MODELVAR( event, sd->opt.vs.vswtch, 0, MAX_DRSWITCH-1 ) ;
+    		    }
+					}
+    		  else if (j == 1)
+    		  {
+						lcd_putsAttIdx( 10*FW, y, PSTR("\006ON    OFF   BOTH  15Secs30Secs60SecsVaribl"), sd->opt.vs.vmode, attr ) ;
+    		    if(active)
+						{
+    			    CHECK_INCDEC_H_MODELVAR( event, sd->opt.vs.vmode, 0, 6 ) ;
+    		    }
 					}
 					else
 					{
-						max = 250 ;
-  					lcd_outdezAtt( 17*FW, y, VoiceSwData[k].val, attr) ;
-					}
-    	    if(active)
-					{
-            VoiceSwData[k].val = checkIncDec16(event, VoiceSwData[k].val, 0, max, EE_MODEL);
-    	    }
-				}	 
-		  }
+						uint8_t max ;
+						if ( sd->opt.vs.vmode > 5 )
+						{
+							max = NUM_TELEM_ITEMS-1 ;
+							sd->opt.vs.vval = limit( (uint8_t)0, sd->opt.vs.vval, max) ;
+							lcd_putsAttIdx( 16*FW, y, Str_telemItems, sd->opt.vs.vval, attr ) ;
+						}
+						else
+						{
+							max = 250 ;
+							sd->opt.vs.vval = limit( (uint8_t)0, sd->opt.vs.vval, max) ;
+	  					lcd_outdezAtt( 17*FW, y, sd->opt.vs.vval, attr) ;
+						}
+    			  if(active)
+						{
+    		      sd->opt.vs.vval = checkIncDec16(event, sd->opt.vs.vval, 0, max, EE_MODEL);
+    			  }
+					}	 
+			  }
+			}
 		}
 	}
 }
@@ -1578,6 +1594,7 @@ for(uint8_t i=0; i<7; i++){
     
 		attr = (sub==k ? (s_editMode ? BLINK : INVERS)  : 0);
     lcd_putsnAtt( 4*FW , y, PSTR(CSWITCH_STR)+CSW_LEN_FUNC*cs.func,CSW_LEN_FUNC,subSub==0 ? attr : 0);
+//		lcd_putsAttIdx( 4*FW, y, PSTR(CSWITCH_STR),cs.func,subSub==0 ? attr : 0);
 
     uint8_t cstate = CS_STATE(cs.func);
 
@@ -1600,11 +1617,18 @@ for(uint8_t i=0; i<7; i++){
         putsDrSwitches(12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
         putsDrSwitches(16*FW, y, cs.v2  ,subSub==2 ? attr : 0);
     }
-    else // cstate == CS_COMP
+    else if(cstate == CS_VCOMP)
     {
         putsChnRaw(    12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
         putsChnRaw(    17*FW, y, cs.v2  ,subSub==2 ? attr : 0);
     }
+		else // cstate == CS_TIMER
+		{
+	    lcd_puts_Pleft( y, PSTR("\020On") ) ;
+      lcd_outdezAtt( 15*FW, y, cs.v1+1  ,subSub==1 ? attr : 0);
+      lcd_outdezAtt( 20*FW, y, cs.v2+1  ,subSub==2 ? attr : 0);
+		}
+
 
     if((s_editMode || p1valdiff) && attr)
         switch (subSub) {
@@ -1635,6 +1659,10 @@ for(uint8_t i=0; i<7; i++){
                 CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,NUM_XCHNRAW);
 #endif
 								break;
+            case (CS_TIMER):
+                CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,100);
+                break;
+						
 						default:
                 break;
             }
@@ -1648,7 +1676,10 @@ for(uint8_t i=0; i<7; i++){
                 CHECK_INCDEC_MODELSWITCH( event, cs.v2, -MAX_DRSWITCH,MAX_DRSWITCH);
                 break;
             case (CS_VCOMP):
-                CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,NUM_XCHNRAW);
+                CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,NUM_XCHNRAW+NUM_TELEM_ITEMS);
+                break;
+            case (CS_TIMER):
+                CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,100);
                 break;
             default:
                 break;
@@ -2395,6 +2426,7 @@ void menuDeleteDupModel(uint8_t event)
             g_eeGeneral.currModel = i;
             STORE_GENERALVARS;
 						ee32WaitLoadModel(g_eeGeneral.currModel) ;
+						putVoiceQueue( g_model.modelVoice + 260 ) ;
 //            eeWaitComplete() ;
 //            eeLoadModel(g_eeGeneral.currModel); //load default values
             resetTimer();
@@ -2413,7 +2445,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 21, {0,sizeof(g_model.name)-1,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 22, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
 //  MENU("SETUP", menuTabModel, e_Model, 16, {0,sizeof(g_model.name)-1,1,0,0,0,0,0,0,6,2,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;
@@ -2463,6 +2495,15 @@ void menuProcModel(uint8_t event)
 				}
         lcd_putcAtt((10+subSub)*FW, y, v,INVERS);
     }
+    if((y+=FH)>7*FH) return;
+	}subN++;
+	
+	if(s_pgOfs<subN)
+	{
+    lcd_puts_Pleft( y, PSTR("Voice Index") ) ;
+    lcd_outdezAtt(  15*FW-2, y, (int16_t)g_model.modelVoice + 260 ,sub==subN ? INVERS : 0);
+    if(sub==subN)
+        CHECK_INCDEC_H_MODELVAR( event,g_model.modelVoice ,0,49 ) ;
     if((y+=FH)>7*FH) return;
 	}subN++;
 
@@ -2797,6 +2838,7 @@ void menuProcModelSelect(uint8_t event)
           audioDefevent(AU_MENUS);
           killEvents(event);
 					ee32WaitLoadModel(g_eeGeneral.currModel = mstate2.m_posVert) ;
+					putVoiceQueue( g_model.modelVoice + 260 ) ;
 //          eeWaitComplete();    // Wait to load model if writing something
 //          eeLoadModel(g_eeGeneral.currModel = mstate2.m_posVert);
           resetTimer();
@@ -2814,6 +2856,7 @@ void menuProcModelSelect(uint8_t event)
           killEvents(event);
           g_eeGeneral.currModel = mstate2.m_posVert;
           ee32WaitLoadModel(g_eeGeneral.currModel); //load default values
+					putVoiceQueue( g_model.modelVoice + 260 ) ;
 //          eeWaitComplete();    // Wait to load model if writing something
 //          eeLoadModel(g_eeGeneral.currModel);
           resetTimer();
@@ -5249,12 +5292,19 @@ void perOut(int16_t *chanOut, uint8_t att)
         if(q<lim_n) q = lim_n;
         if(g_model.limitData[i].revert) q=-q;// finally do the reverse.
 
-        if(g_model.safetySw[i].swtch)  //if safety sw available for channel check and replace val if needed
-					if ( ( g_model.safetySw[i].mode != 1 ) && ( g_model.safetySw[i].mode != 2 ) )	// And not used as an alarm
+				{
+					uint8_t numSafety = 16 - g_model.numVoice ;
+					if ( i < numSafety )
 					{
-            if(getSwitch(g_model.safetySw[i].swtch,0)) q = calc100toRESX(g_model.safetySw[i].val);
+        		if(g_model.safetySw[i].opt.ss.swtch)  //if safety sw available for channel check and replace val if needed
+						{
+							if ( ( g_model.safetySw[i].opt.ss.mode != 1 ) && ( g_model.safetySw[i].opt.ss.mode != 2 ) )	// And not used as an alarm
+							{
+        		    if(getSwitch(g_model.safetySw[i].opt.ss.swtch,0)) q = calc100toRESX(g_model.safetySw[i].opt.ss.val) ;
+							}
+						}
 					}
-
+				}
 //        cli();
         chanOut[i] = q; //copy consistent word to int-level
 //        sei();
@@ -5282,6 +5332,9 @@ void menuProcSDstat(uint8_t event)
 
 	lcd_outhex4( 10*FW, 1*FH, Card_state ) ;
 	
+extern uint32_t SDlastError ;
+	lcd_outhex4( 16*FW, 1*FH, SDlastError ) ;
+	 
 //	if (sd_card_ready() )		// Moved for debugging
 //	{
 		y = 2*FH ;

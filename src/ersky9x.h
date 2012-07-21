@@ -99,7 +99,7 @@ enum EnumKeys {
 #define CURV_STR "---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16"
 #define CURVE_BASE 7
 
-#define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 "
+#define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 TimeOff"
 #define CSW_LEN_FUNC 7
 
 
@@ -117,12 +117,14 @@ enum EnumKeys {
 #define CS_LESS      11
 #define CS_EGREATER  12
 #define CS_ELESS     13
-#define CS_MAXF      13  //max function
+#define CS_TIME	     14
+#define CS_MAXF      14  //max function
 
 #define CS_VOFS       0
 #define CS_VBOOL      1
 #define CS_VCOMP      2
-#define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((x)<CS_EQUAL ? CS_VBOOL : CS_VCOMP))
+#define CS_TIMER			3
+#define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((x)<CS_EQUAL ? CS_VBOOL : ((x)<CS_TIME ? CS_VCOMP : CS_TIMER)))
 
 #define SW_BASE      SW_ThrCt
 #define SW_BASE_DIAG SW_ThrCt
@@ -497,11 +499,13 @@ extern uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel
 extern void telem_byte_to_bt( uint8_t data ) ;
 extern uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att ) ;
 #endif
+uint8_t telemItemValid( uint8_t index ) ;
 
-extern void putVoiceQueue( uint8_t value ) ;
+extern void putVoiceQueue( uint16_t value ) ;
 void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index ) ;
 extern void voice_telem_item( int8_t index ) ;
 extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
+extern int16_t m_to_ft( int16_t metres ) ;
 
 extern uint32_t check_soft_power( void ) ;
 

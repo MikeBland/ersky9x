@@ -197,7 +197,7 @@ void audioVoiceDefevent( uint8_t e, uint8_t v) ;
 #define AUDIO_DRIVER()      audio.driver()
 #define AUDIO_HEARTBEAT()   audio.heartbeat()
 
-#define VOICE_Q_LENGTH		8
+#define VOICE_Q_LENGTH		16
 
 struct t_voice
 {
@@ -205,13 +205,13 @@ struct t_voice
 	uint8_t VoiceQueueInIndex ;
 	uint8_t VoiceQueueOutIndex ;
 	uint8_t VoiceLock ;
-	uint8_t VoiceQueue[VOICE_Q_LENGTH] ;
+	uint16_t VoiceQueue[VOICE_Q_LENGTH] ;
 
 } ;
 
 extern struct t_voice Voice ;
 
-extern void putVoiceQueue( uint8_t value ) ;
+extern void putVoiceQueue( uint16_t value ) ;
 extern void voice_task(void* pdata) ;
 
 

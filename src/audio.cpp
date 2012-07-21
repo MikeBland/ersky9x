@@ -411,7 +411,7 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 	}
 }
 
-void putVoiceQueue( uint8_t value )
+void putVoiceQueue( uint16_t value )
 {
 	struct t_voice *vptr ;
 	vptr = &Voice ;
@@ -430,6 +430,7 @@ TCHAR VoiceFilename[48] ;
 uint8_t FileData[1024] ;
 FATFS g_FATFS ;
 FIL Vfile ;
+uint32_t SDlastError ;
 
 void voice_task(void* pdata)
 {
@@ -438,6 +439,7 @@ void voice_task(void* pdata)
 	UINT nread ;
 	uint32_t x ;
 	uint32_t w8or16 ;
+	uint32_t mounted = 0 ;
 
 	for(;;)
 	{
@@ -445,9 +447,18 @@ void voice_task(void* pdata)
 		{
 			CoTickDelay(5) ;					// 10mS for now
 		}
-  	fr = f_mount(0, &g_FATFS) ;
+		if ( mounted == 0 )
+		{
+  		fr = f_mount(0, &g_FATFS) ;
+		}
+		else
+		{
+			fr = FR_OK ;
+		}
+
 		if ( fr == FR_OK)
 		{
+			mounted = 1 ;
 	
 			while ( Voice.VoiceQueueCount == 0 )
 			{
@@ -556,6 +567,11 @@ void voice_task(void* pdata)
 					}
 					fr = f_close( &Vfile ) ;
 				}
+				else
+				{
+					SDlastError = fr ;
+					mounted = 0 ;
+				}
 				Voice.VoiceLock = 0 ;
 			}
 			else
@@ -566,6 +582,10 @@ void voice_task(void* pdata)
 			__disable_irq() ;
 			Voice.VoiceQueueCount -= 1 ;
 			__enable_irq() ;
+		}
+		else
+		{
+			SDlastError = fr ;
 		}
 		CoTickDelay(1) ;					// 2mS for now
 	} // for(;;)
