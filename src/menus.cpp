@@ -2467,6 +2467,12 @@ void menuProcModel(uint8_t event)
     case EVT_KEY_FIRST(KEY_RIGHT):
       if(sub==1 && subSub<sizeof(g_model.name)-1 && s_editMode) mstate2.m_posHorz++;
     break;
+    case EVT_KEY_FIRST(KEY_MENU):
+			if ( sub == 2 )
+			{
+				putVoiceQueue( g_model.modelVoice + 260 ) ;
+			}
+    break;
 	}
 
 	uint8_t subN = 1;
@@ -2500,7 +2506,7 @@ void menuProcModel(uint8_t event)
 	
 	if(s_pgOfs<subN)
 	{
-    lcd_puts_Pleft( y, PSTR("Voice Index") ) ;
+    lcd_puts_Pleft( y, PSTR("Voice Index\021MENU") ) ;
     lcd_outdezAtt(  15*FW-2, y, (int16_t)g_model.modelVoice + 260 ,sub==subN ? INVERS : 0);
     if(sub==subN)
         CHECK_INCDEC_H_MODELVAR( event,g_model.modelVoice ,0,49 ) ;
@@ -2516,6 +2522,7 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
 	if(s_pgOfs<subN)
 	{
     lcd_puts_Pleft(    y, PSTR("Timer"));
+    lcd_putc( 5*FW, y, '1'+timer);
     putsTime(12*FW-1, y, ptm->tmrVal,(sub==subN && subSub==0 ? (s_editMode ? BLINK : INVERS):0),(sub==subN && subSub==1 ? (s_editMode ? BLINK : INVERS):0) );
 
     if(sub==subN && (s_editMode || p1valdiff))

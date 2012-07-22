@@ -137,7 +137,7 @@ volatile int32_t Rotary_position ;
 volatile int32_t Rotary_count ;
 int32_t LastRotaryValue ;
 int32_t Rotary_diff ;
-uint8_t Vs_state[NUM_VS_SWITCHES] ;
+uint8_t Vs_state[NUM_CHNOUT] ;
 
 
 void tmrBt_Handle( void ) ;
@@ -263,7 +263,7 @@ uint8_t pxxFlag = 0 ;
 
 EEGeneral  g_eeGeneral;
 ModelData  g_model;
-voiceSwData VoiceSwData[NUM_VS_SWITCHES] ;		// In Ram for testing
+//voiceSwData VoiceSwData[NUM_VS_SWITCHES] ;		// In Ram for testing
 
  const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
                                 1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
@@ -604,14 +604,14 @@ int main(void)
 
 	heartbeat_running = 1 ;
 
-	{
-		uint32_t i;
+//	{
+//		uint32_t i;
 
-		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
-		{
-			Vs_state[i] = getSwitch( VoiceSwData[i].swtch, 0 ) ;
-		}
-	}
+//		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
+//		{
+//			Vs_state[i] = getSwitch( VoiceSwData[i].swtch, 0 ) ;
+//		}
+//	}
 
 
 #ifndef SIMU

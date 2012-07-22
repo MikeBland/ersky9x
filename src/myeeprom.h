@@ -305,7 +305,7 @@ PACK(typedef struct t_ModelData {
 extern EEGeneral g_eeGeneral;
 extern ModelData g_model;
 
-extern voiceSwData VoiceSwData[] ;
+//extern voiceSwData VoiceSwData[] ;
 
 #endif
 /*eof*/

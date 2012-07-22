@@ -1,0 +1,21 @@
+====================================================================================
+ERSKY9x changelog
+Please insert a short description of a change by inserting it below this header and 
+above the previous change.
+
+Format is as follows:
+******************************************
+CHANGELOG: 25-APR-2011
+description here
+====================================================================================
+
+******************************************
+CHANGELOG: 22-07-2012
+Added changelog file
+MENU used to play model name voice file
+Timers in menu labelled 1 and 2
+Voice Switch bug fixed
+Compiler bug in core_cm3.c fixed
+
+
+

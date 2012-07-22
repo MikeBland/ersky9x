@@ -325,8 +325,6 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 #define NUMCHARS (sizeof(s_charTab)-1)
 
 #define NUM_PPM     8
-//number of real outputchannels CH1-CH16
-#define NUM_CHNOUT  16
 ///number of real input channels (1-9) plus virtual input channels X1-X4
 #define PPM_BASE    MIX_CYC3
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
