@@ -169,6 +169,10 @@ void store_hub_data( uint8_t index, uint16_t value )
 		{
 			FrskyHubData[FR_RPM] *= 60/(g_model.numBlades + 2) ;// == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
 		}
+		if ( index == FR_V_AMPd )
+		{
+			FrskyHubData[FR_VOLTS] = FrskyHubData[FR_V_AMP] * 10 + value ;
+		}
 	}	
 }
 
@@ -684,9 +688,9 @@ void check_frsky()
 	// FrSky Current sensor (in amps)
 	// add this every 10 ms, when over 360, we have 1 mAh
 	// 
-	if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 360 )
+	if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
 	{
-		Frsky_Amp_hour_prescale -= 360 ;
+		Frsky_Amp_hour_prescale -= 3600 ;
 		FrskyHubData[FR_AMP_MAH] += 1 ;
 	}
 

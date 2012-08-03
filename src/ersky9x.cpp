@@ -1039,14 +1039,22 @@ void mainSequence( uint32_t no_menu )
           audioDefevent(AU_WARNING2) ;
         }
       }
+			uint16_t total_volts = 0 ;
+			uint8_t audio_sounded = 0 ;
 			for (uint8_t k=0; k<FrskyBattCells; k++)
 			{
-	      if ( FrskyVolts[k] < g_model.frSkyVoltThreshold )
+				total_volts += FrskyVolts[k] ;
+				if ( audio_sounded == 0 )
 				{
-	        audioDefevent(AU_WARNING3);
-	        break;
+		      if ( FrskyVolts[k] < g_model.frSkyVoltThreshold )
+					{
+		        audioDefevent(AU_WARNING3);
+						audio_sounded = 1 ;
+					}
 			  }
 	  	}
+			// Now we have total volts available
+			FrskyHubData[FR_CELLS_TOT] = total_volts / 5 ;
     }
 
 
@@ -2984,6 +2992,13 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 	if ( valid == 0 )			// Catch telemetry values not present
 	{
      ret_value = false;
+	}
+	if ( ret_value )
+	{
+		if ( cs.andsw )
+		{
+       ret_value = getSwitch( cs.andsw + 9, 0, level+1) ;
+		}
 	}
 	Last_switch[cs_index] = ret_value ;
 	return swtch>0 ? ret_value : !ret_value ;

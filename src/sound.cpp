@@ -417,7 +417,7 @@ void sound_5ms()
 			return ;
 		}
 		
-		if ( ( Sound_g.VoiceActive ) || ( Voice.VoiceQueueCount ) )
+		if ( ( Sound_g.VoiceActive ) || ( ( Voice.VoiceQueueCount ) && sd_card_ready() ) )
 		{
 			Sound_g.Sound_time = 0 ;						// Remove any pending tone requests
 			return ;

@@ -71,22 +71,23 @@ const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""C
 #define TEL_ITEM_BATT		16
 #define TEL_ITEM_AMPS		17
 #define TEL_ITEM_MAHC		18
+#define TEL_ITEM_CTOT		19
+#define TEL_ITEM_FASV		20
 
-//uint8_t CustomDisplayIndex[6] ;
 
 // TSSI set to zero on no telemetry data
-const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah " ;
+const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasV" ;
 const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 															FR_RXRSI_COPY, FR_TXRSI_COPY,
 															TIMER1, TIMER2,
 															FR_ALT_BARO, FR_GPS_ALT,
 															FR_GPS_SPEED, FR_TEMP1, FR_TEMP2, FR_RPM,
 														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,
-															BATTERY, FR_CURRENT, FR_AMP_MAH } ;
+															BATTERY, FR_CURRENT, FR_AMP_MAH, FR_CELLS_TOT, FR_VOLTS } ;
 
 // TXRSSI is always considered valid as it is forced to zero on loss of telemetry
 // Values are 0 - always valid, 1 - need telemetry, 2 - need hub
-const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2 } ;
+const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2 } ;
 
 
 int16_t m_to_ft( int16_t metres )
@@ -140,6 +141,8 @@ void voice_telem_item( int8_t index )
   switch (index)
 	{
 		case BATTERY:
+		case FR_VOLTS :
+		case FR_CELLS_TOT :
 			unit = V_VOLTS ;			
 			num_decimals = 1 ;
 		break ;
@@ -157,7 +160,6 @@ void voice_telem_item( int8_t index )
 		break ;
 
 		case FR_ALT_BARO:
-			value += AltOffset ;
       unit = V_METRES ;
 			if (g_model.FrSkyUsrProto == 1)  // WS How High
 			{
@@ -171,7 +173,11 @@ void voice_telem_item( int8_t index )
       }
 		break ;
 		 
-
+		case TEL_ITEM_AMPS :
+			num_decimals = 1 ;
+      unit = V_AMPS ;
+		break ;
+			
 		case FR_TEMP1:
 		case FR_TEMP2:
 			unit = V_DEGREES ;			
@@ -234,6 +240,10 @@ int16_t convertTelemConstant( int8_t channel, int8_t value)
 		case FR_CELL_MIN:
       result *= 2;
 		break ;
+		case FR_CELLS_TOT :
+		case FR_VOLTS :
+      result *= 2;
+		break ;
   }
   return result;
 }
@@ -252,6 +262,9 @@ int16_t get_telemetry_value( int8_t channel )
     return g_vbat100mV ;
 
 #ifdef FRSKY
+    case FR_ALT_BARO :
+		return FrskyHubData[channel] + AltOffset ;
+		
 		default :
 		return FrskyHubData[channel] ;
 #endif
@@ -294,11 +307,15 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 	{
     case TIMER1 :
     case TIMER2 :
+			if ( (att & DBLSIZE) == 0 )
+			{
+				x -= 4 ;
+			}
 			if ( style & TELEM_LABEL )
 			{
 				x += FW+4 ;
 			}
-			att &= DBLSIZE ;
+//			att &= DBLSIZE ;
       putsTime(x-FW, y, val, att, att) ;
 			displayed = 1 ;
     	unit = channel + 2 + '1';
@@ -331,6 +348,7 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			if (g_model.FrSkyUsrProto == 1)  // WS How High
 			{
         unit = 'f' ;  // and ignore met/imp option
+				x -= FW ;
 				break ;
 			}
     case FR_GPS_ALT:
@@ -343,8 +361,18 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
       }
     break;
 
+		case FR_CURRENT :
+			att |= PREC1 ;
+      unit = 'A' ;
+		break ;
+
 		case FR_CELL_MIN:
 			att |= PREC2 ;
+      unit = 'v' ;
+		break ;
+		case FR_CELLS_TOT :
+		case FR_VOLTS :
+			att |= PREC1 ;
       unit = 'v' ;
 		break ;
 		case BATTERY:
@@ -1569,7 +1597,7 @@ void menuProcSafetySwitches(uint8_t event)
 
 void menuProcSwitches(uint8_t event)  //Issue 78
 {
-    MENU("CUSTOM SWITCHES", menuTabModel, e_Switches, NUM_CSW+1, {0, 2/*repeated...*/});
+    MENU("CUSTOM SWITCHES", menuTabModel, e_Switches, NUM_CSW+1, {0, 3/*repeated...*/});
 
 uint8_t y = 0;
 uint8_t k = 0;
@@ -1587,47 +1615,49 @@ for(uint8_t i=0; i<7; i++){
     CSwData &cs = g_model.customSw[k];
 
 		
-    attr = (getSwitch(CSW_INDEX+k, 0) ) ? INVERS : 0 ;
+    attr = (getSwitch(CSW_INDEX+k-1, 0) ) ? INVERS : 0 ;
     //write SW names here
     lcd_putsnAtt( 0*FW , y, PSTR("SW"),2,attr) ;
     lcd_putcAtt(  2*FW , y, k + (k>8 ? 'A'-9: '1'), attr) ;
     
 		attr = (sub==k ? (s_editMode ? BLINK : INVERS)  : 0);
-    lcd_putsnAtt( 4*FW , y, PSTR(CSWITCH_STR)+CSW_LEN_FUNC*cs.func,CSW_LEN_FUNC,subSub==0 ? attr : 0);
+    lcd_putsnAtt( 4*FW-3 , y, PSTR(CSWITCH_STR)+CSW_LEN_FUNC*cs.func,CSW_LEN_FUNC,subSub==0 ? attr : 0);
 //		lcd_putsAttIdx( 4*FW, y, PSTR(CSWITCH_STR),cs.func,subSub==0 ? attr : 0);
 
     uint8_t cstate = CS_STATE(cs.func);
 
     if(cstate == CS_VOFS)
     {
-			putsChnRaw(    12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
+			putsChnRaw(    11*FW-3, y, cs.v1  ,subSub==1 ? attr : 0);
 #ifdef FRSKY
       if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
  			{
 				int16_t value = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
 //        lcd_outdezAtt( 20*FW, y, convertTelemValue( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ,subSub==2 ? attr : 0);
-				putsTelemetryChannel( 20*FW, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, TELEM_UNIT);
+				putsTelemetryChannel( 19*FW-4, y, cs.v1-CHOUT_BASE-NUM_CHNOUT-1, value, subSub==2 ? attr : 0, TELEM_UNIT);
 			}
       else
 #endif
-        lcd_outdezAtt( 20*FW, y, cs.v2  ,subSub==2 ? attr : 0);
+        lcd_outdezAtt( 19*FW-3, y, cs.v2  ,subSub==2 ? attr : 0);
     }
     else if(cstate == CS_VBOOL)
     {
-        putsDrSwitches(12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
-        putsDrSwitches(16*FW, y, cs.v2  ,subSub==2 ? attr : 0);
+        putsDrSwitches(11*FW-3, y, cs.v1  ,subSub==1 ? attr : 0);
+        putsDrSwitches(15*FW-3, y, cs.v2  ,subSub==2 ? attr : 0);
     }
     else if(cstate == CS_VCOMP)
     {
-        putsChnRaw(    12*FW, y, cs.v1  ,subSub==1 ? attr : 0);
-        putsChnRaw(    17*FW, y, cs.v2  ,subSub==2 ? attr : 0);
+        putsChnRaw(    11*FW-3, y, cs.v1  ,subSub==1 ? attr : 0);
+        putsChnRaw(    15*FW, y, cs.v2  ,subSub==2 ? attr : 0);
     }
 		else // cstate == CS_TIMER
 		{
 	    lcd_puts_Pleft( y, PSTR("\020On") ) ;
-      lcd_outdezAtt( 15*FW, y, cs.v1+1  ,subSub==1 ? attr : 0);
-      lcd_outdezAtt( 20*FW, y, cs.v2+1  ,subSub==2 ? attr : 0);
+      lcd_outdezAtt( 14*FW-3, y, cs.v1+1  ,subSub==1 ? attr : 0);
+      lcd_outdezAtt( 19*FW-3, y, cs.v2+1  ,subSub==2 ? attr : 0);
 		}
+    lcd_putc( 19*FW+3, y, cs.andsw ? 'S' : '-') ;
+    lcd_putcAtt( 20*FW+2, y, cs.andsw ? (cs.andsw + ((cs.andsw>9) ? 'A'-10 : '0') ) : '-', subSub==3 ? attr : 0) ;
 
 
     if((s_editMode || p1valdiff) && attr)
@@ -1660,7 +1690,7 @@ for(uint8_t i=0; i<7; i++){
 #endif
 								break;
             case (CS_TIMER):
-                CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,100);
+                CHECK_INCDEC_H_MODELVAR( event, cs.v1, 0,99);
                 break;
 						
 						default:
@@ -1679,11 +1709,15 @@ for(uint8_t i=0; i<7; i++){
                 CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,NUM_XCHNRAW+NUM_TELEM_ITEMS);
                 break;
             case (CS_TIMER):
-                CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,100);
+                CHECK_INCDEC_H_MODELVAR( event, cs.v2, 0,99);
                 break;
             default:
                 break;
             }
+            break;
+        case 3:
+          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, 0, NUM_CSW ) ;
+				break;
         }
 }
 }

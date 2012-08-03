@@ -58,8 +58,10 @@
 #define FR_V_AMPd			34
 #define FR_CELL_MIN		35
 #define FR_AMP_MAH		36
+#define FR_CELLS_TOT	37
+#define FR_VOLTS			38
 
-#define HUBDATALENGTH 37
+#define HUBDATALENGTH 39
 #define HUBMINMAXLEN	9
 #define HUBOFFSETLEN	7			// Items with an offset field
 

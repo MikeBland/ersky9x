@@ -180,7 +180,8 @@ PACK(typedef struct t_MixData {
 PACK(typedef struct t_CSwData { // Custom Switches data
   int8_t  v1; //input
   int8_t  v2; 		//offset
-  uint8_t func;
+	uint8_t func:4;
+	uint8_t andsw:4;
 }) CSwData;
 
 PACK(typedef struct t_SafetySwData { // Custom Switches data

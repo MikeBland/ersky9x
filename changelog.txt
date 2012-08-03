@@ -10,6 +10,15 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 03-08-2012 MPB
+Add FAS100 Voltage
+Correct FAS100 current and mAh
+Voice uses files 101 to 109 for hundreds
+Add total cell voltage
+Add extra AND to custom switches
+Ensure system sounds work when no SD card present
+
+******************************************
 CHANGELOG: 22-07-2012
 Added changelog file
 MENU used to play model name voice file
