@@ -63,6 +63,8 @@ uint32_t Cmd_8_resp ;
 uint32_t Cmd_A41_resp ;
 uint32_t SpeedAllowed ;
 
+uint32_t Sd_retries ;
+
 /**
  * Configure the  MCI SDCBUS in the MCI_SDCR register. Only two modes available
  *
@@ -589,10 +591,18 @@ void sd_poll_10mS()
 //                      p8hex( i ) ;
 //                      crlf() ;
                         Card_state = SD_ST_TRAN ;
+												Sd_retries = 5 ;
                 break ;
 
                 case SD_ST_TRAN :
                         i = sd_acmd51( Sd_128_resp ) ;
+												if ( i != 0 )
+												{
+													if ( --Sd_retries > 0 )
+													{
+														break ;
+													}													
+												}
                         Card_SCR[0] = Sd_128_resp[0] ;
                         Card_SCR[1] = Sd_128_resp[1] ;
                         Card_state = SD_ST_DATA ;
