@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 13-Aug-2012  MPB
+Fix throttle warning when reversed bug
+
+******************************************
 CHANGELOG: 07-08-2012 MPB
 Add retries to reading the SD card SCR register
 

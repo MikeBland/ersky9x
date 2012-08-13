@@ -3128,23 +3128,32 @@ void message(const char * s)
 //  lcdSetRefVolt(g_eeGeneral.contrast);
 }
 
+int16_t tanaIn( uint8_t chan )
+{
+ 	int16_t v = anaIn(chan) ;
+	return  (g_eeGeneral.throttleReversed) ? -v : v ;
+}
+
 void checkTHR()
 {
   if(g_eeGeneral.disableThrottleWarning) return;
 
-  int thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
+  uint8_t thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
 
 #ifdef SIMU
   int16_t lowLim = THRCHK_DEADBAND - 1024 ;
 #else
-  int16_t lowLim = THRCHK_DEADBAND + g_eeGeneral.calibMid[thrchn] - g_eeGeneral.calibSpanNeg[thrchn];// + g_eeGeneral.calibSpanNeg[thrchn]/8;
   getADC_single();   // if thr is down - do not display warning at all
+	int16_t lowLim = g_eeGeneral.calibMid[thrchn] ;
+
+	lowLim = (g_eeGeneral.throttleReversed ? (- lowLim) - g_eeGeneral.calibSpanPos[thrchn] : lowLim - g_eeGeneral.calibSpanNeg[thrchn]);
+	lowLim += THRCHK_DEADBAND ;
 #endif
 
-  int16_t v      = anaIn(thrchn);
-  if((v<=lowLim) || (keyDown()))
+  int16_t v = tanaIn(thrchn);
+  if(v<=lowLim)
   {
-      return;
+    return;
   }
 
   // first - display warning
@@ -3159,17 +3168,17 @@ void checkTHR()
 #else
       getADC_single();
 #endif
+			check_backlight() ;
 
-      int16_t v      = anaIn(thrchn);
+      int16_t v = tanaIn(thrchn);
       if((v<=lowLim) || (keyDown()))
       {
-          return;
+        return;
       }
       wdt_reset();
 
 		if ( check_power_or_usb() ) return ;		// Usb on or power off
 
-		check_backlight() ;
   }
 }
 
