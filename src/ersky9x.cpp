@@ -190,6 +190,7 @@ void checkTHR( void ) ;
 static void checkSwitches( void ) ;
 void check_backlight( void ) ;
 void checkQuickSelect( void ) ;
+void actionUsb( void ) ;
 
 static uint8_t checkTrim(uint8_t event) ;
 //void screen0( void ) ;
@@ -500,13 +501,24 @@ int main(void)
 //	g_LightOffCounter = 1000 ;
 	__enable_irq() ;
 
+	lcd_init() ;
+
+	pioptr = PIOC ;
+	if ( pioptr->PIO_PDSR & 0x02000000 )
+	{
+		g_eeGeneral.optrexDisplay = 1 ;
+		lcd_clear() ;
+		refreshDisplay() ;
+		g_eeGeneral.optrexDisplay = 0 ;
+		actionUsb() ;
+	}
+
   g_menuStack[0] =  menuProc0 ;
 
 	start_sound() ;
 	
 	init_spi() ;
 		
-	lcd_init() ;		
 //	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
 //	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
 	
@@ -763,7 +775,6 @@ void bt_task(void* pdata)
 
 	while(1)
 	{
-//		// A new second is come
 		x = CoWaitForSingleFlag( Bt_flag, 10 ) ;		// Wait for data in Fifo
 		if ( x == E_OK )
 		{
@@ -803,6 +814,7 @@ void main_loop(void* pdata)
 {
 	register uint32_t goto_usb ;
 	register Pio *pioptr ;
+	uint32_t UsbTimer = 0 ;
 	
 	goto_usb = 0 ;
   while (1)
@@ -833,11 +845,15 @@ void main_loop(void* pdata)
 //		}
 #endif
 
-		pioptr = PIOC ;
-		if ( pioptr->PIO_PDSR & 0x02000000 )
+		if ( UsbTimer < 5000 )		// 10 Seconds
 		{
-			// Detected USB
-			goto_usb = 1 ;
+			UsbTimer += 1 ;
+			pioptr = PIOC ;
+			if ( pioptr->PIO_PDSR & 0x02000000 )
+			{
+				// Detected USB
+				goto_usb = 1 ;
+			}
 		}
   
 #ifdef REVB	
@@ -902,6 +918,11 @@ void main_loop(void* pdata)
 #endif
 	}
 
+	actionUsb() ;
+}
+	
+void actionUsb()
+{
 	lcd_clear() ;
 	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
 	lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;

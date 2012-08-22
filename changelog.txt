@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 22-Aug-2012  MPB
+Action USB on boot, disable USB after 10 seconds power on
+
+******************************************
 CHANGELOG: 13-Aug-2012  MPB
 Fix throttle warning when reversed bug
 
