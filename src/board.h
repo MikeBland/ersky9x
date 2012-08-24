@@ -74,9 +74,9 @@
 
 /* These headers were introduced in C99 by working group ISO/IEC JTC1/SC22/WG14. */
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifndef SIMU
+#include <stdbool.h>
 #if defined(at91sam3s4)
     #include "chip.h"
     #include "AT91SAM3S4.h"
