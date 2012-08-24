@@ -477,7 +477,10 @@ void per10ms()
     keys[enuk].input(in & i,(EnumKeys)enuk);
     ++enuk;
   }
-   keys[enuk].input( ~PIOB->PIO_PDSR & 0x40,(EnumKeys)enuk); // Rotary Enc. Switch
+
+#if !defined(SIMU)
+	keys[enuk].input( ~PIOB->PIO_PDSR & 0x40,(EnumKeys)enuk); // Rotary Enc. Switch
+#endif
 }
 
 
