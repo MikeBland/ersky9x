@@ -38,10 +38,7 @@
 #include <stdlib.h>
 
 #include "AT91SAM3S4.h"
-#ifndef SIMU
-#include "core_cm3.h"
-#endif
-
+#include "board.h"
 #include "sound.h"
 #include "ersky9x.h"
 #include "myeeprom.h"
@@ -508,7 +505,7 @@ void appendVoice( uint32_t index )		// index of next buffer
 	PtrVoiceBuffer[VoiceCount++] = &VoiceBuffer[index] ;
 	if ( VoiceCount == 2 )
 	{
-		DACC->DACC_TNPR = (uint32_t) VoiceBuffer[index].data ;
+		DACC->DACC_TNPR = CONVERT_PTR(VoiceBuffer[index].data);
 		DACC->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
 	}
 	__enable_irq() ;

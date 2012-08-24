@@ -75,6 +75,13 @@
 /* These headers were introduced in C99 by working group ISO/IEC JTC1/SC22/WG14. */
 #include <stdint.h>
 
+#ifdef SIMU
+#define CONVERT_PTR(x) ((uint32_t)(uint64_t)(x))
+#else
+#include "core_cm3.h"
+#define CONVERT_PTR(x) ((uint32_t)(x))
+#endif
+
 #ifndef SIMU
 #include <stdbool.h>
 #if defined(at91sam3s4)
