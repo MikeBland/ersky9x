@@ -212,7 +212,10 @@ void setupPulsesPXX( void ) ;
 static void init_soft_power( void ) ;
 uint32_t check_soft_power( void ) ;
 void soft_power_off( void ) ;
+
+#if !defined(SIMU)
 static void init_rotary_encoder( void ) ;
+#endif
 static void stop_rotary_encoder( void ) ;
 
 
@@ -1675,7 +1678,7 @@ static void start_timer0()
 }
 
 
-
+#if !defined(SIMU)
 static void init_rotary_encoder()
 {
   register uint32_t dummy;
@@ -1691,6 +1694,7 @@ static void init_rotary_encoder()
 	NVIC_EnableIRQ(PIOC_IRQn) ;
 	LastRotaryValue = Rotary_count ;
 }
+#endif
 
 static void stop_rotary_encoder()
 {

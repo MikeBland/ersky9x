@@ -28,7 +28,9 @@
 #include "drivers.h"
 #include "lcd.h"
 #include "debug.h"
+#ifndef SIMU
 #include "CoOS.h"
+#endif
 
 // Timer usage
 // TIMER3 for input capture

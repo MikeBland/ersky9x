@@ -39,7 +39,9 @@
 #define DEF_DISKIO
 
 #include "board.h"
+#if !defined(SIMU)
 #include "core_cm3.h"
+#endif
 #include "integer.h"
 
 #define DN_MCI		0	/* Physical drive number for MCI */

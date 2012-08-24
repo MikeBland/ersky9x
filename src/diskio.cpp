@@ -38,7 +38,10 @@
 /* are platform dependent.                                               */
 /*-----------------------------------------------------------------------*/
 
+#if !defined(SIMU)
 #include "CoOS.h"
+#endif
+
 #include "ersky9x.h"
 #include "diskio.h"
 

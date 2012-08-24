@@ -244,8 +244,12 @@ extern volatile uint32_t Tenms;
 extern uint32_t Master_frequency;
 #define NVIC_EnableIRQ(x)
 #define NVIC_DisableIRQ(x)
-#define __disable_irq()
-#define __enable_irq()
+#define __disable_irq(...)
+#define __enable_irq(...)
+#define CoTickDelay(...)
+#define CoSchedLock(...)
+#define CoSchedUnlock(...)
+#define CoTickDelay(...)
 #endif
 
 extern volatile unsigned char pinb,pinc,pind,pine,ping,pinh,pinj,pinl;

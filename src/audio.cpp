@@ -15,7 +15,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "AT91SAM3S4.h"
+#if !defined(SIMU)
+// Mike I think this include is not needed (already present in diskio.h)
 #include "core_cm3.h"
+#endif
 #include "ersky9x.h"
 #include "audio.h"
 #include "sound.h"
