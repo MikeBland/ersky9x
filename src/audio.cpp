@@ -379,27 +379,29 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 	{
 		putVoiceQueue( qr.quot + 100 ) ;
 //		putVoiceQueue( V_HUNDRED ) ;
-		qr = div( qr.rem, 10 ) ;
-		if ( qr.quot )
-		{
-			putVoiceQueue( qr.quot*10 ) ;
-		}
+		putVoiceQueue( qr.rem + 400 ) ;
+//		qr = div( qr.rem, 10 ) ;
+//		if ( qr.quot )
+//		{
+//			putVoiceQueue( qr.quot*10 ) ;
+//		}
 	}
 	else
 	{
-		if ( value > 19 )
-		{
-			qr = div( value, 10 ) ;
-			putVoiceQueue( value-qr.rem ) ;
-			if ( qr.rem )
-			{
-				putVoiceQueue( qr.rem ) ;
-			}
-		}
-		else
-		{
-			putVoiceQueue( value ) ;
-		}
+		putVoiceQueue( qr.rem + 400 ) ;
+//		if ( value > 19 )
+//		{
+//			qr = div( value, 10 ) ;
+//			putVoiceQueue( value-qr.rem ) ;
+//			if ( qr.rem )
+//			{
+//				putVoiceQueue( qr.rem ) ;
+//			}
+//		}
+//		else
+//		{
+//			putVoiceQueue( value ) ;
+//		}
 	}
 
 	if ( num_decimals == 1 )

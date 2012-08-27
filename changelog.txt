@@ -10,6 +10,16 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 27-Aug-2012  MPB
+Use voice files 400-499
+Fix voice output for timers and other things
+Add voice file 58 - NO TELEMETRY
+Fix Cvlt display
+More rotary encoder functionality
+BT debug display
+
+
+******************************************
 CHANGELOG: 22-Aug-2012  MPB
 Action USB on boot, disable USB after 10 seconds power on
 

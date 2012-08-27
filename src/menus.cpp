@@ -136,6 +136,11 @@ void voice_telem_item( int8_t index )
 #endif
 
 	value = get_telemetry_value( index ) ;
+	if (telemItemValid( index ) == 0 )
+	{
+		putVoiceQueue( V_NOTELEM ) ;
+		spoken = 1 ;
+	}
 	index = pgm_read_byte( &TelemIndex[index] ) ;
 
   switch (index)
@@ -147,16 +152,35 @@ void voice_telem_item( int8_t index )
 			num_decimals = 1 ;
 		break ;
 
+		case TIMER1 :
+		case TIMER2 :
+		{	
+			div_t qr ;
+			qr = div( value, 60 ) ;
+			voice_numeric( qr.quot, 0, V_MINUTES ) ;
+			value = qr.rem ;
+			unit = V_SECONDS ;			
+		}
+		break ;
+		
 #ifdef FRSKY
 		case FR_A1_COPY:
     case FR_A2_COPY:
+		{	
+			uint8_t ltype = g_model.frsky.channels[index-FR_A1_COPY].type ;
 			value = scale_telem_value( value, index-FR_A1_COPY, (g_model.frsky.channels[index-FR_A1_COPY].type == 2/*V*/), &att ) ;
 			unit = V_VOLTS ;			
-			if (g_model.frsky.channels[index-FR_A1_COPY].type == 3)
+			num_decimals = 1 ;
+			if (ltype == 3)
 			{
 				unit = V_AMPS ;
 			}
-			num_decimals = 1 ;
+			if (ltype == 1)
+			{
+				unit = 0 ;
+				num_decimals = 0 ;
+			}
+		}
 		break ;
 
 		case FR_ALT_BARO:
@@ -251,6 +275,11 @@ int16_t convertTelemConstant( int8_t channel, int8_t value)
 
 int16_t get_telemetry_value( int8_t channel )
 {
+	if (telemItemValid( channel ) == 0 )
+	{
+		return 0 ;
+	}
+	
 	channel = pgm_read_byte( &TelemIndex[channel] ) ;
   switch (channel)
 	{
@@ -264,7 +293,10 @@ int16_t get_telemetry_value( int8_t channel )
 #ifdef FRSKY
     case FR_ALT_BARO :
 		return FrskyHubData[channel] + AltOffset ;
-		
+
+    case FR_CELL_MIN :
+		return FrskyHubData[channel] * 2 ;
+		 
 		default :
 		return FrskyHubData[channel] ;
 #endif
@@ -2842,6 +2874,15 @@ void menuProcModelSelect(uint8_t event)
 
   if(!s_editMode)
   {
+		if ( Rotary_diff > 0 )
+		{
+  		  scrollLR = -1;
+		}
+		else if ( Rotary_diff < 0 )
+		{
+  		  scrollLR = 1;
+		}
+		Rotary_diff = 0 ;
     if(scrollLR<0)
     {
       uint8_t cc = -scrollLR;
@@ -2851,8 +2892,16 @@ void menuProcModelSelect(uint8_t event)
 
       scrollLR = 0;
     }
-  }
+		else if(scrollLR)
+    {
+      uint8_t cc = -scrollLR;
+			if(cc>(DIM(menuTabModel)-1)) cc = DIM(menuTabModel)-1;
 
+			chainMenu((MenuFuncP)pgm_read_adr(&menuTabModel[cc]));
+
+      scrollLR = 0;
+    }
+  }
 
   int8_t subOld  = mstate2.m_posVert;
   mstate2.check_submenu_simple(event,MAX_MODELS-1) ;
@@ -4048,6 +4097,11 @@ void menuProcStatistic2(uint8_t event)
   lcd_puts_Pleft( 2*FH, PSTR("tmain          ms"));
   lcd_outdezAtt(14*FW , 2*FH, (g_timeMain)/20 ,PREC2);
 
+// Debug code
+extern uint32_t Bt_ok ;
+  lcd_puts_Pleft( 5*FH, PSTR("BT Reply(debug)"));
+  lcd_outdezAtt( 17*FW , 5*FH, Bt_ok ,0 ) ;
+
   lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
 
@@ -4643,7 +4697,7 @@ void menuProc0(uint8_t event)
 									displayTemp( 2, 14*FW, 7*FH, 0 ) ;
 
                     lcd_puts_P(10*FW, 2*FH, PSTR("RPM"));
-                    lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[FR_RPM]*30, DBLSIZE|LEFT);
+                    lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[FR_RPM], DBLSIZE|LEFT);
 
 //                    lcd_puts_Pleft( 4*FH, Str_ALTeq);
                     value = FrskyHubData[FR_ALT_BARO] + AltOffset ;

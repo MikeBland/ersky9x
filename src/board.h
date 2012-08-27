@@ -78,7 +78,7 @@
 #ifdef SIMU
 #define CONVERT_PTR(x) ((uint32_t)(uint64_t)(x))
 #else
-#include "core_cm3.h"
+//#include "core_cm3.h"
 #define CONVERT_PTR(x) ((uint32_t)(x))
 #endif
 
