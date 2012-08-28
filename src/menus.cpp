@@ -4100,7 +4100,9 @@ void menuProcStatistic2(uint8_t event)
 // Debug code
 extern uint32_t Bt_ok ;
   lcd_puts_Pleft( 5*FH, PSTR("BT Reply(debug)"));
+#ifndef SIMU
   lcd_outdezAtt( 17*FW , 5*FH, Bt_ok ,0 ) ;
+#endif
 
   lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
