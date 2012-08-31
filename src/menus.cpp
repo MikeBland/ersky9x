@@ -152,6 +152,11 @@ void voice_telem_item( int8_t index )
 			num_decimals = 1 ;
 		break ;
 
+		case FR_CELL_MIN:
+			unit = V_VOLTS ;			
+			num_decimals = 2 ;
+		break ;
+			
 		case TIMER1 :
 		case TIMER2 :
 		{	
@@ -187,7 +192,8 @@ void voice_telem_item( int8_t index )
       unit = V_METRES ;
 			if (g_model.FrSkyUsrProto == 1)  // WS How High
 			{
-        unit = V_FEET ;  // and ignore met/imp option
+      	if ( g_model.FrSkyImperial )
+        	unit = V_FEET ;
 			}
       else if ( g_model.FrSkyImperial )
       {
@@ -377,9 +383,11 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
     break;
     
 		case FR_ALT_BARO:
+      unit = 'm' ;
 			if (g_model.FrSkyUsrProto == 1)  // WS How High
 			{
-        unit = 'f' ;  // and ignore met/imp option
+      	if ( g_model.FrSkyImperial )
+        	unit = 'f' ;
 				x -= FW ;
 				break ;
 			}
@@ -691,6 +699,14 @@ void DisplayScreenIndex(uint8_t index, uint8_t count, uint8_t attr)
   lcd_putcAtt(x,0,'/',attr);
   lcd_outdezAtt(x-1,0,index+1,attr);
 }
+
+// Rotary encoder movement states
+#define	ROTARY_MENU_LR		0
+#define	ROTARY_MENU_UD		1
+#define	ROTARY_SUBMENU_LR	2
+#define	ROTARY_VALUE			3
+
+uint32_t RotaryState ;
 
 #define MAXCOL(row) (horTab ? pgm_read_byte(horTab+min(row, horTabMax)) : (const uint8_t)0)
 #define INC(val,max) if(val<max) {val++;} else {val=0;}
@@ -3289,10 +3305,10 @@ void menuProcSetup1(uint8_t event)
 	{
 		subN = 8 ;
   	lcd_puts_Pleft( FH, PSTR("Rotary Divisor"));
-  	lcd_putsAttIdx(  PARAM_OFS, y, PSTR("\00114"),g_eeGeneral.rotaryDivisor,(sub==subN ? BLINK:0));
+  	lcd_putsAttIdx(  PARAM_OFS, y, PSTR("\001142"),g_eeGeneral.rotaryDivisor,(sub==subN ? BLINK:0));
   	if(sub==subN)
 		{
-			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.rotaryDivisor,0,1);
+			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.rotaryDivisor,0,2);
 		}
   	if((y+=FH)>7*FH) return;
 		subN++;

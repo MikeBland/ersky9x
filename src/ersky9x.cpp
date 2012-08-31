@@ -414,6 +414,31 @@ void clearKeyEvents()
 
 //extern uint8_t CustomDisplayIndex[6] ;
 
+#define BT_115200		0
+#define BT_9600			1
+#define BT_19200		2
+
+void setBtBaudrate( uint32_t index )
+{
+	uint32_t brate ;
+	switch ( index )
+	{
+		default :
+		case 0 :
+			brate = 115200 ;
+		break ;
+		case 1 :
+			brate = 9600 ;
+		break ;
+		case 2 :
+			brate = 19200 ;
+		break ;
+	}
+	UART3_Configure( brate, Master_frequency ) ;		// Testing
+}
+
+
+
 int main(void)
 {
 //	register uint32_t goto_usb ;
@@ -536,23 +561,9 @@ int main(void)
 	 
 	eeReadAll() ;
 
-	{
-		uint32_t brate ;
-		switch ( g_eeGeneral.bt_baudrate )
-		{
-			default :
-			case 0 :
-				brate = 115200 ;
-			break ;
-			case 1 :
-				brate = 9600 ;
-			break ;
-			case 2 :
-				brate = 19200 ;
-			break ;
-		}
-		UART3_Configure( brate, Master_frequency ) ;		// Testing
-	}
+	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
+
+	// Set ADC gains here
 
 #ifdef FRSKY
   FRSKY_Init();
@@ -690,6 +701,18 @@ void bt_send_buffer()
 	Bt_tx.size = 0 ;
 }
 
+#define BT_POLL_TIMEOUT		500
+
+//uint8_t BtRxDebug[32] ;
+//uint32_t BtRxCtr = 0 ;
+
+//void rxDebugproc( uint8_t x )
+//{
+//	if ( BtRxCtr < 32 )
+//	{
+//		BtRxDebug[BtRxCtr++] = x ;		
+//	}
+//}
 
 uint32_t poll_bt_device()
 {
@@ -697,12 +720,83 @@ uint32_t poll_bt_device()
 	uint32_t y ;
 	uint16_t rxchar ;
 
+//	if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+//	{
+//		rxDebugproc( rxchar ) ;
+//	}
+	
 	x = 'O' ;
 	BtTxBuffer[0] = 'A' ;
 	BtTxBuffer[1] = 'T' ;
 	Bt_tx.size = 2 ;
 	bt_send_buffer() ;
-	for( y = 0 ; y < 300 ;  y += 1 )
+	for( y = 0 ; y < BT_POLL_TIMEOUT ;  y += 1 )
+	{
+		if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+		{
+//			rxDebugproc( rxchar ) ;
+			if ( rxchar == x )
+			{
+				if ( x == 'O' )
+				{
+					x = 'K' ;
+				}
+				else
+				{
+					break ;			// Found "OK"
+				}
+			}
+		}
+		else
+		{
+			CoTickDelay(1) ;					// 2mS
+		}				 
+	}
+//	if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+//	{
+//		rxDebugproc( rxchar ) ;
+//	}
+	if ( y < BT_POLL_TIMEOUT )
+	{
+		return 1 ;
+	}
+	else
+	{
+		return 0 ;
+	}
+}
+
+uint32_t changeBtBaudrate( uint32_t baudIndex )
+{
+	uint16_t x ;
+	uint32_t y ;
+	uint16_t rxchar ;
+
+//	if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+//	{
+//		rxDebugproc( rxchar ) ;
+//	}
+	x = 4 ;		// 9600
+	if ( baudIndex == 0 )
+	{
+		x = 8 ;		// 115200
+	}
+	else if ( baudIndex == 2 )
+	{
+		x = 5 ;		// 19200		
+	}
+	BtTxBuffer[0] = 'A' ;
+	BtTxBuffer[1] = 'T' ;
+	BtTxBuffer[2] = '+' ;
+	BtTxBuffer[3] = 'B' ;
+	BtTxBuffer[4] = 'A' ;
+	BtTxBuffer[5] = 'U' ;
+	BtTxBuffer[6] = 'D' ;
+	BtTxBuffer[7] = '0' + x ;
+	Bt_tx.size = 8 ;
+	bt_send_buffer() ;
+	x = 'O' ;
+	for( y = 0 ; y < BT_POLL_TIMEOUT ;  y += 1 )
 	{
 		if ( ( rxchar = rxBtuart() ) != 0xFFFF )
 		{
@@ -723,7 +817,11 @@ uint32_t poll_bt_device()
 			CoTickDelay(1) ;					// 2mS
 		}				 
 	}
-	if ( y < 300 )
+//	if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+//	{
+//		rxDebugproc( rxchar ) ;
+//	}
+	if ( y < BT_POLL_TIMEOUT )
 	{
 		return 1 ;
 	}
@@ -774,7 +872,44 @@ void bt_task(void* pdata)
 // Already initialised to g_eeGeneral.bt_baudrate
 // 0 : 115200, 1 : 9600, 2 : 19200
 	
+	x = g_eeGeneral.bt_baudrate ;
+
+//	rxDebugproc( 0x55 ) ;
+
 	Bt_ok = poll_bt_device() ;		// Do we get a response?
+
+	for ( y = 0 ; y < 2 ; y += 1 )
+	{
+		if ( Bt_ok == 0 )
+		{
+			x += 1 ;
+			if ( x > 2 )
+			{
+				x = 0 ;			
+			}
+			setBtBaudrate( x ) ;
+			CoTickDelay(1) ;					// 2mS
+			Bt_ok = poll_bt_device() ;		// Do we get a response?
+		}
+	}
+
+	if ( Bt_ok )
+	{
+		Bt_ok = x + 1 ;		
+		if ( x != g_eeGeneral.bt_baudrate )
+		{
+			x = g_eeGeneral.bt_baudrate ;
+			// Need to change Bt Baudrate
+			changeBtBaudrate( x ) ;
+			Bt_ok += (x+1) * 10 ;
+			setBtBaudrate( x ) ;
+		}
+	}
+	else
+	{
+		setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
+	}
+	CoTickDelay(1) ;					// 2mS
 
 	while(1)
 	{
@@ -1028,7 +1163,7 @@ void mainSequence( uint32_t no_menu )
 
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
-  if ( AlarmCheckFlag == 2 )
+  if ( AlarmCheckFlag > 1 )
   {
     AlarmCheckFlag = 0 ;
     // Check for alarms here
@@ -1561,6 +1696,11 @@ void perMain( uint32_t no_menu )
 		Rotary_diff = ( Rotary_count - LastRotaryValue ) / 4 ;
 		LastRotaryValue += Rotary_diff * 4 ;
 	}
+	else if ( g_eeGeneral.rotaryDivisor == 2)
+	{
+		Rotary_diff = ( Rotary_count - LastRotaryValue ) / 2 ;
+		LastRotaryValue += Rotary_diff * 2 ;
+	}
 	else
 	{
 		Rotary_diff = Rotary_count - LastRotaryValue ;
@@ -1670,10 +1810,10 @@ static void start_timer0()
   ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_BCR = 0 ;			// No sync
 	ptc->TC_BMR = 2 ;
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00008001 ;	// Waveform mode MCK/8 for 36MHz osc.
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00008001 ;	// Waveform mode MCK/8 for 36MHz osc.(Upset be write below)
 	ptc->TC_CHANNEL[0].TC_RC = 0xFFF0 ;
 	ptc->TC_CHANNEL[0].TC_RA = 0 ;
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00008040 ;	// 0000 0000 0000 0000 1000 0000 0100 0000, stop at regC
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00008040 ;	// 0000 0000 0000 0000 1000 0000 0100 0000, stop at regC, 18MHz
 	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 }
 

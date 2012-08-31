@@ -869,10 +869,11 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Configure baudrate */
   /* Asynchronous, no oversampling */
-//  pUart->UART_BRGR = (masterClock / baudrate) / 16;
+  pUart->UART_BRGR = ( (masterClock / baudrate) + 8 ) / 16;
   
-	baudrate = (masterClock * 8 / baudrate) / 16 ;
-  pUart->UART_BRGR = ( baudrate / 8 ) | ( ( baudrate & 7 ) << 16 ) ;	// Fractional part to allow 152000 baud
+// Following only available for USARTS
+//	baudrate = (masterClock * 8 / baudrate) / 16 ;
+//  pUart->UART_BRGR = ( baudrate / 8 ) | ( ( baudrate & 7 ) << 16 ) ;	// Fractional part to allow 115200 baud
 
   /* Disable PDC channel */
   pUart->UART_PTCR = UART_PTCR_RXTDIS | UART_PTCR_TXTDIS;

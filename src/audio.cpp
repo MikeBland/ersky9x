@@ -362,14 +362,12 @@ void audioVoiceDefevent( uint8_t e, uint8_t v)
 // Announce a value using voice
 void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 {
-//	uint8_t unit_value ;
-//	uint8_t hundred_value ;
 	uint8_t decimals = 0 ;
 	div_t qr ;
 
-	if ( num_decimals == 1 )
+	if ( num_decimals )
 	{
-		qr = div( value, 10 ) ;
+		qr = div( value, num_decimals == 2 ? 100 : 10 ) ;
 		decimals = qr.rem ;
 		value = qr.quot ;
 	}
@@ -377,38 +375,33 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 	qr = div( value, 100 ) ;
 	if ( qr.quot )
 	{
+		if ( qr.quot > 9 )		// Thousands
+		{
+			qr = div( qr.quot, 10 ) ;
+			putVoiceQueue( qr.quot + 111 ) ;
+			qr.quot = qr.rem ;			
+		}
 		putVoiceQueue( qr.quot + 100 ) ;
-//		putVoiceQueue( V_HUNDRED ) ;
 		putVoiceQueue( qr.rem + 400 ) ;
-//		qr = div( qr.rem, 10 ) ;
-//		if ( qr.quot )
-//		{
-//			putVoiceQueue( qr.quot*10 ) ;
-//		}
 	}
 	else
 	{
 		putVoiceQueue( qr.rem + 400 ) ;
-//		if ( value > 19 )
-//		{
-//			qr = div( value, 10 ) ;
-//			putVoiceQueue( value-qr.rem ) ;
-//			if ( qr.rem )
-//			{
-//				putVoiceQueue( qr.rem ) ;
-//			}
-//		}
-//		else
-//		{
-//			putVoiceQueue( value ) ;
-//		}
 	}
 
-	if ( num_decimals == 1 )
+	if ( num_decimals )
 	{
-		putVoiceQueue( V_POINT ) ;
-		putVoiceQueue( decimals ) ;
+		if ( num_decimals == 2 )
+		{
+			qr = div( decimals, 10 ) ;
+			putVoiceQueue( qr.quot + 6 ) ;		// Point x
+			putVoiceQueue( qr.rem + 400 ) ;
+		}
 	}
+		else
+		{
+			putVoiceQueue( decimals + 6 ) ;		// Point x
+		}
 		 
 	if ( units_index )
 	{
