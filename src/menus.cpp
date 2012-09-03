@@ -4114,9 +4114,9 @@ void menuProcStatistic2(uint8_t event)
   lcd_outdezAtt(14*FW , 2*FH, (g_timeMain)/20 ,PREC2);
 
 // Debug code
-extern uint32_t Bt_ok ;
   lcd_puts_Pleft( 5*FH, PSTR("BT Reply(debug)"));
 #ifndef SIMU
+  extern uint32_t Bt_ok ;
   lcd_outdezAtt( 17*FW , 5*FH, Bt_ok ,0 ) ;
 #endif
 
