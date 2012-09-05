@@ -531,16 +531,6 @@ int main(void)
 
 	lcd_init() ;
 
-	pioptr = PIOC ;
-	if ( pioptr->PIO_PDSR & 0x02000000 )
-	{
-		g_eeGeneral.optrexDisplay = 1 ;
-		lcd_clear() ;
-		refreshDisplay() ;
-		g_eeGeneral.optrexDisplay = 0 ;
-		actionUsb() ;
-	}
-
   g_menuStack[0] =  menuProc0 ;
 
 	start_sound() ;
@@ -558,7 +548,17 @@ int main(void)
 //	crlf() ;
 
 	init_eeprom() ;	
-	 
+	
+	pioptr = PIOC ;
+	if ( pioptr->PIO_PDSR & 0x02000000 )
+	{
+		g_eeGeneral.optrexDisplay = 1 ;
+		lcd_clear() ;
+		refreshDisplay() ;
+		g_eeGeneral.optrexDisplay = 0 ;
+		actionUsb() ;
+	}
+		 
 	eeReadAll() ;
 
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
@@ -1200,9 +1200,15 @@ void mainSequence( uint32_t no_menu )
       }
 			uint16_t total_volts = 0 ;
 			uint8_t audio_sounded = 0 ;
+			uint8_t low_cell = 220 ;		// 4.4V
 			for (uint8_t k=0; k<FrskyBattCells; k++)
 			{
 				total_volts += FrskyVolts[k] ;
+				if ( FrskyVolts[k] < low_cell )
+				{
+					low_cell = FrskyVolts[k] ;
+				}
+
 				if ( audio_sounded == 0 )
 				{
 		      if ( FrskyVolts[k] < g_model.frSkyVoltThreshold )
@@ -1214,6 +1220,10 @@ void mainSequence( uint32_t no_menu )
 	  	}
 			// Now we have total volts available
 			FrskyHubData[FR_CELLS_TOT] = total_volts / 5 ;
+			if ( low_cell < 220 )
+			{
+				FrskyHubData[FR_CELL_MIN] = low_cell ;
+			}
     }
 
 
@@ -2992,7 +3002,7 @@ uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8
 
 inline int16_t getValue(uint8_t i)
 {
-	uint8_t j ;
+	int8_t j ;
 	int16_t offset = 0 ;
 
   if(i<PPM_BASE) return calibratedStick[i];//-512..512
@@ -3010,6 +3020,10 @@ inline int16_t getValue(uint8_t i)
         offset = AltOffset ;
 			}
 			return FrskyHubData[j] + offset ;
+		}
+		else if ( j == -3 )		// Battery
+		{
+			return g_vbat100mV ;
 		}
 		else
 		{

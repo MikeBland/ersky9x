@@ -10,6 +10,13 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 05-Sep-2012  MPB
+Improve cell voltage handling
+Move USB detection code to allow applet initialisation to work
+Fix bug in getValue() re timers and battery
+Correct FAS100 voltage scaling 
+
+******************************************
 CHANGELOG: 31-Aug-2012  MPB
 voice_numeric - add thousands and 2 decimals - needs new/changed voice files
 Correct startup timing for Optrex LCD

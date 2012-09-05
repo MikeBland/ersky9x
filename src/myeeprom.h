@@ -239,6 +239,7 @@ PACK(typedef struct t_PhaseData {
   char name[6];
   uint8_t fadeIn:4;
   uint8_t fadeOut:4;
+	uint16_t spare ;		// Future expansion
 }) PhaseData;
 
 

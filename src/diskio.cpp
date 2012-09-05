@@ -528,7 +528,7 @@ void sd_poll_10mS()
                   break ;
 
                 case SD_ST_INIT1 :
-                  i = sd_cmd0() ;
+                  i = sd_cmd0() ;			// Keep a 10mS delay after this before sd_cmd8()
                   Card_state = SD_ST_INIT2 ;
                   break ;
 

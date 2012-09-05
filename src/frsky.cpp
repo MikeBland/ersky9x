@@ -160,10 +160,6 @@ void store_hub_data( uint8_t index, uint16_t value )
   			}
   		}
   		FrskyVolts[battnumber] = ( ( ( value & 0x0F ) << 8 ) + (value >> 8) ) / 10 ;
-			if ( FrskyVolts[battnumber] < FrskyHubData[FR_CELL_MIN] )
-			{
-				FrskyHubData[FR_CELL_MIN] = FrskyVolts[battnumber] ;
-			}
 		}
 		if ( index == FR_RPM )			// RPM
 		{
@@ -171,7 +167,7 @@ void store_hub_data( uint8_t index, uint16_t value )
 		}
 		if ( index == FR_V_AMPd )
 		{
-			FrskyHubData[FR_VOLTS] = FrskyHubData[FR_V_AMP] * 10 + value ;
+			FrskyHubData[FR_VOLTS] = (FrskyHubData[FR_V_AMP] * 10 + value) * 21 / 11 ;
 		}
 	}	
 }
@@ -639,7 +635,7 @@ void resetTelemetry()
 //  memset(frskyTelemetry, 0, sizeof(frskyTelemetry));
 	FrskyHubData[FR_A1_MAH] = 0 ;
 	FrskyHubData[FR_A2_MAH] = 0 ;
-	FrskyHubData[FR_CELL_MIN] = 210 ;			// 4.2 volts
+	FrskyHubData[FR_CELL_MIN] = 0 ;			// 0 volts
 	Frsky_Amp_hour_prescale = 0 ;
 	FrskyHubData[FR_AMP_MAH] = 0 ;
 //  memset(frskyRSSI, 0, sizeof(frskyRSSI));

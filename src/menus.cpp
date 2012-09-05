@@ -1700,7 +1700,7 @@ for(uint8_t i=0; i<7; i++){
     }
 		else // cstate == CS_TIMER
 		{
-	    lcd_puts_Pleft( y, PSTR("\020On") ) ;
+	    lcd_puts_Pleft( y, PSTR("\016On") ) ;
       lcd_outdezAtt( 14*FW-3, y, cs.v1+1  ,subSub==1 ? attr : 0);
       lcd_outdezAtt( 19*FW-3, y, cs.v2+1  ,subSub==2 ? attr : 0);
 		}
@@ -4116,7 +4116,7 @@ void menuProcStatistic2(uint8_t event)
 // Debug code
   lcd_puts_Pleft( 5*FH, PSTR("BT Reply(debug)"));
 #ifndef SIMU
-  extern uint32_t Bt_ok ;
+extern uint32_t Bt_ok ;
   lcd_outdezAtt( 17*FW , 5*FH, Bt_ok ,0 ) ;
 #endif
 
