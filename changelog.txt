@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 07-Sep-2012  MPB
+Fix voice bug.
+Add version number to model EEPROM
+
+******************************************
 CHANGELOG: 05-Sep-2012  MPB
 Improve cell voltage handling
 Move USB detection code to allow applet initialisation to work

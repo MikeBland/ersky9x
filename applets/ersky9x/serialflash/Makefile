@@ -231,7 +231,7 @@ clean:
 %.lss: %.elf
 	@echo
 	@echo $(MSG_EXTENDED_LISTING) $@
-ifeq (atsam3s4,$(CHIP))
-BOARD_DIR = at91sam3s4-ek
-endif
+#ifeq (atsam3s4,$(CHIP))
+#BOARD_DIR = at91sam3s4-ek
+#endif
 	$(OBJDUMP) -h -S $< > $@

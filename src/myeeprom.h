@@ -261,7 +261,8 @@ PACK(typedef struct t_ModelData {
   uint8_t   FrSkyGpsAlt:1 ;		// Use Gps Altitude as main altitude reading
   uint8_t   FrSkyImperial:1 ; // Convert FrSky values to imperial units
   uint8_t   FrSkyAltAlarm:2;
-  uint16_t  spare_u16 ;				// Was timerval
+	uint8_t		version ;
+  uint8_t   spare_u8 ;				// Was timerval
   uint8_t   protocol;
   int8_t    ppmNCH;
   uint8_t   thrTrim:1;            // Enable Throttle Trim

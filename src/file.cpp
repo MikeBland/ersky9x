@@ -479,11 +479,15 @@ void ee32WaitLoadModel(uint8_t id)
 void ee32LoadModel(uint8_t id)
 {
 	uint16_t size ;
+	uint8_t version = 255 ;
 
     if(id<MAX_MODELS)
     {
 			size =  File_system[id+1].size ;
-
+			if ( sizeof(g_model) < 720 )
+			{
+				version = 0 ;
+			}
 			memset(&g_model, 0, sizeof(g_model));
        
 			if ( size > sizeof(g_model) )
@@ -498,6 +502,10 @@ void ee32LoadModel(uint8_t id)
 			else
 			{
 				read32_eeprom_data( ( File_system[id+1].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&g_model, size, 0 ) ;
+				if ( version != 255 )
+				{
+					g_model.version = 0 ;					// default version number
+				}
 			}
 
       for(uint8_t i=0; i<sizeof(g_model.name);i++) // makes sure name is valid

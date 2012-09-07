@@ -81,6 +81,7 @@ void (* const gVectors[])(void) =
 #define MAILBOX_SIZE 32
 __attribute__((section(".mailbox")))
 unsigned int mailbox[MAILBOX_SIZE];
+__attribute__((section(".mailbox")))
 volatile unsigned int isInitialized = 0;
 
 /*----------------------------------------------------------------------------
