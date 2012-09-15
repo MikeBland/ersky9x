@@ -190,20 +190,17 @@ void voice_telem_item( int8_t index )
 
 		case FR_ALT_BARO:
       unit = V_METRES ;
-			if (g_model.FrSkyUsrProto == 1)  // WS How High
+     	if ( g_model.FrSkyImperial )
 			{
-      	if ( g_model.FrSkyImperial )
-        	unit = V_FEET ;
+				if (g_model.FrSkyUsrProto == 0)  // Hub
+				{
+      	  value = m_to_ft( value ) ;
+				}
+      	unit = V_FEET ;
 			}
-      else if ( g_model.FrSkyImperial )
-      {
-        // m to ft *105/32
-        value = m_to_ft( value ) ;
-        unit = V_FEET ;
-      }
 		break ;
 		 
-		case TEL_ITEM_AMPS :
+		case FR_CURRENT :
 			num_decimals = 1 ;
       unit = V_AMPS ;
 		break ;
@@ -1704,8 +1701,17 @@ for(uint8_t i=0; i<7; i++){
       lcd_outdezAtt( 14*FW-3, y, cs.v1+1  ,subSub==1 ? attr : 0);
       lcd_outdezAtt( 19*FW-3, y, cs.v2+1  ,subSub==2 ? attr : 0);
 		}
-    lcd_putc( 19*FW+3, y, cs.andsw ? 'S' : '-') ;
-    lcd_putcAtt( 20*FW+2, y, cs.andsw ? (cs.andsw + ((cs.andsw>9) ? 'A'-10 : '0') ) : '-', subSub==3 ? attr : 0) ;
+//    lcd_putc( 19*FW+3, y, cs.andsw ? 'S' : '-') ;
+		{
+			int8_t as ;
+			as = cs.andsw ;
+			if ( as > 8 )
+			{
+				as += 1 ;				
+			}
+			putsDrSwitches( 18*FW-1, y, as,(subSub==3 ? attr : 0)|CONDENSED) ;
+//    	lcd_putcAtt( 20*FW+2, y, as ? (cs.andsw + ((cs.andsw>9) ? 'A'-10 : '0') ) : '-', subSub==3 ? attr : 0) ;
+		}
 
 
     if((s_editMode || p1valdiff) && attr)
@@ -1764,7 +1770,7 @@ for(uint8_t i=0; i<7; i++){
             }
             break;
         case 3:
-          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, 0, NUM_CSW ) ;
+          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, 0, 15 ) ;
 				break;
         }
 }
@@ -1816,8 +1822,8 @@ void menuProcMixOne(uint8_t event)
         switch(i){
         case 0:
             lcd_puts_P(  2*FW,y,PSTR("Source"));
-            putsChnRaw(   FW*14,y,md2->srcRaw,attr);
-            if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->srcRaw, 1,NUM_XCHNRAW);
+            putsChnRaw(   FW*14,y,md2->srcRaw,attr | MIX_SOURCE);
+            if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->srcRaw, 1,NUM_XCHNRAW+1);
             break;
         case 1:
             lcd_puts_P(  2*FW,y,PSTR("Weight"));
@@ -2141,7 +2147,7 @@ void menuProcMix(uint8_t event)
                 lcd_putsnAtt(   3*FW, y, PSTR("+*R")+1*md2->mltpx,1,s_moveMode ? attr : 0);
             lcd_outdezAtt(  7*FW+FW/2, y, md2->weight,attr);
             lcd_putcAtt(    7*FW+FW/2, y, '%',s_moveMode ? attr : 0);
-            putsChnRaw(     9*FW, y, md2->srcRaw,s_moveMode ? attr : 0);
+            putsChnRaw(     9*FW, y, md2->srcRaw,(s_moveMode ? attr : 0 ) | MIX_SOURCE);
             if(md2->swtch)putsDrSwitches( 13*FW, y, md2->swtch,s_moveMode ? attr : 0);
             if(md2->curve)lcd_putsnAtt(   17*FW, y, get_curve_string()+md2->curve*3,3,s_moveMode ? attr : 0);
 
@@ -4949,7 +4955,7 @@ int16_t intpol(int16_t x, uint8_t idx) // -100, -75, -50, -25, 0 ,25 ,50, 75, 10
 
 // static variables used in perOut - moved here so they don't interfere with the stack
 // It's also easier to initialize them here.
-int16_t  anas [NUM_XCHNRAW] = {0};
+int16_t  anas [NUM_XCHNRAW+1] = {0};		// To allow for 3POS
 int32_t  chans[NUM_CHNOUT] = {0};
 uint8_t inacPrescale ;
 uint16_t inacCounter = 0;
@@ -5096,6 +5102,8 @@ void perOut(int16_t *chanOut, uint8_t att)
 
         anas[MIX_MAX-1]  = RESX;     // MAX
         anas[MIX_FULL-1] = RESX;     // FULL
+        anas[MIX_3POS-1] = keyState(SW_ID0) ? -1024 : (keyState(SW_ID1) ? 0 : 1024) ;
+        
         for(uint8_t i=0;i<4;i++) anas[i+PPM_BASE] = (g_ppmIns[i] - g_eeGeneral.trainer.calib[i])*2; //add ppm channels
         for(uint8_t i=4;i<NUM_PPM;i++)    anas[i+PPM_BASE]   = g_ppmIns[i]*2; //add ppm channels
         for(uint8_t i=0;i<NUM_CHNOUT;i++) anas[i+CHOUT_BASE] = chans[i]; //other mixes previous outputs

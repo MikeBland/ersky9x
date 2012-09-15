@@ -10,6 +10,15 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 15-Sep-2012  MPB
+Add 3POS as mixer input
+Fix altitude voice feet/metres
+Extra AND switches on custom switches changed
+Fix Condensed bug on LCD
+Sync. custom timer to AND switch
+Changed Ymodem for testing
+
+******************************************
 CHANGELOG: 07-Sep-2012  MPB
 Fix voice bug.
 Add version number to model EEPROM

@@ -208,7 +208,7 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 		{
       *p++ = inv ? ~0 : 0;
       condense=1;
-    	x += FW-FWNUM ;
+    	x += FWNUM-FW ;
 		}
 
     for( i=5 ; i!=0 ; i-- )

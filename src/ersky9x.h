@@ -338,6 +338,7 @@ extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
 #define NUM_XCHNOUT (NUM_CHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
 
+#define MIX_3POS	(NUM_XCHNRAW+1)
 
 inline int32_t calc100toRESX(register int8_t x)
 {

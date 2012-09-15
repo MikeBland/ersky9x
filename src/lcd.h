@@ -34,6 +34,9 @@
 #define DBLSIZE       0x04
 #define CONDENSED     0x08
 
+// putsChnRaw flags
+#define MIX_SOURCE    0x10
+
 /* lcd outdez flags */
 #define LEADING0      0x10
 #define PREC1         0x20

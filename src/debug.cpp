@@ -64,6 +64,64 @@
 void disp_256( uint32_t address, uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
+#define PACKET_SEQNO_INDEX      (1)
+#define PACKET_SEQNO_COMP_INDEX (2)
+
+#define PACKET_HEADER           (3)
+#define PACKET_TRAILER          (2)
+#define PACKET_OVERHEAD         (PACKET_HEADER + PACKET_TRAILER)
+#define PACKET_SIZE             (128)
+#define PACKET_1K_SIZE          (1024)
+
+#define FILE_NAME_LENGTH        (256)
+#define FILE_SIZE_LENGTH        (16)
+
+#define SOH                     (0x01)  /* start of 128-byte data packet */
+#define STX                     (0x02)  /* start of 1024-byte data packet */
+#define EOT                     (0x04)  /* end of transmission */
+#define ACK                     (0x06)  /* acknowledge */
+#define NAK                     (0x15)  /* negative acknowledge */
+#define CA                      (0x18)  /* two of these in succession aborts transfer */
+#define CRC16                   (0x43)  /* 'C' == 0x43, request 16-bit CRC */
+
+#define ABORT1                  (0x41)  /* 'A' == 0x41, abort by user */
+#define ABORT2                  (0x61)  /* 'a' == 0x61, abort by user */
+
+#define NAK_TIMEOUT             (100)	// Units of 2mS 
+#define PACKET_TIMEOUT          (25)		// Units of 2mS 
+#define MAX_ERRORS              (5)
+/* Exported macro ------------------------------------------------------------*/
+/* Exported functions ------------------------------------------------------- */
+int32_t Ymodem_Receive (uint8_t *p ) ;
+
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+//uint8_t file_name[FILE_NAME_LENGTH];
+//uint32_t FlashDestination = ApplicationAddress; /* Flash user program offset */
+//uint16_t PageSize = PAGE_SIZE;
+//uint32_t EraseCounter = 0x0;
+//uint32_t NbrOfPage = 0;
+//FLASH_Status FLASHStatus = FLASH_COMPLETE;
+uint32_t RamSource;
+extern uint8_t tab_1024[1024];
+
+/* Private function prototypes -----------------------------------------------*/
+/* Private functions ---------------------------------------------------------*/
+/*******************************************************************************
+* Function Name  : Receive_Byte
+* Description    : Receive byte from sender
+* Input          : - c: Character
+*                  - timeout: Timeout
+* Output         : None
+* Return         : 0: Byte received
+*                  -1: Timeout
+*******************************************************************************/
+extern struct t_fifo32 Console_fifo ;
+
+
 FILINFO FileInfo ;
 
 
@@ -80,6 +138,9 @@ uint8_t Ymbuffer[10] ;
 
 FIL T_file ;
 FATFS g_FATFS_Obj ;
+
+uint8_t file_name[FILE_NAME_LENGTH];
+DIR Dir ;
 
 
 void handle_serial(void* pdata)
@@ -427,6 +488,33 @@ void handle_serial(void* pdata)
 			refreshDisplay() ;
 		}
 
+		if ( rxchar == 'D' )
+		{ // Directory listing
+			txmit( 'D' ) ;
+			crlf() ;					
+			FRESULT res ;
+			char *fn ;
+
+			f_chdir( ".\\VOICE" ) ;
+
+  		res = f_opendir(&Dir, ".") ;        /* Open the directory */
+  		if (res == FR_OK)
+			{
+				for(;;)
+				{
+					res = f_readdir( &Dir, &FileInfo ) ;
+      		if (res != FR_OK || FileInfo.fname[0] == 0)
+						break;  /* Break on error or end of dir */
+					fn = FileInfo.fname ;
+					while ( *fn )
+					{
+						txmit( *fn++ ) ;						
+					}
+					crlf() ;					
+				}				 
+
+			}	
+		}
 
 		if ( rxchar == 'Y' )
 		{ // Enter Ymodem mode
@@ -435,6 +523,13 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 			txmit( 'Y' ) ;
 			result = Ymodem_Receive( Ymbuffer ) ;
 			p8hex( result ) ;
+			crlf() ;
+			char *fn ;
+			fn = (char *)file_name ;
+			while ( *fn )
+			{
+				txmit( *fn++ ) ;						
+			}
 			crlf() ;
 		}
 
@@ -910,63 +1005,6 @@ void disp_256( register uint32_t address, register uint32_t lines )
 
 
 
-#define PACKET_SEQNO_INDEX      (1)
-#define PACKET_SEQNO_COMP_INDEX (2)
-
-#define PACKET_HEADER           (3)
-#define PACKET_TRAILER          (2)
-#define PACKET_OVERHEAD         (PACKET_HEADER + PACKET_TRAILER)
-#define PACKET_SIZE             (128)
-#define PACKET_1K_SIZE          (1024)
-
-#define FILE_NAME_LENGTH        (256)
-#define FILE_SIZE_LENGTH        (16)
-
-#define SOH                     (0x01)  /* start of 128-byte data packet */
-#define STX                     (0x02)  /* start of 1024-byte data packet */
-#define EOT                     (0x04)  /* end of transmission */
-#define ACK                     (0x06)  /* acknowledge */
-#define NAK                     (0x15)  /* negative acknowledge */
-#define CA                      (0x18)  /* two of these in succession aborts transfer */
-#define CRC16                   (0x43)  /* 'C' == 0x43, request 16-bit CRC */
-
-#define ABORT1                  (0x41)  /* 'A' == 0x41, abort by user */
-#define ABORT2                  (0x61)  /* 'a' == 0x61, abort by user */
-
-#define NAK_TIMEOUT             (100)	// Units of 2mS 
-#define PACKET_TIMEOUT          (25)		// Units of 2mS 
-#define MAX_ERRORS              (5)
-/* Exported macro ------------------------------------------------------------*/
-/* Exported functions ------------------------------------------------------- */
-int32_t Ymodem_Receive (uint8_t *p ) ;
-
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-uint8_t file_name[FILE_NAME_LENGTH];
-//uint32_t FlashDestination = ApplicationAddress; /* Flash user program offset */
-//uint16_t PageSize = PAGE_SIZE;
-//uint32_t EraseCounter = 0x0;
-//uint32_t NbrOfPage = 0;
-//FLASH_Status FLASHStatus = FLASH_COMPLETE;
-uint32_t RamSource;
-extern uint8_t tab_1024[1024];
-
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
-/*******************************************************************************
-* Function Name  : Receive_Byte
-* Description    : Receive byte from sender
-* Input          : - c: Character
-*                  - timeout: Timeout
-* Output         : None
-* Return         : 0: Byte received
-*                  -1: Timeout
-*******************************************************************************/
-extern struct t_fifo32 Console_fifo ;
-
 
 static int32_t Receive_Byte (uint8_t *c, uint32_t timeout)
 {
@@ -1140,12 +1178,14 @@ int32_t Ymodem_Receive (uint8_t *buf)
   CoSchedUnlock() ;
 
 	size = 0 ;
+  file_name[0] = 0 ;
+
   for (session_done = 0, errors = 0, session_begin = 0; ;)
   {
-		txmitBt( 'A' ) ;
+//		txmitBt( 'A' ) ;
     for (packets_received = 0, file_done = 0, buf_ptr = buf; ;)
     {
-			txmitBt( 'B' ) ;
+//			txmitBt( 'B' ) ;
       switch (Receive_Packet(packet_data, &packet_length, NAK_TIMEOUT))
       {
         case 0:
@@ -1154,29 +1194,29 @@ int32_t Ymodem_Receive (uint8_t *buf)
           {
               /* Abort by sender */
             case - 1:
-							txmitBt( 'C' ) ;
+//							txmitBt( 'C' ) ;
               Send_Byte(ACK);
               return 0;
               /* End of transmission */
             case 0:
-							txmitBt( 'D' ) ;
+//							txmitBt( 'D' ) ;
 							fr = f_close( &Tfile ) ;
               Send_Byte(ACK);
               file_done = 1;
               break;
               /* Normal packet */
             default:
-							txmitBt( 'E' ) ;
+//							txmitBt( 'E' ) ;
               if ((packet_data[PACKET_SEQNO_INDEX] & 0xff) != (packets_received & 0xff))//
               {
-								txmitBt( 'F' ) ;
+//								txmitBt( 'F' ) ;
                 Send_Byte(NAK);
               }
               else
               {
                 if (packets_received == 0)
                 {/* Filename packet */
-									txmitBt( 'G' ) ;
+//									txmitBt( 'G' ) ;
                   if (packet_data[PACKET_HEADER] != 0)
                   {/* Filename packet has valid data */
                     for (i = 0, file_ptr = packet_data + PACKET_HEADER; (*file_ptr != 0) && (i < FILE_NAME_LENGTH);)
@@ -1189,7 +1229,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
 											size *= 10 ;
 											size += *file_ptr++ - '0' ;
                     }
-//										f_unlink ( "Ymodtemp" ) ;					/* Delete any existing temp file */
+											f_unlink ( "Ymodtemp" ) ;					/* Delete any existing temp file */
 											fr = f_open( &Tfile, "Ymodtemp", FA_WRITE | FA_CREATE_ALWAYS ) ;
 
 		  // Check fr value here
@@ -1226,7 +1266,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
                 /* Data packet */
                 else
                 {
-									txmitBt( 'H' ) ;
+//									txmitBt( 'H' ) ;
 //                  memcpy(buf_ptr, packet_data + PACKET_HEADER, packet_length);
 //                  RamSource = (uint32_t)buf;
 //                  for (j = 0;(j < packet_length) && (FlashDestination <  ApplicationAddress + size);j += 4)
@@ -1260,24 +1300,24 @@ int32_t Ymodem_Receive (uint8_t *buf)
 								if ( packets_received == 1 )
 								{
 									fr = f_write( &Tfile, &packet_data[3], 128, (UINT *)&written ) ;
-									txmitBt( '^' ) ;
-									if ( fr == FR_OK )
-									{
-										txmitBt( 'o' ) ;
-									}
-									else
-									{
-										txmitBt( 'e' ) ;
-										txmitBt( fr+'@' ) ;
-									}
-									if ( written == 128 )
-									{
-										txmitBt( 'w' ) ;
-									}
-									else
-									{
-										txmitBt( 'x' ) ;
-									}
+//									txmitBt( '^' ) ;
+//									if ( fr == FR_OK )
+//									{
+//										txmitBt( 'o' ) ;
+//									}
+//									else
+//									{
+//										txmitBt( 'e' ) ;
+//										txmitBt( fr+'@' ) ;
+//									}
+//									if ( written == 128 )
+//									{
+//										txmitBt( 'w' ) ;
+//									}
+//									else
+//									{
+//										txmitBt( 'x' ) ;
+//									}
 								}
                 packets_received ++;
                 session_begin = 1;
@@ -1285,40 +1325,40 @@ int32_t Ymodem_Receive (uint8_t *buf)
           }
           break;
         case 1:
-					txmitBt( 'I' ) ;
+//					txmitBt( 'I' ) ;
           Send_Byte(CA);
           Send_Byte(CA);
           return -3;
         default:
           if (session_begin > 0)
           {
-						txmitBt( 'J' ) ;
+//						txmitBt( 'J' ) ;
             errors ++;
           }
           if (errors > MAX_ERRORS)
           {
-						txmitBt( 'K' ) ;
+//						txmitBt( 'K' ) ;
             Send_Byte(CA);
             Send_Byte(CA);
             return 0;
           }
-					txmitBt( 'L' ) ;
+//					txmitBt( 'L' ) ;
           Send_Byte(CRC16);
           break;
       }
       if (file_done != 0)
       {
-				txmitBt( 'M' ) ;
+//				txmitBt( 'M' ) ;
         break;
       }
     }
     if (session_done != 0)
     {
-			txmitBt( 'N' ) ;
+//			txmitBt( 'N' ) ;
       break;
     }
   }
-	txmitBt( 'P' ) ;
+//	txmitBt( 'P' ) ;
 
 
 //FRESULT f_unlink (const TCHAR*);					/* Delete an existing file or directory */
