@@ -341,11 +341,18 @@ extern "C" void DAC_IRQHandler()
 		PtrVoiceBuffer[0]->flags |= VF_SENT ;		// Flag sent
 		PtrVoiceBuffer[0] = PtrVoiceBuffer[1] ;
 		PtrVoiceBuffer[1] = PtrVoiceBuffer[2] ;
+
+		if ( DACC->DACC_ISR & DACC_ISR_TXBUFE )
+		{
+			DACC->DACC_IDR = DACC_IDR_TXBUFE ;
+			Sound_g.VoiceActive = 0 ;
+		}
+
 		VoiceCount -= 1 ;
 		if ( VoiceCount == 0 )		// Run out of buffers
 		{
-			Sound_g.VoiceActive = 0 ;
 			DACC->DACC_IDR = DACC_IDR_ENDTX ;
+			DACC->DACC_IER = DACC_IER_TXBUFE ;
 		}
 		else
 		{

@@ -438,6 +438,7 @@ void voice_task(void* pdata)
 	uint32_t x ;
 	uint32_t w8or16 ;
 	uint32_t mounted = 0 ;
+	uint32_t size ;
 
 	for(;;)
 	{
@@ -490,6 +491,9 @@ void voice_task(void* pdata)
 					x = FileData[34] + ( FileData[35] << 8 ) ;		// sample size
 					w8or16 = x ;
 					x = FileData[24] + ( FileData[25] << 8 ) ;		// sample rate
+					size = FileData[40] + ( FileData[41] << 8 ) + ( FileData[42] << 16 ) ;		// data size
+
+					size -= 512-44 ;
 					if ( w8or16 == 8 )
 					{
 						wavU8Convert( &FileData[44], VoiceBuffer[0].data, 512-44 ) ;
@@ -499,6 +503,7 @@ void voice_task(void* pdata)
 					{
 						wavU16Convert( (uint16_t*)&FileData[44], VoiceBuffer[0].data, 512-44/2 ) ;
 						VoiceBuffer[0].count = 512-44/2 ;
+						size -= 512 ;
 					}
 					else
 					{
@@ -507,21 +512,26 @@ void voice_task(void* pdata)
 				
 					if ( w8or16 )
 					{
+						uint32_t amount ;
 						VoiceBuffer[0].frequency = x ;		// sample rate
 
 						if ( w8or16 == 8 )
 						{
 							wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
+							size -= 512 ;
 						}
 						else
 						{
 							fr = f_read( &Vfile, (uint8_t *)FileData, 1024, &nread ) ;
 							wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].data, 512 ) ;
+							size -= nread ;
 						}
 						VoiceBuffer[1].count = 512 ;
 						VoiceBuffer[1].frequency = 0 ;
 					
-						fr = f_read( &Vfile, (uint8_t *)FileData, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+						amount = (w8or16 == 8) ? 512 : 1024 ;
+
+						fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
 						if ( w8or16 == 8 )
 						{
 							wavU8Convert( &FileData[0], VoiceBuffer[2].data, 512 ) ;
@@ -530,12 +540,18 @@ void voice_task(void* pdata)
 						{
 							wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[2].data, 512 ) ;
 						}
+						size -= nread ;
 						VoiceBuffer[2].count = 512 ;
 						VoiceBuffer[2].frequency = 0 ;
 						startVoice( 3 ) ;
 						for(x = 0;;)
 						{
-							fr = f_read( &Vfile, (uint8_t *)FileData, (w8or16 == 8) ? 512 : 1024, &nread ) ;		// Read next buffer
+							if ( size < amount )
+							{
+								amount = size ;								
+							}
+							fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
+							size -= nread ;
 							if ( nread == 0 )
 							{
 								break ;
@@ -556,14 +572,29 @@ void voice_task(void* pdata)
 							VoiceBuffer[x].count = nread ;
 							VoiceBuffer[x].frequency = 0 ;
 							appendVoice( x ) ;					// index of next buffer
+							v_index = x ;		// Last buffer sent
 							x += 1 ;
 							if ( x > 2 )
 							{
 								x = 0 ;							
 							}
+							if ( (int32_t)size <= 0 )
+							{
+								break ;								
+							}
 						}
 					}
 					fr = f_close( &Vfile ) ;
+					// Now wait for last buffer to have been sent
+					x = 100 ;
+ 					while ( ( VoiceBuffer[v_index].flags & VF_SENT ) == 0 )
+					{
+						CoTickDelay(1) ;					// 2mS for now
+						if ( --x == 0 )
+						{
+							break ;		// Timeout, 200 mS
+						}
+					}
 				}
 				else
 				{

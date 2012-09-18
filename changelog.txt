@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 18-Sep-2012  MPB
+Voice file reading improved
+Voice output scheduling changed
+
+******************************************
 CHANGELOG: 15-Sep-2012  MPB
 Add 3POS as mixer input
 Fix altitude voice feet/metres
