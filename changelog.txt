@@ -11,6 +11,10 @@ description here
 
 ******************************************
 CHANGELOG: 18-Sep-2012  MPB
+Add Stick analog gain option
+
+******************************************
+CHANGELOG: 18-Sep-2012  MPB
 Voice file reading improved
 Voice output scheduling changed
 

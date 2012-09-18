@@ -3213,7 +3213,7 @@ uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int
 
 void menuProcSetup1(uint8_t event)
 {
-  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 9, {0/*, 0*/});
+  MENU("RADIO SETUP2", menuTabDiag, e_Setup1, 13, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
@@ -3309,6 +3309,9 @@ void menuProcSetup1(uint8_t event)
 	}
 	else// sub 8+
 	{
+		uint8_t b ;
+		uint8_t lastValue ;
+		lastValue = g_eeGeneral.stickGain ;
 		subN = 8 ;
   	lcd_puts_Pleft( FH, PSTR("Rotary Divisor"));
   	lcd_putsAttIdx(  PARAM_OFS, y, PSTR("\001142"),g_eeGeneral.rotaryDivisor,(sub==subN ? BLINK:0));
@@ -3317,7 +3320,51 @@ void menuProcSetup1(uint8_t event)
 			CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.rotaryDivisor,0,2);
 		}
   	if((y+=FH)>7*FH) return;
+		
 		subN++;
+  	lcd_puts_Pleft( FH*2, PSTR("Stick LV Gain"));
+		b = g_eeGeneral.stickGain & STICK_LV_GAIN ? 1 : 0 ;
+    lcd_putcAtt( 15*FW, FH*2, b ? '2' : '1', sub==subN ? BLINK:0 );
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event, b,0,1);
+			g_eeGeneral.stickGain = (lastValue & ~STICK_LV_GAIN) | (b ? STICK_LV_GAIN : 0 ) ;
+		}
+		if((y+=FH)>7*FH) return;
+
+		subN++;
+  	lcd_puts_Pleft( FH*3, PSTR("Stick LH Gain"));
+		b = g_eeGeneral.stickGain & STICK_LH_GAIN ? 1 : 0 ;
+    lcd_putcAtt( 15*FW, FH*3, b ? '2' : '1', sub==subN ? BLINK:0 );
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event, b,0,1);
+			g_eeGeneral.stickGain = (lastValue & ~STICK_LH_GAIN) | (b ? STICK_LH_GAIN : 0 ) ;
+		}
+		if((y+=FH)>7*FH) return;
+		subN++;
+  	lcd_puts_Pleft( FH*4, PSTR("Stick RV Gain"));
+		b = g_eeGeneral.stickGain & STICK_RV_GAIN ? 1 : 0 ;
+    lcd_putcAtt( 15*FW, FH*4, b ? '2' : '1', sub==subN ? BLINK:0 );
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event, b,0,1);
+			g_eeGeneral.stickGain = (lastValue & ~STICK_RV_GAIN) | (b ? STICK_RV_GAIN : 0 ) ;
+		}
+		if((y+=FH)>7*FH) return;
+		subN++;
+  	lcd_puts_Pleft( FH*5, PSTR("Stick RH Gain"));
+		b = g_eeGeneral.stickGain & STICK_RH_GAIN ? 1 : 0 ;
+    lcd_putcAtt( 15*FW, FH*5, b ? '2' : '1', sub==subN ? BLINK:0 );
+  	if(sub==subN)
+		{
+			CHECK_INCDEC_H_GENVAR(event, b,0,1);
+			g_eeGeneral.stickGain = (lastValue & ~STICK_RH_GAIN) | (b ? STICK_RH_GAIN : 0 ) ;
+		}
+		if ( lastValue != g_eeGeneral.stickGain )
+		{
+			set_stick_gain( g_eeGeneral.stickGain ) ;
+		}
 	}
 }
 

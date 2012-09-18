@@ -57,6 +57,12 @@
 #define WARN_MEM     (!(g_eeGeneral.warnOpts & WARN_MEM_BIT))
 #define BEEP_VAL     ( (g_eeGeneral.warnOpts & WARN_BVAL_BIT) >>3 )
 
+// Bits in stickGain
+#define STICK_LV_GAIN	0x40
+#define STICK_LH_GAIN	0x10
+#define STICK_RV_GAIN	0x04
+#define STICK_RH_GAIN	0x01
+
 #define GENERAL_OWNER_NAME_LEN 10
 #define MODEL_NAME_LEN         10
 
@@ -123,7 +129,7 @@ PACK(typedef struct t_EEGeneral {
   uint8_t   switchWarningStates;
 	uint8_t		volume ;
 	uint8_t 	bright ;			// backlight
-  uint8_t   res[1];
+  uint8_t   stickGain;
 	uint8_t		mAh_alarm ;
 	uint16_t	mAh_used ;
 	uint16_t	run_time ;

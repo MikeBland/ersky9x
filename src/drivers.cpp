@@ -1282,7 +1282,7 @@ void read_9_adc()
 // USEQ off - silicon problem, doesn't work
 // TRANSFER = 1
 // TRACKTIM = 4 (5 clock periods)
-// ANACH = 0
+// ANACH = 1
 // SETTLING = 1 (not used if ANACH = 0)
 // STARTUP = 1 (8 clock periods)
 // PRESCAL = 3.6 MHz clock (between 1 and 20MHz)
@@ -1292,6 +1292,23 @@ void read_9_adc()
 // LOWRES = 0
 // TRGSEL = 0
 // TRGEN = 0 (software trigger only)
+// Gain/offset channels:
+// Stick LV AD9  Gain:0x00080000 Offset:0x00000200
+// Stick LH AD2  Gain:0x00000020 Offset:0x00000004
+// Stick RV AD14 Gain:0x20000000 Offset:0x00004000
+// Stick RH AD1  Gain:0x00000008 Offset:0x00000002
+// Gains in ADC_CGR, offsets in ADC_COR
+
+#define GAIN_LV			0x00080000
+#define GAIN_LH	    0x00000020
+#define GAIN_RV	    0x20000000
+#define GAIN_RH	    0x00000008
+
+#define OFF_LV			0x00000200
+#define OFF_LH      0x00000004
+#define OFF_RV      0x00004000
+#define OFF_RH      0x00000002
+
 void init_adc()
 {
 	register Adc *padc ;
@@ -1301,7 +1318,7 @@ void init_adc()
 	// Enable peripheral clock ADC = bit 29
   PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 	padc = ADC ;
-	padc->ADC_MR = 0x14110000 | timer ;  // 0001 0100 0001 0001 xxxx xxxx 0000 0000
+	padc->ADC_MR = 0x14910000 | timer ;  // 0001 0100 1001 0001 xxxx xxxx 0000 0000
 	padc->ADC_ACR = ADC_ACR_TSON ;			// Turn on temp sensor
 #ifdef REVB
 	padc->ADC_CHER = 0x0000E33E ;  // channels 1,2,3,4,5,8,9,13,14,15
@@ -1310,7 +1327,47 @@ void init_adc()
 #endif
 	padc->ADC_CGR = 0 ;  // Gain = 1, all channels
 	padc->ADC_COR = 0 ;  // Single ended, 0 offset, all channels
+
+//	padc->ADC_CGR = GAIN_LV | GAIN_LH | GAIN_RV | GAIN_RH ;
+//	padc->ADC_COR = OFF_LV | OFF_LH | OFF_RV | OFF_RH ;
 }
+
+void set_stick_gain( uint32_t gains )
+{
+	register Adc *padc ;
+	uint32_t gain ;
+	uint32_t offset ;
+
+	gain = 0 ;
+	offset = 0 ;
+	padc = ADC ;
+
+	if ( gains & STICK_LV_GAIN )
+	{
+		gain |= GAIN_LV ;
+		offset |= OFF_LV ;
+	}
+	if ( gains & STICK_LH_GAIN )
+	{
+		gain |= GAIN_LH ;
+		offset |= OFF_LH ;
+	}
+	if ( gains & STICK_RV_GAIN )
+	{
+		gain |= GAIN_RV ;
+		offset |= OFF_RV ;
+	}
+	if ( gains & STICK_RH_GAIN )
+	{
+		gain |= GAIN_RH ;
+		offset |= OFF_RH ;
+	}
+
+	padc->ADC_CGR = gain ;
+	padc->ADC_COR = offset ;
+
+}
+
 
 
 // Start TIMER3 for input capture

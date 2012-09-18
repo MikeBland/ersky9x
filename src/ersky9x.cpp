@@ -562,8 +562,8 @@ int main(void)
 	eeReadAll() ;
 
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
-
 	// Set ADC gains here
+	set_stick_gain( g_eeGeneral.stickGain ) ;
 
 #ifdef FRSKY
   FRSKY_Init();

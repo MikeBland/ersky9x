@@ -96,6 +96,7 @@ extern void p2hex( unsigned char c ) ;
 extern void hex_digit_send( unsigned char c ) ;
 extern void read_9_adc(void ) ;
 extern void init_adc( void ) ;
+void set_stick_gain( uint32_t gains ) ;
 extern void init_ssc( void ) ;
 extern void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom) ;
 extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size) ;
