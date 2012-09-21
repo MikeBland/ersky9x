@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Sep-2012  MPB
+Rotary encoder improvements
+
+******************************************
 CHANGELOG: 18-Sep-2012  MPB
 Add Stick analog gain option
 

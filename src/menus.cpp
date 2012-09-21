@@ -40,6 +40,8 @@ extern int16_t AltOffset ;
 
 struct t_timer s_timer[2] ;
 
+uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
+
 const char Str_ALTeq[] =  "Alt=" ;
 const char Str_TXeq[] =  "Tx=" ;
 const char Str_RXeq[] =  "Rx=" ;
@@ -695,15 +697,8 @@ void DisplayScreenIndex(uint8_t index, uint8_t count, uint8_t attr)
 	x = 1+128-FW*(count>9 ? 3 : 2) ;
   lcd_putcAtt(x,0,'/',attr);
   lcd_outdezAtt(x-1,0,index+1,attr);
+//		lcd_putc( x-12, 0, RotaryState + '0' ) ;
 }
-
-// Rotary encoder movement states
-#define	ROTARY_MENU_LR		0
-#define	ROTARY_MENU_UD		1
-#define	ROTARY_SUBMENU_LR	2
-#define	ROTARY_VALUE			3
-
-uint32_t RotaryState ;
 
 #define MAXCOL(row) (horTab ? pgm_read_byte(horTab+min(row, horTabMax)) : (const uint8_t)0)
 #define INC(val,max) if(val<max) {val++;} else {val=0;}
@@ -737,21 +732,33 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
     uint8_t attr = m_posVert==0 ? INVERS : 0;
 
 
-		if ( s_editMode == 0 )
-		{
-			if ( Rotary_diff > 0 )
-			{
-   		  scrollLR = -1;
-			}
-			else if ( Rotary_diff < 0 )
-			{
-   		  scrollLR = 1;
-			}
-			Rotary_diff = 0 ;
-		}
-
     if(m_posVert==0)
     {
+			if ( RotaryState == ROTARY_MENU_LR )
+			{
+				if ( Rotary_diff > 0 )
+				{
+   				scrollLR = -1;
+				}
+				else if ( Rotary_diff < 0 )
+				{
+   				scrollLR = 1;
+				}
+				Rotary_diff = 0 ;
+        if(event==EVT_KEY_BREAK(BTN_RE))
+				{
+					RotaryState = ROTARY_MENU_UD ;
+		      event = 0 ;
+				}
+			}
+			else if ( RotaryState == ROTARY_MENU_UD )
+			{
+        if(event==EVT_KEY_BREAK(BTN_RE))
+				{
+					RotaryState = ROTARY_MENU_LR ;
+		      event = 0 ;
+				}
+			}
       if( scrollLR && !s_editMode)
       {
         int8_t cc = curr - scrollLR ;
@@ -764,6 +771,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
             //                        chainMenu(menuProcDiagAna);
             //                    else
           chainMenu((MenuFuncP)pgm_read_adr(&menuTab[cc]));
+					return ;
         }
 
         scrollLR = 0;
@@ -778,12 +786,8 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         else
           index = menuTabSize ;
 
-//				uputs("\r\nI=") ;
-//				txmit(index+'0') ;
-//				if ( i != 0 )
-//				{
        	chainMenu((MenuFuncP)pgm_read_adr(&menuTab[index-1]));
-//				}
+				return ;
       }
 
       if(event==EVT_KEY_FIRST(KEY_RIGHT))
@@ -795,13 +799,37 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         else
           index = 0 ;
         chainMenu((MenuFuncP)pgm_read_adr(&menuTab[index]));
+				return ;
       }
     }
 
-
-    //        scrollLR = 0;
     DisplayScreenIndex(curr, menuTabSize, attr);
   }
+	if ( RotaryState == ROTARY_MENU_UD )
+	{
+		if ( Rotary_diff > 0 )
+		{
+			scrollUD = -1;
+		}
+		else if ( Rotary_diff < 0 )
+		{
+			scrollUD = 1;
+		}
+		Rotary_diff = 0 ;
+    if(event==EVT_KEY_BREAK(BTN_RE))
+		{
+			RotaryState = ROTARY_VALUE ;
+		}
+	}
+	else if ( RotaryState == ROTARY_VALUE )
+	{
+    if(event==EVT_KEY_BREAK(BTN_RE))
+		{
+			RotaryState = ROTARY_MENU_UD ;
+		}
+	}
+
+    //        scrollLR = 0;
 
   uint8_t maxcol = MAXCOL(m_posVert);
 
@@ -859,6 +887,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
             break;
         }
         if(m_posVert==0 || !menuTab) {
+						RotaryState = ROTARY_MENU_LR ;
             popMenu();  //beeps itself
         } else {
             audioDefevent(AU_MENUS);

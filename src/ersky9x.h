@@ -522,4 +522,13 @@ struct t_timer
 
 extern struct t_timer s_timer[] ;
 
+// Rotary encoder movement states
+#define	ROTARY_MENU_LR		0
+#define	ROTARY_MENU_UD		1
+#define	ROTARY_SUBMENU_LR	2
+#define	ROTARY_VALUE			3
+
+extern uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
+
+
 #endif
