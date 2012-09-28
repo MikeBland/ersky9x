@@ -418,6 +418,12 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			att |= PREC1 ;
       unit = 'v' ;
 		break ;
+
+		case FR_RPM :
+  		lcd_outdezNAtt( (style & TELEM_VALUE_RIGHT) ? xbase+61 : x, y, (uint16_t)val, att, 5 ) ;
+			displayed = 1 ;
+		break ;
+
 		default:
     break;
   }
@@ -553,6 +559,7 @@ void menuProcSafetySwitches(uint8_t event);
 void menuProcTemplates(uint8_t event);
 void menuProcTelemetry(uint8_t event) ;
 void menuProcTelemetry2(uint8_t event) ;
+void menuProcDate(uint8_t event) ;
 
 uint8_t getMixerCount( void ) ;
 bool reachMixerCountLimit( void ) ;
@@ -637,6 +644,7 @@ enum EnumTabDiag
   e_Setup2,
   e_Trainer,
   e_Vers,
+	e_Date,
   e_Keys,
   e_Ana,
   e_Calib
@@ -650,6 +658,7 @@ MenuFuncP menuTabDiag[] =
   menuProcSetup2,
   menuProcTrainer,
   menuProcDiagVers,
+	menuProcDate,
   menuProcDiagKeys,
   menuProcDiagAna,
   menuProcDiagCalib,
@@ -4205,6 +4214,107 @@ extern uint32_t Bt_ok ;
   lcd_puts_P( 3*FW,  7*FH, PSTR("[MENU] to refresh"));
 }
 
+struct t_i2cTime
+{
+	uint8_t setCode ;
+	uint8_t Time[7] ;
+} TimeToSet ;
+
+
+void dispMonth( uint8_t x, uint8_t y, uint32_t month, uint8_t attr)
+{
+  lcd_putsAttIdx( x, y, PSTR("\003JanFebMarAprMayJunJulAugSepOctNovDec"),month-1, attr ) ;
+}
+
+t_time EntryTime ;
+
+void menuProcDate(uint8_t event)
+{
+  MENU("DATE-TIME", menuTabDiag, e_Date, 7, {0});
+
+  switch(event)
+  {
+    case EVT_ENTRY :
+			{	
+				t_time *p = &EntryTime ;
+
+				p->second = Time.second ;
+				p->minute = Time.minute ;
+				p->hour   = Time.hour ;
+				p->date   = Time.date ;
+				p->month  = Time.month ;
+				p->year   = Time.year ;
+			}
+    break;
+		
+    case EVT_KEY_LONG(KEY_MENU) :
+			TimeToSet.setCode = 0x74 ;		// Tiny SET TIME CODE command
+			TimeToSet.Time[0] = EntryTime.second ;
+			TimeToSet.Time[1] = EntryTime.minute ;
+			TimeToSet.Time[2] = EntryTime.hour ;
+			TimeToSet.Time[3] = EntryTime.date ;
+			TimeToSet.Time[4] = EntryTime.month ;
+			TimeToSet.Time[5] = (uint8_t) EntryTime.year ;
+			TimeToSet.Time[6] = EntryTime.year >> 8 ;
+			write_coprocessor( (uint8_t *) &TimeToSet, 8 ) ;
+      killEvents(event);
+    break;
+	}		 
+#ifdef REVB    
+		lcd_puts_Pleft( 1*FH, PSTR("  -   -     :  :"));
+		lcd_outdezNAtt( 18*FW-2, 1*FH, Time.second, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 15*FW-1, 1*FH, Time.minute, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 12*FW,   1*FH, Time.hour, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 2*FW,    1*FH, Time.date, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 10*FW,   1*FH, Time.year, LEADING0, 4 ) ;
+		dispMonth( 3*FW, 1*FH, Time.month, 0 ) ;
+
+    int8_t  sub    = mstate2.m_posVert;
+
+		for (uint8_t subN=1; subN<7; subN++)
+		{
+	  	uint8_t attr = ((sub==subN) ? (s_editMode ? BLINK : INVERS) : 0);
+			switch ( subN )
+			{
+				case 1 :
+			  	lcd_puts_Pleft( 2*FH, PSTR("Sec.") );
+					lcd_outdezNAtt( 7*FW, 2*FH, EntryTime.second, LEADING0|attr, 2 ) ;
+			  	if(sub==subN)  EntryTime.second = checkIncDec( event,  EntryTime.second, 0, 59, 0 ) ;
+				break ;
+				case 2 :
+			  	lcd_puts_Pleft( 3*FH, PSTR("Min.\015Set") );
+					lcd_outdezNAtt( 7*FW, 3*FH, EntryTime.minute, LEADING0|attr, 2 ) ;
+			  	if(sub==subN)  EntryTime.minute = checkIncDec( event,  EntryTime.minute, 0, 59, 0 ) ;
+				break ;
+				case 3 :
+			  	lcd_puts_Pleft( 4*FH, PSTR("Hour\012MENU LONG") );
+					lcd_outdezNAtt( 7*FW, 4*FH, EntryTime.hour, LEADING0|attr, 2 ) ;
+			  	if(sub==subN)  EntryTime.hour = checkIncDec( event,  EntryTime.hour, 0, 23, 0 ) ;
+				break ;
+				case 4 :
+			  	lcd_puts_Pleft( 5*FH, PSTR("Date") );
+					lcd_outdezNAtt( 7*FW, 5*FH, EntryTime.date, LEADING0|attr, 2 ) ;
+			  	if(sub==subN)  EntryTime.date = checkIncDec( event,  EntryTime.date, 1, 31, 0 ) ;
+				break ;
+				case 5 :
+			  	lcd_puts_Pleft( 6*FH, PSTR("Month") );
+					dispMonth( 5*FW+3, 6*FH, EntryTime.month, attr ) ;
+			  	if(sub==subN)  EntryTime.month = checkIncDec( event,  EntryTime.month, 1, 12, 0 ) ;
+				break ;
+				case 6 :
+			  	lcd_puts_Pleft( 7*FH, PSTR("Year") );
+					lcd_outdezNAtt( 9*FW-2, 7*FH, EntryTime.year, LEADING0|attr, 4 ) ;
+			  	if(sub==subN)  EntryTime.year = checkIncDec16( event,  EntryTime.year, 0, 2999, 0 ) ;
+				break ;
+			}
+		}
+
+#endif
+}
+
+
+
+
 void menuProcBattery(uint8_t event)
 {
 	uint32_t current_scale ;
@@ -4223,7 +4333,7 @@ void menuProcBattery(uint8_t event)
       audioDefevent(AU_MENUS) ;
     	killEvents(event) ;
     break;
-			
+
     case EVT_KEY_FIRST(KEY_DOWN):
 //			Program_coprocessor = 1 ;
 //    	killEvents(event) ;
@@ -4275,30 +4385,21 @@ void menuProcBattery(uint8_t event)
 	  lcd_outdezAtt( 20*FW-2, 6*FH, (((((int32_t)Max_temperature - 838 ) * 621 ) >> 11 ) - 20) ,0 ) ;
 
 // Temp test code for co-processor
-static uint8_t timer ;
-//static uint8_t cp_type ;
-//static uint8_t tbuffer[10] ;
-
-		if ( ++timer >= 50 )
-		{
-			timer = 0 ;
-//			if ( cp_type == 0 )
-//			{
-//				cp_type = 1 ;
-				read_coprocessor() ;
-//			}
-//			else
-//			{
-//				cp_type = 0 ;
-//				write_coprocessor( tbuffer, 6 ) ;
-//			}
-		}
 		lcd_puts_Pleft( 1*FH, PSTR("(test) Co Proc"));
-    lcd_outhex4( 15*FW, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+    lcd_outhex4( 15*FW-3, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+//extern uint8_t Co_proc_status[] ;
 // Rotary encoder test/debug
 extern volatile int32_t Rotary_position ;
 extern volatile int32_t Rotary_count ;
-    lcd_outhex4( 15*FW, 0*FH, ( Rotary_count << 8 ) | Rotary_position ) ;
+    lcd_outhex4( 15*FW-3, 0*FH, ( Rotary_count << 8 ) | Rotary_position ) ;
+
+		lcd_puts_Pleft( 5*FH, PSTR("  -   -     :  :"));
+		lcd_outdezNAtt( 18*FW-2, 5*FH, Time.second, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 15*FW-1, 5*FH, Time.minute, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 12*FW, 5*FH, Time.hour, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 2*FW, 5*FH, Time.date, LEADING0, 2 ) ;
+		lcd_outdezNAtt( 10*FW, 5*FH, Time.year, LEADING0, 4 ) ;
+		dispMonth( 3*FW, 5*FH, Time.month, 0 ) ;
 
 #else
 		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
@@ -4797,7 +4898,7 @@ void menuProc0(uint8_t event)
 									displayTemp( 2, 14*FW, 7*FH, 0 ) ;
 
                     lcd_puts_P(10*FW, 2*FH, PSTR("RPM"));
-                    lcd_outdezAtt(13*FW, 1*FH, FrskyHubData[FR_RPM], DBLSIZE|LEFT);
+                    lcd_outdezNAtt(13*FW, 1*FH, (uint16_t)FrskyHubData[FR_RPM], DBLSIZE|LEFT, 5);
 
 //                    lcd_puts_Pleft( 4*FH, Str_ALTeq);
                     value = FrskyHubData[FR_ALT_BARO] + AltOffset ;

@@ -396,6 +396,17 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 
 typedef void (*MenuFuncP)(uint8_t event);
 
+typedef struct
+{ 
+	unsigned char second;   //enter the current time, date, month, and year
+	unsigned char minute;
+	unsigned char hour;                                     
+	unsigned char date;       
+	unsigned char month;
+	unsigned int year;      
+ } t_time ;
+
+extern t_time Time ;
 
 extern bool    checkIncDec_Ret;//global helper vars
 extern uint8_t s_editMode;     //global editmode
@@ -414,6 +425,7 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 
 #define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
   var = checkIncDec(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
+
 
 extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_CHNOUT];

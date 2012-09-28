@@ -364,6 +364,12 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 {
 	uint8_t decimals = 0 ;
 	div_t qr ;
+	uint32_t flag = 0 ;
+
+	if ( units_index > 127 )
+	{
+		putVoiceQueue( units_index ) ;
+	}
 
 	if ( num_decimals )
 	{
@@ -377,12 +383,24 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 	{
 		if ( qr.quot > 9 )		// Thousands
 		{
+			flag = 1 ;
 			qr = div( qr.quot, 10 ) ;
-			putVoiceQueue( qr.quot + 110 ) ;
+			if ( qr.quot < 21 )
+			{
+				putVoiceQueue( qr.quot + 110 ) ;
+			}
+			else
+			{
+				putVoiceQueue( qr.quot + 400 ) ;
+				putVoiceQueue( V_THOUSAND ) ;
+			}
 			qr.quot = qr.rem ;			
 		}
 		putVoiceQueue( qr.quot + 100 ) ;
-		putVoiceQueue( qr.rem + 400 ) ;
+		if ( flag == 0 )
+		{
+			putVoiceQueue( qr.rem + 400 ) ;
+		}
 	}
 	else
 	{
@@ -403,7 +421,7 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 		}
 	}
 		 
-	if ( units_index )
+	if ( units_index && ( units_index < 128 ) )
 	{
 		putVoiceQueue( units_index ) ;
 	}
@@ -487,22 +505,32 @@ void voice_task(void* pdata)
 				fr = f_open( &Vfile, VoiceFilename, FA_READ ) ;
 				if ( fr == FR_OK )
 				{
+					uint32_t offset ;
 					fr = f_read( &Vfile, FileData, 1024, &nread ) ;
 					x = FileData[34] + ( FileData[35] << 8 ) ;		// sample size
 					w8or16 = x ;
 					x = FileData[24] + ( FileData[25] << 8 ) ;		// sample rate
-					size = FileData[40] + ( FileData[41] << 8 ) + ( FileData[42] << 16 ) ;		// data size
+					if ( FileData[39] == 'a' )
+					{
+						size = FileData[40] + ( FileData[41] << 8 ) + ( FileData[42] << 16 ) ;		// data size
+						offset = 44 ;
+					}
+					else
+					{
+						size = FileData[62] + ( FileData[63] << 8 ) + ( FileData[64] << 16 ) ;		// data size
+						offset = 66 ;
+					}
 
-					size -= 512-44 ;
+					size -= 512-offset ;
 					if ( w8or16 == 8 )
 					{
-						wavU8Convert( &FileData[44], VoiceBuffer[0].data, 512-44 ) ;
-						VoiceBuffer[0].count = 512-44 ;
+						wavU8Convert( &FileData[offset], VoiceBuffer[0].data, 512-offset ) ;
+						VoiceBuffer[0].count = 512-offset ;
 					}
 					else if ( w8or16 == 16 )
 					{
-						wavU16Convert( (uint16_t*)&FileData[44], VoiceBuffer[0].data, 512-44/2 ) ;
-						VoiceBuffer[0].count = 512-44/2 ;
+						wavU16Convert( (uint16_t*)&FileData[offset], VoiceBuffer[0].data, 512-offset/2 ) ;
+						VoiceBuffer[0].count = 512-offset/2 ;
 						size -= 512 ;
 					}
 					else

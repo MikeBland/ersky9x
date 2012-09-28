@@ -92,6 +92,7 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 
 #include "debug.h"
 
+ t_time Time ;
 
 //#define TRUE	1
 //#define FALSE	0
@@ -966,22 +967,6 @@ void main_loop(void* pdata)
 //		PIOA->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
-#ifdef	DEBUG
-		
-//		handle_serial() ;
-
-//		{
-//			uint16_t rxchar ;
-//			if ( ( rxchar = rx2nduart() ) != 0xFFFF )		// Testing
-//			{
-//				txmitBt( rxchar ) ;                   		// Testing
-//			}
-//			if ( ( rxchar = rxBtuart() ) != 0xFFFF )		// Testing
-//			{
-//				txmit2nd( rxchar ) ;                   		// Testing
-//			}
-//		}
-#endif
 
 		if ( UsbTimer < 5000 )		// 10 Seconds
 		{
@@ -1114,6 +1099,7 @@ extern int16_t AltOffset ;
 
 void mainSequence( uint32_t no_menu )
 {
+	static uint32_t coProTimer = 0 ;
   uint16_t t0 = getTmr2MHz();
 	uint8_t numSafety = 16 - g_model.numVoice ;
 	
@@ -1159,6 +1145,12 @@ void mainSequence( uint32_t no_menu )
 #ifndef SIMU
 		sd_poll_10mS() ;
 #endif
+
+		if ( ++coProTimer > 24 )
+		{
+			coProTimer -= 25 ;
+			read_coprocessor() ;
+		}
 	}
 
 	t0 = getTmr2MHz() - t0;

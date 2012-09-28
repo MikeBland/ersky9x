@@ -226,6 +226,7 @@ uint8_t Block_buffer[1024] ;
 void init_twi( void ) ;
 uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number ) ;
 uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number ) ;
+uint32_t coProcBoot( void ) ;
 
 void init_twi()
 {
@@ -346,6 +347,34 @@ uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number
 	return 1 ;
 }
 
+
+#define TWI_CMD_REBOOT							0x55	// TWI Command to restart back in the bootloader
+
+
+uint32_t coProcBoot()
+{
+	uint32_t i ;
+	
+	TWI0->TWI_MMR = 0x00350000 ;		// Device 35 and master is writing
+	TWI0->TWI_THR = TWI_CMD_REBOOT ;	// Send reboot command
+	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+
+	for ( i = 0 ; i < 100000 ; i += 1 )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_TXCOMP )
+		{
+			break ;
+		}	
+	}
+	
+	if ( i >= 100000 )
+	{
+		return 0 ;
+	}
+	return 1 ;
+}
+
+
 uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number )
 {
 	uint32_t i ;
@@ -409,366 +438,6 @@ uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t numbe
 	return 1 ;
 }
 
-//uint32_t eeprom_write_one( uint8_t byte, uint8_t count )
-//{
-//	register Spi *spiptr ;
-//	register uint32_t result ;
-	
-//	spiptr = SPI ;
-//	spiptr->SPI_CR = 1 ;								// Enable
-//	(void) spiptr->SPI_RDR ;		// Dump any rx data
-	
-//	spiptr->SPI_TDR = byte ;
-
-//	result = 0 ; 
-//	while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-//	{
-//		// wait for received
-//		if ( ++result > 10000 )
-//		{
-//			break ;				
-//		}
-//	}
-//	if ( count == 0 )
-//	{
-//		spiptr->SPI_CR = 2 ;								// Disable
-//		return spiptr->SPI_RDR ;
-//	}
-//	(void) spiptr->SPI_RDR ;		// Dump the rx data
-//	spiptr->SPI_TDR = 0 ;
-//	result = 0 ; 
-//	while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-//	{
-//		// wait for received
-//		if ( ++result > 10000 )
-//		{
-//			break ;				
-//		}
-//	}
-//	spiptr->SPI_CR = 2 ;								// Disable
-//	return spiptr->SPI_RDR ;
-//}
-
-
-//uint32_t eeprom_read_status()
-//{
-//	return eeprom_write_one( 5, 1 ) ;
-//}
-
-
-//void eeprom_write_enable()
-//{
-//	eeprom_write_one( 6, 0 ) ;
-//}
-
-//void eeprom_wait_busy()
-//{
-//	register uint32_t x ;
-//	register uint32_t y ;
-	
-//	y = 0 ;
-//	do
-//	{
-//		y += 1 ;
-//		if ( y > 1000000 )
-//		{
-//			break ;			
-//		}
-//		x = eeprom_read_status() ;
-//	} while ( x & 1 ) ;
-  
-//	Pmailbox->argument.outputWrite.debug2 = y ;
-//}
-
-//uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uint32_t count )
-//{
-//	register Spi *spiptr ;
-//	register uint32_t result ;
-
-////  PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-
-//	result = 0 ; 
-//	spiptr = SPI ;
-//	spiptr->SPI_CR = 1 ;								// Enable
-//	(void) spiptr->SPI_RDR ;		// Dump any rx data
-//	while( count )
-//	{
-//		result = 0 ;
-//		while( ( spiptr->SPI_SR & SPI_SR_TXEMPTY ) == 0 )
-//		{
-//			// wait
-//			if ( ++result > 10000 )
-//			{
-//				result = 0xFFFF ;
-//				break ;				
-//			}
-//		}
-//		if ( result > 10000 )
-//		{
-//			break ;
-//		}
-////		if ( count == 1 )
-////		{
-////			spiptr->SPI_CR = SPI_CR_LASTXFER ;		// LastXfer bit
-////		}
-//		spiptr->SPI_TDR = *tx++ ;
-//		result = 0 ;
-//		while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-//		{
-//			// wait for received
-//			if ( ++result > 10000 )
-//			{
-//				result = 0x2FFFF ;
-//				break ;				
-//			}
-//		}
-//		if ( result > 10000 )
-//		{
-//			break ;
-//		}
-//		*rx++ = spiptr->SPI_RDR ;
-//		count -= 1 ;
-//	}
-//	if ( result <= 10000 )
-//	{
-//		result = 0 ;
-//	}
-//	spiptr->SPI_CR = 2 ;								// Disable
-
-//// Power save
-////  PMC->PMC_PCER0 &= ~0x00200000L ;		// Disable peripheral clock to SPI
-
-//	return result ;
-//}
-
-//uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
-//{
-//	register Spi *spiptr ;
-////	register uint32_t result ;
-//	register uint32_t condition ;
-//	static uint8_t discard_rx_command[4] ;
-
-////  PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-
-////	Spi_complete = 0 ;
-//	if ( comlen > 4 )
-//	{
-////		Spi_complete = 1 ;
-//		return 0x4FFFF ;		
-//	}
-//	condition = SPI_SR_TXEMPTY ;
-//	spiptr = SPI ;
-//	spiptr->SPI_CR = 1 ;				// Enable
-//	(void) spiptr->SPI_RDR ;		// Dump any rx data
-//	(void) spiptr->SPI_SR ;			// Clear error flags
-//	spiptr->SPI_RPR = (uint32_t)discard_rx_command ;
-//	spiptr->SPI_RCR = comlen ;
-//	if ( rx )
-//	{
-//		spiptr->SPI_RNPR = (uint32_t)rx ;
-//		spiptr->SPI_RNCR = count ;
-//		condition = SPI_SR_RXBUFF ;
-//	}
-//	spiptr->SPI_TPR = (uint32_t)command ;
-//	spiptr->SPI_TCR = comlen ;
-//	if ( tx )
-//	{
-//		spiptr->SPI_TNPR = (uint32_t)tx ;
-//	}
-//	else
-//	{
-//		spiptr->SPI_TNPR = (uint32_t)rx ;
-//	}
-//	spiptr->SPI_TNCR = count ;
-
-//	spiptr->SPI_PTCR = SPI_PTCR_RXTEN | SPI_PTCR_TXTEN ;	// Start transfers
-
-//	// Wait for things to get started, avoids early interrupt
-//	for ( count = 0 ; count < 1000 ; count += 1 )
-//	{
-//		if ( ( spiptr->SPI_SR & SPI_SR_TXEMPTY ) == 0 )
-//		{
-//			break ;			
-//		}
-//	}
-	
-//	count = 0 ;
-//	while( ( spiptr->SPI_SR & condition ) == 0 )
-//	{
-//		if ( ++count > 1000000 )
-//		{
-//			break ;			
-//		}
-//	}
-	
-//	spiptr->SPI_CR = 2 ;				// Disable
-//	(void) spiptr->SPI_RDR ;		// Dump any rx data
-//	(void) spiptr->SPI_SR ;			// Clear error flags
-//	spiptr->SPI_PTCR = SPI_PTCR_RXTDIS | SPI_PTCR_TXTDIS ;	// Stop tramsfers
-
-//	if ( count > 1000000 )
-//	{
-//		return 1 ;
-//	}
-//	return 0 ;
-//}
-
-
-//uint32_t unprotect_eeprom()
-//{
-// 	register uint8_t *p ;
-
-//	eeprom_write_enable() ;
-		
-//	p = Spi_tx_buf ;
-//	*p = 0x39 ;		// Unprotect sector command
-//	*(p+1) = 0 ;
-//	*(p+2) = 0 ;
-//	*(p+3) = 0 ;		// 3 bytes address
-
-//	return spi_operation( p, Spi_rx_buf, 4 ) ;
-//}
-
-
-
-
-
-
-//void init_spi()
-//{
-//	register Pio *pioptr ;
-//	register Spi *spiptr ;
-//	register uint32_t timer ;
-//	register uint8_t *p ;
-//	uint8_t spi_buf[4] ;
-
-//	if ( !Spi_init_done)
-//	{
-//  	PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-//  	/* Configure PIO */
-//		pioptr = PIOA ;
-//  	pioptr->PIO_ABCDSR[0] &= ~0x00007800 ;	// Peripheral A bits 14,13,12,11
-//  	pioptr->PIO_ABCDSR[1] &= ~0x00007800 ;	// Peripheral A
-//  	pioptr->PIO_PDR = 0x00007800 ;					// Assign to peripheral
-	
-//		spiptr = SPI ;
-//		timer = ( 64000000 / 3000000 ) << 8 ;
-//		spiptr->SPI_MR = 0x14000011 ;				// 0001 0100 0000 0000 0000 0000 0001 0001 Master
-//		spiptr->SPI_CSR[0] = 0x01180009 | timer ;		// 0000 0001 0001 1000 xxxx xxxx 0000 1001
-//	//	NVIC_EnableIRQ(SPI_IRQn) ;
-
-//		p = spi_buf ;
-		
-//	//	*p = 0x39 ;		// Unprotect sector command
-//	//	*(p+1) = 0 ;
-//	//	*(p+2) = 0 ;
-//	//	*(p+3) = 0 ;		// 3 bytes address
-
-//	//	spi_operation( p, spi_buf, 4 ) ;
-	
-//		eeprom_write_enable() ;
-
-//		*p = 1 ;		// Write status register command
-//		*(p+1) = 0 ;
-//		spi_operation( p, spi_buf, 2 ) ;
-//		Spi_init_done = 1 ;
-//	}
-
-//}
-
-//uint32_t eeprom_block_erased( register uint8_t *p)
-//{
-//	register uint32_t x ;
-//	register uint32_t result ;
-
-//	result = 1 ;
-
-//	for ( x = 0 ; x < 4096 ; x += 1 )
-//	{
-//		if ( *p++ != 0xFF )
-//		{
-//			result = 0 ;			
-//			break ;
-//		}		
-//	}
-//	return result ;
-//}
-
-//uint32_t eeprom_page_erased( register uint8_t *p)
-//{
-//	register uint32_t x ;
-//	register uint32_t result ;
-
-//	result = 1 ;
-
-//	for ( x = 0 ; x < 256 ; x += 1 )
-//	{
-//		if ( *p++ != 0xFF )
-//		{
-//			result = 0 ;			
-//			break ;
-//		}		
-//	}
-//	return result ;
-//}
-
-
-//void AT25D_Read( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset)
-//{
-//	register uint8_t *p ;
-	
-//	p = Spi_tx_buf ;
-//	*p = 3 ;		// Read command
-//	*(p+1) = memoryOffset >> 16 ;
-//	*(p+2) = memoryOffset >> 8 ;
-//	*(p+3) = memoryOffset ;		// 3 bytes address
-	
-//	spi_PDC_action( p, 0, BufferAddr, 4, size ) ;
-//}
-
-//void AT25D_Write( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset )
-//{
-//	register uint8_t *p ;
-	
-//	eeprom_write_enable() ;
-	
-//	p = Spi_tx_buf ;
-//	*p = 2 ;		// Write command
-//	*(p+1) = memoryOffset >> 16 ;
-//	*(p+2) = memoryOffset >> 8 ;
-//	*(p+3) = memoryOffset ;		// 3 bytes address
-		 
-//	spi_PDC_action( p, BufferAddr, 0, 4, size ) ;
-
-//	eeprom_wait_busy() ;
-
-//}
-
-//uint32_t AT25D_EraseBlock( uint32_t memoryOffset )
-//{
-//	register uint8_t *p ;
-//	register uint32_t x ;
-	
-//	eeprom_write_enable() ;
-//	p = Spi_tx_buf ;
-//	*p = 0x20 ;		// Block Erase command
-//	*(p+1) = memoryOffset >> 16 ;
-//	*(p+2) = memoryOffset >> 8 ;
-//	*(p+3) = memoryOffset ;		// 3 bytes address
-//	x = spi_operation( p, Spi_rx_buf, 4 ) ;
-
-//	eeprom_wait_busy() ;
-//	return x ;
-//}
-
-//uint32_t min( uint32_t a, uint32_t b )
-//{
-//	if ( a < b )
-//	{
-//		return a ;
-//	}
-//	return b ;
-//}
 
 /**
  * \brief Applet main entry. This function decodes received command and executes it.
@@ -819,7 +488,14 @@ int main(int argc, char **argv)
         /* Initialize the SPI and serial flash */
 				init_twi() ;
 
-
+				if ( coProcBoot() == 0 )		// Make sure we are in the bootloader
+				{
+          pMailbox->status = APPLET_NO_DEV ;
+				}
+				else
+				{
+          pMailbox->status = APPLET_SUCCESS ;
+				}
 
 //        SPID_Configure(&spid, SPI0, ID_SPI0, &dmad);
 //        AT25_Configure(&at25, &spid, SPI_CS, 1);
@@ -836,7 +512,6 @@ int main(int argc, char **argv)
 //        }
 //        else {
             /* Get device parameters */
-            pMailbox->status = APPLET_SUCCESS;
             pageSize = 128 ;
 //            pageSize = AT25_PageSize(&at25);
             blockSize = 128 ;

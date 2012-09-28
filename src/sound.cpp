@@ -698,7 +698,7 @@ void i2c_check_for_request()
 #ifndef SIMU
 		TWI0->TWI_TPR = (uint32_t)Co_proc_write_ptr ;
 #endif
-		TWI0->TWI_RCR = Co_proc_write_count ;
+		TWI0->TWI_TCR = Co_proc_write_count ;
 		TWI0->TWI_THR = TWI_CMD_WRITE_DATA ;	// Send write command
 		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
 		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
@@ -817,6 +817,18 @@ extern "C" void TWI0_IRQHandler()
 		if ( Coproc_read & 0x80 )			// Bootloader
 		{
 			CoProc_appgo_pending = 1 ;	// Action application
+		}
+		else
+		{ // Got data from tiny app
+			// Set the date and time
+			t_time *p = &Time ;
+
+			p->second = Co_proc_status[1] ;
+			p->minute = Co_proc_status[2] ;
+			p->hour = Co_proc_status[3] ;
+			p->date= Co_proc_status[4] ;
+			p->month = Co_proc_status[5] ;
+			p->year = Co_proc_status[6] + ( Co_proc_status[7] << 8 ) ;
 		}
 		TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
 		if ( TWI0->TWI_SR & TWI_SR_RXRDY )

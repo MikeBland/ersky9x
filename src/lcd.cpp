@@ -350,6 +350,8 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
     {
       x += fw;
     }
+    if (tmp >= 10000)
+      x += fw;
     if (tmp >= 1000)
       x += fw;
     if (tmp >= 100)

@@ -10,6 +10,15 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 28-Sep-2012  MPB
+Voice for thousands fixed
+Some types of WAV file headers read properly now
+RPM numeric display improved
+Real Time Clock added to co-processor
+Menu added to allow RTC to be set
+Co-processor applet updated
+
+******************************************
 CHANGELOG: 21-Sep-2012  MPB
 Rotary encoder improvements
 

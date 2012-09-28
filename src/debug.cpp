@@ -390,103 +390,103 @@ void handle_serial(void* pdata)
 		
 	//	}
 
-		if ( rxchar == 'B' )
-		{
-			register Adc *padc ;
+//		if ( rxchar == 'B' )
+//		{
+//			register Adc *padc ;
 
-			padc = ADC ;
-			p8hex( padc->ADC_CDR4 ) ;
-			crlf() ;
-			read_9_adc() ;
-			DACC->DACC_CDR = padc->ADC_CDR4 ;		// Battery 
-		}
+//			padc = ADC ;
+//			p8hex( padc->ADC_CDR4 ) ;
+//			crlf() ;
+//			read_9_adc() ;
+//			DACC->DACC_CDR = padc->ADC_CDR4 ;		// Battery 
+//		}
 	
-		if ( rxchar == 'R' )
-		{
-			register const volatile uint32_t *pword ;
-			register uint32_t i ;
+//		if ( rxchar == 'R' )
+//		{
+//			register const volatile uint32_t *pword ;
+//			register uint32_t i ;
 
-			pword = &ADC->ADC_CDR0 ;
-			txmit( 'R' ) ;
-			crlf() ;
-			for ( i = 0 ; i < 16 ; i += 1 )
-			{
-				p8hex( *pword++ ) ;
-				crlf() ;
-			}
-		}
+//			pword = &ADC->ADC_CDR0 ;
+//			txmit( 'R' ) ;
+//			crlf() ;
+//			for ( i = 0 ; i < 16 ; i += 1 )
+//			{
+//				p8hex( *pword++ ) ;
+//				crlf() ;
+//			}
+//		}
 	
-		if ( rxchar == 'K' )
-		{
-			txmit( 'K' ) ;
-			p8hex( read_keys() ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'K' )
+//		{
+//			txmit( 'K' ) ;
+//			p8hex( read_keys() ) ;
+//			crlf() ;
+//		}
 	
-		if ( rxchar == 'T' )
-		{
-			txmit( 'T' ) ;
-			p4hex( read_trims() ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'T' )
+//		{
+//			txmit( 'T' ) ;
+//			p4hex( read_trims() ) ;
+//			crlf() ;
+//		}
 
-		if ( rxchar == 'S' )
-		{
-			txmit( 'E' ) ;
-			p2hex( keyState( SW_ElevDR ) ) ;
-			crlf() ;
-			txmit( 'A' ) ;
-			p2hex( keyState( SW_AileDR ) ) ;
-			crlf() ;
-			txmit( 'R' ) ;
-			p2hex( keyState( SW_RuddDR ) ) ;
-			crlf() ;
-			txmit( 'G' ) ;
-			p2hex( keyState( SW_Gear ) ) ;
-			crlf() ;
-			txmit( 'C' ) ;
-			p2hex( keyState( SW_ThrCt ) ) ;
-			crlf() ;
-			txmit( 'T' ) ;
-			p2hex( keyState( SW_Trainer ) ) ;
-			crlf() ;
-			txmit( '0' ) ;
-			txmit( ' ' ) ;
-			p2hex( keyState( SW_ID0 ) ) ;
-			crlf() ;
-			txmit( '1' ) ;
-			txmit( ' ' ) ;
-			p2hex( keyState( SW_ID1 ) ) ;
-			crlf() ;
-			txmit( '2' ) ;
-			txmit( ' ' ) ;
-			p2hex( keyState( SW_ID2 ) ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'S' )
+//		{
+//			txmit( 'E' ) ;
+//			p2hex( keyState( SW_ElevDR ) ) ;
+//			crlf() ;
+//			txmit( 'A' ) ;
+//			p2hex( keyState( SW_AileDR ) ) ;
+//			crlf() ;
+//			txmit( 'R' ) ;
+//			p2hex( keyState( SW_RuddDR ) ) ;
+//			crlf() ;
+//			txmit( 'G' ) ;
+//			p2hex( keyState( SW_Gear ) ) ;
+//			crlf() ;
+//			txmit( 'C' ) ;
+//			p2hex( keyState( SW_ThrCt ) ) ;
+//			crlf() ;
+//			txmit( 'T' ) ;
+//			p2hex( keyState( SW_Trainer ) ) ;
+//			crlf() ;
+//			txmit( '0' ) ;
+//			txmit( ' ' ) ;
+//			p2hex( keyState( SW_ID0 ) ) ;
+//			crlf() ;
+//			txmit( '1' ) ;
+//			txmit( ' ' ) ;
+//			p2hex( keyState( SW_ID1 ) ) ;
+//			crlf() ;
+//			txmit( '2' ) ;
+//			txmit( ' ' ) ;
+//			p2hex( keyState( SW_ID2 ) ) ;
+//			crlf() ;
+//		}
 
-		if ( rxchar == 'Z' )
-		{
-			txmit( 'A' ) ;
-			txmit( ' ' ) ;
-			p8hex( PIOA->PIO_PDSR ) ;
-			crlf() ;
-			txmit( 'B' ) ;
-			txmit( ' ' ) ;
-			p8hex( PIOB->PIO_PDSR ) ;
-			crlf() ;
-			txmit( 'C' ) ;
-			txmit( ' ' ) ;
-			p8hex( PIOC->PIO_PDSR ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'Z' )
+//		{
+//			txmit( 'A' ) ;
+//			txmit( ' ' ) ;
+//			p8hex( PIOA->PIO_PDSR ) ;
+//			crlf() ;
+//			txmit( 'B' ) ;
+//			txmit( ' ' ) ;
+//			p8hex( PIOB->PIO_PDSR ) ;
+//			crlf() ;
+//			txmit( 'C' ) ;
+//			txmit( ' ' ) ;
+//			p8hex( PIOC->PIO_PDSR ) ;
+//			crlf() ;
+//		}
 		 
-		if ( rxchar == 'L' )
-		{
-			lcd_clear() ;
-			lcd_init() ;		
-			lcd_putsn_P( 7*FW, 0, "ERSKY9X", 7 ) ;
-			refreshDisplay() ;
-		}
+//		if ( rxchar == 'L' )
+//		{
+//			lcd_clear() ;
+//			lcd_init() ;		
+//			lcd_putsn_P( 7*FW, 0, "ERSKY9X", 7 ) ;
+//			refreshDisplay() ;
+//		}
 
 		if ( rxchar == 'D' )
 		{ // Directory listing
@@ -547,9 +547,9 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 
 	extern void read_volume( void ) ;
 	extern uint8_t Volume_read ;
-	extern void read_coprocessor( void ) ;
-	extern uint8_t Coproc_read ;
-	extern int8_t Coproc_valid ;
+//	extern void read_coprocessor( void ) ;
+//	extern uint8_t Coproc_read ;
+//	extern int8_t Coproc_valid ;
 	
 		if ( rxchar == 'W' )
 		{
@@ -560,16 +560,16 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 			crlf() ;
 		}
 
-		if ( rxchar == 'Q' )
-		{
-			read_coprocessor() ;
-			txmit( 'Q' ) ;
-			txmit( '-' ) ;
-			p2hex( Coproc_read ) ;
-			txmit( ' ' ) ;
-			p2hex( Coproc_valid ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'Q' )
+//		{
+//			read_coprocessor() ;
+//			txmit( 'Q' ) ;
+//			txmit( '-' ) ;
+//			p2hex( Coproc_read ) ;
+//			txmit( ' ' ) ;
+//			p2hex( Coproc_valid ) ;
+//			crlf() ;
+//		}
 
 
 	//		*(p+4) = 0 ;
@@ -771,7 +771,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 		if ( rxchar == 'U' )
 		{
 			uint32_t xfer ;
-			uint32_t done = 0 ;
+//			uint32_t done = 0 ;
 
 			txmit( 'U' ) ;
 			crlf() ;
@@ -1156,8 +1156,8 @@ FIL Tfile ;
 
 int32_t Ymodem_Receive (uint8_t *buf)
 {
-  uint8_t *file_ptr, *buf_ptr;
-  int32_t i, j, packet_length, session_done, file_done, packets_received, errors, session_begin ;
+  uint8_t *file_ptr; //, *buf_ptr;
+  int32_t i, packet_length, session_done, file_done, packets_received, errors, session_begin ;
 	FRESULT fr ;
 	uint32_t written ;
   /* Initialize FlashDestination variable */
@@ -1183,7 +1183,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
   for (session_done = 0, errors = 0, session_begin = 0; ;)
   {
 //		txmitBt( 'A' ) ;
-    for (packets_received = 0, file_done = 0, buf_ptr = buf; ;)
+    for (packets_received = 0, file_done = 0 /*, buf_ptr = buf*/; ;)
     {
 //			txmitBt( 'B' ) ;
       switch (Receive_Packet(packet_data, &packet_length, NAK_TIMEOUT))
@@ -1322,6 +1322,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
                 packets_received ++;
                 session_begin = 1;
               }
+							(void)fr ;
           }
           break;
         case 1:

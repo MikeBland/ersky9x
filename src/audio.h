@@ -260,9 +260,7 @@ extern void voice_task(void* pdata) ;
 
 
 #define V_HUNDRED			 100
-
-
-#define V_HUNDRED			 100
+#define V_THOUSAND		 110
 
 #if defined NMEA
   #define V_ALTITUDE				170
