@@ -71,9 +71,17 @@ typedef enum {
 
 DSTATUS disk_initialize (BYTE);
 DSTATUS disk_status (BYTE);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 DRESULT disk_read (BYTE, BYTE*, DWORD, BYTE);
 DRESULT disk_write (BYTE, const BYTE*, DWORD, BYTE);
 DRESULT disk_ioctl (BYTE, BYTE, BYTE*);
+#ifdef __cplusplus
+}
+#endif
+
 void disk_timerproc (void);
 
 

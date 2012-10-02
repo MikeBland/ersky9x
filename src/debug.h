@@ -1,5 +1,12 @@
+#include <inttypes.h>
 
-
+#define TRACE_DEBUG(...) { }
+#define TRACE_DEBUG_WP(...) { }
+#define TRACE_INFO(...) { }
+#define TRACE_INFO_WP(...) { }
+#define TRACE_WARNING(...) { }
+#define TRACE_WARNING_WP(...) { }
+#define TRACE_ERROR(...) { }
 
 extern void handle_serial( void ) ;
 extern void hello( void ) ;

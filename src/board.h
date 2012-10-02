@@ -672,5 +672,36 @@
 /// Address for transferring data bytes to the nandflash.
 #define BOARD_NF_DATA_ADDR      0x60000000
 
+extern uint32_t Cmd_A41_resp ;
+
+#define OCR_SD_CCS             (1UL << 30)
+
+#define SD_CSD(csd, bitfield, bits)   ((csd[3-(bitfield)/32] >> ((bitfield)%32)) & ((1 << (bits)) - 1))
+
+#define SD_CSD_C_SIZE(pSd)             ((SD_CSD(pSd, 72,  2) << 10) + \
+                                        (SD_CSD(pSd, 64,  8) << 2)  + \
+                                        SD_CSD(pSd, 62,  2)) ///< Device size
+
+#define SD_CSD_C_SIZE_HC(csd)          ((SD_CSD(csd, 64,  6) << 16) + \
+                                        (SD_CSD(csd, 56,  8) << 8)  + \
+                                        SD_CSD(csd, 48,  8)) ///< Device size v2.0 High Capacity
+
+#define SD_CSD_C_SIZE_MULT(pSd)        SD_CSD(pSd, 47,  3) ///< Device size multiplier
+
+#define SD_CSD_MULT(pSd)               (1 << (SD_CSD_C_SIZE_MULT(pSd) + 2))
+
+#define SD_CSD_BLOCKNR(pSd)            ((SD_CSD_C_SIZE(pSd) + 1) * SD_CSD_MULT(pSd))
+
+#define SD_CSD_BLOCKNR_HC(pSd)         ((SD_CSD_C_SIZE_HC(pSd) + 1) * 1024)
+
+#if !defined(SIMU)
+#define SD_IS_HC()                     (Cmd_A41_resp & OCR_SD_CCS)
+#define SD_GET_BLOCKNR()               (SD_IS_HC() ? (SD_CSD_BLOCKNR_HC(Card_CSD)) : (SD_CSD_BLOCKNR(Card_CSD)))
+
+#define SD_GET_SPEED()                 (transSpeed)
+
+#define SD_GET_SIZE_MB()               (SD_GET_BLOCKNR() / 2048)
+#endif
+
 #endif //#ifndef BOARD_H
 

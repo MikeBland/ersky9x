@@ -3082,9 +3082,13 @@ typedef struct {
 #define CKGR_PLLAR_MULA (0x7ff << 16) /**< \brief (CKGR_PLLAR) PLLA Multiplier */
 #define CKGR_PLLAR_STUCKTO1 (0x1 << 29) /**< \brief (CKGR_PLLAR)  */
 /* -------- CKGR_PLLBR : (PMC Offset: 0x002C) PLLB Register -------- */
-#define CKGR_PLLBR_DIVB (0xff << 0) /**< \brief (CKGR_PLLBR) Divider */
+#define CKGR_PLLBR_DIVB_Pos 0
+#define CKGR_PLLBR_DIVB_Msk (0xffu << CKGR_PLLBR_DIVB_Pos) /**< \brief (CKGR_PLLBR) Divider */
+#define CKGR_PLLBR_DIVB(value) ((CKGR_PLLBR_DIVB_Msk & ((value) << CKGR_PLLBR_DIVB_Pos)))
 #define CKGR_PLLBR_PLLBCOUNT (0x3f << 8) /**< \brief (CKGR_PLLBR) PLLB Counter */
-#define CKGR_PLLBR_MULB (0x7ff << 16) /**< \brief (CKGR_PLLBR) PLLB Multiplier */
+#define CKGR_PLLBR_MULB_Pos 16
+#define CKGR_PLLBR_MULB_Msk (0x7ffu << CKGR_PLLBR_MULB_Pos) /**< \brief (CKGR_PLLBR) PLLB Multiplier */
+#define CKGR_PLLBR_MULB(value) ((CKGR_PLLBR_MULB_Msk & ((value) << CKGR_PLLBR_MULB_Pos)))
 /* -------- PMC_MCKR : (PMC Offset: 0x0030) Master Clock Register -------- */
 #define PMC_MCKR_CSS (0x3 << 0) /**< \brief (PMC_MCKR) Master Clock Source Selection */
 #define   PMC_MCKR_CSS_SLOW_CLK (0x0 << 0) /**< \brief (PMC_MCKR) Slow Clock is selected */
@@ -3103,8 +3107,9 @@ typedef struct {
 #define PMC_MCKR_PLLBDIV2 (0x1 << 13) /**< \brief (PMC_MCKR) PLLB Divisor by 2 */
 /* -------- PMC_USB : (PMC Offset: 0x0038) USB Clock Register -------- */
 #define PMC_USB_USBS (0x1 << 0) /**< \brief (PMC_USB) USB Input Clock Selection */
-#define PMC_USB_USBDIV (0xf << 8) /**< \brief (PMC_USB) Divider for USB Clock. */
-/* -------- PMC_PCK[3] : (PMC Offset: 0x0040) Programmable Clock 0 Register -------- */
+#define PMC_USB_USBDIV_Pos 8
+#define PMC_USB_USBDIV_Msk (0xfu << PMC_USB_USBDIV_Pos) /**< \brief (PMC_USB) Divider for USB Clock. */
+#define PMC_USB_USBDIV(value) ((PMC_USB_USBDIV_Msk & ((value) << PMC_USB_USBDIV_Pos)))/* -------- PMC_PCK[3] : (PMC Offset: 0x0040) Programmable Clock 0 Register -------- */
 #define PMC_PCK_CSS (0x7 << 0) /**< \brief (PMC_PCK[3]) Master Clock Source Selection */
 #define PMC_PCK_PRES (0x7 << 4) /**< \brief (PMC_PCK[3]) Programmable Clock Prescaler */
 /* -------- PMC_IER : (PMC Offset: 0x0060) Interrupt Enable Register -------- */

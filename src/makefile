@@ -96,7 +96,13 @@ SRC  = core_cm3.c \
        board_lowlevel.c \
        crt.c \
        vectors_sam3s.c \
-       coos.c
+       coos.c \
+       usb/device/core/USBD_UDP.c usb/device/core/USBDDriver.c usb/device/core/USBDCallbacks.c \
+       usb/device/massstorage/MSDDriver.c usb/device/massstorage/MSDDStateMachine.c usb/device/massstorage/MSDLun.c usb/device/massstorage/MSDDriverDescriptors.c usb/device/massstorage/SBCMethods.c \
+       usb/common/core/USBEndpointDescriptor.c usb/common/core/USBGenericRequest.c usb/common/core/USBFeatureRequest.c usb/common/core/USBInterfaceRequest.c usb/common/core/USBGetDescriptorRequest.c \
+       usb/common/core/USBSetAddressRequest.c usb/common/core/USBSetConfigurationRequest.c \
+       usb/common/core/USBConfigurationDescriptor.c usb/common/core/USBGenericDescriptor.c \
+       MEDSdcard.c
 
 CPPSRC = stamp.cpp \
          drivers.cpp \
@@ -113,7 +119,8 @@ CPPSRC = stamp.cpp \
          menus.cpp \
          frsky.cpp \
          audio.cpp \
-         ersky9x.cpp
+         ersky9x.cpp \
+         massstorage.cpp
 
 # List ASM source files here
 ASRC =
