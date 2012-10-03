@@ -258,7 +258,7 @@ LDFLAGS += $(patsubst %,-L%,$(EXTRALIBDIRS))
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 LDFLAGS += -Wl,--section-start=.text=0x00D0
 LDFLAGS += -Wl,--section-start=.vectors=0x0080
-LDFLAGS += -T avr3-167.x
+LDFLAGS += -T avr3-167.ld
 LDFLAGS += -N
 
 

@@ -11,16 +11,16 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 
-
-
 #include "USI_TWI_Slave.h"
 
+#define sbi(port,bit)  (port |= (1<<bit))   //set bit in port
+#define cbi(port,bit)  (port &= ~(1<<bit))  //clear bit in port
+#define SLEEP_MODE_PWR_SAVE (_BV(SM0) | _BV(SM1))
 #define FORCE_INDIRECT(ptr) __asm__ __volatile__ ("" : "=e" (ptr) : "0" (ptr))
 #define NOINLINE __attribute__ ((noinline))
 
 // Version number, sent in first byte of response
-#define VERSION				 0x02
-
+#define VERSION				 0x03
 
 /*****************************************************************************/
 // USI_TWI write states.
@@ -38,6 +38,22 @@
 
 #define DATA_SIZE		16		// Receive data buffer size
 
+#define TEMPERATURE				0b01001011    
+
+// Signature row addresses
+#define TSOFFSET		5
+#define TSGAIN			7
+
+// Bits in AdcControl
+#define	ADC_RUNNING			0x80
+#define ADC_COUNT_MASK	0x0F
+
+uint8_t AdcControl ;
+uint16_t AdcTotal ;
+int8_t	T_offset ;
+uint8_t T_gain ;
+int16_t T_mult ;
+
 // USI_TWI state values.
 static uint8_t USI_TWI_SLAVE_Write_State;
 static uint8_t USI_TWI_SLAVE_Overflow_State;
@@ -50,12 +66,10 @@ static uint8_t Command_Flag;
 //static uint16_t USI_TWI_SLAVE_PAGE_Address;
 
 uint8_t DataBuffer[DATA_SIZE];
- 
 static uint8_t *bufferPtr ;
 static uint8_t Value;
-
 uint8_t Tx_buffer[22] ;
-//uint8_t ReceiveType = 0 ;
+int8_t Temperature;
 static uint8_t Tx_index ;
 
 typedef struct
@@ -79,6 +93,8 @@ void set_clock( uint8_t speed ) ;
 void checkPowerSave( void ) ;
 static void Disable_WatchDogTimer(void) ;
 static void Init_WatchDogTimer(void) ;
+void enableAdc( void ) ;
+void disableAdc( void ) ;
 
 
 char not_leap(void)      //check for leap year
@@ -176,6 +192,7 @@ void checkPowerSave()
 	CLKPR = 0 ;				// Full speed 8.0MHz
 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
 	TIMSK0 |= (1 << TOIE0) ;
+	disableAdc() ;
   PRR = 0x3B ;		// Power off USI
 	Disable_WatchDogTimer() ;
 	set_clock( 2 ) ;		// Slow to 2.0 MHz
@@ -192,6 +209,7 @@ void checkPowerSave()
   PRR = 0x39 ;		// USI re-powered
   Init_WatchDogTimer() ;
   USI_TWI_SLAVE_Init();
+	enableAdc() ;
 	TIMSK0 &= ~(1 << TOIE0) ;
   USISR = (1<<USISIF) | (1<<USIOIF) | (1<<USIPF) ;        // Clear interrupt flags.
 	set_clock( 5 ) ;		// Slow to 0.25MHz
@@ -274,18 +292,18 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 	while(1)
 	{
    // Check for USI TWI start condition.
-   if (USISR & (1<<USISIF))
-   {
+	  if (USISR & (1<<USISIF))
+  	{
 			CLKPR = 0x80 ;		// Do inline for quick response
 			CLKPR = 0 ;				// Full speed 8.0MHz
       // Process the USI TWI start condition.
       USI_TWI_SLAVE_Process_Start_Condition();
 
-   }
+  	}
   
    // Check for USI_TWI_SLAVE overflow condition.
-   if (USISR & (1<<USIOIF))
-   {
+  	if (USISR & (1<<USIOIF))
+	  {
 	 		ActivityFlag = 0 ;
       // Handle the TWI overflow condition.
       USI_TWI_SLAVE_Process_Overflow_Condition();
@@ -311,11 +329,11 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
       
       .....Till here.........*/
       
-   }
+	  }
    
    // Check for TWI stop condition.
-   if (USISR & (1<<USIPF))
-   {
+	  if (USISR & (1<<USIPF))
+  	{
        // Clear the stop condition flag.
         USISR = (1<<USIPF);
         // Check for the special address to exit the bootloader.
@@ -331,41 +349,100 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
         }
 			set_clock( 5 ) ;		// Slow to 0.25MHz
 		}
-	 wdt_reset() ;
+		wdt_reset() ;
 
-	 if ( TIFR0 & 1 )
-	 {
-		TIFR0 = 1 ;		// CLEAR flag (write 1)
-		updateTime(1) ;
-		t_time *p = &Time ;
-		uint8_t *q = &Tx_buffer[1] ;
+		if ( TIFR0 & 1 )
+		{
+			CLKPR = 0x80 ;		// Do inline for quick response
+			CLKPR = 0 ;				// Full speed 8.0MHz
+	 	
+			TIFR0 = 1 ;		// CLEAR flag (write 1)
+			updateTime(1) ;
+			t_time *p = &Time ;
+			uint8_t *q = &Tx_buffer[1] ;
 //		FORCE_INDIRECT(p) ;
 
-		*q++ = p->second ;
-		*q++ = p->minute ;
-		*q++ = p->hour ;
-		*q++ = p->date ;
-		*q++ = p->month ;
-		*q++ = p->year ;
-		*q++ = p->year >> 8 ;
-		*q++ = MCUSR ;
+			*q++ = p->second ;
+			*q++ = p->minute ;
+			*q++ = p->hour ;
+			*q++ = p->date ;
+			*q++ = p->month ;
+			*q++ = p->year ;
+			*q++ = p->year >> 8 ;
+			*q++ = Temperature ;
+			*q++ = T_offset ;
+			*q++ = T_gain ;
+//		*q++ = MCUSR ;
 
 			if ( ActivityFlag < 255 )
 			{
 				ActivityFlag += 1 ;
 			}
-	 }
+			set_clock( 5 ) ;		// Slow to 0.25MHz
+		}
 
-	 checkPowerSave() ;
+		checkPowerSave() ;
 
-  }   
+		if ( ( AdcControl & ADC_RUNNING ) == 0 )
+		{
+		  ADMUX = TEMPERATURE ;       // Internal 1.1V REF and ADCx
+		  ADCSRA |= (1<<ADSC);        // do single conversion
+			AdcControl |= ADC_RUNNING ;
+		}
+		else
+		{
+			if ( ( ADCSRA & (1<<ADSC) ) == 0 )
+			{
+				AdcControl &= ~ADC_RUNNING ;
+				AdcControl += 1 ;
+				if ( ( AdcControl & ADC_COUNT_MASK ) > 1 )
+				{ // Skip first conversion
+					AdcTotal += ADCW ;				
+				}
+				if ( ( AdcControl & ADC_COUNT_MASK ) >= 9 )
+				{
+					AdcTotal += 4 ;
+					AdcTotal >>= 3 ;
+					{
+						int16_t temp ;
+
+						temp = AdcTotal ;
+						temp -= 298 ;
+						temp += T_offset ;
+						temp *= T_mult ;
+						temp >>= 8 ;
+						temp += 25 ;
+						Temperature = temp ;
+					}
+					AdcControl = 0 ;
+					AdcTotal = 0 ;
+
+
+//    			if (AdcTotal < 0x00f6)
+//					{
+//    			  Temperature=-40;
+//    			}
+//					else if (AdcTotal < 0x0144)
+//					{
+//    			  Temperature=((AdcTotal*78)/65)-40;
+//    			}
+//					else
+//					{
+//    			  Temperature=((((AdcTotal-324)*600)/74)+250)/10;
+//    			}  
+				}
+			}
+		}
+  } // while
 //  Disable_WatchDogTimer(); // After Reset the WDT state does not change
 //  void (*FuncPtr) (void) = (void (*)(void)) (0x0080);	// Set up function pointer to address 0x0080
 //  FuncPtr ();
-	TCCR0B = 0 ;		// Divide/128
+	TCCR0B = 0 ;
   USICR = 0 ;
   USISR = 0 ;
   PRR = 0 ;
+	CLKPR = 0x80 ;		// Do inline for quick response
+	CLKPR = 0 ;				// Full speed 8.0MHz
 	((void (*)(void)) (0))() ;
 }
 
@@ -802,35 +879,13 @@ void main (void)
     
   Init_WatchDogTimer() ;
 
-	 /*RTC 32.768kHz, div 32, CTC(auto-reload) mode*/
+	 /*RTC 32.768kHz, div 128 */
 	{
-//		uint8_t saved_clkselr ;
-//		uint16_t timeout ;
-
-//    saved_clkselr = CLKSELR;
-//    CLKSELR = 0b00100100;/*Select Low-frequency Crystal Oscillator*/
-//    CLKCSR = 0b10000000;
-//    CLKCSR = 0b00000010;/*Enable low-freq crystal oscillator*/
-//    CLKCSR = 0b10000000;
-//    CLKCSR = 0b00000011;/*Check clock availability*/
-//		timeout = 35000 ;
-//    while((CLKCSR & (1 << CLKRDY) ) == 0 )
-//		{
-//			if ( --timeout == 0 )
-//			{
-//				break ;				
-//			}
-//		} /*Wait for clock ready*/
-//    CLKSELR = saved_clkselr ;
-
     PRR = 0x39 ;
 		TCCR0A = 0 ;
 		TCCR0B = 5 ;		// Divide/128
 		ASSR = 0x20 ;		// Async mode
     while((ASSR & 0b00011011) != 0x00);/*Wait until TCNT0, OCR0A, TCCR0A and TCCR0B updated*/
-//		TCCR0A = 0 ;
-//		TCCR0B = 5 ;		// Divide/128
-//    while((ASSR & 0b00011011) != 0x00);/*Wait until TCNT0, OCR0A, TCCR0A and TCCR0B updated*/
     TIFR0 = 0x01;/*Clear T0 int flag*/
 
 	}
@@ -846,9 +901,29 @@ void main (void)
 
 	bufferPtr = DataBuffer ;
 
+	T_offset = boot_signature_byte_get( TSOFFSET ) ;
+	T_gain = boot_signature_byte_get( TSGAIN ) ;
+	T_mult = 32768U / T_gain ;
+
+	enableAdc() ;
 	for(;;)
 	{
 		USI_TWI_SLAVE_ReadAndProcessPacket() ;
 	}
+}
+
+
+// Enable ADC  
+void enableAdc()
+{
+  cbi( PRR, PRADC ) ;		// Power the ADC
+	ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1);	// set ADC prescaler to , 8MHz / 64 = 125kHz    
+}
+
+// Disable ADC  
+void disableAdc()
+{
+	ADCSRA = (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0) ;	// set ADC prescaler to , 8MHz / 256 = 30kHz
+  sbi( PRR, PRADC ) ;		// Power Down the ADC
 }
 
