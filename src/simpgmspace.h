@@ -96,7 +96,7 @@ typedef const int16_t pm_int16_t;
 typedef const int8_t pm_int8_t;
 
 extern sem_t *eeprom_write_sem;
-#if defined(PCBARM)
+
 extern Pio Pioa, Piob, Pioc;
 extern Twi Twio;
 extern Usart Usart0;
@@ -122,11 +122,7 @@ extern void startPdcUsartReceive() ;
 extern uint32_t txPdcUsart( uint8_t *buffer, uint32_t size );
 extern uint32_t txPdcPending();
 extern void rxPdcUsart( void (*pChProcess)(uint8_t x) );
-#else
-#define PIOA 0
-#define PIOB 0
-#define PIOC 0
-#endif
+
 
 #define PORTA dummyport
 #define PORTB portb
@@ -239,7 +235,6 @@ extern void rxPdcUsart( void (*pChProcess)(uint8_t x) );
 #define UPE0    0
 #define FE0     0
 
-#if defined(PCBARM)
 extern volatile uint32_t Tenms;
 extern uint32_t Master_frequency;
 #define NVIC_EnableIRQ(x)
@@ -250,7 +245,6 @@ extern uint32_t Master_frequency;
 #define CoSchedLock(...)
 #define CoSchedUnlock(...)
 #define CoTickDelay(...)
-#endif
 
 extern volatile unsigned char pinb,pinc,pind,pine,ping,pinh,pinj,pinl;
 extern uint8_t portb, portc, porth, dummyport;
