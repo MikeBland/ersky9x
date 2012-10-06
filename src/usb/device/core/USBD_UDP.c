@@ -1000,7 +1000,7 @@ static void UDP_EndpointHandler(unsigned char bEndpoint)
 /// Manages device resume, suspend, end of bus reset. 
 /// Forwards endpoint interrupts to the appropriate handler.
 //------------------------------------------------------------------------------
-void USBD_IrqHandler(void)
+void USBD_IRQHandler(void)
 {
     unsigned int status;
     int eptnum = 0;
@@ -1693,7 +1693,6 @@ void USBD_Disconnect(void)
 void USBD_Init(void)
 {
     TRACE_INFO_WP("USBD_Init\n\r");
-
     // Reset endpoint structures
     UDP_ResetEndpoints();
 

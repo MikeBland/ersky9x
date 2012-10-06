@@ -35,9 +35,11 @@
 #include "USBD.h"
 #include <board.h>
 #include <core_cm3.h>
+#include "debug.h"
 
 void USBDCallbacks_Initialized(void)
 {
+	UDP->UDP_ICR = 0x00000200 ;	// CLear RXRSM flag
     NVIC_EnableIRQ(UDP_IRQn);
 }
 

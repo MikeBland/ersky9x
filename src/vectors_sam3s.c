@@ -192,6 +192,7 @@ void DAC_IRQHandler (void) { while(1); }
 void PWM_IRQHandler (void) { while(1); }
 void CRCCU_IRQHandler (void) { while(1); }
 void ACC_IRQHandler (void) { while(1); }
+void USBD_IRQHandler (void) { while(1); }
 // void USBD_IRQHandler (void) { while(1); }
 
 /*** EOF ***/

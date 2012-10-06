@@ -396,7 +396,7 @@ ALL_ASFLAGS = -mmcu=$(MCU) -I. -x assembler-with-cpp $(ASFLAGS)
 all: begin gccversion sizebefore build sizeafter end
 
 # Change the build target to build a HEX file or a library.
-build: elf hex eep lss sym
+build: elf hex eep lss sym bin
 #build: lib
 
 
@@ -405,6 +405,7 @@ hex: $(TARGET).hex
 eep: $(TARGET).eep
 lss: $(TARGET).lss
 sym: $(TARGET).sym
+bin: $(TARGET).bin
 LIBNAME=lib$(TARGET).a
 lib: $(LIBNAME)
 
@@ -524,6 +525,8 @@ extcoff: $(TARGET).elf
 	@echo $(MSG_SYMBOL_TABLE) $@
 	$(NM) -n $< > $@
 
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
 
 
 # Create library from object files.

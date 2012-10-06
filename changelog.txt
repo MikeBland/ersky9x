@@ -10,6 +10,13 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 06-Oct-2012  MPB
+USB Mass Storage !!
+Date/Time minor bug fix
+CO-Proc Temperature
+Watchdog to 1.5 Seconds (from 16)
+
+******************************************
 CHANGELOG: 28-Sep-2012  MPB
 Voice for thousands fixed
 Some types of WAV file headers read properly now

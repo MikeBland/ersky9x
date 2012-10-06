@@ -46,6 +46,7 @@
 
 // Bits in AdcControl
 #define	ADC_RUNNING			0x80
+#define	ADC_CALC				0x40
 #define ADC_COUNT_MASK	0x0F
 
 uint8_t AdcControl ;
@@ -380,26 +381,11 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 			}
 			set_clock( 5 ) ;		// Slow to 0.25MHz
 		}
-
-		checkPowerSave() ;
-
-		if ( ( AdcControl & ADC_RUNNING ) == 0 )
+		else // If time done, don't do ADC, minimise loop latency
 		{
-		  ADMUX = TEMPERATURE ;       // Internal 1.1V REF and ADCx
-		  ADCSRA |= (1<<ADSC);        // do single conversion
-			AdcControl |= ADC_RUNNING ;
-		}
-		else
-		{
-			if ( ( ADCSRA & (1<<ADSC) ) == 0 )
+			if ( ( AdcControl & ADC_RUNNING ) == 0 )
 			{
-				AdcControl &= ~ADC_RUNNING ;
-				AdcControl += 1 ;
-				if ( ( AdcControl & ADC_COUNT_MASK ) > 1 )
-				{ // Skip first conversion
-					AdcTotal += ADCW ;				
-				}
-				if ( ( AdcControl & ADC_COUNT_MASK ) >= 9 )
+				if ( AdcControl & ADC_CALC )
 				{
 					AdcTotal += 4 ;
 					AdcTotal >>= 3 ;
@@ -416,32 +402,44 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 					}
 					AdcControl = 0 ;
 					AdcTotal = 0 ;
-
-
-//    			if (AdcTotal < 0x00f6)
-//					{
-//    			  Temperature=-40;
-//    			}
-//					else if (AdcTotal < 0x0144)
-//					{
-//    			  Temperature=((AdcTotal*78)/65)-40;
-//    			}
-//					else
-//					{
-//    			  Temperature=((((AdcTotal-324)*600)/74)+250)/10;
-//    			}  
+				}
+				else
+				{
+			  	ADMUX = TEMPERATURE ;       // Internal 1.1V REF and ADCx
+			  	ADCSRA |= (1<<ADSC);        // do single conversion
+					AdcControl |= ADC_RUNNING ;
+				}
+			}
+			else
+			{
+				if ( ( ADCSRA & (1<<ADSC) ) == 0 )
+				{
+					AdcControl &= ~ADC_RUNNING ;
+					AdcControl += 1 ;
+					if ( ( AdcControl & ADC_COUNT_MASK ) > 1 )
+					{ // Skip first conversion
+						AdcTotal += ADCW ;				
+					}
+					if ( ( AdcControl & ADC_COUNT_MASK ) >= 9 )
+					{
+						AdcControl = ADC_CALC ;
+					}
 				}
 			}
 		}
+		checkPowerSave() ;
   } // while
 //  Disable_WatchDogTimer(); // After Reset the WDT state does not change
 //  void (*FuncPtr) (void) = (void (*)(void)) (0x0080);	// Set up function pointer to address 0x0080
 //  FuncPtr ();
+	ADCSRA = 0 ;
 	TCCR0B = 0 ;
   USICR = 0 ;
   USISR = 0 ;
+	ASSR = 0 ;
   PRR = 0 ;
-	CLKPR = 0x80 ;		// Do inline for quick response
+	cli() ;
+	CLKPR = 0x80 ;
 	CLKPR = 0 ;				// Full speed 8.0MHz
 	((void (*)(void)) (0))() ;
 }

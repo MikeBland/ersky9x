@@ -57,6 +57,22 @@
 #include "CoOS.h"
 #endif
 
+
+extern "C" void utxmit( uint8_t c ) ;
+extern "C" void utxmit( uint8_t c )
+{
+	txmit( c ) ;
+}
+
+extern "C" void up8hex( uint32_t value ) ;
+extern "C" void up8hex( uint32_t value )
+{
+	p8hex( value ) ;
+}
+
+#define YMODEM 				0
+#define VOICE_TEST		0
+
 //#include "s9xsplash.lbm"
 
 //extern uint32_t Per10ms_action ;
@@ -64,6 +80,7 @@
 void disp_256( uint32_t address, uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
+#if YMODEM
 #define PACKET_SEQNO_INDEX      (1)
 #define PACKET_SEQNO_COMP_INDEX (2)
 
@@ -94,7 +111,6 @@ void disp_256( uint32_t address, uint32_t lines ) ;
 /* Exported functions ------------------------------------------------------- */
 int32_t Ymodem_Receive (uint8_t *p ) ;
 
-
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -107,6 +123,7 @@ int32_t Ymodem_Receive (uint8_t *p ) ;
 //FLASH_Status FLASHStatus = FLASH_COMPLETE;
 uint32_t RamSource;
 extern uint8_t tab_1024[1024];
+#endif
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -132,22 +149,28 @@ uint32_t Next_mem_address ;
 uint32_t Memaddmode ;
 uint32_t SoundCheck ;
 
+#if VOICE_TEST
 uint8_t Sdcard_data[1024] ;
+#endif
 
+#if YMODEM
 uint8_t Ymbuffer[10] ;
+uint8_t file_name[FILE_NAME_LENGTH];
+#endif
 
+#if VOICE_TEST
 FIL T_file ;
 FATFS g_FATFS_Obj ;
 
-uint8_t file_name[FILE_NAME_LENGTH];
 DIR Dir ;
-
+#endif
 
 void handle_serial(void* pdata)
 {
 	uint16_t rxchar ;
+#if VOICE_TEST
 	static uint32_t SdAddress = 0 ;
-
+#endif
 	for(;;)
 	{
 		if ( SoundCheck )
@@ -204,7 +227,40 @@ void handle_serial(void* pdata)
 
 		}
 
+//extern void usbMassStorage( void ) ;
+//extern uint32_t UsbTimer ;
 
+//		if ( rxchar == 'm' )
+//		{
+//			txmit( 'm' ) ;
+//			if ( UsbTimer < 5000 )		// 10 Seconds
+//			{
+//				UsbTimer = 5001 ;
+//			}
+//			for(;;)
+//			{
+//				CoSchedLock() ;
+//				if ( Voice.VoiceLock == 0 )
+//				{
+//					break ;
+//				}
+//  		  CoSchedUnlock() ;
+//				CoTickDelay(1) ;					// 2mS
+//			}
+//			Voice.VoiceLock = 1 ;
+//  		CoSchedUnlock() ;
+//			txmit( 's' ) ;
+//			while ( rxchar != 0x1B )
+//			{
+//      	usbMassStorage();
+//      	CoTickDelay(1);  // 5*2ms for now
+//				rxchar = rxuart() ;
+//			}
+//			Voice.VoiceLock = 0 ;
+//			crlf() ;
+//		}
+
+#if VOICE_TEST
 		if ( ( rxchar == 'M' ) || ( rxchar == 'N' ) )
 		{
 			FRESULT fr ;
@@ -362,6 +418,7 @@ void handle_serial(void* pdata)
 			}
 			crlf() ;
 		}
+#endif
 	 
 
 		if ( rxchar == '?' )
@@ -488,6 +545,7 @@ void handle_serial(void* pdata)
 //			refreshDisplay() ;
 //		}
 
+#if VOICE_TEST
 		if ( rxchar == 'D' )
 		{ // Directory listing
 			txmit( 'D' ) ;
@@ -515,7 +573,9 @@ void handle_serial(void* pdata)
 
 			}	
 		}
+#endif
 
+#if YMODEM
 		if ( rxchar == 'Y' )
 		{ // Enter Ymodem mode
 			int32_t result ;
@@ -532,6 +592,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 			}
 			crlf() ;
 		}
+#endif
 
 		if ( rxchar == 'H' )
 		{
@@ -593,6 +654,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		crlf() ;
 	//	}
 
+#if VOICE_TEST
 	#define SD_ST_EMPTY		0
 	#define SD_ST_IDLE		1
 	#define SD_ST_READY		2
@@ -736,6 +798,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 				SdAddress += 1 ;
 			}
 		}
+#endif
 
 	//		register uint8_t *p ;
 	//		register uint32_t x ;
@@ -1005,6 +1068,7 @@ void disp_256( register uint32_t address, register uint32_t lines )
 
 
 
+#if YMODEM
 
 static int32_t Receive_Byte (uint8_t *c, uint32_t timeout)
 {
@@ -1369,7 +1433,7 @@ int32_t Ymodem_Receive (uint8_t *buf)
   return (int32_t)size ;
 }
 
-
+#endif
 
 /* Perform a CRC16 computation over `buf'. This method was derived from
  * an algorithm (C) 1986 by Gary S. Brown, and was checked against an

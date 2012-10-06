@@ -130,7 +130,7 @@ extern uint32_t SD_SetBusWidth( uint32_t busWidth) ;
 extern void SD_EnableHsMode( uint8_t hsEnable) ;
 extern uint32_t SD_SetSpeed( uint32_t mciSpeed ) ;
 extern void SD_Reset( uint8_t keepSettings) ;
-extern void sd_cmd55( void ) ;
+extern uint32_t sd_cmd55( void ) ;
 extern uint32_t sd_acmd41( void ) ;
 extern uint32_t sd_cmd2( void ) ;
 extern uint32_t sd_cmd3( void ) ;

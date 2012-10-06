@@ -33,6 +33,12 @@
 
 #include "ersky9x.h"
 #include "board.h"
+#include "debug.h"
+#include "Audio.h"
+
+#ifndef SIMU
+#include "CoOS.h"
+#endif
 
 #ifndef SIMU
 
@@ -92,37 +98,57 @@ static void MSDCallbacks_Data( unsigned char flowDirection, unsigned int dataLen
 
 void usbMassStorage()
 {
-  static bool initialized = false;
+  static bool initialized = false ;
+  static bool active = false ;
 
-  if ( PIOC->PIO_PDSR & 0x02000000 ) {
+  if ( PIOC->PIO_PDSR & 0x02000000 )
+	{
     // TRACE_DEBUG("usbMassStorage\n\r");
 
-    if (!initialized) {
-
+    if (!initialized)
+		{
       ConfigureUsbClock();
-
       /* Initialize LUN */
       MEDSdcard_Initialize(&(medias[DRV_SDMMC]), 0);
-
       LUN_Init(&(luns[DRV_SDMMC]), &(medias[DRV_SDMMC]),
           msdBuffer, MSD_BUFFER_SIZE,
           0, 0, 0, 0,
           MSDCallbacks_Data);
-
       /* BOT driver initialization */
       MSDDriver_Initialize(luns, 1);
-
       // VBus_Configure();
       USBD_Connect();
-
       initialized = true;
     }
 
-    /* Mass storage state machine */
-    for (uint8_t i=0; i<50; i++)
-      MSDDriver_StateMachine();
+  	if ( active == false )
+		{
+			CoSchedLock() ;
+			if ( Voice.VoiceLock == 0 )
+			{
+				Voice.VoiceLock = 1 ;
+				active = true ;
+			}
+  		CoSchedUnlock() ;
+		}
+
+  	if ( active )
+		{
+    	/* Mass storage state machine */
+    	for (uint8_t i=0; i<50; i++)
+			{
+    	  MSDDriver_StateMachine() ;
+			}
+		}
   }
-  else {
+  else
+	{
+  	if ( active )
+		{
+  		active = false ;
+			Voice.VoiceLock = 0 ;
+		}
+		
     msdReadTotal = 0;
     msdWriteTotal = 0;
   }

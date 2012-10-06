@@ -3182,7 +3182,7 @@ void menuProcDiagAna(uint8_t event)
     lcd_putc( 4*FW, y, 'A' ) ;
     lcd_putc( 5*FW, y, '1'+i ) ;
     lcd_outhex4( 7*FW, y,anaIn(i));
-    if(i<7)  lcd_outdez(15*FW, y, (int32_t)calibratedStick[i]*100/1024);
+    if(i<7)  lcd_outdezAtt(16*FW, y, (int32_t)calibratedStick[i]*1000/1024, PREC1);
     if(i==7) putsVBat(15*FW,y,(sub==1 ? INVERS : 0)|PREC1);
   }
   if(sub==1)
@@ -4238,6 +4238,14 @@ void menuProcDate(uint8_t event)
 			{	
 				t_time *p = &EntryTime ;
 
+				if ( Time.date == 0 )
+				{
+					Time.date = 1 ;
+				}
+				if ( Time.month == 0 )
+				{
+					Time.month = 1 ;
+				}
 				p->second = Time.second ;
 				p->minute = Time.minute ;
 				p->hour   = Time.hour ;
@@ -4269,6 +4277,10 @@ void menuProcDate(uint8_t event)
 		lcd_outdezNAtt( 10*FW,   1*FH, Time.year, LEADING0, 4 ) ;
 		dispMonth( 3*FW, 1*FH, Time.month, 0 ) ;
 
+    lcd_outhex4( 17*FW+4, 6*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+extern uint8_t Co_proc_status[] ;
+		lcd_outdezAtt( 21*FW, 7*FH, (uint8_t)Co_proc_status[8], 0 ) ;
+
     int8_t  sub    = mstate2.m_posVert;
 
 		for (uint8_t subN=1; subN<7; subN++)
@@ -4297,12 +4309,12 @@ void menuProcDate(uint8_t event)
 			  	if(sub==subN)  EntryTime.date = checkIncDec( event,  EntryTime.date, 1, 31, 0 ) ;
 				break ;
 				case 5 :
-			  	lcd_puts_Pleft( 6*FH, PSTR("Month") );
+			  	lcd_puts_Pleft( 6*FH, PSTR("Month\013Status") );
 					dispMonth( 5*FW+3, 6*FH, EntryTime.month, attr ) ;
 			  	if(sub==subN)  EntryTime.month = checkIncDec( event,  EntryTime.month, 1, 12, 0 ) ;
 				break ;
 				case 6 :
-			  	lcd_puts_Pleft( 7*FH, PSTR("Year") );
+			  	lcd_puts_Pleft( 7*FH, PSTR("Year\013Temp.") );
 					lcd_outdezNAtt( 9*FW-2, 7*FH, EntryTime.year, LEADING0|attr, 4 ) ;
 			  	if(sub==subN)  EntryTime.year = checkIncDec16( event,  EntryTime.year, 0, 2999, 0 ) ;
 				break ;

@@ -227,6 +227,7 @@ void init_twi( void ) ;
 uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number ) ;
 uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number ) ;
 uint32_t coProcBoot( void ) ;
+uint32_t read_status_CoProc( uint32_t bufaddr, uint32_t number ) ;
 
 void init_twi()
 {
@@ -241,7 +242,7 @@ void init_twi()
   pioptr->PIO_ABCDSR[1] &= ~0x00000018 ;	// Peripheral A
   pioptr->PIO_PDR = 0x00000018 ;					// Assign to peripheral
 	
-	timing = 64000000 * 5 / 2000000 ;		// 5uS high and low 100kHz, trying 200 kHz
+	timing = 64000000 * 5 / 1500000 ;		// 5uS high and low 100kHz, trying 200 kHz
 	timing += 15 - 4 ;
 	timing /= 16 ;
 	timing |= timing << 8 ;
@@ -253,6 +254,56 @@ void init_twi()
 
 
 uint8_t Addr_buffer[132] ;
+
+
+uint32_t read_status_CoProc( uint32_t bufaddr, uint32_t number )
+{
+	uint32_t i ;
+	
+	TWI0->TWI_MMR = 0x00351000 ;		// Device 35 and master is reading,
+	TWI0->TWI_RPR = bufaddr ;
+	TWI0->TWI_RCR = number-1 ;
+	if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+	{
+		(void) TWI0->TWI_RHR ;
+	}
+	TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start transfers
+	TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
+	
+	// Now wait for completion
+	
+	for ( i = 0 ; i < 1000000 ; i += 1 )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_RXBUFF )
+		{
+			break ;
+		}
+	}
+	// Finished reading
+	TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
+	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Rx
+	TWI0->TWI_RCR = 1 ;						// Last byte
+
+	if ( i >= 1000000 )
+	{
+		return 0 ;
+	}
+	// Now wait for completion
+	
+	for ( i = 0 ; i < 100000 ; i += 1 )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_TXCOMP )
+		{
+			break ;
+		}	
+	}
+	if ( i >= 100000 )
+	{
+		return 0 ;
+	}
+	return 1 ;
+}
+
 
 uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number )
 {
@@ -270,7 +321,7 @@ uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number
 			
 	TWI0->TWI_THR = Addr_buffer[0] ;		// Send data
 	// kick off PDC, enable PDC end interrupt
-	TWI0->TWI_PTCR = SPI_PTCR_TXTEN ;	// Start transfers
+	TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start transfers
 	
 	// Now wait for completion
 	
@@ -282,7 +333,7 @@ uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number
 		}
 	}
 	// Finished reading
-	TWI0->TWI_PTCR = SPI_PTCR_TXTDIS ;	// Stop transfers
+	TWI0->TWI_PTCR = TWI_PTCR_TXTDIS ;	// Stop transfers
 	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 	if ( i >= 1000000 )
 	{
@@ -308,7 +359,7 @@ uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number
 	{
 		(void) TWI0->TWI_RHR ;
 	}
-	TWI0->TWI_PTCR = SPI_PTCR_RXTEN ;	// Start transfers
+	TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start transfers
 	TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
 	
 	// Now wait for completion
@@ -321,7 +372,7 @@ uint32_t read_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t number
 		}
 	}
 	// Finished reading
-	TWI0->TWI_PTCR = SPI_PTCR_RXTDIS ;	// Stop transfers
+	TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
 	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Rx
 	if ( TWI0->TWI_SR & TWI_SR_RXRDY )
 	{
@@ -403,7 +454,7 @@ uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t numbe
 			
 	TWI0->TWI_THR = Addr_buffer[0] ;		// Send data
 	// kick off PDC, enable PDC end interrupt
-	TWI0->TWI_PTCR = SPI_PTCR_TXTEN ;	// Start transfers
+	TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start transfers
 	
 	// Now wait for completion
 	
@@ -415,7 +466,7 @@ uint32_t write_CoProc( uint32_t coInternalAddr, uint32_t bufaddr, uint32_t numbe
 		}
 	}
 	// Finished reading
-	TWI0->TWI_PTCR = SPI_PTCR_TXTDIS ;	// Stop transfers
+	TWI0->TWI_PTCR = TWI_PTCR_TXTDIS ;	// Stop transfers
 	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 	if ( i >= 1000000 )
 	{
@@ -488,14 +539,45 @@ int main(int argc, char **argv)
         /* Initialize the SPI and serial flash */
 				init_twi() ;
 
-				if ( coProcBoot() == 0 )		// Make sure we are in the bootloader
+				if ( read_status_CoProc( (uint32_t)Twi_rx_buf, 22 ) )
 				{
-          pMailbox->status = APPLET_NO_DEV ;
+					if ( ( Twi_rx_buf[0] & 0x80 ) == 0 )
+					{ // Not in bootloader
+//        TRACE_INFO("-- Co_proc %s", Twi_rx_buf[0] );
+						
+						if ( coProcBoot() == 0 )		// Make sure we are in the bootloader
+						{
+        		  pMailbox->status = APPLET_NO_DEV | 0x00001000 ;
+						}
+						else
+						{
+							uint32_t i ;
+        		  pMailbox->status = APPLET_SUCCESS ;
+
+							for ( i = 0 ; i < 10000 ; i += 1 )
+							{
+								asm("nop") ;
+							}
+							if ( read_status_CoProc( (uint32_t)Twi_rx_buf, 22 ) )
+							{
+								if ( ( Twi_rx_buf[0] & 0x80 ) != 0x80 )
+								{
+        		  		pMailbox->status = APPLET_NO_DEV | 0x00003000 ;
+								}
+							}
+							else
+							{
+        		  	pMailbox->status = APPLET_NO_DEV | 0x00004000 ;
+							}	 
+						}
+					}
 				}
 				else
 				{
-          pMailbox->status = APPLET_SUCCESS ;
+          pMailbox->status = APPLET_NO_DEV | 0x00002000 ;
 				}
+
+				read_status_CoProc( (uint32_t)Twi_rx_buf, 22 ) ;
 
 //        SPID_Configure(&spid, SPI0, ID_SPI0, &dmad);
 //        AT25_Configure(&at25, &spid, SPI_CS, 1);

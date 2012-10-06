@@ -62,7 +62,7 @@
 #endif
 
 #ifndef SIMU
-#define MAIN_STACK_SIZE		300
+#define MAIN_STACK_SIZE		500
 #define BT_STACK_SIZE			100
 #define DEBUG_STACK_SIZE	130
 #define VOICE_STACK_SIZE	130
@@ -74,7 +74,7 @@ OS_TID BtTask;
 OS_STK Bt_stk[BT_STACK_SIZE] ;
 
 OS_TID VoiceTask;
-OS_STK voice_stk[DEBUG_STACK_SIZE] ;
+OS_STK voice_stk[VOICE_STACK_SIZE] ;
 
 #ifdef	DEBUG
 OS_TID DebugTask;
@@ -472,7 +472,7 @@ int main(void)
 	{
 		// USB not the power source
 //		WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
-		WDT->WDT_MR = 0x3FFF2FFF ;			// Enable watchdog
+		WDT->WDT_MR = 0x3FFF217F ;				// Enable watchdog 1.5 Secs
 	}
 
 #ifdef REVB	
@@ -947,13 +947,14 @@ void telem_byte_to_bt( uint8_t data )
 }
 
 
+uint32_t UsbTimer = 0 ;
+extern void usbMassStorage( void ) ;
 
 // This is the main task for the RTOS
 void main_loop(void* pdata)
 {
 	register uint32_t goto_usb ;
 	register Pio *pioptr ;
-	uint32_t UsbTimer = 0 ;
 	
 	goto_usb = 0 ;
   while (1)
@@ -977,6 +978,10 @@ void main_loop(void* pdata)
 				// Detected USB
 				goto_usb = 1 ;
 			}
+		}
+		else
+		{
+     	usbMassStorage() ;
 		}
   
 #ifdef REVB	
@@ -1041,7 +1046,8 @@ void main_loop(void* pdata)
 #endif
 	}
 
-	actionUsb() ;
+	RSTC->RSTC_CR = 0xA5000000 | RSTC_CR_PROCRST | RSTC_CR_PERRST ;
+//	actionUsb() ;
 }
 	
 void actionUsb()
@@ -1564,6 +1570,7 @@ extern uint8_t DisplayBuf[] ;
 			if ( check_power_or_usb() ) return ;		// Usb on or power off
 
 			check_backlight() ;
+  	  wdt_reset();
   	}
 	}
 }
