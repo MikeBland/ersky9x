@@ -981,7 +981,9 @@ void main_loop(void* pdata)
 		}
 		else
 		{
+#ifndef SIMU
      	usbMassStorage() ;
+#endif
 		}
   
 #ifdef REVB	
