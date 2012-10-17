@@ -21,8 +21,9 @@
 
 //eeprom data
 //#define EE_VERSION 2
-#define MAX_MODELS  16
+#define MAX_MODELS  20
 #define MAX_MIXERS  32
+#define MAX_SKYMIXERS  48
 #define MAX_CURVE5  8
 #define MAX_CURVE9  8
 #define MDVERS_r9   1
@@ -34,7 +35,10 @@
 #define MDVERS_r352 7
 #define MDVERS_r365 8
 #define MDVERS_r668 9
-#define MDVERS      10
+#define MDVERS_e119 10
+#define MDVERS      11
+
+#define	NUM_VOICE		8
 
 //OBSOLETE - USE ONLY MDVERS NOW
 //#define GENERAL_MYVER_r261 3
@@ -239,21 +243,11 @@ PACK(typedef struct t_TimerMode
     uint16_t  tmrVal ;
 }) TimerMode ;
 
-PACK(typedef struct t_PhaseData {
-  int16_t trim[4];     // -500..500 => trim value, 501 => use trim of phase 0, 502, 503, 504 => use trim of phases 1|2|3|4 instead
-  int8_t swtch;       // swtch of phase[0] is not used
-  char name[6];
-  uint8_t fadeIn:4;
-  uint8_t fadeOut:4;
-	uint16_t spare ;		// Future expansion
-}) PhaseData;
-
-
-PACK(typedef struct t_swVoice {
-  uint8_t  swtch:5 ;
-	uint8_t mode:3 ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
-  uint8_t  val ;
-}) voiceSwData ;
+//PACK(typedef struct t_swVoice {
+//  uint8_t  swtch:5 ;
+//	uint8_t mode:3 ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
+//  uint8_t  val ;
+//}) old_voiceSwData ;
 
 
 PACK(typedef struct t_ModelData {
@@ -312,9 +306,169 @@ PACK(typedef struct t_ModelData {
 
 
 extern EEGeneral g_eeGeneral;
-extern ModelData g_model;
+extern ModelData g_oldmodel;
 
 //extern voiceSwData VoiceSwData[] ;
+
+// Revised structure for ersky9x
+
+//PACK(typedef struct te_TrainerMix {
+//  uint8_t srcChn:3; //0-7 = ch1-8
+//  int8_t  swtch:5;
+//  int8_t  studWeight;
+//  uint8_t mode;   //off,add-mode,subst-mode
+//}) SKYTrainerMix; //
+ 
+//PACK(typedef struct te_TrainerData {
+//  int16_t        calib[4];
+//  SKYTrainerMix    mix[4];
+//}) SKYTrainerData;
+
+PACK(typedef struct t_PhaseData {
+  int16_t trim[4];     // -500..500 => trim value, 501 => use trim of phase 0, 502, 503, 504 => use trim of phases 1|2|3|4 instead
+  int8_t swtch;       // swtch of phase[0] is not used
+  char name[6];
+  uint8_t fadeIn:4;
+  uint8_t fadeOut:4;
+	uint16_t spare ;		// Future expansion
+}) PhaseData;
+
+PACK(typedef struct te_MixData {
+  uint8_t destCh;            //        1..NUM_CHNOUT
+  uint8_t srcRaw;            //
+  int8_t  weight;
+  int8_t  swtch;
+  uint8_t curve;             //0=symmetrisch 1=no neg 2=no pos
+  uint8_t delayUp;
+  uint8_t delayDown;
+  uint8_t speedUp;         // Servogeschwindigkeit aus Tabelle (10ms Cycle)
+  uint8_t speedDown;       // 0 nichts
+  uint8_t carryTrim:1;
+  uint8_t mltpx:3;           // multiplex method 0=+ 1=* 2=replace
+  uint8_t mixWarn:2;         // mixer warning
+  uint8_t enableFmTrim:1;
+  uint8_t mixres:1;
+  int8_t  sOffset;
+  uint8_t  res[4];
+}) SKYMixData;
+
+PACK(typedef struct te_CSwData { // Custom Switches data
+  int8_t  v1; //input
+  int8_t  v2; 		//offset
+	uint8_t func;
+	uint8_t andsw;
+	uint8_t res ;
+}) SKYCSwData;
+
+PACK(typedef struct te_SafetySwData { // Custom Switches data
+	union opt
+	{
+		struct ss
+		{	
+	    int8_t  swtch ;
+			uint8_t mode ;
+    	int8_t  val ;
+			uint8_t res ;
+		} ss ;
+		struct vs
+		{
+  		uint8_t vswtch ;
+			uint8_t vmode ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs, Varibl
+    	uint8_t vval;
+			uint8_t vres ;
+		} vs ;
+	} opt ;
+}) SKYSafetySwData;
+
+PACK(typedef struct te_FrSkyChannelData {
+  uint8_t   ratio ;               // 0.0 means not used, 0.1V steps EG. 6.6 Volts = 66. 25.1V = 251, etc.
+  uint8_t   offset ;              // 
+  uint8_t   gain ;                // 
+  uint8_t   alarms_value[2] ;     // 0.1V steps EG. 6.6 Volts = 66. 25.1V = 251, etc.
+  uint8_t   alarms_level ;
+  uint8_t   alarms_greater ;      // 0=LT(<), 1=GT(>)
+  uint8_t   type ;                // 0=volts, 1=raw, 2=volts*2, 3=Amps
+}) SKYFrSkyChannelData;
+
+PACK(typedef struct te_FrSkyData {
+  SKYFrSkyChannelData channels[2];
+}) SKYFrSkyData;
+
+PACK(typedef struct te_swVoice {
+  uint8_t  swtch ;
+	uint8_t mode ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
+  uint8_t  val ;
+  uint8_t vres ;
+}) voiceSwData ;
+
+PACK(typedef struct t_FuncSwData { // Function Switches data
+  int8_t  swtch; //input
+  uint8_t func;
+  char param[6];
+  uint8_t delay;
+  uint8_t spare;
+}) FuncSwData;
+
+PACK(typedef struct te_ModelData {
+  char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
+  uint8_t   modelVoice ;		// Index to model name voice (261+value)
+  uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
+  uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
+  uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
+  uint8_t   spare22:1 ;  			// Start timer2 using throttle
+  uint8_t   FrSkyUsrProto:1 ; // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
+  uint8_t   FrSkyGpsAlt:1 ;		// Use Gps Altitude as main altitude reading
+  uint8_t   FrSkyImperial:1 ; // Convert FrSky values to imperial units
+  uint8_t   FrSkyAltAlarm:2;
+	uint8_t		version ;
+  uint8_t   protocol;
+  int8_t    ppmNCH;
+  uint8_t   thrTrim:1;            // Enable Throttle Trim
+	uint8_t   numBlades:2;					// RPM scaling
+	uint8_t   spare10:1;
+  uint8_t   thrExpo:1;            // Enable Throttle Expo
+	uint8_t   spare11:3;
+  int8_t    trimInc;          // Trim Increments
+  int8_t    ppmDelay;
+  int8_t    trimSw;
+  uint8_t   beepANACenter;    // 1<<0->A1.. 1<<6->A7
+  uint8_t   pulsePol:1;
+  uint8_t   extendedLimits:1;
+  uint8_t   swashInvertELE:1;
+  uint8_t   swashInvertAIL:1;
+  uint8_t   swashInvertCOL:1;
+  uint8_t   swashType:3;
+  uint8_t   swashCollectiveSource;
+  uint8_t   swashRingValue;
+  int8_t    ppmFrameLength;   //0=22.5  (10msec-30msec) 0.5msec increments
+  SKYMixData   mixData[MAX_SKYMIXERS];
+  LimitData limitData[NUM_SKYCHNOUT];
+  ExpoData  expoData[4];
+  int8_t    trim[4];
+  int8_t    curves5[MAX_CURVE5][5];
+  int8_t    curves9[MAX_CURVE9][9];
+  int8_t    curvexy[18];
+  SKYCSwData   customSw[NUM_SKYCSW];
+//  uint8_t   rxnum;
+  uint8_t   frSkyVoltThreshold ;
+  uint8_t   bt_telemetry;
+  uint8_t   numVoice;		// 0-16, rest are Safety switches
+  SKYSafetySwData  safetySw[NUM_SKYCHNOUT];
+	voiceSwData	voiceSwitches[NUM_VOICE] ;
+  SKYFrSkyData frsky;
+	TimerMode timer[2] ;
+	FrSkyAlarmData frskyAlarms ;
+// Add 6 bytes for custom telemetry screen
+	uint8_t customDisplayIndex[6] ;
+  FuncSwData   funcSw[NUM_FSW];
+	PhaseData phaseData[6] ;
+}) SKYModelData;
+
+
+extern SKYModelData g_model;
+
+
+
 
 #endif
 /*eof*/

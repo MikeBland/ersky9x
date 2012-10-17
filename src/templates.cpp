@@ -63,14 +63,14 @@ const char *n_Templates[8] = {
     string_8
 };
 
-MixData* setDest(uint8_t dch)
+SKYMixData* setDest(uint8_t dch)
 {
     uint8_t i = 0;
-    while ((g_model.mixData[i].destCh<=dch) && (g_model.mixData[i].destCh) && (i<MAX_MIXERS)) i++;
-    if(i==MAX_MIXERS) return &g_model.mixData[0];
+    while ((g_model.mixData[i].destCh<=dch) && (g_model.mixData[i].destCh) && (i<MAX_SKYMIXERS)) i++;
+    if(i==MAX_SKYMIXERS) return &g_model.mixData[0];
 
     memmove(&g_model.mixData[i+1],&g_model.mixData[i],
-            (MAX_MIXERS-(i+1))*sizeof(MixData) );
+            (MAX_SKYMIXERS-(i+1))*sizeof(MixData) );
     memset(&g_model.mixData[i],0,sizeof(MixData));
     g_model.mixData[i].destCh = dch;
     return &g_model.mixData[i];
@@ -115,7 +115,7 @@ void applyTemplate(uint8_t idx)
     int8_t heli_ar4[] = {-30,  -15, 0, 50, 100};
     int8_t heli_ar5[] = {-100, -50, 0, 50, 100};
 
-    MixData *md = &g_model.mixData[0];
+    SKYMixData *md = &g_model.mixData[0];
 
     //CC(STK)   -> vSTK
     //ICC(vSTK) -> STK

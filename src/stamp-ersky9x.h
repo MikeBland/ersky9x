@@ -1,6 +1,6 @@
 //Automatically generated file - do not edit
-#define DATE_STR "06.10.2012"
-#define TIME_STR "21:10:28"
-#define SUB_VERS 1312-Mike
-#define SVN_VERS "ersky9x-r120"
+#define DATE_STR "17.10.2012"
+#define TIME_STR "22:15:12"
+#define SUB_VERS 1375-Mike
+#define SVN_VERS "ersky9x-r122"
 #define MOD_VERS "REVB"

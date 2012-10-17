@@ -10,6 +10,17 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 17-Oct-2012  MPB
+MAJOR UPDATE - EEPROM structure changed
+48 mixes
+24 channels
+24 safety/voice switches
+24 custom switches
+20 model memories
+Automatic EEPROM structure update
+Co-processor applet to rev 04, saves time every 2 hours
+
+******************************************
 CHANGELOG: 06-Oct-2012  MPB
 USB Mass Storage !!
 Date/Time minor bug fix

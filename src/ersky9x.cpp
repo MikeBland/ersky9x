@@ -92,7 +92,7 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 
 #include "debug.h"
 
- t_time Time ;
+t_time Time ;
 
 //#define TRUE	1
 //#define FALSE	0
@@ -138,7 +138,7 @@ volatile int32_t Rotary_position ;
 volatile int32_t Rotary_count ;
 int32_t LastRotaryValue ;
 int32_t Rotary_diff ;
-uint8_t Vs_state[NUM_CHNOUT] ;
+uint8_t Vs_state[NUM_SKYCHNOUT] ;
 
 
 void tmrBt_Handle( void ) ;
@@ -267,8 +267,8 @@ uint8_t pxxFlag = 0 ;
 
 
 EEGeneral  g_eeGeneral;
-ModelData  g_model;
-//voiceSwData VoiceSwData[NUM_VS_SWITCHES] ;		// In Ram for testing
+ModelData  g_oldmodel;
+SKYModelData  g_model;
 
  const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
                                 1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
@@ -291,7 +291,7 @@ uint8_t AlarmCheckFlag = 0 ;
 uint8_t CsCheckFlag = 0 ;
 uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
-int8_t  CsTimer[NUM_CSW] ;
+int8_t  CsTimer[NUM_SKYCSW] ;
 
 const char modi12x3[]=
   "RUD ELE THR AIL "
@@ -308,9 +308,11 @@ uint8_t  g_menuStackPtr = 0;
 // Temporary to allow compile
 uint8_t g_vbat100mV = 98 ;
 //int16_t calibratedStick[7] ;
-//int16_t g_chans512[NUM_CHNOUT] ;
+//int16_t g_chans512[NUM_SKYCHNOUT] ;
 uint8_t heartbeat ;
 uint8_t heartbeat_running ;
+
+uint16_t ResetReason ;
 
 //uint8_t Timer2_running = 0 ;
 //uint8_t Timer2_pre = 0 ;
@@ -447,6 +449,8 @@ int main(void)
 	// Debug variable
 //	uint32_t both_on ;
 
+	ResetReason = RSTC->RSTC_MR ;
+
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
   PMC->PMC_PCER0 = (1<<ID_PIOC)|(1<<ID_PIOB)|(1<<ID_PIOA)|(1<<ID_UART0) ;				// Enable clocks to PIOB and PIOA and PIOC and UART0
@@ -550,14 +554,17 @@ int main(void)
 
 	init_eeprom() ;	
 	
-	pioptr = PIOC ;
-	if ( pioptr->PIO_PDSR & 0x02000000 )
+	if ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) )	// Not watchdog
 	{
-		g_eeGeneral.optrexDisplay = 1 ;
-		lcd_clear() ;
-		refreshDisplay() ;
-		g_eeGeneral.optrexDisplay = 0 ;
-		actionUsb() ;
+		pioptr = PIOC ;
+		if ( pioptr->PIO_PDSR & 0x02000000 )
+		{
+			g_eeGeneral.optrexDisplay = 1 ;
+			lcd_clear() ;
+			refreshDisplay() ;
+			g_eeGeneral.optrexDisplay = 0 ;
+			actionUsb() ;
+		}
 	}
 		 
 	eeReadAll() ;
@@ -609,15 +616,18 @@ int main(void)
 			audioVoiceDefevent( AU_TADA, V_HELLO ) ;
     }
   }
-	doSplash() ;
-  getADC_single();
-  checkTHR();
-  checkSwitches();
-	checkAlarm();
-	checkWarnings();
-	clearKeyEvents(); //make sure no keys are down before proceeding
+	if ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) )	// Not watchdog
+	{
+		doSplash() ;
+  	getADC_single();
+  	checkTHR();
+  	checkSwitches();
+		checkAlarm();
+		checkWarnings();
+		clearKeyEvents(); //make sure no keys are down before proceeding
 
-	putVoiceQueue( g_model.modelVoice + 260 ) ;
+		putVoiceQueue( g_model.modelVoice + 260 ) ;
+	}
 //	lcd_clear() ;
 //	lcd_putsn_P( 5*FW, 0, "ERSKY9X", 7 ) ;
 //	lcd_putsn_P( 13*FW, 0, VERSION, sizeof( VERSION )-1 ) ;
@@ -630,15 +640,6 @@ int main(void)
   FrskyAlarmSendState |= 0x40 ;
 
 	heartbeat_running = 1 ;
-
-//	{
-//		uint32_t i;
-
-//		for ( i = 0 ; i < NUM_VS_SWITCHES ; i += 1 )
-//		{
-//			Vs_state[i] = getSwitch( VoiceSwData[i].swtch, 0 ) ;
-//		}
-//	}
 
 
 #ifndef SIMU
@@ -969,7 +970,7 @@ void main_loop(void* pdata)
 //		PIOA->PIO_PER = 0x80000000 ;		// Enable bit A31
 
 
-		if ( UsbTimer < 5000 )		// 10 Seconds
+		if ( UsbTimer < 1000 )		// 2 Seconds
 		{
 			UsbTimer += 1 ;
 			pioptr = PIOC ;
@@ -1109,7 +1110,7 @@ void mainSequence( uint32_t no_menu )
 {
 	static uint32_t coProTimer = 0 ;
   uint16_t t0 = getTmr2MHz();
-	uint8_t numSafety = 16 - g_model.numVoice ;
+	uint8_t numSafety = NUM_SKYCHNOUT - g_model.numVoice ;
 	
 	if ( g_eeGeneral.filterInput == 1 )
 	{
@@ -1293,7 +1294,7 @@ void mainSequence( uint32_t no_menu )
 			}
 			for ( i = 0 ; i < numSafety ; i += 1 )
 			{
-    		SafetySwData *sd = &g_model.safetySw[i] ;
+    		SKYSafetySwData *sd = &g_model.safetySw[i] ;
 				if (sd->opt.ss.mode == 1)
 				{
 					if(getSwitch( sd->opt.ss.swtch,0))
@@ -1303,9 +1304,9 @@ void mainSequence( uint32_t no_menu )
 				}
 				if (sd->opt.ss.mode == 2)
 				{
-					if ( sd->opt.ss.swtch > MAX_DRSWITCH )
+					if ( sd->opt.ss.swtch > MAX_SKYDRSWITCH )
 					{
-						switch ( sd->opt.ss.swtch - MAX_DRSWITCH -1 )
+						switch ( sd->opt.ss.swtch - MAX_SKYDRSWITCH -1 )
 						{
 							case 0 :
 								if ( ( periodCounter & 3 ) == 0 )
@@ -1348,11 +1349,11 @@ void mainSequence( uint32_t no_menu )
     
 		timer += 1 ;
 		
-		for ( i = numSafety ; i < NUM_CHNOUT ; i += 1 )
+		for ( i = numSafety ; i < NUM_SKYCHNOUT ; i += 1 )
 		{
 			uint8_t curent_state ;
 			uint8_t mode ;
-    	SafetySwData *sd = &g_model.safetySw[i];
+    	SKYSafetySwData *sd = &g_model.safetySw[i];
 			
 			mode = sd->opt.vs.vmode ;
 			if ( sd->opt.vs.vswtch )		// Configured
@@ -1412,9 +1413,9 @@ void mainSequence( uint32_t no_menu )
 		CsCheckFlag = 0 ;
 		uint8_t i ;
 		
-		for ( i = 0 ; i < NUM_CSW ; i += 1 )
+		for ( i = 0 ; i < NUM_SKYCSW ; i += 1 )
 		{
-    	CSwData &cs = g_model.customSw[i];
+    	SKYCSwData &cs = g_model.customSw[i];
     	uint8_t cstate = CS_STATE(cs.func);
 
     	if(cstate == CS_TIMER)
@@ -2381,7 +2382,7 @@ void setupPulsesPPM()			// Don't enable interrupts through here
   rest += (int16_t(g_model.ppmFrameLength))*1000;
   //    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
   for(uint32_t i=0;i<p;i++)
-	{ //NUM_CHNOUT
+	{ //NUM_SKYCHNOUT
   	int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
    	rest-=(v);
 	//        *ptr++ = q;      //moved down two lines
@@ -2437,7 +2438,7 @@ void setupPulsesDsm2(uint8_t chns)
 {
   static uint8_t dsmDat[2+6*2]={0xFF,0x00,  0x00,0xAA,  0x05,0xFF,  0x09,0xFF,  0x0D,0xFF,  0x13,0x54,  0x14,0xAA};
   uint8_t counter ;
-  //	CSwData &cs = g_model.customSw[NUM_CSW-1];
+  //	CSwData &cs = g_model.customSw[NUM_SKYCSW-1];
 
 	Serial_byte = 0 ;
 	Serial_bit_count = 0 ;
@@ -2461,7 +2462,7 @@ void setupPulsesDsm2(uint8_t chns)
     }
   }
   if((dsmDat[0]&BindBit)&&(!keyState(SW_Trainer)))  dsmDat[0]&=~BindBit;		//clear bind bit if trainer not pulled
-  if ((!(dsmDat[0]&BindBit))&&getSwitch(MAX_DRSWITCH-1,0,0)) dsmDat[0]|=RangeCheckBit;   //range check function
+  if ((!(dsmDat[0]&BindBit))&&getSwitch(MAX_SKYDRSWITCH-1,0,0)) dsmDat[0]|=RangeCheckBit;   //range check function
   else dsmDat[0]&=~RangeCheckBit;
   dsmDat[1]=g_eeGeneral.currModel+1;  //DSM2 Header second byte for model match
   for(uint8_t i=0; i<chns; i++)
@@ -2843,7 +2844,7 @@ void putsVBat(uint8_t x,uint8_t y,uint8_t att)
 
 void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 {
-	uint8_t chanLimit = NUM_XCHNRAW ;
+	uint8_t chanLimit = NUM_SKYXCHNRAW ;
 	if ( att & MIX_SOURCE )
 	{
 		chanLimit += 1 ;
@@ -2855,9 +2856,9 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
 //    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
   else if(idx<=chanLimit)
-    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH163POS")+4*(idx-5),4,att);
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS")+4*(idx-5),4,att);
 	else
-  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_XCHNRAW-1),att);
+  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_SKYXCHNRAW-1),att);
 }
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
@@ -2871,8 +2872,8 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 {
   switch(idx1){
     case  0:            lcd_putsAtt(x+FW,y,PSTR("---"),att);return;
-    case  MAX_DRSWITCH: lcd_putsAtt(x+FW,y,PSTR("ON "),att);return;
-    case -MAX_DRSWITCH: lcd_putsAtt(x+FW,y,PSTR("OFF"),att);return;
+    case  MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("ON "),att);return;
+    case -MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("OFF"),att);return;
   }
 	if ( idx1 < 0 )
 	{
@@ -2905,12 +2906,12 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 	if ( ( type == 2 ) || ( ( type == 0 ) && ( tm == 1 ) ) )
 	{
     tm = g_model.timer[timer].tmrModeB;
-    if(abs(tm)>=(MAX_DRSWITCH))	 //momentary on-off
+    if(abs(tm)>=(MAX_SKYDRSWITCH))	 //momentary on-off
 		{
   	  lcd_putcAtt(x+3*FW,  y,'m',attr);
 			if ( tm > 0 )
 			{
-				tm -= MAX_DRSWITCH - 1 ;
+				tm -= MAX_SKYDRSWITCH - 1 ;
 			}
 		}			 
    	putsDrSwitches( x-1*FW, y, tm, attr );
@@ -3043,11 +3044,11 @@ inline int16_t getValue(uint8_t i)
   if(i<PPM_BASE) return calibratedStick[i];//-512..512
   else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
   else if(i<CHOUT_BASE) return g_ppmIns[i-PPM_BASE]*2;
-  else if(i<CHOUT_BASE+NUM_CHNOUT) return ex_chans[i-CHOUT_BASE];
+  else if(i<CHOUT_BASE+NUM_SKYCHNOUT) return ex_chans[i-CHOUT_BASE];
 #ifdef FRSKY
-  else if(i<CHOUT_BASE+NUM_CHNOUT+NUM_TELEM_ITEMS)
+  else if(i<CHOUT_BASE+NUM_SKYCHNOUT+NUM_TELEM_ITEMS)
 	{
-		j = TelemIndex[i-CHOUT_BASE-NUM_CHNOUT] ;
+		j = TelemIndex[i-CHOUT_BASE-NUM_SKYCHNOUT] ;
 		if ( j >= 0 )
 		{
       if ( j == FR_ALT_BARO )
@@ -3071,7 +3072,7 @@ inline int16_t getValue(uint8_t i)
 
 
 
-bool Last_switch[NUM_CSW] ;
+bool Last_switch[NUM_SKYCSW] ;
 
 bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 {
@@ -3082,17 +3083,17 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
   switch(swtch){
     case  0:            return  nc;
-    case  MAX_DRSWITCH: return  true ;
-    case -MAX_DRSWITCH: return  false ;
+    case  MAX_SKYDRSWITCH: return  true ;
+    case -MAX_SKYDRSWITCH: return  false ;
   }
 
-	if ( swtch > MAX_DRSWITCH )
+	if ( swtch > MAX_SKYDRSWITCH )
 	{
 		return false ;
 	}
 
   uint8_t dir = swtch>0;
-  if(abs(swtch)<(MAX_DRSWITCH-NUM_CSW)) {
+  if(abs(swtch)<(MAX_SKYDRSWITCH-NUM_SKYCSW)) {
     if(!dir) return ! keyState((enum EnumKeys)(SW_BASE-swtch-1));
     return            keyState((enum EnumKeys)(SW_BASE+swtch-1));
   }
@@ -3101,8 +3102,8 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   //input -> 1..4 -> sticks,  5..8 pots
   //MAX,FULL - disregard
   //ppm
-  cs_index = abs(swtch)-(MAX_DRSWITCH-NUM_CSW);
-  CSwData &cs = g_model.customSw[cs_index];
+  cs_index = abs(swtch)-(MAX_SKYDRSWITCH-NUM_SKYCSW);
+  SKYCSwData &cs = g_model.customSw[cs_index];
   if(!cs.func) return false;
 
   if ( level>4 )
@@ -3124,10 +3125,10 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   {
       x = getValue(cs.v1-1);
 #ifdef FRSKY
-      if (cs.v1 > CHOUT_BASE+NUM_CHNOUT)
+      if (cs.v1 > CHOUT_BASE+NUM_SKYCHNOUT)
 			{
-        y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_CHNOUT-1, cs.v2 ) ;
-				valid = telemItemValid( cs.v1-CHOUT_BASE-NUM_CHNOUT-1 ) ;
+        y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_SKYCHNOUT-1, cs.v2 ) ;
+				valid = telemItemValid( cs.v1-CHOUT_BASE-NUM_SKYCHNOUT-1 ) ;
 			}
       else
 #endif

@@ -109,6 +109,7 @@ uint32_t write32_eeprom_block( uint32_t eeAddress, register uint8_t *buffer, uin
 void ee32_read_model_names( void ) ;
 void ee32LoadModelName(uint8_t id, unsigned char*buf,uint8_t len) ;
 void ee32_update_name( uint32_t id, uint8_t *source ) ;
+void convertModel( SKYModelData *dest, ModelData *source ) ;
 
 
 
@@ -145,19 +146,8 @@ struct t_eeprom_block
 	} data ;
 } ;
 
-//struct t_gen_buf
-//{
-//	struct t_eeprom_header header ;
-//	EEGeneral data ;
-//} ;
 
-//struct t_model_buf
-//{
-//	struct t_eeprom_header header ;
-//	ModelData data ;
-//} ;
-
-#define EEPROM_BUFFER_SIZE ((sizeof(ModelData) + sizeof( struct t_eeprom_header ) + 3)/4)
+#define EEPROM_BUFFER_SIZE ((sizeof(SKYModelData) + sizeof( struct t_eeprom_header ) + 3)/4)
 
 
 struct t_eeprom_buffer
@@ -171,35 +161,6 @@ struct t_eeprom_buffer
 	} data ;	
 } Eeprom_buffer ;
 
-
-//union t_eeprom_buffer
-//{
-//	struct t_gen_buf eeGeneral_buffer ;
-//	struct t_model_buf eeModel_buffer ;
-//	uint32_t words[ EEPROM_BUFFER_SIZE ] ;
-//} Eeprom_buffer ;
-
-
-
-//struct t_eeprom_block E_images[2] ;
-
-// Check all 4096 bytes of an image to see if they are blank
-//uint32_t eeprom_image_blank( uint32_t image_index )
-//{
-//	register uint32_t x ;
-//	register uint32_t *p ;
-
-//	p = &E_images[image_index].sequence_no ;
-
-//	for ( x = 0 ; x < 1024 ; x += 1 )
-//	{
-//		if ( *p++ != 0xFFFFFFFF )
-//		{
-//			return 0 ;
-//		}		
-//	}
-//	return 1 ;
-//}
 
 // genaral data needs to be written to EEPROM
 void ee32StoreGeneral()
@@ -436,11 +397,11 @@ bool ee32LoadGeneral()
 		return false ;		// No data to load
 	}
 
-  for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
-  {
-      uint8_t idx = char2idx(g_eeGeneral.ownerName[i]);
-      g_eeGeneral.ownerName[i] = idx2char(idx);
-  }
+//  for(uint8_t i=0; i<sizeof(g_eeGeneral.ownerName);i++) // makes sure name is valid
+//  {
+//      uint8_t idx = char2idx(g_eeGeneral.ownerName[i]);
+//      g_eeGeneral.ownerName[i] = idx2char(idx);
+//  }
 
   if(g_eeGeneral.myVers<MDVERS)
       sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
@@ -489,6 +450,15 @@ void ee32LoadModel(uint8_t id)
 				version = 0 ;
 			}
 			memset(&g_model, 0, sizeof(g_model));
+
+			if ( size < 720 )
+			{
+				memset(&g_oldmodel, 0, sizeof(g_oldmodel));
+				if ( size > sizeof(g_oldmodel) )
+				{
+					size = sizeof(g_oldmodel) ;
+				}
+			}
        
 			if ( size > sizeof(g_model) )
 			{
@@ -501,7 +471,16 @@ void ee32LoadModel(uint8_t id)
       }
 			else
 			{
-				read32_eeprom_data( ( File_system[id+1].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&g_model, size, 0 ) ;
+				if ( size < 720 )
+				{
+					read32_eeprom_data( ( File_system[id+1].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&g_oldmodel, size, 0 ) ;
+					convertModel( &g_model, &g_oldmodel ) ;
+				}
+				else
+				{
+					read32_eeprom_data( ( File_system[id+1].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&g_model, size, 0 ) ;
+				}	 
+				
 				if ( version != 255 )
 				{
 					g_model.version = 0 ;					// default version number
@@ -781,351 +760,6 @@ uint32_t ee32_process()
 }
 
 
-// Temporary eeprom handling - hence it's here
-
-// storage defination
-//struct t_eeprom_image
-//{
-//	uint8_t spi_command[4] ;
-//	union
-//	{
-//		uint8_t bytes[2048] ;
-//		uint32_t words[512] ;
-//	} image ;
-//	uint32_t sequence_no ;	
-//	uint32_t filler[3] ;	
-//	union
-//	{
-//		uint8_t bytes[2016] ;
-//		uint32_t words[504] ;
-//	} imagex ;
-//} ;
-
-// storage declaration
-//struct t_eeprom_image E_images[2] ;
-
-
-//void eeprom_process()
-//{
-//	register uint8_t *p ;
-//	register uint8_t *q ;
-//	register uint32_t block_no ;
-//	register uint32_t x ;
-	
-//	if ( Eeprom_image_updated )
-//	{
-//		Eeprom_image_updated = 0 ;
-//		Update_timer = 100 ;		// 1 second
-//	}
-//	if ( Update_timer )
-//	{
-//		if ( --Update_timer == 0 )
-//		{
-//			// Changed, but no changes for 2 seconds
-//			// Time to write changes to eeprom
-//			Eeprom_write_pending = 1 ;
-//		}
-//	}
-
-//	ee32_process() ;
-
-
-//	if ( ( Eeprom_process_state == E_32ACTIVE ) || ( Eeprom_process_state == E_IDLE ) )
-//	{
-//		if ( ee32_process() )
-//		{
-//			Eeprom_process_state = E_32ACTIVE ;
-//			return ;
-//		}
-//		else
-//		{
-//			Eeprom_process_state = E_IDLE ;
-//		}
-//	}
-
-
-//	if ( Eeprom_process_state == E_IDLE )
-//	{
-//		if ( Other_eeprom_block_blank == 0 )
-//		{
-//			// Need to erase it
-//			Eeprom_process_state = E_ERASESENDING ;
-//			block_no = 0 ;
-//			if ( Current_eeprom_block == 0 )
-//			{
-//				block_no = 1 ;
-//			}
-//			eeprom_write_enable() ;
-//			p = E_images[block_no].spi_command ;
-//			*p = 0x20 ;		// Block Erase command
-//			*(p+1) = 0 ;
-//			*(p+2) = block_no << 4 ;
-//			*(p+3) = 0 ;		// 3 bytes address
-//			spi_PDC_action( p, 0, 0, 4, 0 ) ;
-//		}
-//		else if ( Eeprom_write_pending ) 
-//		{
-//			Eeprom_write_pending = 0 ;
-//			block_no = 0 ;
-//			if ( Current_eeprom_block == 0 )
-//			{
-//				block_no = 1 ;
-//			}
-//			// Copy data from RAM based eeprom image
-
-//			p = E_images[block_no].image.bytes ;
-//			q = eeprom ;
-//			for ( x = 0 ; x < 2048 ; x += 1 )
-//			{
-//				*p++ = *q++ ;			
-//			}
-//			E_images[block_no].sequence_no = Eeprom_sequence_no + 1 ;
-//			Eeprom_process_sub_no = 0 ;
-//			write_eeprom_block( block_no, Eeprom_process_sub_no, 256, 1 ) ;
-//			Eeprom_process_state = E_WRITESENDING ;
-//			Eeprom_writing_block_no = block_no ;
-//		}
-//	}
-	
-//	if ( Eeprom_process_state == E_ERASESENDING )
-//	{
-//		if ( Spi_complete )
-//		{
-//			Eeprom_process_state = E_ERASEWAITING ;
-//		}			
-//	}	
-		
-//	if ( Eeprom_process_state == E_ERASEWAITING )
-//	{
-//		x = eeprom_read_status() ;
-//		if ( ( x & 1 ) == 0 )
-//		{ // Command finished
-//			Eeprom_process_state = E_IDLE ;
-//			Other_eeprom_block_blank = 1 ;
-//		}			
-//	}
-
-//	if ( Eeprom_process_state == E_WRITESENDING )
-//	{
-//		if ( Spi_complete )
-//		{
-//			Eeprom_process_state = E_WRITEWAITING ;
-//		}			
-//	}		
-	
-//	if ( Eeprom_process_state == E_WRITEWAITING )
-//	{
-//		x = eeprom_read_status() ;
-//		if ( ( x & 1 ) == 0 )
-//		{
-//			register uint32_t size ;
-//			Eeprom_process_sub_no += 1 ;
-//			size = 256 ;
-//			if ( Eeprom_process_sub_no == 8)
-//			{
-//				size = 4 ;
-//			}
-//			if ( Eeprom_process_sub_no > 8)
-//			{
-//				size = 0 ;
-//			}
-//			if ( size > 0 )
-//			{
-//				write_eeprom_block( Eeprom_writing_block_no, Eeprom_process_sub_no, size, 1 ) ;
-//				Eeprom_process_state = E_WRITESENDING ;
-//			}
-//			else
-//			{
-//				Eeprom_process_state = E_IDLE ;
-//				Current_eeprom_block = Eeprom_writing_block_no ;
-//				Other_eeprom_block_blank = 0 ;
-//			}
-//		}
-//	}	
-//}
-
-
-//void init_eeprom()
-//{
-//	register uint32_t x ;
-//	register uint32_t y ;
-//	register uint8_t *p ;
-//	register uint8_t *q ;
-//	register uint32_t valid ;
-	
-//	read_eeprom_block( 0, 0 ) ;
-//	read_eeprom_block( 1, 0 ) ;
-
-	// Here we should find which block is the most recent
-//	x = eeprom_image_blank( 0 ) ;
-//	y = eeprom_image_blank( 1 ) ;
-
-//	Eeprom_process_state = E_IDLE ;
-//	Eeprom_process_sub_no = 0 ;
-//	Eeprom_write_pending = 0 ;
-//	if ( x )
-//	{
-//		if ( y )
-//		{ // Both blank
-//			Other_eeprom_block_blank = 1 ;
-//			Current_eeprom_block = 1 ;
-//			Eeprom_sequence_no = 0 ;
-//		}
-//		else
-//		{ // Block 1 is active, 0 is blank
-//			Other_eeprom_block_blank = 1 ;
-//			Current_eeprom_block = 1 ;
-//			Eeprom_sequence_no = E_images[1].sequence_no ;
-//		}
-//	}
-//	else
-//	{
-//		if ( y )
-//		{ // Block 0 is active, 1 is blank
-//			Other_eeprom_block_blank = 1 ;
-//			Current_eeprom_block = 0 ;
-//			Eeprom_sequence_no = E_images[0].sequence_no ;
-			
-//		}
-//		else
-//		{ // Check sequence number and erase other block
-//			Other_eeprom_block_blank = 0 ;
-//			x = E_images[0].sequence_no ;
-//			y = E_images[1].sequence_no ;
-//			if ( y == 0xFFFFFFFF )
-//			{
-//				y = 0 ;				
-//			}
-//			if ( x == 0xFFFFFFFF )
-//			{
-//				x = 0 ;				
-//			}
-//			if ( x > y )			// Simple test, assumes no 32 bit overflow
-//			{
-//				Current_eeprom_block = 0 ;
-//				Eeprom_sequence_no = x ;
-//			}
-//			else
-//			{
-//				Current_eeprom_block = 1 ;
-//				Eeprom_sequence_no = y ;
-//			}
-//		}
-//	}
-
-//	// Copy valid block to RAM eeprom image
-//	p = E_images[Current_eeprom_block].image.bytes ;
-//	q = eeprom ;
-//	for ( x = 0 ; x < 2048 ; x += 1 )
-//	{
-//		*q++ = *p++ ;			
-//	}
-//	disp_256( (uint32_t)eeprom, 6 ) ;
-//	Eeprom_process_state = E_IDLE ;
-
-//	init_ee32() ;
-//}
-
-
-//uint32_t eeprom_image_blank( uint32_t image_index )
-//{
-//	register uint32_t x ;
-//	register uint32_t *p ;
-//	register uint32_t result ;
-
-//	result = 1 ;
-//	p = E_images[image_index].image.words ;
-
-//	for ( x = 0 ; x < 512 ; x += 1 )
-//	{
-//		if ( *p++ != 0xFFFFFFFF )
-//		{
-//			result = 0 ;			
-//		}		
-//	}
-//	if ( result )
-//	{
-//		x = E_images[image_index].sequence_no ;
-//		if ( x != 0xFFFFFFFF )
-//		{
-//			result = 0 ;			
-//		}
-//	}
-//	return result ;
-//}
-
-
-//uint32_t read_eeprom_block( uint32_t block_no, uint32_t immediate )
-//{
-//	register uint8_t *p ;
-//	register uint32_t x ;
-
-//	p = E_images[block_no].spi_command ;
-//	*p = 3 ;		// Read command
-//	*(p+1) = 0 ;
-//	*(p+2) = block_no << 4 ;
-//	*(p+3) = 0 ;		// 3 bytes address
-//	spi_PDC_action( p, 0, E_images[block_no].image.bytes, 4, 2048 + 4 ) ;
-
-//	if ( immediate )
-//	{
-//		return 0 ;		
-//	}
-//	for ( x = 0 ; x < 100000 ; x += 1  )
-//	{
-//		if ( Spi_complete )
-//		{
-//			break ;				
-//		}        			
-//	}
-//	return x ; 
-
-////	return spi_action( p, E_images[block_no].image, E_images[block_no].image, 4, 2048 + 4 ) ;
-//}
-
-//uint32_t write_eeprom_block( uint32_t block_no, uint32_t sub_no, uint32_t size, uint32_t immediate )
-//{
-//	register uint8_t *p ;
-//	register uint32_t x ;
-
-//	eeprom_write_enable() ;
-	
-//	p = E_images[block_no].spi_command ;
-//	*p = 2 ;		// Write command
-//	*(p+1) = 0 ;
-//	*(p+2) = (block_no << 4) + sub_no ;
-//	*(p+3) = 0 ;		// 3 bytes address
-//	spi_PDC_action( p, &E_images[block_no].image.bytes[sub_no << 8], 0, 4, size ) ;
-
-//	if ( immediate )
-//	{
-//		return 0 ;		
-//	}
-//	for ( x = 0 ; x < 100000 ; x += 1  )
-//	{
-//		if ( Spi_complete )
-//		{
-//			break ;				
-//		}        			
-//	}
-//	return x ; 
-////	return spi_action( p, E_images[block_no].image[sub_no << 8], 0, 4, size ) ;
-//}
-
-
-
-//uint32_t write_eeprom_status( uint8_t value )
-//{
-//	register uint8_t *p ;
-
-//	eeprom_write_enable() ;
-		
-//	p = Spi_tx_buf ;
-//	*p = 1 ;		// Write status register command
-//	*(p+1) = value ;
-
-//	return spi_operation( p, Spi_rx_buf, 2 ) ;
-//}
 
 uint32_t unprotect_eeprom()
 {
@@ -1142,7 +776,185 @@ uint32_t unprotect_eeprom()
 	return spi_operation( p, Spi_rx_buf, 4 ) ;
 }
 
+void convertSwitch( int8_t *p )
+{
+	if ( *p <= -MAX_DRSWITCH )
+	{
+		*p -= (NUM_SKYCSW - NUM_CSW) ;
+	}
+	if ( *p >= MAX_DRSWITCH )
+	{
+		*p += (NUM_SKYCSW - NUM_CSW) ;
+	}
+}
 
+
+void convertModel( SKYModelData *dest, ModelData *source )
+{
+	uint32_t i ;
+	memset( dest, 0, sizeof(*dest) ) ;
+  memcpy( dest->name, source->name, MODEL_NAME_LEN) ;
+	dest->modelVoice = source->modelVoice ;
+	dest->RxNum = source->RxNum ;
+	dest->traineron = source->traineron ;
+	dest->FrSkyUsrProto = source->FrSkyUsrProto ;
+	dest->FrSkyGpsAlt = source->FrSkyGpsAlt ;
+	dest->FrSkyImperial = source->FrSkyImperial ;
+	dest->FrSkyAltAlarm = source->FrSkyAltAlarm ;
+	dest->version = source->version ;
+	dest->protocol = source->protocol ;
+	dest->ppmNCH = source->ppmNCH ;
+	dest->thrTrim = source->thrTrim ;
+	dest->numBlades = source->numBlades ;
+	dest->thrExpo = source->thrExpo ;
+	dest->trimInc = source->trimInc ;
+	dest->ppmDelay = source->ppmDelay ;
+	dest->trimSw = source->trimSw ;
+	dest->beepANACenter = source->beepANACenter ;
+	dest->pulsePol = source->pulsePol ;
+	dest->extendedLimits = source->extendedLimits ;
+	dest->swashInvertELE = source->swashInvertELE ;
+	dest->swashInvertAIL = source->swashInvertAIL ;
+	dest->swashInvertCOL = source->swashInvertCOL ;
+	dest->swashType = source->swashType ;
+	dest->swashCollectiveSource = source->swashCollectiveSource ;
+	dest->swashRingValue = source->swashRingValue ;
+	dest->ppmFrameLength = source->ppmFrameLength ;
+	for ( i = 0 ; i < MAX_MIXERS ; i += 1 )
+	{
+		MixData *src = &source->mixData[i] ;
+		SKYMixData *dst = &dest->mixData[i] ;
+		dst->destCh = src->destCh ;
+		dst->srcRaw = src->srcRaw ;
+		if ( dst->srcRaw == NUM_XCHNRAW+1 )		// MIX_3POS
+		{
+			dst->srcRaw += NUM_SKYCHNOUT - NUM_CHNOUT ;
+		}
+
+		dst->weight = src->weight ;
+		dst->swtch = src->swtch ;
+		convertSwitch( &dst->swtch ) ;
+		
+		dst->curve = src->curve ;
+		dst->delayUp = src->delayUp * 10 ;
+		dst->delayDown = src->delayDown * 10 ;
+		dst->speedUp = src->speedUp * 10 ;
+		dst->speedDown = src->speedDown * 10 ;
+		dst->carryTrim = src->carryTrim ;
+		dst->mltpx = src->mltpx ;
+		dst->mixWarn = src->mixWarn ;
+		dst->enableFmTrim = src->enableFmTrim ;
+		dst->sOffset = src->sOffset ;
+	}
+	for ( i = 0 ; i < NUM_CHNOUT ; i += 1 )
+	{
+		dest->limitData[i] = source->limitData[i] ;
+	}
+	for ( i = 0 ; i < 4 ; i += 1 )
+	{
+		dest->expoData[i] = source->expoData[i] ;
+		convertSwitch( &dest->expoData[i].drSw1 ) ;
+		convertSwitch( &dest->expoData[i].drSw2 ) ;
+		dest->trim[i] = source->trim[i] ;
+	}
+  memcpy( dest->curves5, source->curves5, sizeof(source->curves5) ) ;
+  memcpy( dest->curves9, source->curves9, sizeof(source->curves9) ) ;
+	for ( i = 0 ; i < NUM_CSW ; i += 1 )
+	{
+		CSwData *src = &source->customSw[i] ;
+		SKYCSwData *dst = &dest->customSw[i] ;
+		dst->v1 = src->v1 ;
+		dst->v2 = src->v2 ;
+		dst->func = src->func ;
+  	switch (dst->func)
+		{
+  		case (CS_AND) :
+  		case (CS_OR) :
+  		case (CS_XOR) :
+				convertSwitch( &dst->v1 ) ;
+				convertSwitch( &dst->v2 ) ;
+      break;
+  		case (CS_VPOS):
+  		case (CS_VNEG):
+  		case (CS_APOS):
+  		case (CS_ANEG):
+				if ( dst->v1-1 >= CHOUT_BASE+NUM_CHNOUT )
+				{
+					dst->v1 += NUM_SKYCHNOUT - NUM_CHNOUT ;
+				}
+				if ( dst->v2-1 >= CHOUT_BASE+NUM_CHNOUT )
+				{
+					dst->v2 += NUM_SKYCHNOUT - NUM_CHNOUT ;
+				}
+      break;
+		}
+		dst->andsw = src->andsw ;
+	}
+	dest->frSkyVoltThreshold = source->frSkyVoltThreshold ;
+	dest->bt_telemetry = source->bt_telemetry ;
+	dest->numVoice = source->numVoice ;
+	if ( dest->numVoice )
+	{
+		dest->numVoice += NUM_SKYCHNOUT - NUM_CHNOUT ;
+	}
+	for ( i = 0 ; i < NUM_CHNOUT ; i += 1 )
+	{
+		SafetySwData *src = &source->safetySw[i] ;
+		SKYSafetySwData *dst = &dest->safetySw[i] ;
+		if ( i < (uint32_t)NUM_CHNOUT - dest->numVoice )
+		{
+			dst->opt.ss.swtch = src->opt.ss.swtch ;
+			dst->opt.ss.mode = src->opt.ss.mode ;
+			dst->opt.ss.val = src->opt.ss.val ;
+			if ( dst->opt.ss.mode == 3 )
+			{
+				dst->opt.ss.mode = 0 ;
+			}
+			switch ( dst->opt.ss.mode )
+			{
+				case 0 :
+				case 1 :
+				case 2 :
+					convertSwitch( &dst->opt.ss.swtch ) ;
+				break ;
+			}
+		}
+		else
+		{
+			dst->opt.vs.vswtch = src->opt.vs.vswtch ;
+			dst->opt.vs.vmode = src->opt.vs.vmode ;
+			dst->opt.vs.vval = src->opt.vs.vval ;
+			convertSwitch( (int8_t *)&dst->opt.vs.vswtch ) ;
+		}
+	}
+
+	for ( i = 0 ; i < 2 ; i += 1 )
+	{
+		FrSkyChannelData *src = &source->frsky.channels[i] ;
+		SKYFrSkyChannelData *dst = &dest->frsky.channels[i] ;
+		dst->ratio = src->ratio ;
+		dst->alarms_value[0] = src->alarms_value[0] ;
+		dst->alarms_value[1] = src->alarms_value[1] ;
+		dst->alarms_level = src->alarms_level ;
+		dst->alarms_greater = src->alarms_greater ;
+		dst->type = src->type ;
+		dst->gain = 1 ;
+	}
+
+	for ( i = 0 ; i < 2 ; i += 1 )
+	{
+		dest->timer[i] = source->timer[i] ;
+  	if( dest->timer[i].tmrModeB>=(MAX_DRSWITCH))	 //momentary on-off
+		{
+			dest->timer[i].tmrModeB += (NUM_SKYCSW - NUM_CSW) ;
+		}
+	}
+
+	dest->frskyAlarms = source->frskyAlarms ;
+
+  memcpy( &dest->customDisplayIndex[0], &source->customDisplayIndex[0], 6 ) ;
+
+}
 
 
 

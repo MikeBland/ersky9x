@@ -45,7 +45,7 @@ extern struct t_file_entry File_system[] ;
 extern unsigned char ModelNames[][sizeof(g_model.name)+1] ;		// Allow for general
 
 extern EEGeneral  g_eeGeneral;
-extern ModelData  g_model;
+//extern ModelData  g_model;
 
 extern uint8_t Spi_tx_buf[] ;
 extern uint8_t Spi_rx_buf[] ;

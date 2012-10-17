@@ -96,7 +96,8 @@ enum EnumKeys {
     SW_Trainer
 };
 
-#define CURV_STR "---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16"
+// c17-c24 added for timer mode A display
+#define CURV_STR "---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 #define CURVE_BASE 7
 
 #define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 TimeOff"
@@ -130,6 +131,7 @@ enum EnumKeys {
 #define SW_BASE_DIAG SW_ThrCt
 #define MAX_PSWITCH   (SW_Trainer-SW_ThrCt+1)  // 9 physical switches
 #define MAX_DRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_CSW)
+#define MAX_SKYDRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_SKYCSW)
 
 #define SWP_RUD (SW_RuddDR-SW_BASE)
 #define SWP_ELE (SW_ElevDR-SW_BASE)
@@ -157,8 +159,9 @@ enum EnumKeys {
 #define SWP_IL4 (SWP_ID1B | SWP_ID2B)
 #define SWP_IL5 (SWP_ID0B | SWP_ID1B | SWP_ID2B)
 
-#define SWITCHES_STR "THR""RUD""ELE""ID0""ID1""ID2""AIL""GEA""TRN""SW1""SW2""SW3""SW4""SW5""SW6""SW7""SW8""SW9""SWA""SWB""SWC"
+#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
 #define NUM_CSW  12 //number of custom switches
+#define NUM_SKYCSW  24 //number of custom switches
 #define CSW_INDEX	9	// Index of first custom switch
 
 
@@ -201,9 +204,12 @@ enum EnumKeys {
 #define NUM_PPM     8
 //number of real outputchannels CH1-CH16
 #define NUM_CHNOUT  16
+#define NUM_SKYCHNOUT  24
 ///number of real input channels (1-9) plus virtual input channels X1-X4
 #define PPM_BASE    MIX_CYC3
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
+
+#define NUM_FSW			16
 
 #define SWASH_TYPE_STR   "---   ""120   ""120X  ""140   ""90    "
 
@@ -324,7 +330,6 @@ extern uint8_t sysFlags;
 const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.";
 #define NUMCHARS (sizeof(s_charTab)-1)
 
-#define NUM_PPM     8
 ///number of real input channels (1-9) plus virtual input channels X1-X4
 #define PPM_BASE    MIX_CYC3
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
@@ -335,10 +340,12 @@ extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
 #define NUM_TELEM_ITEMS 21
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
+#define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 ///number of real output channels (CH1-CH8) plus virtual output channels X1-X4
 #define NUM_XCHNOUT (NUM_CHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
+#define NUM_SKYXCHNOUT (NUM_SKYCHNOUT) //(NUM_CHNOUT)//+NUM_VIRT)
 
-#define MIX_3POS	(NUM_XCHNRAW+1)
+#define MIX_3POS	(NUM_SKYXCHNRAW+1)
 
 inline int32_t calc100toRESX(register int8_t x)
 {
@@ -392,8 +399,6 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define NO_MENU		1
 #define MENUS			0
 
-#define NUM_VS_SWITCHES			2
-
 typedef void (*MenuFuncP)(uint8_t event);
 
 typedef struct
@@ -428,7 +433,7 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 
 
 extern uint8_t heartbeat ;
-extern int16_t g_chans512[NUM_CHNOUT];
+extern int16_t g_chans512[NUM_SKYCHNOUT];
 //extern uint8_t eeprom[4096] ;
 
 uint8_t char2idx(char c);
@@ -464,7 +469,7 @@ extern int16_t intpol(int16_t x, uint8_t idx);
 
 extern uint16_t anaIn(uint8_t chan) ;
 
-extern int16_t ex_chans[NUM_CHNOUT];
+extern int16_t ex_chans[NUM_SKYCHNOUT];
 
 extern void modelDefault( uint8_t id ) ;
 

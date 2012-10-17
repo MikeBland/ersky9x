@@ -20,7 +20,7 @@
 #define NOINLINE __attribute__ ((noinline))
 
 // Version number, sent in first byte of response
-#define VERSION				 0x03
+#define VERSION				 0x04
 
 /*****************************************************************************/
 // USI_TWI write states.
@@ -44,6 +44,16 @@
 #define TSOFFSET		5
 #define TSGAIN			7
 
+// EEPROM offsets
+#define EE_SECOND		1
+#define EE_MINUTE		2
+#define EE_HOUR			3
+#define EE_DATE			4
+#define EE_MONTH		5
+#define EE_YEARL		6
+#define EE_YEARH		7
+
+
 // Bits in AdcControl
 #define	ADC_RUNNING			0x80
 #define	ADC_CALC				0x40
@@ -54,6 +64,12 @@ uint16_t AdcTotal ;
 int8_t	T_offset ;
 uint8_t T_gain ;
 int16_t T_mult ;
+
+uint8_t StoreTime ;			// Flag set to cause date/time put into eeprom
+uint8_t StoreState ;			// Flag set to cause date/time put into eeprom
+
+uint8_t I2CstartTime ;
+uint8_t I2Crunning ;
 
 // USI_TWI state values.
 static uint8_t USI_TWI_SLAVE_Write_State;
@@ -96,6 +112,7 @@ static void Disable_WatchDogTimer(void) ;
 static void Init_WatchDogTimer(void) ;
 void enableAdc( void ) ;
 void disableAdc( void ) ;
+void storeTime( void ) ;
 
 
 char not_leap(void)      //check for leap year
@@ -119,6 +136,10 @@ void updateTime(uint8_t amount)
     if (++p->minute >= 60) 
     {
       p->minute=0;
+			if ( p->hour & 1 )
+			{
+				StoreTime = 1 ;				// Store date/time every 2 hours
+			}
       if (++p->hour >= 24)
       {
         p->hour=0;
@@ -206,6 +227,10 @@ void checkPowerSave()
   	sleep_disable();
 		cli() ;
 	 	wdt_reset() ;
+		if ( StoreTime )
+		{
+			storeTime() ;			
+		}
   }
   PRR = 0x39 ;		// USI re-powered
   Init_WatchDogTimer() ;
@@ -298,8 +323,9 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 			CLKPR = 0x80 ;		// Do inline for quick response
 			CLKPR = 0 ;				// Full speed 8.0MHz
       // Process the USI TWI start condition.
-      USI_TWI_SLAVE_Process_Start_Condition();
-
+      USI_TWI_SLAVE_Process_Start_Condition() ;
+			I2Crunning = 1 ;
+			I2CstartTime = TCNT0 ;
   	}
   
    // Check for USI_TWI_SLAVE overflow condition.
@@ -337,6 +363,8 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
   	{
        // Clear the stop condition flag.
         USISR = (1<<USIPF);
+				I2Crunning = 0 ;
+
         // Check for the special address to exit the bootloader.
         if ( Run_boot )
         {
@@ -371,8 +399,8 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 			*q++ = p->year ;
 			*q++ = p->year >> 8 ;
 			*q++ = Temperature ;
-			*q++ = T_offset ;
-			*q++ = T_gain ;
+//			*q++ = T_offset ;
+//			*q++ = T_gain ;
 //		*q++ = MCUSR ;
 
 			if ( ActivityFlag < 255 )
@@ -427,7 +455,22 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 				}
 			}
 		}
-		checkPowerSave() ;
+		if ( StoreTime )
+		{
+			storeTime() ;			
+		}
+		else
+		{
+			checkPowerSave() ;
+		}
+		if ( I2Crunning )
+		{
+			if ( ( TCNT0 - I2CstartTime ) > 12 ) // 50mS
+			{
+				// Timeout I2C bus, force release of lines.
+				USI_TWI_SLAVE_Init() ;			
+			}
+		}
   } // while
 //  Disable_WatchDogTimer(); // After Reset the WDT state does not change
 //  void (*FuncPtr) (void) = (void (*)(void)) (0x0080);	// Set up function pointer to address 0x0080
@@ -699,6 +742,7 @@ void USI_TWI_SLAVE_Process_Overflow_Condition(void)
 							p->date= DataBuffer[4] ;
 							p->month = DataBuffer[5] ;
 							p->year = DataBuffer[6] + ( DataBuffer[7] << 8 ) ;
+							StoreTime = 1 ;				// Store date/time in eeprom
 						}
         	  Value = 9 ;
         	  bufferPtr = &DataBuffer[DATA_SIZE-1] ;
@@ -867,6 +911,92 @@ NOINLINE void set_clock( uint8_t speed )
 	*ptr = speed ;
 }
 
+int8_t eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom)
+{
+  if ( EECR & (1<<EEPE) ) /* make sure EEPROM is ready */
+  {
+		return -1 ;
+  }
+  EEAR  = pointer_eeprom;
+
+  EECR = 1<<EERE;
+  if(dat == EEDR)
+	{
+		return 0 ;
+	}
+
+  EEDR  = dat;
+  uint8_t flags=SREG;
+  cli();
+  EECR |= 1<<EEMPE;
+  EECR |= 1<<EEPE;
+  SREG = flags;
+	return 0 ;
+}
+
+int16_t eepromReadByte( uint16_t pointer_eeprom )
+{
+  if ( EECR & (1<<EEPE) ) /* make sure EEPROM is ready */
+  {
+		return -1 ;
+  }
+  EEAR  = pointer_eeprom;
+
+  EECR |= 1<<EERE;
+	return EEDR ;
+}
+
+void storeTime()
+{
+	switch ( StoreState )
+	{
+		case 0 :
+			if ( eeprom_write_byte_cmp( Time.second, EE_SECOND ) == 0 )
+			{
+				StoreState = 1 ;
+			}
+		break ;
+		case 1 :
+			if ( eeprom_write_byte_cmp( Time.minute, EE_MINUTE ) == 0 )
+			{
+				StoreState = 2 ;
+			}
+		break ;
+		case 2 :
+			if ( eeprom_write_byte_cmp( Time.hour, EE_HOUR ) == 0 )
+			{
+				StoreState = 3 ;
+			}
+		break ;
+		case 3 :
+			if ( eeprom_write_byte_cmp( Time.date, EE_DATE ) == 0 )
+			{
+				StoreState = 4 ;
+			}
+		break ;
+		case 4 :
+			if ( eeprom_write_byte_cmp( Time.month, EE_MONTH ) == 0 )
+			{
+				StoreState = 5 ;
+			}
+		break ;
+		case 5 :
+			if ( eeprom_write_byte_cmp( Time.year, EE_YEARL ) == 0 )
+			{
+				StoreState = 6 ;
+			}
+		break ;
+		case 6 :
+			if ( eeprom_write_byte_cmp( Time.year >> 8, EE_YEARH ) == 0 )
+			{
+				StoreState = 0 ;
+				StoreTime = 0 ;
+			}
+		break ;
+	}
+}
+
+
 /***********************************************************************/
 // Main Starts from here
 void main (void)
@@ -890,12 +1020,23 @@ void main (void)
 	t_time *p = &Time ;
 	FORCE_INDIRECT(p) ;
 
-	p->second = 5 ;
-	p->minute = 6 ;
-	p->hour = 16 ;
-	p->date= 23 ;
-	p->month = 9 ;
-	p->year = 2012 ;
+	p->second = eepromReadByte( EE_SECOND ) ;
+  p->minute = eepromReadByte( EE_MINUTE ) ;
+  p->hour = eepromReadByte( EE_HOUR ) ;
+  p->date = eepromReadByte( EE_DATE ) ;
+  p->month = eepromReadByte( EE_MONTH ) ;
+  p->year = eepromReadByte( EE_YEARL ) + ( eepromReadByte( EE_YEARH ) << 8 ) ;
+
+	if ( p->year == 0xFFFF )
+	{
+  	p->second = 0 ;
+  	p->minute = 0 ;
+  	p->hour = 19 ;
+  	p->date = 7 ;
+  	p->month = 10 ;
+  	p->year = 2012 ;
+		StoreTime = 1 ;	// Flag set to cause date/time put into eeprom
+	}
 
 	bufferPtr = DataBuffer ;
 
@@ -924,4 +1065,6 @@ void disableAdc()
 	ADCSRA = (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0) ;	// set ADC prescaler to , 8MHz / 256 = 30kHz
   sbi( PRR, PRADC ) ;		// Power Down the ADC
 }
+
+
 
