@@ -70,6 +70,8 @@
 #define GENERAL_OWNER_NAME_LEN 10
 #define MODEL_NAME_LEN         10
 
+#define MAX_GVARS 5
+
 #ifndef PACK
 #define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
 #endif
@@ -409,6 +411,12 @@ PACK(typedef struct t_FuncSwData { // Function Switches data
   uint8_t spare;
 }) FuncSwData;
 
+PACK(typedef struct t_gvar {
+	int8_t gvar ;
+	uint8_t gvsource ;
+//	int8_t gvswitch ;
+}) GvarData ;
+
 PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
   uint8_t   modelVoice ;		// Index to model name voice (261+value)
@@ -462,6 +470,7 @@ PACK(typedef struct te_ModelData {
 	uint8_t customDisplayIndex[6] ;
   FuncSwData   funcSw[NUM_FSW];
 	PhaseData phaseData[6] ;
+	GvarData gvars[MAX_GVARS] ;
 }) SKYModelData;
 
 

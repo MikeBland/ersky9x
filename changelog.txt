@@ -10,6 +10,13 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Nov-2012  MPB
+Rotary encoder now steps through all items
+Current calibration moved to ANA menu
+Co-processor version now on Firmware version menu
+Limited Global variable functionality added
+
+******************************************
 CHANGELOG: 17-Oct-2012  MPB
 MAJOR UPDATE - EEPROM structure changed
 48 mixes

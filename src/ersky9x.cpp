@@ -139,6 +139,7 @@ volatile int32_t Rotary_count ;
 int32_t LastRotaryValue ;
 int32_t Rotary_diff ;
 uint8_t Vs_state[NUM_SKYCHNOUT] ;
+int8_t RotaryControl ;
 
 
 void tmrBt_Handle( void ) ;
@@ -1692,6 +1693,14 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
   return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
 }
 
+int8_t *TrimPtr[4] = 
+{
+  &g_model.trim[0],
+  &g_model.trim[1],
+  &g_model.trim[2],
+  &g_model.trim[3]
+} ;
+
 
 void perMain( uint32_t no_menu )
 {
@@ -1744,6 +1753,53 @@ void perMain( uint32_t no_menu )
 		LastRotaryValue = Rotary_count ;
 	}
 
+	if ( g_menuStack[g_menuStackPtr] == menuProc0)
+	{
+		if ( Rotary_diff )
+		{
+			int16_t x = RotaryControl ;
+			x += Rotary_diff ;
+			if ( x > 125 )
+			{
+				RotaryControl = 125 ;
+			}
+			else if ( x < -125 )
+			{
+				RotaryControl = -125 ;
+			}
+			else
+			{
+				RotaryControl = x ;					
+			}
+			Rotary_diff = 0 ;
+		}
+	}
+
+#if GVARS
+	for( uint8_t i = 0 ; i < MAX_GVARS ; i += 1 )
+	{
+		// ToDo, test for trim inputs here
+		if ( g_model.gvars[i].gvsource )
+		{
+			if ( g_model.gvars[i].gvsource <= 4 )
+			{
+				g_model.gvars[i].gvar = *TrimPtr[ convert_mode_helper(g_model.gvars[i].gvsource) - 1 ] ;
+			}
+			else if ( g_model.gvars[i].gvsource == 5 )	// REN
+			{
+				g_model.gvars[i].gvar = RotaryControl ;
+			}
+			else if ( g_model.gvars[i].gvsource <= 9 )	// Stick
+			{
+				g_model.gvars[i].gvar = limit( -125, calibratedStick[ convert_mode_helper(g_model.gvars[i].gvsource-5) - 1 ] / 8, 125 ) ;
+			}
+			else if ( g_model.gvars[i].gvsource <= 12 )	// Pot
+			{
+				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
+			}
+		}
+	}
+#endif
 
 #ifdef FRSKY
 	check_frsky() ;
@@ -2753,14 +2809,6 @@ static void config_free_pins()
 }
 
 
-int8_t *TrimPtr[4] = 
-{
-  &g_model.trim[0],
-  &g_model.trim[1],
-  &g_model.trim[2],
-  &g_model.trim[3]
-} ;
-
 static uint8_t checkTrim(uint8_t event)
 {
   int8_t  k = (event & EVT_KEY_MASK) - TRM_BASE;
@@ -2847,7 +2895,11 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 	uint8_t chanLimit = NUM_SKYXCHNRAW ;
 	if ( att & MIX_SOURCE )
 	{
+#if GVARS
+		chanLimit += 6 ;
+#else
 		chanLimit += 1 ;
+#endif
 		att &= ~MIX_SOURCE ;		
 	}
   if(idx==0)
@@ -2856,7 +2908,11 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
 //    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
   else if(idx<=chanLimit)
+#if GVARS
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 ")+4*(idx-5),4,att);
+#else
     lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS")+4*(idx-5),4,att);
+#endif
 	else
   	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_SKYXCHNRAW-1),att);
 }
@@ -3574,6 +3630,25 @@ uint8_t *cpystr( uint8_t *dest, uint8_t *source )
   return dest - 1 ;
 }
 
+#if GVARS
+int8_t REG(int8_t x, int8_t min, int8_t max)
+{
+  int8_t result = x;
+  if (x >= 126 || x <= -126) {
+    x = (uint8_t)x - 126;
+    result = g_model.gvars[x].gvar ;
+    if (result < min) {
+      g_model.gvars[x].gvar = result = min;
+//      eeDirty( EE_MODEL | EE_TRIM ) ;
+    }
+    if (result > max) {
+      g_model.gvars[x].gvar = result = max;
+//      eeDirty( EE_MODEL | EE_TRIM ) ;
+    }
+  }
+  return result;
+}
+#endif
 
 /*** EOF ***/
 

@@ -20,7 +20,7 @@
 #define NOINLINE __attribute__ ((noinline))
 
 // Version number, sent in first byte of response
-#define VERSION				 0x04
+#define VERSION				 0x05
 
 /*****************************************************************************/
 // USI_TWI write states.
@@ -38,6 +38,7 @@
 
 #define DATA_SIZE		16		// Receive data buffer size
 
+// Adc configuration value
 #define TEMPERATURE				0b01001011    
 
 // Signature row addresses
@@ -113,6 +114,21 @@ static void Init_WatchDogTimer(void) ;
 void enableAdc( void ) ;
 void disableAdc( void ) ;
 void storeTime( void ) ;
+void config_io( void ) ;
+void disable_io( void ) ;
+
+
+void config_io()
+{
+	DDRB &= ~0b01001010 ;
+	PORTB |= 0b01001010 ;
+}
+
+void disable_io()
+{
+	DDRB &= ~0b01001010 ;
+	PORTB &= ~0b01001010 ;
+}
 
 
 char not_leap(void)      //check for leap year
@@ -217,6 +233,7 @@ void checkPowerSave()
 	disableAdc() ;
   PRR = 0x3B ;		// Power off USI
 	Disable_WatchDogTimer() ;
+	disable_io() ;
 	set_clock( 2 ) ;		// Slow to 2.0 MHz
 	while ( ( PINB & 0x05 ) == 0 )		// I2C lines are low
   {
@@ -233,6 +250,7 @@ void checkPowerSave()
 		}
   }
   PRR = 0x39 ;		// USI re-powered
+	config_io() ;
   Init_WatchDogTimer() ;
   USI_TWI_SLAVE_Init();
 	enableAdc() ;
@@ -399,8 +417,9 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 			*q++ = p->year ;
 			*q++ = p->year >> 8 ;
 			*q++ = Temperature ;
-//			*q++ = T_offset ;
-//			*q++ = T_gain ;
+			*q++ = PINB & 0b01001010 ;
+			*(q+10) = T_offset ;
+			*(q+11) = T_gain ;
 //		*q++ = MCUSR ;
 
 			if ( ActivityFlag < 255 )
@@ -419,6 +438,9 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 					AdcTotal >>= 3 ;
 					{
 						int16_t temp ;
+
+						Tx_buffer[10] = AdcTotal ;
+						Tx_buffer[11] = AdcTotal >> 8 ;
 
 						temp = AdcTotal ;
 						temp -= 298 ;
@@ -1017,6 +1039,9 @@ void main (void)
     TIFR0 = 0x01;/*Clear T0 int flag*/
 
 	}
+
+	config_io() ;
+
 	t_time *p = &Time ;
 	FORCE_INDIRECT(p) ;
 

@@ -33,6 +33,8 @@
 
 #define VERSION	"V0.26"
 
+#define GVARS		1
+
 //#define DATE_STR "xx.xx.2012"
 //#define TIME_STR "xx:xx:xx"
 //#define SUB_VERS VERSION
@@ -546,6 +548,10 @@ extern struct t_timer s_timer[] ;
 #define	ROTARY_VALUE			3
 
 extern uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
+
+#if GVARS
+extern int8_t REG(int8_t x, int8_t min, int8_t max) ;
+#endif
 
 
 #endif
