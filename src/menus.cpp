@@ -1307,7 +1307,7 @@ if(k==NUM_SKYCHNOUT){
 }
 }
 
-#if defined(GVARS) && defined(PCBSKY9X)
+#if 0
 void menuModelRegisterOne(uint8_t event)
 {
   model_gvar_t *reg = &g_model.gvars[s_curveChan];
