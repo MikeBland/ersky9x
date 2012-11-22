@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 22-Nov-2012  MPB
+Tweaks to improve global variables
+
+******************************************
 CHANGELOG: 21-Nov-2012  MPB
 Rotary encoder now steps through all items
 Current calibration moved to ANA menu
