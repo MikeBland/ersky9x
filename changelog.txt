@@ -11,7 +11,8 @@ description here
 
 ******************************************
 CHANGELOG: 22-Nov-2012  MPB
-Tweaks to improve global variables
+r125 Tweaks to improve global variables
+r126 Commit the bin file
 
 ******************************************
 CHANGELOG: 21-Nov-2012  MPB
