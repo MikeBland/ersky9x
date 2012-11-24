@@ -974,7 +974,10 @@ uint8_t MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t 
         if(!horTab || s_editMode)break;
         INC(m_posHorz,maxcol);
         BLINK_SYNC;
-				event = 0 ;
+				if ( maxcol )
+				{
+					event = 0 ;
+				}
     break;
 
     case EVT_KEY_REPT(KEY_LEFT):  //dec
@@ -983,7 +986,10 @@ uint8_t MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t 
         if(!horTab || s_editMode)break;
         DEC(m_posHorz,maxcol);
         BLINK_SYNC;
-				event = 0 ;
+				if ( maxcol )
+				{
+					event = 0 ;
+				}
     break;
 
     case EVT_KEY_REPT(KEY_DOWN):  //inc
@@ -2551,10 +2557,6 @@ int8_t   kViewR  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_EXPO][DR_R
 int8_t   kViewL  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_EXPO][DR_LEFT], -100, 100);  //NormL;
 int8_t   wViewR  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_RIGHT]+100, 0, 100);  //NormWeightR+100;
 int8_t   wViewL  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_LEFT]+100, 0, 100);  //NormWeightL+100;
-
-	lcd_outhex4( 0, 7*FH, kViewR ) ;
-	lcd_outhex4( 30, 7*FH, wViewR ) ;
-	lcd_outhex4( 0, 6*FH, g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_RIGHT] ) ;
 
 #define WE_CHART	(WCHART-1)
 #define WE_CHARTl	(WCHARTl-1)

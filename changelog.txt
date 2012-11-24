@@ -11,6 +11,10 @@ description here
 
 ******************************************
 CHANGELOG: 24-Nov-2012  MPB
+r128 Fix an editing bug and remove debug on expo screen
+
+******************************************
+CHANGELOG: 24-Nov-2012  MPB
 r127 Enable GVARS with expo and dual rate
 
 ******************************************
