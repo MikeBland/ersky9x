@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 24-Nov-2012  MPB
+r127 Enable GVARS with expo and dual rate
+
+******************************************
 CHANGELOG: 22-Nov-2012  MPB
 r125 Tweaks to improve global variables
 r126 Commit the bin file

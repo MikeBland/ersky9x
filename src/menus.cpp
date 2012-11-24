@@ -758,7 +758,7 @@ void DisplayScreenIndex(uint8_t index, uint8_t count, uint8_t attr)
 #define MAXCOL(row) (horTab ? pgm_read_byte(horTab+min(row, horTabMax)) : (const uint8_t)0)
 #define INC(val,max) if(val<max) {val++;} else {val=0;}
 #define DEC(val,max) if(val>0  ) {val--;} else {val=max;}
-void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t menuTabSize, prog_uint8_t *horTab, uint8_t horTabMax, uint8_t maxrow)
+uint8_t MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t menuTabSize, prog_uint8_t *horTab, uint8_t horTabMax, uint8_t maxrow)
 {
     //    scrollLR = 0;
     //    scrollUD = 0;
@@ -826,7 +826,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
             //                        chainMenu(menuProcDiagAna);
             //                    else
           chainMenu((MenuFuncP)pgm_read_adr(&menuTab[cc]));
-					return ;
+					return event ;
         }
 
         scrollLR = 0;
@@ -842,7 +842,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
           index = menuTabSize ;
 
        	chainMenu((MenuFuncP)pgm_read_adr(&menuTab[index-1]));
-				return ;
+				return event ;
       }
 
       if(event==EVT_KEY_FIRST(KEY_RIGHT))
@@ -854,7 +854,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         else
           index = 0 ;
         chainMenu((MenuFuncP)pgm_read_adr(&menuTab[index]));
-				return ;
+				return event ;
       }
     }
 		else
@@ -974,6 +974,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         if(!horTab || s_editMode)break;
         INC(m_posHorz,maxcol);
         BLINK_SYNC;
+				event = 0 ;
     break;
 
     case EVT_KEY_REPT(KEY_LEFT):  //dec
@@ -982,6 +983,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         if(!horTab || s_editMode)break;
         DEC(m_posHorz,maxcol);
         BLINK_SYNC;
+				event = 0 ;
     break;
 
     case EVT_KEY_REPT(KEY_DOWN):  //inc
@@ -1002,6 +1004,7 @@ void MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t men
         BLINK_SYNC;
     break;
   }
+	return event ;
 }
 
 
@@ -2481,22 +2484,24 @@ void editExpoVals(uint8_t event,uint8_t stopBlink,uint8_t editMode, uint8_t edit
     else
 		{
 		 		ptr = &g_model.expoData[chn].expo[which][exWt][stkRL] ;
-        if(exWt==DR_EXPO){
+        if(exWt==DR_EXPO)
+				{
             
-//#if GVARS
-//						*ptr = gvarMenuItem( x, y, *ptr, -100, 100, invBlk, event ) ;
-//#else
-						lcd_outdezAtt(x, y, *ptr, invBlk);
-            if(doedit) CHECK_INCDEC_H_MODELVAR(event,*ptr,-100, 100);
-//#endif
+#if GVARS
+					*ptr = gvarMenuItem( x, y, *ptr, -100, 100, invBlk, event ) ;
+#else
+					lcd_outdezAtt(x, y, *ptr, invBlk);
+          if(doedit) CHECK_INCDEC_H_MODELVAR(event,*ptr,-100, 100);
+#endif
         }
-        else {
-//#if GVARS
-//						*ptr = gvarMenuItem( x, y, *ptr+100, 0, 100, invBlk, event ) - 100 ;
-//#else
-            lcd_outdezAtt(x, y, *ptr+100, invBlk);
-            if(doedit) CHECK_INCDEC_H_MODELVAR(event,*ptr,-100, 0);
-//#endif
+        else
+				{
+#if GVARS
+					*ptr = gvarMenuItem( x, y, *ptr+100, 0, 100, invBlk, event ) - 100 ;
+#else
+          lcd_outdezAtt(x, y, *ptr+100, invBlk);
+          if(doedit) CHECK_INCDEC_H_MODELVAR(event,*ptr,-100, 0);
+#endif
         }
 		}
 }
@@ -2544,8 +2549,12 @@ y+=FH;
 
 int8_t   kViewR  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_EXPO][DR_RIGHT], -100, 100);  //NormR;
 int8_t   kViewL  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_EXPO][DR_LEFT], -100, 100);  //NormL;
-int8_t   wViewR  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_RIGHT], -100, 0)+100;  //NormWeightR+100;
-int8_t   wViewL  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_LEFT], -100, 0)+100;  //NormWeightL+100;
+int8_t   wViewR  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_RIGHT]+100, 0, 100);  //NormWeightR+100;
+int8_t   wViewL  = REG(g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_LEFT]+100, 0, 100);  //NormWeightL+100;
+
+	lcd_outhex4( 0, 7*FH, kViewR ) ;
+	lcd_outhex4( 30, 7*FH, wViewR ) ;
+	lcd_outhex4( 0, 6*FH, g_model.expoData[s_expoChan].expo[expoDrOn][DR_WEIGHT][DR_RIGHT] ) ;
 
 #define WE_CHART	(WCHART-1)
 #define WE_CHARTl	(WCHARTl-1)
@@ -2647,18 +2656,30 @@ for(uint8_t i=0; i<4; i++)
 
     uint8_t edtm = (s_editMode || p1valdiff);
     editExpoVals(event,false,edtm,sub==i && subHor==0, 7*FW-FW/2, y,i,expoDrOn,DR_EXPO,stkVal[i]);
+
+
+		int8_t *ptr ;
     if(sub==i && subHor==0 && edtm && stickCentred)
 		{
+			ptr = g_model.expoData[i].expo[expoDrOn][DR_EXPO] ;
+			
+			ptr[stkOp] = ptr[stkVal[i]] ;
 //#if GVARS
 //		 		ptr = &g_model.expoData[i].expo[expoDrOn][DR_EXPO][stkOp] ;
 //				*ptr = gvarMenuItem( x, y, *ptr, -100, 100, invBlk, event ) ;
 //#else
-        CHECK_INCDEC_H_MODELVAR(event,g_model.expoData[i].expo[expoDrOn][DR_EXPO][stkOp],-100, 100);
+//        CHECK_INCDEC_H_MODELVAR(event,g_model.expoData[i].expo[expoDrOn][DR_EXPO][stkOp],-100, 100);
 //#endif
 		}
-    editExpoVals(event,false,edtm,sub==i && subHor==1, 9*FW+FW/2, y,i,expoDrOn,DR_WEIGHT,stkVal[i]);
-    if(sub==i && subHor==1 && edtm && stickCentred)
-        CHECK_INCDEC_H_MODELVAR(event,g_model.expoData[i].expo[expoDrOn][DR_WEIGHT][stkOp],-100, 0);
+    
+		editExpoVals(event,false,edtm,sub==i && subHor==1, 9*FW+FW/2, y,i,expoDrOn,DR_WEIGHT,stkVal[i]);
+    
+		if(sub==i && subHor==1 && edtm && stickCentred)
+		{
+			ptr = g_model.expoData[i].expo[expoDrOn][DR_WEIGHT] ;
+			ptr[stkOp] = ptr[stkVal[i]] ;
+		}
+//        CHECK_INCDEC_H_MODELVAR(event,g_model.expoData[i].expo[expoDrOn][DR_WEIGHT][stkOp],-100, 0);
 
     editExpoVals(event,false,edtm,sub==i && subHor==2,10*FW+FW/2, y,i,DR_DRSW1,0,0);
     editExpoVals(event,false,edtm,sub==i && subHor==3,14*FW+FW/2, y,i,DR_DRSW2,0,0);
@@ -5462,7 +5483,7 @@ void perOut(int16_t *chanOut, uint8_t att)
                 else
                     v  = expo(v,REG(g_model.expoData[i].expo[expoDrOn][DR_EXPO][stkDir], -100, 100));
 
-                int32_t x = (int32_t)v * (REG(g_model.expoData[i].expo[expoDrOn][DR_WEIGHT][stkDir], -100, 0)+100)/100;
+                int32_t x = (int32_t)v * (REG(g_model.expoData[i].expo[expoDrOn][DR_WEIGHT][stkDir]+100, 0, 100))/100;
                 v = (int16_t)x;
                 if (IS_THROTTLE(i) && g_model.thrExpo) v -= RESX;
 
