@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 02-Dec-2012  MPB
+r129 Fix voice output for low ratio settings
+
+******************************************
 CHANGELOG: 24-Nov-2012  MPB
 r128 Fix an editing bug and remove debug on expo screen
 

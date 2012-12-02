@@ -175,17 +175,24 @@ void voice_telem_item( int8_t index )
     case FR_A2_COPY:
 		{	
 			uint8_t ltype = g_model.frsky.channels[index-FR_A1_COPY].type ;
-			value = scale_telem_value( value, index-FR_A1_COPY, (g_model.frsky.channels[index-FR_A1_COPY].type == 2/*V*/), &att ) ;
+			value = scale_telem_value( value, index-FR_A1_COPY, (ltype == 2/*V*/), &att ) ;
 			unit = V_VOLTS ;			
 			num_decimals = 1 ;
 			if (ltype == 3)
 			{
 				unit = V_AMPS ;
 			}
-			if (ltype == 1)
+			else if (ltype == 1)
 			{
 				unit = 0 ;
 				num_decimals = 0 ;
+			}
+			else
+			{
+				if ( g_model.frsky.channels[index-FR_A1_COPY].ratio < 100 )
+				{
+					num_decimals = 2 ;
+				}
 			}
 		}
 		break ;
