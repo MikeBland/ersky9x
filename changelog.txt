@@ -11,6 +11,10 @@ description here
 
 ******************************************
 CHANGELOG: 05-Jan-2013  MPB
+r132 Add X9D.cpp test program
+
+******************************************
+CHANGELOG: 05-Jan-2013  MPB
 r131 RPM blade count now 1 to 50
 Internal file changes to allow X9D testing
 
