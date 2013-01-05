@@ -41,7 +41,7 @@
 
 // Local data
 uint8_t Lcd_lastPos ;
-uint8_t DisplayBuf[1024] ;
+uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
 #define DISPLAY_END (DisplayBuf+sizeof(DisplayBuf))
 
 
@@ -605,6 +605,9 @@ void lcd_clear()
 uint8_t LcdLock ;
 uint8_t LcdInputs ;
 
+
+#ifdef PCBSKY
+
 void lcd_init()
 {
 	register Pio *pioptr ;
@@ -843,5 +846,5 @@ void refreshDisplay()
 }
 #endif
 
-
+#endif // PCBSKY
 

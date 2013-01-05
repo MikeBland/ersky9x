@@ -38,6 +38,8 @@
 #define MDVERS_e119 10
 #define MDVERS      11
 
+#define MDSKYVERS   1
+
 #define	NUM_VOICE		8
 
 //OBSOLETE - USE ONLY MDVERS NOW
@@ -358,7 +360,7 @@ PACK(typedef struct te_CSwData { // Custom Switches data
   int8_t  v1; //input
   int8_t  v2; 		//offset
 	uint8_t func;
-	uint8_t andsw;
+	int8_t andsw;
 	uint8_t res ;
 }) SKYCSwData;
 
@@ -432,7 +434,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   protocol;
   int8_t    ppmNCH;
   uint8_t   thrTrim:1;            // Enable Throttle Trim
-	uint8_t   numBlades:2;					// RPM scaling
+	uint8_t   xnumBlades:2;					// RPM scaling
 	uint8_t   spare10:1;
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   spare11:3;
@@ -471,6 +473,7 @@ PACK(typedef struct te_ModelData {
   FuncSwData   funcSw[NUM_FSW];
 	PhaseData phaseData[6] ;
 	GvarData gvars[MAX_GVARS] ;
+	uint8_t   numBlades ;					// RPM scaling
 }) SKYModelData;
 
 

@@ -1,26 +1,6 @@
 #ifndef drivers_h
 #define drivers_h
 
-#define PIN_ENABLE			0x001
-#define PIN_PERIPHERAL	0x000
-#define PIN_INPUT				0x002
-#define PIN_OUTPUT			0x000
-#define PIN_PULLUP			0x004
-#define PIN_NO_PULLUP		0x000
-#define PIN_PULLDOWN		0x008
-#define PIN_NO_PULLDOWN	0x000
-#define PIN_PERI_MASK_L	0x010
-#define PIN_PERI_MASK_H	0x020
-#define PIN_PER_A				0x000
-#define PIN_PER_B				0x010
-#define PIN_PER_C				0x020
-#define PIN_PER_D				0x030
-#define PIN_PORT_MASK		0x0C0
-#define PIN_PORTA				0x000
-#define PIN_PORTB				0x040
-#define PIN_PORTC				0x080
-#define PIN_LOW					0x000
-#define PIN_HIGH				0x100
 
 
 struct t_fifo32
@@ -53,8 +33,6 @@ extern volatile uint32_t Spi_complete ;
 
 
 extern void putEvent( register uint8_t evt) ;
-extern uint32_t read_keys( void ) ;
-extern uint32_t read_trims( void ) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void UART_Stop( void ) ;
 extern void Bt_UART_Stop( void ) ;
@@ -76,7 +54,6 @@ extern void rxPdcUsart( void (*pChProcess)(uint8_t x) ) ;
 extern uint32_t txPdcUsart( uint8_t *buffer, uint32_t size ) ;
 extern uint32_t txPdcPending( void ) ;
 
-extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void per10ms( void ) ;
 extern uint8_t getEvent( void ) ;
 extern void pauseEvents(uint8_t event) ;
@@ -109,7 +86,6 @@ extern void disable_ssc( void ) ;
 
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 
-extern void configure_pins( uint32_t pins, uint16_t config ) ;
 extern void init_SDcard( void ) ;
 
 //------------------------------------------------------------------------------
@@ -144,3 +120,30 @@ extern uint32_t sd_card_ready( void ) ;
 extern uint32_t sd_read_block( uint32_t block_no, uint32_t *data ) ;
 
 #endif
+
+
+class Key
+{
+#define FILTERBITS      4
+#define FFVAL          ((1<<FILTERBITS)-1)
+#define KSTATE_OFF      0
+#define KSTATE_RPTDELAY 95 // gruvin: longer dely before key repeating starts
+  //#define KSTATE_SHORT   96
+#define KSTATE_START   97
+#define KSTATE_PAUSE   98
+#define KSTATE_KILLED  99
+  uint8_t m_vals:FILTERBITS;   // key debounce?  4 = 40ms
+  uint8_t m_dblcnt:2;
+  uint8_t m_cnt;
+  uint8_t m_state;
+public:
+  void input(bool val, EnumKeys enuk);
+  bool state()       { return m_vals==FFVAL;                }
+  void pauseEvents() { m_state = KSTATE_PAUSE;  m_cnt   = 0;}
+  void killEvents()  { m_state = KSTATE_KILLED; m_dblcnt=0; }
+  uint8_t getDbl()   { return m_dblcnt;                     }
+};
+
+extern Key keys[NUM_KEYS] ;
+
+

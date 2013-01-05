@@ -35,6 +35,7 @@
 #include "diskio.h"
 #include "ersky9x.h"
 #include "drivers.h"
+#include "logicio.h"
 
 // SD Card routines
 

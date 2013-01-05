@@ -53,6 +53,8 @@
 #include "drivers.h"
 #include "file.h"
 #include "menus.h"
+#include "timers.h"
+#include "logicio.h"
 #ifdef FRSKY
 #include "frsky.h"
 #endif
@@ -155,8 +157,7 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( char *string ) ;
 uint16_t rxuart( void ) ;
-static void start_timer2( void ) ;
-static void start_timer0( void ) ;
+//static void start_timer2( void ) ;
 extern "C" void TC2_IRQHandler( void ) ;
 #ifdef SIMU
 #define sam_boot()
@@ -489,27 +490,7 @@ int main(void)
 
 	config_free_pins() ;
 
-	// Next section configures the key inputs on the LCD data
-#ifdef REVB	
-	pioptr->PIO_PER = 0x0000003BL ;		// Enable bits 1,3,4,5, 0
-	pioptr->PIO_OER = PIO_PC0 ;		// Set bit 0 output
-	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
-#else	
-	pioptr->PIO_PER = 0x0000003DL ;		// Enable bits 2,3,4,5, 0
-	pioptr->PIO_OER = PIO_PC0 ;		// Set bit 0 output
-	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
-#endif
-
-	pioptr = PIOB ;
-#ifdef REVB	
-	pioptr->PIO_PUER = PIO_PB5 ;					// Enable pullup on bit B5 (MENU)
-	pioptr->PIO_PER = PIO_PB5 ;					// Enable bit B5
-#else	
-	pioptr->PIO_PUER = PIO_PB6 ;					// Enable pullup on bit B6 (MENU)
-	pioptr->PIO_PER = PIO_PB6 ;					// Enable bit B6
-#endif
+	init_keys() ;
 
 	setup_switches() ;
 
@@ -524,7 +505,8 @@ int main(void)
 	UART_Configure( 9600, Master_frequency ) ;
 	UART2_Configure( 9600, Master_frequency ) ;		// Testing
 
-	start_timer2() ;
+	init5msTimer() ;
+//	start_timer2() ;
 	start_timer0() ;
 	init_adc() ;
 	init_pwm() ;
@@ -1076,14 +1058,14 @@ void actionUsb()
 	end_spi() ;
 	end_sound() ;
 	TC0->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;
-	TC0->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
+	stop_timer0() ;
 	TC0->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
+	stop5msTimer() ;
 	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
 	TC1->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
 	TC1->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
 	TC1->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
 	PWM->PWM_DIS = PWM_DIS_CHID0 | PWM_DIS_CHID1 | PWM_DIS_CHID2 | PWM_DIS_CHID3 ;	// Disable all
-	NVIC_DisableIRQ(TC2_IRQn) ;
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
 	disable_main_ppm() ;
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
@@ -1105,7 +1087,7 @@ uint32_t OneSecTimer ;
 extern int16_t AltOffset ;
 #endif
 
-
+uint16_t Debug_analog[8] ;
 
 void mainSequence( uint32_t no_menu )
 {
@@ -1130,6 +1112,17 @@ void mainSequence( uint32_t no_menu )
 	{
 		Current_max = Current_analogue ;		
 	}
+
+	// ADC debug code
+	{
+		uint32_t x ;
+		for( x = 0 ; x < 8 ; x += 1 )
+		{
+			read_9_adc() ;
+			Debug_analog[x] = Analog_values[0] ;
+		}
+	}
+	// End debug code
 
 	perMain( no_menu ) ;		// Allow menu processing
 
@@ -1867,48 +1860,29 @@ void perMain( uint32_t no_menu )
 }
 
 // Starts TIMER2 at 200Hz
-static void start_timer2()
-{
-  register Tc *ptc ;
-	register uint32_t timer ;
+//static void start_timer2()
+//{
+//  register Tc *ptc ;
+//	register uint32_t timer ;
 
-  PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
+//  PMC->PMC_PCER0 |= 0x02000000L ;		// Enable peripheral clock to TC2
 
-	timer = Master_frequency / 12800 / 2 ;		// MCK/128 and 200 Hz
+//	timer = Master_frequency / 12800 / 2 ;		// MCK/128 and 200 Hz
 
-  ptc = TC0 ;		// Tc block 0 (TC0-2)
-	ptc->TC_BCR = 0 ;			// No sync
-	ptc->TC_BMR = 0 ;
-	ptc->TC_CHANNEL[2].TC_CMR = 0x00008000 ;	// Waveform mode
-	ptc->TC_CHANNEL[2].TC_RC = timer ;			// 10 Hz
-	ptc->TC_CHANNEL[2].TC_RA = timer >> 1 ;
-	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
-																						// MCK/128, set @ RA, Clear @ RC waveform
-	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+//  ptc = TC0 ;		// Tc block 0 (TC0-2)
+//	ptc->TC_BCR = 0 ;			// No sync
+//	ptc->TC_BMR = 0 ;
+//	ptc->TC_CHANNEL[2].TC_CMR = 0x00008000 ;	// Waveform mode
+//	ptc->TC_CHANNEL[2].TC_RC = timer ;			// 10 Hz
+//	ptc->TC_CHANNEL[2].TC_RA = timer >> 1 ;
+//	ptc->TC_CHANNEL[2].TC_CMR = 0x0009C003 ;	// 0000 0000 0000 1001 1100 0000 0000 0011
+//																						// MCK/128, set @ RA, Clear @ RC waveform
+//	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
-	NVIC_EnableIRQ(TC2_IRQn) ;
-	TC0->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;
-}
+//	NVIC_EnableIRQ(TC2_IRQn) ;
+//	TC0->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;
+//}
 
-
-// Starts TIMER0 at full speed (MCK/2) for delay timing
-// @ 36MHz this is 18MHz
-// This was 6 MHz, we may need to slow it to TIMER_CLOCK2 (MCK/8=4.5 MHz)
-static void start_timer0()
-{
-  register Tc *ptc ;
-
-  PMC->PMC_PCER0 |= 0x00800000L ;		// Enable peripheral clock to TC0
-
-  ptc = TC0 ;		// Tc block 0 (TC0-2)
-	ptc->TC_BCR = 0 ;			// No sync
-	ptc->TC_BMR = 2 ;
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00008001 ;	// Waveform mode MCK/8 for 36MHz osc.(Upset be write below)
-	ptc->TC_CHANNEL[0].TC_RC = 0xFFF0 ;
-	ptc->TC_CHANNEL[0].TC_RA = 0 ;
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00008040 ;	// 0000 0000 0000 0000 1000 0000 0100 0000, stop at regC, 18MHz
-	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
-}
 
 
 #if !defined(SIMU)
@@ -1967,14 +1941,9 @@ extern "C" void PIOC_IRQHandler()
 }
 
 
-extern "C" void TC2_IRQHandler()
+void interrupt5ms()
 {
-  register uint32_t dummy;
 	static uint32_t pre_scale ;		// Used to get 10 Hz counter
-
-  /* Clear status bit to acknowledge interrupt */
-  dummy = TC0->TC_CHANNEL[2].TC_SR;
-	(void) dummy ;		// Discard value - prevents compiler warning
 
 	sound_5ms() ;
 	 
@@ -2004,27 +1973,12 @@ extern "C" void TC2_IRQHandler()
 		}
 
 	}
-//	dummy = PIOC->PIO_PDSR ;		// Read Rotary encoder (PC19, PC21)
-//	dummy >>= 19 ;
-//	dummy &= 0x05 ;			// pick out the three bits
-//	if ( dummy != ( Rotary_position & 0x05 ) )
+// Remove the following when properly implemented, this for testing
+//	dummy = PIOB->PIO_PDSR & 0x40 ;		// Read the switch
+//	if ( ( Rotary_position & 0x40 ) != dummy )
 //	{
-//		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x04) >> 2 ) )
-//		{
-//			Rotary_count -= 1 ;
-//		}
-//		else
-//		{
-//			Rotary_count += 1 ;
-//		}
-//		Rotary_position = dummy ;
+//		Rotary_position ^= 0x40 ;
 //	}
-	// Remove the following when properly implemented, this for testing
-	dummy = PIOB->PIO_PDSR & 0x40 ;		// Read the switch
-	if ( ( Rotary_position & 0x40 ) != dummy )
-	{
-		Rotary_position ^= 0x40 ;
-	}
 }
 
 
@@ -2926,6 +2880,7 @@ void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
 
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 {
+	const char *pstr ;
   switch(idx1){
     case  0:            lcd_putsAtt(x+FW,y,PSTR("---"),att);return;
     case  MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("ON "),att);return;
@@ -2935,7 +2890,14 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 	{
   	lcd_putcAtt(x,y, '!',att);
 	}
-  lcd_putsnAtt(x+FW,y,get_switches_string()+3*(abs(idx1)-1),3,att);
+	pstr = get_switches_string()+3*(abs(idx1)-1) ;
+  lcd_putsnAtt(x+FW,y,pstr,3,att);
+	if ( att & CONDENSED )
+	{
+		pstr += 2 ;
+		att &= ~CONDENSED ;
+  	lcd_putcAtt(x+3*FW-1, y,*pstr,att);
+	}
 }
 
 //Type 1-trigA, 2-trigB, 0 best for display

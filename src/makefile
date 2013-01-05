@@ -20,12 +20,17 @@ TRGT = arm-none-eabi-
 CC   = $(TRGT)gcc
 CP   = $(TRGT)objcopy
 CLSS = $(TRGT)objdump
-AS   = $(TRGT)gcc -x assembler-with-cpp
+AS   = $(TRGT)as
+#gcc -x assembler-with-cpp
 BIN  = $(CP) -O ihex 
 BINX = $(CP) -O binary 
 
 # Object files directory
-OBJDIR = obj
+ifeq ($(PCB), X9D)
+OBJDIR = x9dobj
+else
+OBJDIR = skyobj
+endif
 
 MCU  = cortex-m3
 
@@ -63,7 +68,12 @@ endif
 
 # 
 # Define project name and Ram/Flash mode here
+ifeq ($(PCB), X9D)
+PROJECT        = x9d
+else
 PROJECT        = ersky9x
+endif
+
 RUN_FROM_FLASH = 1
 
 #
@@ -73,14 +83,35 @@ ifeq ($(RUN_FROM_FLASH), 0)
  ifeq ($(SAM3S2), 1)
  LDSCRIPT = sam3s2c_ram.ld
  else
- LDSCRIPT = sam3s4c_ram.ld
+   ifeq ($(PCB), X9D)
+#     ARCH = ARM
+     LDSCRIPT = x9d/stm32_flash.ld
+#     TRGT = arm-none-eabi-
+#     MCU  = cortex-m3
+     CPPDEFS += -DHSE_VALUE=12000000
+	  CPPDEFS += -DPCBX9D 
+   else
+     LDSCRIPT = sam3s4c_ram.ld
+	  CPPDEFS += -DPCBSKY 
+	endif
  endif
  FULL_PRJ = $(PROJECT)_ram
 else
  ifeq ($(SAM3S2), 1)
+ CPPDEFS += -DPCBSKY 
  LDSCRIPT = sam3s2c_flash.ld
  else
- LDSCRIPT = sam3s4c_flash.ld
+   ifeq ($(PCB), X9D)
+#     ARCH = ARM
+     LDSCRIPT = x9d/stm32_flash.ld
+#     TRGT = arm-none-eabi-
+#     MCU  = cortex-m3
+     CPPDEFS += -DHSE_VALUE=12000000
+	  CPPDEFS += -DPCBX9D 
+   else
+    CPPDEFS += -DPCBSKY 
+    LDSCRIPT = sam3s4c_flash.ld
+	endif
  endif
  FULL_PRJ = $(PROJECT)_rom
 endif
@@ -90,6 +121,28 @@ UDEFS = -Dat91sam3s4
 
 # Define ASM defines here
 UADEFS = 
+
+ifeq ($(PCB), X9D)
+
+# List C source files here
+SRC  = x9d/system_stm32f2xx.c \
+       x9d/stm32f2xx_gpio.c \
+       x9d/stm32f2xx_rcc.c
+
+
+CPPSRC = x9d.cpp \
+         x9d/lcd_driver.cpp \
+         x9d/aspi.cpp \
+         timers.cpp \
+         logicio.cpp \
+         analog.cpp \
+         drivers.cpp \
+		   lcd.cpp
+
+# List ASM source files here
+ASRC = x9d/startup_stm32f2xx.s
+
+else
 
 # List C source files here
 SRC  = core_cm3.c \
@@ -120,10 +173,15 @@ CPPSRC = stamp.cpp \
          frsky.cpp \
          audio.cpp \
          ersky9x.cpp \
+         timers.cpp \
+         logicio.cpp \
          massstorage.cpp
 
 # List ASM source files here
 ASRC =
+
+endif
+
 
 # List all user directories here
 UINCDIR = ./inc
@@ -156,11 +214,11 @@ endif
 
 
 ADEFS   = $(DADEFS) $(UADEFS)
-OBJS    = $(ASRC:.s=.o) $(SRC:.c=.o) $(CPPSRC:.cpp=.o)
+OBJS    = $(ASRC:%.s=$(OBJDIR)/%.o) $(SRC:%.c=$(OBJDIR)/%.o) $(CPPSRC:%.cpp=$(OBJDIR)/%.o)
 LIBS    = $(DLIBS) $(ULIBS)
 MCFLAGS = -mcpu=$(MCU)
 
-ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.s=.lst) $(ADEFS)
+#ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.s=.lst) $(ADEFS)
 CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
 LDFLAGS = $(MCFLAGS) -mthumb -nostartfiles -T$(LDSCRIPT) -Wl,-Map=$(FULL_PRJ).map,--cref,--no-warn-mismatch $(LIBDIR)
 CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.cpp=.lst) $(DEFS)
@@ -213,18 +271,22 @@ ifeq ($(STAMP), 1)
 	@echo "#define DATE_STR \"`date +%d.%m.%Y`\"" >> stamp-ersky9x.h
 	@echo "#define TIME_STR \"`date +%H:%M:%S`\"" >> stamp-ersky9x.h
 	@echo "#define SUB_VERS $(VER)-$(USER)" >> stamp-ersky9x.h
+ ifeq ($(PCB), X9D)
+	@echo "#define SVN_VERS \"erx9d-r$(REV)\"" >> stamp-ersky9x.h
+ else	
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
+ endif
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
 	@cat stamp-ersky9x.h
 endif
 
-%.o : %.cpp
+$(OBJDIR)/%.o : %.cpp
 	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@
 
-%.o : %.c
+$(OBJDIR)/%.o : %.c
 	$(CC) -c $(CPFLAGS) -I . $(INCDIR) $< -o $@
 
-%.o : %.s
+$(OBJDIR)/%.o : %.s
 	$(AS) -c $(ASFLAGS) $< -o $@
 
 %elf: $(OBJS)

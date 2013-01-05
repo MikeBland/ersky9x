@@ -29,6 +29,7 @@
 #include "debug.h"
 #include "menus.h"
 #include "drivers.h"
+#include "logicio.h"
 #include "file.h"
 #include "templates.h"
 #ifdef FRSKY
@@ -1491,8 +1492,8 @@ void menuProcTelemetry2(uint8_t event)
 
 
 		lcd_puts_Pleft(4*FH, PSTR("Num Blades"));
-  	lcd_putcAtt( 13*FW, 4*FH, g_model.numBlades+'2', (sub==subN) ? INVERS : 0) ;
-  	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.numBlades, 0, 3);
+ 	  lcd_outdezAtt(14*FW, 4*FH, g_model.numBlades, (sub==subN) ? INVERS : 0) ;
+  	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.numBlades, 1, 50 ) ;
   	subN++;
   
 		lcd_puts_Pleft(5*FH, PSTR("AltAlarm"));
@@ -1870,7 +1871,7 @@ for(uint8_t i=0; i<7; i++){
 			{
 				as += 1 ;				
 			}
-			putsDrSwitches( 18*FW-1, y, as,(subSub==3 ? attr : 0)|CONDENSED) ;
+			putsDrSwitches( 18*FW-3, y, as,(subSub==3 ? attr : 0)|CONDENSED) ;
 //    	lcd_putcAtt( 20*FW+2, y, as ? (cs.andsw + ((cs.andsw>9) ? 'A'-10 : '0') ) : '-', subSub==3 ? attr : 0) ;
 		}
 
@@ -1931,7 +1932,7 @@ for(uint8_t i=0; i<7; i++){
             }
             break;
         case 3:
-          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, 0, 15 ) ;
+          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, 0, 8+NUM_SKYCSW ) ;
 				break;
         }
 }

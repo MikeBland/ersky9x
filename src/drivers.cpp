@@ -26,6 +26,7 @@
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "drivers.h"
+#include "logicio.h"
 #include "lcd.h"
 #include "debug.h"
 #ifndef SIMU
@@ -132,29 +133,6 @@ uint8_t getEvent()
   return evt;
 }
 
-
-class Key
-{
-#define FILTERBITS      4
-#define FFVAL          ((1<<FILTERBITS)-1)
-#define KSTATE_OFF      0
-#define KSTATE_RPTDELAY 95 // gruvin: longer dely before key repeating starts
-  //#define KSTATE_SHORT   96
-#define KSTATE_START   97
-#define KSTATE_PAUSE   98
-#define KSTATE_KILLED  99
-  uint8_t m_vals:FILTERBITS;   // key debounce?  4 = 40ms
-  uint8_t m_dblcnt:2;
-  uint8_t m_cnt;
-  uint8_t m_state;
-public:
-  void input(bool val, EnumKeys enuk);
-  bool state()       { return m_vals==FFVAL;                }
-  void pauseEvents() { m_state = KSTATE_PAUSE;  m_cnt   = 0;}
-  void killEvents()  { m_state = KSTATE_KILLED; m_dblcnt=0; }
-  uint8_t getDbl()   { return m_dblcnt;                     }
-};
-
 Key keys[NUM_KEYS] ;
 
 void Key::input(bool val, EnumKeys enuk)
@@ -231,64 +209,6 @@ void Key::input(bool val, EnumKeys enuk)
   }
 }
 
-extern uint32_t keyState(EnumKeys enuk)
-{
-	register uint32_t a ;
-	register uint32_t c ;
-
-  CPU_UINT xxx = 0 ;
-  if(enuk < (int)DIM(keys))  return keys[enuk].state() ? 1 : 0;
-
-	a = PIOA->PIO_PDSR ;
-	c = PIOC->PIO_PDSR ;
-	switch((uint8_t)enuk)
-	{
-#ifdef REVB
-    case SW_ElevDR : xxx = c & 0x80000000 ;	// ELE_DR   PC31
-#else 
-    case SW_ElevDR : xxx = a & 0x00000100 ;	// ELE_DR   PA8
-#endif 
-    break ;
-    
-    case SW_AileDR : xxx = a & 0x00000004 ;	// AIL-DR  PA2
-    break ;
-
-    case SW_RuddDR : xxx = a & 0x00008000 ;	// RUN_DR   PA15
-    break ;
-      //     INP_G_ID1 INP_E_ID2
-      // id0    0        1
-      // id1    1        1
-      // id2    1        0
-    case SW_ID0    : xxx = ~c & 0x00004000 ;	// SW_IDL1     PC14
-    break ;
-    case SW_ID1    : xxx = (c & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
-    break ;
-    case SW_ID2    : xxx = ~c & 0x00000800 ;	// SW_IDL2     PC11
-    break ;
-
-    
-		case SW_Gear   : xxx = c & 0x00010000 ;	// SW_GEAR     PC16
-    break ;
-
-#ifdef REVB
-    case SW_ThrCt  : xxx = c & 0x00100000 ;	// SW_TCUT     PC20
-#else 
-    case SW_ThrCt  : xxx = a & 0x10000000 ;	// SW_TCUT     PA28
-#endif 
-    break ;
-
-    case SW_Trainer: xxx = c & 0x00000100 ;	// SW-TRAIN    PC8
-    break ;
-    default:;
-  }
-
-  if ( xxx )
-  {
-    return 1 ;
-  }
-  return 0;
-}
-
 void pauseEvents(uint8_t event)
 {
   event=event & EVT_KEY_MASK;
@@ -301,143 +221,6 @@ void killEvents(uint8_t event)
   if(event < (int)DIM(keys))  keys[event].killEvents();
 }
 
-
-// keys:
-// KEY_EXIT    PA31 (PC24)
-// KEY_MENU    PB6 (PB5)
-// KEY_DOWN  LCD5  PC3 (PC5)
-// KEY_UP    LCD6  PC2 (PC1)
-// KEY_RIGHT LCD4  PC4 (PC4)
-// KEY_LEFT  LCD3  PC5 (PC3)
-// Reqd. bit 6 LEFT, 5 RIGHT, 4 UP, 3 DOWN 2 EXIT 1 MENU
-// LCD pins 5 DOWN, 4 RIGHT, 3 LEFT, 1 UP
-uint32_t read_keys()
-{
-	register uint32_t x ;
-	register uint32_t y ;
-
-	x = LcdLock ? LcdInputs : PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
-#ifdef REVB
-	y = x & 0x00000020 ;		// RIGHT
-	if ( x & 0x00000004 )
-	{
-		y |= 0x00000010 ;			// UP
-	}
-	if ( x & 0x00000010 )
-	{
-		y |= 0x00000040 ;			// LEFT
-	}
-	if ( x & 0x00000040 )
-	{
-		y |= 0x00000008 ;			// DOWN
-	}
-#else	
-	y = x & 0x00000060 ;
-	if ( x & 0x00000008 )
-	{
-		y |= 0x00000010 ;
-	}
-	if ( x & 0x00000010 )
-	{
-		y |= 0x00000008 ;
-	}
-#endif
-#ifdef REVB
-	if ( PIOC->PIO_PDSR & 0x01000000 )
-#else 
-	if ( PIOA->PIO_PDSR & 0x80000000 )
-#endif
-	{
-		y |= 4 ;		// EXIT
-	}
-#ifdef REVB
-	if ( PIOB->PIO_PDSR & 0x000000020 )
-#else 
-	if ( PIOB->PIO_PDSR & 0x000000040 )
-#endif
-	{
-		y |= 2 ;		// MENU
-	}
-	return y ;
-}
-
-
-
-uint32_t read_trims()
-{
-	uint32_t trims ;
-	uint32_t trima ;
-
-	trims = 0 ;
-
-	trima = PIOA->PIO_PDSR ;
-// TRIM_LH_DOWN    PA7 (PA23)
-#ifdef REVB
-	if ( ( trima & 0x00800000 ) == 0 )
-#else
-	if ( ( trima & 0x0080 ) == 0 )
-#endif
-	{
-		trims |= 1 ;
-	}
-    
-// TRIM_LV_DOWN  PA27 (PA24)
-#ifdef REVB
-	if ( ( trima & 0x01000000 ) == 0 )
-#else
-	if ( ( trima & 0x08000000 ) == 0 )
-#endif
-	{
-		trims |= 4 ;
-	}
-
-// TRIM_RV_UP    PA30 (PA1)
-#ifdef REVB
-	if ( ( trima & 0x00000002 ) == 0 )
-#else
-	if ( ( trima & 0x40000000 ) == 0 )
-#endif
-	{
-		trims |= 0x20 ;
-	}
-
-// TRIM_RH_DOWN    PA29 (PA0)
-#ifdef REVB
-	if ( ( trima & 0x00000001 ) == 0 )
-#else 
-	if ( ( trima & 0x20000000 ) == 0 )
-#endif 
-	{
-		trims |= 0x40 ;
-	}
-
-// TRIM_LH_UP PB4
-	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
-	{
-		trims |= 2 ;
-	}
-
-	trima = PIOC->PIO_PDSR ;
-// TRIM_LV_UP   PC28
-	if ( ( trima & 0x10000000 ) == 0 )
-	{
-		trims |= 8 ;
-	}
-
-// TRIM_RV_DOWN   PC10
-	if ( ( trima & 0x00000400 ) == 0 )
-	{
-		trims |= 0x10 ;
-	}
-
-// TRIM_RH_UP   PC9
-	if ( ( trima & 0x00000200 ) == 0 )
-	{
-		trims |= 0x80 ;
-	}
-
-	return trims ;
-}
 
 
 volatile uint16_t g_tmr10ms;
@@ -469,7 +252,9 @@ void per10ms()
 //    1<<INP_D_TRM_RH_DWN,
 //    1<<INP_D_TRM_RH_UP
 //  };
-  in = read_trims() ;
+
+
+	in = read_trims() ;
 
 	for( i=1; i<256; i<<=1)
   {
@@ -478,8 +263,11 @@ void per10ms()
     ++enuk;
   }
 
+#ifdef PCBSKY
 #if !defined(SIMU)
 	keys[enuk].input( ~PIOB->PIO_PDSR & 0x40,(EnumKeys)enuk); // Rotary Enc. Switch
+#endif
+
 #endif
 }
 
@@ -543,6 +331,7 @@ int32_t get_fifo32( struct t_fifo32 *pfifo )
 
 
 
+#ifdef PCBSKY
 // SPI i/f to EEPROM (4Mb)
 // Peripheral ID 21 (0x00200000)
 // Connections:
@@ -1280,12 +1069,12 @@ void read_9_adc()
 
 // Settings for mode register ADC_MR
 // USEQ off - silicon problem, doesn't work
-// TRANSFER = 1
-// TRACKTIM = 4 (5 clock periods)
+// TRANSFER = 3
+// TRACKTIM = 15 (16 clock periods)
 // ANACH = 1
-// SETTLING = 1 (not used if ANACH = 0)
-// STARTUP = 1 (8 clock periods)
-// PRESCAL = 3.6 MHz clock (between 1 and 20MHz)
+// SETTLING = 6 (not used if ANACH = 0)
+// STARTUP = 6 (96 clock periods)
+// PRESCAL = 9.0 MHz clock (between 1 and 20MHz)
 // FREERUN = 0
 // FWUP = 0
 // SLEEP = 0
@@ -1314,11 +1103,11 @@ void init_adc()
 	register Adc *padc ;
 	register uint32_t timer ;
 
-	timer = ( Master_frequency / (3600000*2) ) << 8 ;
+	timer = ( Master_frequency / (9000000*2) - 1 ) << 8 ;
 	// Enable peripheral clock ADC = bit 29
   PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 	padc = ADC ;
-	padc->ADC_MR = 0x14910000 | timer ;  // 0001 0100 1001 0001 xxxx xxxx 0000 0000
+	padc->ADC_MR = 0x3FB60000 | timer ;  // 0011 1111 1011 0110 xxxx xxxx 0000 0000
 	padc->ADC_ACR = ADC_ACR_TSON ;			// Turn on temp sensor
 #ifdef REVB
 	padc->ADC_CHER = 0x0000E33E ;  // channels 1,2,3,4,5,8,9,13,14,15
@@ -1516,75 +1305,5 @@ void disable_ssc()
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
 }
 
-#ifndef SIMU
-void configure_pins( uint32_t pins, uint16_t config )
-{
-	register Pio *pioptr ;
-	
-	pioptr = PIOA + ( ( config & PIN_PORT_MASK ) >> 6) ;
-	if ( config & PIN_PULLUP )
-	{
-		pioptr->PIO_PPDDR = pins ;
-		pioptr->PIO_PUER = pins ;
-	}
-	else
-	{
-		pioptr->PIO_PUDR = pins ;
-	}
-
-	if ( config & PIN_PULLDOWN )
-	{
-		pioptr->PIO_PUDR = pins ;
-		pioptr->PIO_PPDER = pins ;
-	}
-	else
-	{
-		pioptr->PIO_PPDDR = pins ;
-	}
-
-	if ( config & PIN_HIGH )
-	{
-		pioptr->PIO_SODR = pins ;		
-	}
-	else
-	{
-		pioptr->PIO_CODR = pins ;		
-	}
-
-	if ( config & PIN_INPUT )
-	{
-		pioptr->PIO_ODR = pins ;
-	}
-	else
-	{
-		pioptr->PIO_OER = pins ;
-	}
-
-	if ( config & PIN_PERI_MASK_L )
-	{
-		pioptr->PIO_ABCDSR[0] |= pins ;
-	}
-	else
-	{
-		pioptr->PIO_ABCDSR[0] &= ~pins ;
-	}
-	if ( config & PIN_PERI_MASK_H )
-	{
-		pioptr->PIO_ABCDSR[1] |= pins ;
-	}
-	else
-	{
-		pioptr->PIO_ABCDSR[1] &= ~pins ;
-	}
-
-	if ( config & PIN_ENABLE )
-	{
-		pioptr->PIO_PER = pins ;		
-	}
-	else
-	{
-		pioptr->PIO_PDR = pins ;		
-	}
-}
 #endif
 

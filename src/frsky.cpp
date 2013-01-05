@@ -163,7 +163,7 @@ void store_hub_data( uint8_t index, uint16_t value )
 		}
 		if ( index == FR_RPM )			// RPM
 		{
-			FrskyHubData[FR_RPM] *= 60/(g_model.numBlades + 2) ;// == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
+			FrskyHubData[FR_RPM] *= 60/(g_model.numBlades) ;// == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
 		}
 		if ( index == FR_V_AMPd )
 		{

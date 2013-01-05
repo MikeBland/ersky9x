@@ -492,7 +492,13 @@ void ee32LoadModel(uint8_t id)
           uint8_t idx = char2idx(g_model.name[i]);
           g_model.name[i] = idx2char(idx);
       }
-//      g_model.mdVers = MDVERS; //update mdvers
+      
+			g_model.version = MDSKYVERS ; //update mdvers
+
+			if ( g_model.numBlades == 0 )
+			{
+				g_model.numBlades = g_model.xnumBlades + 2 ;				
+			}
 
 #ifdef FRSKY
   FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
@@ -805,7 +811,7 @@ void convertModel( SKYModelData *dest, ModelData *source )
 	dest->protocol = source->protocol ;
 	dest->ppmNCH = source->ppmNCH ;
 	dest->thrTrim = source->thrTrim ;
-	dest->numBlades = source->numBlades ;
+	dest->xnumBlades = source->numBlades ;
 	dest->thrExpo = source->thrExpo ;
 	dest->trimInc = source->trimInc ;
 	dest->ppmDelay = source->ppmDelay ;

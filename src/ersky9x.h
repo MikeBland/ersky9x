@@ -85,6 +85,8 @@ enum EnumKeys {
     TRM_RH_DWN  ,
     TRM_RH_UP   ,
 	  BTN_RE,
+
+#ifdef PCBSKY
     //SW_NC     ,
     //SW_ON     ,
     SW_ThrCt  ,
@@ -96,6 +98,32 @@ enum EnumKeys {
     SW_AileDR ,
     SW_Gear   ,
     SW_Trainer
+#endif
+
+#ifdef PCBX9D
+  SW_SA0,
+  SW_SA2,
+  SW_SB0,
+  SW_SB1,
+  SW_SB2,
+  SW_SC0,
+  SW_SC1,
+  SW_SC2,
+  SW_SD0,
+  SW_SD1,
+  SW_SD2,
+  SW_SE0,
+  SW_SE1,
+  SW_SE2,
+  SW_SF0,
+  SW_SF1,
+  SW_SF2,
+  SW_SG0,
+  SW_SG1,
+  SW_SG2,
+  SW_SH0,
+  SW_SH2
+#endif
 };
 
 // c17-c24 added for timer mode A display
@@ -466,6 +494,9 @@ extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
 extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type ) ;
 extern const char *get_switches_string( void ) ;
+
+extern void interrupt5ms() ;
+
 
 extern int16_t intpol(int16_t x, uint8_t idx);
 

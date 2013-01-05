@@ -21,9 +21,16 @@
 #ifndef lcd_h
 #define lcd_h
 
+#ifdef PCBX9D
+#define DISPLAY_W 212
+#define DISPLAY_H  64
+#endif
 
+#ifdef PCBSKY
 #define DISPLAY_W 128
 #define DISPLAY_H  64
+#endif
+
 #define FW          6
 #define FWNUM       5
 #define FH          8
@@ -52,6 +59,7 @@ extern uint8_t LcdLock ;
 extern uint8_t LcdInputs ;
 
 extern uint8_t Lcd_lastPos;
+extern uint8_t DisplayBuf[] ;
 
 extern void lcd_putc(uint8_t x,uint8_t y,const char c ) ;
 extern uint8_t lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
