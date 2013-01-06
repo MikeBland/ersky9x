@@ -27,6 +27,9 @@ void stop_timer0( void ) ;
 #ifdef PCBX9D
 extern uint32_t Peri1_frequency ;
 extern uint32_t Peri2_frequency ;
+extern void init_hw_timer( void ) ;
+extern void hw_delay( uint16_t time ) ;
+
 #endif
 
 

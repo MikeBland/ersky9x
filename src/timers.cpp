@@ -138,6 +138,29 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 	interrupt5ms() ;
 }
 
+void init_hw_timer()
+{
+	// Timer13
+	RCC->APB1ENR |= RCC_APB1ENR_TIM13EN ;		// Enable clock
+	TIM13->ARR = 65535 ;
+	TIM13->PSC = Peri1_frequency / 10000000 ;		// 0.1uS from 30MHz
+	TIM13->CCER = 0 ;	
+	TIM13->CCMR1 = 0 ;
+	TIM13->EGR = 0 ;
+	TIM13->CR1 = 5 ;
+}
+
+// delay in units of 0.1 uS up to 6.5535 mS
+void hw_delay( uint16_t time )
+{
+	TIM13->EGR = 1 ;		// Re-start counter
+	while ( TIM13->CNT < time )
+	{
+		// wait
+	}
+}
+
+
 #endif
 
 
