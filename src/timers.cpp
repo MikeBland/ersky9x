@@ -34,6 +34,7 @@
 
 #include "ersky9x.h"
 #include "timers.h"
+#include "logicio.h"
 
 
 // Starts TIMER at 200Hz, 5mS period
@@ -137,6 +138,31 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 	TIM14->SR &= ~TIM_SR_UIF ;
 	interrupt5ms() ;
 }
+
+
+// PPM output
+// Timer 1, channel 1 on PA8 for prototype
+// Pin is AF1 function for timer 1
+void init_ppm()
+{
+	// Timer1
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+	configure_pins( 0x0010, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+	RCC->APB1ENR |= RCC_APB1ENR_TIM1EN ;		// Enable clock
+	
+	TIM1->ARR = 3000 ;		// 1.5 mS
+	TIM1->PSC = Peri1_frequency / 2000000 - 1 ;		// 0.5uS from 30MHz
+	TIM1->CCER = 0 ;	
+	TIM1->CCMR1 = 6 ;			// PWM mode 1
+	TIM1->CCR1 = 600 ;		// 300 uS pulse
+	
+	
+	TIM1->EGR = 1 ;
+	TIM1->CR1 = 1 ;
+
+}
+
+
 
 void init_hw_timer()
 {

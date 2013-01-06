@@ -260,6 +260,8 @@ int main( void )
 	counter1 = 0 ;
 	screen = 0 ;
 
+	init_ppm() ;
+
 	for(;;)
 	{
 		time = get_tmr10ms() ;

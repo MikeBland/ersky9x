@@ -29,6 +29,7 @@ extern uint32_t Peri1_frequency ;
 extern uint32_t Peri2_frequency ;
 extern void init_hw_timer( void ) ;
 extern void hw_delay( uint16_t time ) ;
+extern void init_ppm( void ) ;
 
 #endif
 
