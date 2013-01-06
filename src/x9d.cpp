@@ -188,12 +188,19 @@ void interrupt5ms()
 	}
 }
 
+uint16_t aaaa ;
+uint16_t cccc ;
+
+
 int main( void )
 {
 	uint32_t i ;
 	uint16_t time ;
 	uint32_t counter ;
+	uint32_t counter1 ;
 	uint32_t screen ;
+	uint32_t ttest = 0 ;
+	uint16_t tresult = 0 ;
   
 	lcd_init();
   
@@ -210,6 +217,7 @@ int main( void )
 	USART3->CR3 = 0 ;
 
 	init5msTimer() ;
+	init_hw_timer() ;
 
 	__enable_irq() ;
 
@@ -249,6 +257,7 @@ int main( void )
 	init_adc() ;
 
 	counter = 0 ;
+	counter1 = 0 ;
 	screen = 0 ;
 
 	for(;;)
@@ -281,9 +290,39 @@ int main( void )
 			counter = 0 ;
 		}
 
+    if ( keyState((EnumKeys)KEY_UP) )
+		{
+			counter1 += 1 ;
+		}
+		else
+		{
+			counter1 = 0 ;
+		}
+		if ( counter1 > 5 )
+		{
+			ttest = 1 ;
+			counter1 = 0 ;
+		}
+
+		if ( ttest )
+		{
+			ttest = 0 ;
+			time = get_tmr10ms() ;
+			for ( i = 0 ; i < 100 ; i += 1 )
+			{
+				hw_delay( 20000 ) ;		// 2 mS				
+			}
+			cccc = TIM13->CNT ;
+			tresult = get_tmr10ms() - time ;
+			aaaa = TIM13->PSC ;
+		}
 
 		if ( screen == 0 )
 		{
+			lcd_outhex4( 180, 0, tresult ) ;
+			lcd_outhex4( 180, 8, aaaa ) ;
+			lcd_outhex4( 150, 0, cccc ) ;
+			
   		for(i=0; i<6; i++)
   		{
   		  uint8_t y=(5-i)*FH+2*FH;

@@ -116,7 +116,7 @@ void init5msTimer()
 	// Timer14
 	RCC->APB1ENR |= RCC_APB1ENR_TIM14EN ;		// Enable clock
 	TIM14->ARR = 4999 ;	// 5mS
-	TIM14->PSC = Peri1_frequency / 1000000 ;		// 1uS from 30MHz
+	TIM14->PSC = Peri1_frequency / 1000000 - 1 ;		// 1uS from 30MHz
 	TIM14->CCER = 0 ;	
 	TIM14->CCMR1 = 0 ;
 	TIM14->EGR = 0 ;
@@ -143,16 +143,18 @@ void init_hw_timer()
 	// Timer13
 	RCC->APB1ENR |= RCC_APB1ENR_TIM13EN ;		// Enable clock
 	TIM13->ARR = 65535 ;
-	TIM13->PSC = Peri1_frequency / 10000000 ;		// 0.1uS from 30MHz
+	TIM13->PSC = Peri1_frequency / 10000000 - 1 ;		// 0.1uS from 30MHz
 	TIM13->CCER = 0 ;	
 	TIM13->CCMR1 = 0 ;
 	TIM13->EGR = 0 ;
-	TIM13->CR1 = 5 ;
+	TIM13->CR1 = 1 ;
 }
+
 
 // delay in units of 0.1 uS up to 6.5535 mS
 void hw_delay( uint16_t time )
 {
+	TIM13->CNT = 0 ;
 	TIM13->EGR = 1 ;		// Re-start counter
 	while ( TIM13->CNT < time )
 	{
