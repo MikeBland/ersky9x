@@ -182,7 +182,6 @@ void disable_main_ppm( void ) ;
 //void poll_pwm( void ) ;
 //uint32_t hextoi( uint8_t *string ) ;
 //uint32_t gets( uint8_t *string, uint32_t maxcount ) ;
-static void setup_switches( void ) ;
 uint32_t read_trims( void ) ;
 extern uint32_t read_keys( void ) ;
 void hello( void ) ;
@@ -2683,48 +2682,6 @@ void setupPulsesPXX()
 // PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900 proto
 // PORTC 1001 0001 0001 0001 0100 1001 0000 0000 = 0x91114900 REVB
 
-
-// Assumes PMC has already enabled clocks to ports
-static void setup_switches()
-{
-#ifdef REVB
-#else
-	register Pio *pioptr ;
-	
-	pioptr = PIOA ;
-#endif
-#ifdef REVB
-	configure_pins( 0x01808087, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
-#else 
-	pioptr->PIO_PER = 0xF8008184 ;		// Enable bits
-	pioptr->PIO_ODR = 0xF8008184 ;		// Set bits input
-	pioptr->PIO_PUER = 0xF8008184 ;		// Set bits with pullups
-#endif 
-#ifdef REVB
-#else
-	pioptr = PIOB ;
-#endif 
-#ifdef REVB
-	configure_pins( 0x00000030, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
-#else 
-	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
-	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
-	pioptr->PIO_PUER = 0x00000010 ;		// Set bits with pullups
-#endif 
-
-#ifdef REVB
-#else
-	pioptr = PIOC ;
-#endif 
-#ifdef REVB
-	configure_pins( 0x91114900, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
-#else 
-	pioptr->PIO_PER = 0x10014900 ;		// Enable bits
-	pioptr->PIO_ODR = 0x10014900 ;		// Set bits input
-	pioptr->PIO_PUER = 0x10014900 ;		// Set bits with pullups
-#endif 
-
-}
 
 // Prototype
 // Free pins (PA16 is stock buzzer)

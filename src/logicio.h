@@ -90,5 +90,6 @@ extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
 extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void init_trims( void ) ;
+extern void setup_switches( void ) ;
 
 

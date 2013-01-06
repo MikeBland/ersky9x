@@ -192,6 +192,8 @@ int main( void )
 {
 	uint32_t i ;
 	uint16_t time ;
+	uint32_t counter ;
+	uint32_t screen ;
   
 	lcd_init();
   
@@ -227,6 +229,8 @@ int main( void )
 
 	init_adc() ;
 
+	setup_switches() ;
+
 	time = get_tmr10ms() ;
 	for ( i = 0 ; i < 4000000 ; i += 1 )
 	{
@@ -244,6 +248,9 @@ int main( void )
 
 	init_adc() ;
 
+	counter = 0 ;
+	screen = 0 ;
+
 	for(;;)
 	{
 		time = get_tmr10ms() ;
@@ -254,52 +261,105 @@ int main( void )
 				break ;
 			}
 		}
-		USART3->DR = 'X' ;
+		txmit( 'X' ) ;
 		
-//		lcd_outhex4( 80, 48, TIM14->CNT ) ;
-		lcd_outhex4( 140, 48, g_tmr10ms ) ;
-//		lcd_outhex4( 80, 56, GPIOD->IDR ) ;
-//		lcd_outhex4( 110, 56, GPIOE->IDR ) ;
-//		lcd_outhex4( 140, 56, GPIOC->IDR ) ;
+		lcd_clear();
 		
-  	for(i=0; i<6; i++)
-  	{
-  	  uint8_t y=(5-i)*FH+2*FH;
-  	  bool t=keyState((EnumKeys)(KEY_MENU+i));
-  	  lcd_putsn_P(172, y,PSTR(" Menu Exit Down   UpRight Left")+5*i,5) ;
-  	  lcd_putcAtt(172+FW*5+2,  y,t+'0',t);
-  	}
+		lcd_outhex4( 140, 56, g_tmr10ms ) ;
 
-		uint32_t x ;
-  	x=0;
-  	lcd_putsn_P(x, 3*FH,PSTR("Trim- +"),7);
-  	for(uint8_t i=0; i<4; i++)
-  	{
-  	  uint8_t y=i*FH+FH*4;
-  	  lcd_img(    x,       y, sticks,i,0);
-  	  bool tm=keyState((EnumKeys)(TRM_BASE+2*i));
-  	  bool tp=keyState((EnumKeys)(TRM_BASE+2*i+1));
-  	  lcd_putcAtt(x+FW*4,  y, tm+'0',tm ? INVERS : 0);
-  	  lcd_putcAtt(x+FW*6,  y, tp+'0',tp ? INVERS : 0);
-  	}
+    if ( keyState((EnumKeys)KEY_MENU) )
+		{
+			counter += 1 ;
+		}
+		else
+		{
+			counter = 0 ;
+		}
+		if ( counter > 5 )
+		{
+			screen ^= 1 ;
+			counter = 0 ;
+		}
+
+
+		if ( screen == 0 )
+		{
+  		for(i=0; i<6; i++)
+  		{
+  		  uint8_t y=(5-i)*FH+2*FH;
+  		  bool t=keyState((EnumKeys)(KEY_MENU+i));
+  		  lcd_putsn_P(172, y,PSTR(" Menu Exit Down   UpRight Left")+5*i,5) ;
+  		  lcd_putcAtt(172+FW*5+2,  y,t+'0',t);
+  		}
+
+			uint32_t x ;
+  		x=0;
+  		lcd_putsn_P(x, 3*FH,PSTR("Trim- +"),7);
+  		for(uint8_t i=0; i<4; i++)
+  		{
+  		  uint8_t y=i*FH+FH*4;
+  		  lcd_img(    x,       y, sticks,i,0);
+  		  bool tm=keyState((EnumKeys)(TRM_BASE+2*i));
+  		  bool tp=keyState((EnumKeys)(TRM_BASE+2*i+1));
+  		  lcd_putcAtt(x+FW*4,  y, tm+'0',tm ? INVERS : 0);
+  		  lcd_putcAtt(x+FW*6,  y, tp+'0',tp ? INVERS : 0);
+  		}
 		
-		lcd_outhex4( 100, 8, read_adc() ) ;
+			lcd_outhex4( 100, 8, read_adc() ) ;
 
-		lcd_outhex4( 100, 16, Analog[0] ) ;
-		lcd_outhex4( 100, 24, Analog[1] ) ;
-		lcd_outhex4( 100, 32, Analog[2] ) ;
-		lcd_outhex4( 100, 40, Analog[3] ) ;
+			lcd_outhex4( 100, 16, Analog[0] ) ;
+			lcd_outhex4( 100, 24, Analog[1] ) ;
+			lcd_outhex4( 100, 32, Analog[2] ) ;
+			lcd_outhex4( 100, 40, Analog[3] ) ;
 
-		lcd_outhex4( 70, 16, Analog[4] ) ;
-		lcd_outhex4( 70, 24, Analog[5] ) ;
-		lcd_outhex4( 70, 32, Analog[6] ) ;
-		lcd_outhex4( 70, 40, Analog[7] ) ;
-		lcd_outhex4( 70, 48, Analog[8] ) ;
+			lcd_outhex4( 70, 16, Analog[4] ) ;
+			lcd_outhex4( 70, 24, Analog[5] ) ;
+			lcd_outhex4( 70, 32, Analog[6] ) ;
+			lcd_outhex4( 70, 40, Analog[7] ) ;
+			lcd_outhex4( 70, 48, Analog[8] ) ;
 		 
-		lcd_outhex4( 125, 40, ADC1->SR ) ;
-		lcd_outhex4( 125, 32, DMA2->LISR & 0x3F ) ;
-		lcd_outhex4( 125, 24, DMA2_Stream0->NDTR ) ;
+			lcd_outhex4( 125, 40, ADC1->SR ) ;
+			lcd_outhex4( 125, 32, DMA2->LISR & 0x3F ) ;
+			lcd_outhex4( 125, 24, DMA2_Stream0->NDTR ) ;
+			
+		}
 
+		if ( screen == 1 )
+		{
+			// Test switches here
+					
+			for( i=0 ; i<5; i += 1)
+			{
+				lcd_putsnAtt( 0, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*i,3, keyState((EnumKeys)(SW_SA0+i)) ? INVERS : 0);
+			}
+			for( i=0 ; i<6; i += 1)
+			{
+				lcd_putsnAtt( 30, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+5),3, keyState((EnumKeys)(SW_SA0+i+5)) ? INVERS : 0);
+			}
+			for( i=0 ; i<6; i += 1)
+			{
+				lcd_putsnAtt( 60, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+11),3, keyState((EnumKeys)(SW_SA0+i+11)) ? INVERS : 0);
+			}
+			for( i=0 ; i<5; i += 1)
+			{
+				lcd_putsnAtt( 90, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+17),3, keyState((EnumKeys)(SW_SA0+i+17)) ? INVERS : 0);
+			}
+
+ 		  lcd_puts_P(170, 0, "GPIO IN" ) ;
+ 		  lcd_putc(160,  8, 'A' ) ;
+			lcd_outhex4( 170, 8, GPIOA->IDR ) ;
+ 		  lcd_putc(160,  16, 'B' ) ;
+			lcd_outhex4( 170, 16, GPIOB->IDR ) ;
+ 		  lcd_putc(160,  24, 'C' ) ;
+			lcd_outhex4( 170, 24, GPIOC->IDR ) ;
+ 		  lcd_putc(160, 32, 'D' ) ;
+			lcd_outhex4( 170, 32, GPIOD->IDR ) ;
+ 		  lcd_putc(160,  40, 'E' ) ;
+			lcd_outhex4( 170, 40, GPIOE->IDR ) ;
+
+
+
+		}
 		refreshDisplay();
 		
 	}

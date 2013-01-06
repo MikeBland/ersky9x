@@ -194,6 +194,50 @@ void init_keys()
 	pioptr->PIO_PER = PIO_PB6 ;					// Enable bit B6
 #endif
 }
+
+// Assumes PMC has already enabled clocks to ports
+void setup_switches()
+{
+#ifdef REVB
+#else
+	register Pio *pioptr ;
+	
+	pioptr = PIOA ;
+#endif
+#ifdef REVB
+	configure_pins( 0x01808087, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
+#else 
+	pioptr->PIO_PER = 0xF8008184 ;		// Enable bits
+	pioptr->PIO_ODR = 0xF8008184 ;		// Set bits input
+	pioptr->PIO_PUER = 0xF8008184 ;		// Set bits with pullups
+#endif 
+#ifdef REVB
+#else
+	pioptr = PIOB ;
+#endif 
+#ifdef REVB
+	configure_pins( 0x00000030, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+#else 
+	pioptr->PIO_PER = 0x00000010 ;		// Enable bits
+	pioptr->PIO_ODR = 0x00000010 ;		// Set bits input
+	pioptr->PIO_PUER = 0x00000010 ;		// Set bits with pullups
+#endif 
+
+#ifdef REVB
+#else
+	pioptr = PIOC ;
+#endif 
+#ifdef REVB
+	configure_pins( 0x91114900, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;
+#else 
+	pioptr->PIO_PER = 0x10014900 ;		// Enable bits
+	pioptr->PIO_ODR = 0x10014900 ;		// Set bits input
+	pioptr->PIO_PUER = 0x10014900 ;		// Set bits with pullups
+#endif 
+
+}
+
+
 #endif
 
 
@@ -524,7 +568,17 @@ uint32_t read_trims()
 
 #ifdef PCBX9D
 
-
+// 
+void setup_switches()
+{
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN ; 		// Enable portE clock
+	configure_pins( 0x0020, PIN_INPUT | PIN_PULLUP | PIN_PORTA ) ;
+	configure_pins( 0x00FB, PIN_INPUT | PIN_PULLUP | PIN_PORTB ) ;
+	configure_pins( 0x6384, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
+	
+}
 
 
 
@@ -547,63 +601,63 @@ uint32_t keyState(EnumKeys enuk)
       break;
 
     case SW_SB0:
-      xxx = !(b & (PIN_SW_B_L | PIN_SW_B_H));
+      xxx = ~b & PIN_SW_B_L ;
       break;
     case SW_SB1:
-      xxx = (b & PIN_SW_B_H) && (~b & PIN_SW_B_L);
+      xxx = (b & (PIN_SW_B_L | PIN_SW_B_H)) == (PIN_SW_B_L | PIN_SW_B_H) ;
       break;
     case SW_SB2:
-      xxx = (~b & PIN_SW_B_H) && (b & PIN_SW_B_L);
+      xxx = ~b & PIN_SW_B_H ;
       break;
 
     case SW_SC0:
-      xxx = !(b & (PIN_SW_C_L | PIN_SW_C_H));
+      xxx = ~b & PIN_SW_C_L ;
       break;
     case SW_SC1:
-      xxx = (b & PIN_SW_C_H) && (~b & PIN_SW_C_L);
+      xxx = (b & (PIN_SW_C_H | PIN_SW_C_L)) == (PIN_SW_C_H | PIN_SW_C_L) ;
       break;
     case SW_SC2:
-      xxx = (~b & PIN_SW_C_H) && (b & PIN_SW_C_L);
+      xxx = ~b & PIN_SW_C_H ;
       break;
 
     case SW_SD0:
-      xxx = (~e & PIN_SW_D_L) && (~b & PIN_SW_D_H);
+      xxx = ~e & PIN_SW_D_L ;
       break;
     case SW_SD1:
-      xxx = (b & PIN_SW_D_H) && (~e & PIN_SW_D_L);
+      xxx = ((b & PIN_SW_D_H) | (e & PIN_SW_D_L)) == (PIN_SW_D_H | PIN_SW_D_L) ;
       break;
     case SW_SD2:
-      xxx = (~b & PIN_SW_D_H) && (e & PIN_SW_D_L);
+      xxx = ~b & PIN_SW_D_H ;
       break;
 
     case SW_SE0:
-      xxx = (~a & PIN_SW_E_L) && (~b & PIN_SW_E_H);
+      xxx = ~a & PIN_SW_E_L ;
       break;
     case SW_SE1:
-      xxx = (b & PIN_SW_E_H) && (~a & PIN_SW_E_L);
+      xxx = ((b & PIN_SW_E_H) | (a & PIN_SW_E_L)) == (PIN_SW_E_H | PIN_SW_E_L) ;
       break;
     case SW_SE2:
-      xxx = (~b & PIN_SW_E_H) && (a & PIN_SW_E_L);
+      xxx = ~b & PIN_SW_E_H ;
       break;
 
     case SW_SF0:
-      xxx = (~b & PIN_SW_F_L) && (~e & PIN_SW_F_H);
+      xxx = ~b & PIN_SW_F_L ;
       break;
     case SW_SF1:
-      xxx = (e & PIN_SW_F_H) && (~b & PIN_SW_F_L);
+      xxx = ((e & PIN_SW_F_H) | (b & PIN_SW_F_L)) == (PIN_SW_F_H | PIN_SW_F_L) ;
       break;
     case SW_SF2:
-      xxx = (~e & PIN_SW_F_H) && (b & PIN_SW_F_L);
+      xxx = ~e & PIN_SW_F_H ;
       break;
 
     case SW_SG0:
-      xxx = !(e & (PIN_SW_G_L | PIN_SW_G_H));
+      xxx = ~e & PIN_SW_G_L ;
       break;
     case SW_SG1:
-      xxx = (e & PIN_SW_G_H) && (~e & PIN_SW_G_L);
+      xxx = (e & (PIN_SW_G_H | PIN_SW_G_L)) == (PIN_SW_G_H | PIN_SW_G_L) ;
       break;
     case SW_SG2:
-      xxx = (~e & PIN_SW_G_H) && (e & PIN_SW_G_L);
+      xxx = ~e & PIN_SW_G_H ;
       break;
 
     case SW_SH0:
