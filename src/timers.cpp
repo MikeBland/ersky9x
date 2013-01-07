@@ -117,7 +117,7 @@ void init5msTimer()
 	// Timer14
 	RCC->APB1ENR |= RCC_APB1ENR_TIM14EN ;		// Enable clock
 	TIM14->ARR = 4999 ;	// 5mS
-	TIM14->PSC = Peri1_frequency / 1000000 - 1 ;		// 1uS from 30MHz
+	TIM14->PSC = (Peri1_frequency*Timer_mult1) / 1000000 - 1 ;		// 1uS from 30MHz
 	TIM14->CCER = 0 ;	
 	TIM14->CCMR1 = 0 ;
 	TIM14->EGR = 0 ;
@@ -140,6 +140,23 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 }
 
 
+uint16_t SyncLength = 45000-21600 ;
+uint16_t PpmStream[20] =
+{
+	2000,
+	2200,
+	2400,
+	2600,
+	2800,
+	3000,
+	3200,
+	3400,
+	45000-21600,
+	0,0,0,0,0,0,0,0,0,0,0
+} ;
+
+
+
 // PPM output
 // Timer 1, channel 1 on PA8 for prototype
 // Pin is AF1 function for timer 1
@@ -147,21 +164,67 @@ void init_ppm()
 {
 	// Timer1
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
-	configure_pins( 0x0010, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
-	RCC->APB1ENR |= RCC_APB1ENR_TIM1EN ;		// Enable clock
+	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	
 	TIM1->ARR = 3000 ;		// 1.5 mS
-	TIM1->PSC = Peri1_frequency / 2000000 - 1 ;		// 0.5uS from 30MHz
-	TIM1->CCER = 0 ;	
-	TIM1->CCMR1 = 6 ;			// PWM mode 1
+	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
+	TIM1->CCER = TIM_CCER_CC1E ;	
+	TIM1->CCMR1 = TIM_CCMR1_IC1F_1 | TIM_CCMR1_IC1F_2 | TIM_CCMR1_IC1PSC_1 ;			// PWM mode 1
 	TIM1->CCR1 = 600 ;		// 300 uS pulse
-	
-	
-	TIM1->EGR = 1 ;
-	TIM1->CR1 = 1 ;
+	TIM1->BDTR = TIM_BDTR_MOE ;
+ 	TIM1->EGR = 1 ;
+	TIM1->DIER = TIM_DIER_UDE ;
+	TIM1->CCR2 = SyncLength - 1000 ;		// Update time
+
+	// DMA channel 6
+	DMA2_Stream5->CR = ( 6 << 25) | (1 << 6) | DMA_SxCR_PL_1 | DMA_SxCR_MSIZE_0 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC | DMA_SxCR_CIRC ;
+	DMA2_Stream5->PAR = (uint32_t) &TIM1->DMAR ;
+	DMA2_Stream5->M0AR = (uint32_t) PpmStream ;
+	DMA2_Stream5->FCR = 0 ;
+	 
+	TIM1->DCR = 11 ;
+	DMA2->HIFCR = DMA_HIFCR_CTCIF6 | DMA_HIFCR_CHTIF6 |DMA_HIFCR_CTEIF6 | DMA_HIFCR_CDMEIF6 | DMA_HIFCR_CFEIF6 ; // Write ones to clear bits
+	DMA2_Stream5->NDTR = 9 ;
+	DMA2_Stream5->CR |= DMA_SxCR_EN ;		// Start DMA
+	TIM1->DIER |= TIM_DIER_CC2IE ;
+
+	TIM1->CR1 = TIM_CR1_ARPE | TIM_CR1_CEN ;
+	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
+	NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn) ;
 
 }
 
+extern "C" void TIM1_CC_IRQHandler()
+{
+	TIM1->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
+	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+
+// Temporary test code
+	configure_pins( 0x0100, PIN_OUTPUT | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+	GPIOA->ODR |= 0x0100 ;
+
+	hw_delay( 50 ) ;
+	// setupPulses()
+	
+	GPIOA->ODR &= ~0x0100 ;
+	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+// End of temporary test code
+	
+	
+	TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
+	TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
+}
+
+extern "C" void TIM1_UP_TIM10_IRQHandler()
+{
+	TIM1->DIER &= ~TIM_DIER_UIE ;		// stop this interrupt
+	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+	// setupPulses()
+	TIM1->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
+	TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+}
 
 
 void init_hw_timer()
@@ -169,7 +232,7 @@ void init_hw_timer()
 	// Timer13
 	RCC->APB1ENR |= RCC_APB1ENR_TIM13EN ;		// Enable clock
 	TIM13->ARR = 65535 ;
-	TIM13->PSC = Peri1_frequency / 10000000 - 1 ;		// 0.1uS from 30MHz
+	TIM13->PSC = (Peri1_frequency*Timer_mult1) / 10000000 - 1 ;		// 0.1uS from 30MHz
 	TIM13->CCER = 0 ;	
 	TIM13->CCMR1 = 0 ;
 	TIM13->EGR = 0 ;

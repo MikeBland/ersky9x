@@ -189,6 +189,8 @@
 extern uint32_t Master_frequency ;
 uint32_t Peri1_frequency ;
 uint32_t Peri2_frequency ;
+uint32_t Timer_mult1 ;
+uint32_t Timer_mult2 ;
 
 static void SetSysClock(void);
 #ifdef DATA_IN_ExtSRAM
@@ -406,8 +408,10 @@ static void SetSysClock(void)
   }
 
 	Master_frequency = 60000000 ;
-	Peri1_frequency = 30000000 ;
-	Peri2_frequency = 15000000 ;
+	Peri1_frequency = 15000000 ;
+	Peri2_frequency = 30000000 ;
+	Timer_mult1 = 2 ;
+	Timer_mult2 = 2 ;
 
 }
 

@@ -116,6 +116,25 @@ void disp_256( register uint32_t address, register uint32_t lines )
 	}
 }
 
+void dispw_256( register uint32_t address, register uint32_t lines ) ;
+
+void dispw_256( register uint32_t address, register uint32_t lines )
+{
+	register uint32_t i ;
+	register uint32_t j ;
+	for ( i = 0 ; i < lines ; i += 1 )
+	{
+		p8hex( address ) ;
+		for ( j = 0 ; j < 4 ; j += 1 )
+		{
+			txmit(' ') ;
+			p8hex( *( (uint32_t *)address ) ) ;
+			address += 4 ;
+		}
+		crlf() ;
+	}
+}
+
 
 //volatile uint16_t g_tmr10ms;
 //volatile uint8_t  g_blinkTmr10ms;
@@ -261,6 +280,13 @@ int main( void )
 	screen = 0 ;
 
 	init_ppm() ;
+
+	disp_256( TIM1_BASE, 6 ) ;
+	crlf() ;
+
+	dispw_256( DMA2_BASE, 12 ) ;
+	crlf() ;
+
 
 	for(;;)
 	{
