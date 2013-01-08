@@ -14,6 +14,14 @@
 
 #include "lcd.h"
 
+#ifndef SIMU
+#include "CoOS.h"
+#endif
+
+
+#define MAIN_STACK_SIZE		500
+OS_TID MainTask;
+OS_STK main_stk[MAIN_STACK_SIZE] ;
 
 
 const uint8_t splashdata[] = { 'S','P','S',0,
@@ -32,6 +40,8 @@ void p4hex( uint16_t value ) ;
 void p2hex( unsigned char c ) ;
 void hex_digit_send( unsigned char c ) ;
 void txmit( uint8_t c ) ;
+
+void main_loop( void* pdata ) ;
 
 
 uint32_t Master_frequency ;
@@ -215,11 +225,6 @@ int main( void )
 {
 	uint32_t i ;
 	uint16_t time ;
-	uint32_t counter ;
-	uint32_t counter1 ;
-	uint32_t screen ;
-	uint32_t ttest = 0 ;
-	uint16_t tresult = 0 ;
   
 	lcd_init();
   
@@ -275,10 +280,6 @@ int main( void )
 
 	init_adc() ;
 
-	counter = 0 ;
-	counter1 = 0 ;
-	screen = 0 ;
-
 	init_ppm() ;
 
 	disp_256( TIM1_BASE, 6 ) ;
@@ -287,6 +288,28 @@ int main( void )
 	dispw_256( DMA2_BASE, 12 ) ;
 	crlf() ;
 
+	CoInitOS();
+	
+	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
+
+	CoStartOS();
+	while(1);
+}
+
+// This is the main task for the RTOS
+void main_loop(void* pdata)
+{
+	uint32_t i ;
+	uint16_t time ;
+	uint32_t counter ;
+	uint32_t counter1 ;
+	uint32_t screen ;
+	uint32_t ttest = 0 ;
+	uint16_t tresult = 0 ;
+	
+	counter = 0 ;
+	counter1 = 0 ;
+	screen = 0 ;
 
 	for(;;)
 	{

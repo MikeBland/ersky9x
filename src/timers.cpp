@@ -156,6 +156,30 @@ uint16_t PpmStream[20] =
 } ;
 
 
+extern volatile uint16_t Analog[] ;
+
+void setupPulses()
+{
+  uint32_t i ;
+	uint32_t total ;
+	uint32_t current ;
+	uint16_t *ptr ;
+
+  ptr = PpmStream ;
+
+	total = 45000 ;
+	for ( i = 0 ; i < 8 ; i += 1 )
+	{
+		current = Analog[i] ;
+		total -= current ;
+		current += 2000 ;
+		*ptr++ = current ;
+	}
+	*ptr = total ;
+	TIM1->CCR2 = total - 1000 ;		// Update time
+}
+
+
 
 // PPM output
 // Timer 1, channel 1 on PA8 for prototype
@@ -201,17 +225,10 @@ extern "C" void TIM1_CC_IRQHandler()
 	TIM1->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
 	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
 
-// Temporary test code
-	configure_pins( 0x0100, PIN_OUTPUT | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
-	GPIOA->ODR |= 0x0100 ;
+	setupPulses() ;
 
-	hw_delay( 50 ) ;
-	// setupPulses()
-	
-	GPIOA->ODR &= ~0x0100 ;
-	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
-// End of temporary test code
-	
+//	DMA2_Stream5->NDTR = 9 ;
+	TIM1->CCR1 = 600 ;		// 300 uS pulse
 	
 	TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
 	TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt

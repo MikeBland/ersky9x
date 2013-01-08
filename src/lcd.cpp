@@ -27,6 +27,7 @@
 #include "myeeprom.h"
 #include "lcd.h"
 #include "drivers.h"
+#include "logicio.h"
 
 #include "font.lbm"
 #define font_5x8_x20_x7f (font+3)

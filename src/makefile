@@ -127,6 +127,7 @@ ifeq ($(PCB), X9D)
 # List C source files here
 SRC  = x9d/system_stm32f2xx.c \
        x9d/stm32f2xx_gpio.c \
+       coos.c \
        x9d/stm32f2xx_rcc.c
 
 
