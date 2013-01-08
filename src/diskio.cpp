@@ -38,11 +38,12 @@
 /* are platform dependent.                                               */
 /*-----------------------------------------------------------------------*/
 
+#include "ersky9x.h"
+
 #if !defined(SIMU)
 #include "CoOS.h"
 #endif
 
-#include "ersky9x.h"
 #include "diskio.h"
 #include "board.h"
 #include "debug.h"

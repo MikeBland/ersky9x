@@ -6,6 +6,7 @@
 #include "logicio.h"
 #include "analog.h"
 #include "drivers.h"
+#include "myeeprom.h"
 
 #include "x9d\stm32f2xx.h"
 #include "x9d\stm32f2xx_gpio.h"
@@ -18,10 +19,22 @@
 #include "CoOS.h"
 #endif
 
+#include "debug.h"
 
 #define MAIN_STACK_SIZE		500
+#define DEBUG_STACK_SIZE	130
+
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
+
+#ifdef	DEBUG
+OS_TID DebugTask;
+OS_STK debug_stk[DEBUG_STACK_SIZE] ;
+#endif
+
+EEGeneral  g_eeGeneral;
+//ModelData  g_oldmodel;
+SKYModelData  g_model;
 
 
 const uint8_t splashdata[] = { 'S','P','S',0,
@@ -66,6 +79,24 @@ void txmit( uint8_t c )
 	USART3->DR = c ;
 }
 
+uint16_t rxuart()
+{
+  if (USART3->SR & USART_SR_RXNE)
+	{
+		return USART3->DR ;
+	}
+	return 0xFFFF ;
+}
+
+void uputs( register char *string )
+{
+	while ( *string )
+	{
+		txmit( *string++ ) ;		
+	}	
+}
+
+
 // Send a <cr><lf> combination to the serial port
 void crlf()
 {
@@ -108,23 +139,23 @@ void hex_digit_send( unsigned char c )
 	txmit( c ) ;
 }
 
-void disp_256( register uint32_t address, register uint32_t lines ) ;
+extern void disp_256( register uint32_t address, register uint32_t lines ) ;
 
-void disp_256( register uint32_t address, register uint32_t lines )
-{
-	register uint32_t i ;
-	register uint32_t j ;
-	for ( i = 0 ; i < lines ; i += 1 )
-	{
-		p8hex( address ) ;
-		for ( j = 0 ; j < 16 ; j += 1 )
-		{
-			txmit(' ') ;
-			p2hex( *( (uint8_t *)address++ ) ) ;
-		}
-		crlf() ;
-	}
-}
+//void disp_256( register uint32_t address, register uint32_t lines )
+//{
+//	register uint32_t i ;
+//	register uint32_t j ;
+//	for ( i = 0 ; i < lines ; i += 1 )
+//	{
+//		p8hex( address ) ;
+//		for ( j = 0 ; j < 16 ; j += 1 )
+//		{
+//			txmit(' ') ;
+//			p2hex( *( (uint8_t *)address++ ) ) ;
+//		}
+//		crlf() ;
+//	}
+//}
 
 void dispw_256( register uint32_t address, register uint32_t lines ) ;
 
@@ -291,6 +322,10 @@ int main( void )
 	CoInitOS();
 	
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
+
+#ifdef	DEBUG
+	DebugTask = CoCreateTaskEx( handle_serial,NULL,18,&debug_stk[DEBUG_STACK_SIZE-1],DEBUG_STACK_SIZE, 1, FALSE );
+#endif 
 
 	CoStartOS();
 	while(1);

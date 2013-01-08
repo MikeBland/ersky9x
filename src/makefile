@@ -138,6 +138,7 @@ CPPSRC = x9d.cpp \
          logicio.cpp \
          analog.cpp \
          drivers.cpp \
+         debug.cpp \
 		   lcd.cpp
 
 # List ASM source files here

@@ -173,6 +173,7 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
+#if PCBSKY		
 		if ( SoundCheck )
 		{
 			if ( queueTone( 610, 200, 30 ) )
@@ -180,6 +181,7 @@ void handle_serial(void* pdata)
 				SoundCheck = 0 ;
 			}			
 		}
+#endif
 
 		while ( ( rxchar = rxuart() ) == 0xFFFF )
 		{
@@ -594,6 +596,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 		}
 #endif
 
+#if PCBSKY
 		if ( rxchar == 'H' )
 		{
 			txmit( 'H' ) ;
@@ -1023,6 +1026,8 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		tone_stop() ;
 		}
 
+#endif
+
 		// Display Ram version of EEPROM
 	//	if ( ( rxchar >= '0' ) && ( rxchar <= '7' ) )
 	//	{
@@ -1038,7 +1043,6 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 
 
 }
-
 
 //void disp_mem( register uint32_t address )
 //{

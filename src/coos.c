@@ -14,8 +14,8 @@
  */ 
 
 /*---------------------------- Include ---------------------------------------*/
-#include <coocox.h>
 #include <stdint.h>
+#include <coocox.h>
 #include "AT91SAM3S2.h"
 
 /*---------------------------- Variable Define -------------------------------*/

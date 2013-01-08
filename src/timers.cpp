@@ -35,6 +35,7 @@
 #include "ersky9x.h"
 #include "timers.h"
 #include "logicio.h"
+#include "myeeprom.h"
 
 
 // Starts TIMER at 200Hz, 5mS period
@@ -140,7 +141,7 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 }
 
 
-uint16_t SyncLength = 45000-21600 ;
+//uint16_t SyncLength = 45000-21600 ;
 uint16_t PpmStream[20] =
 {
 	2000,
@@ -158,27 +159,38 @@ uint16_t PpmStream[20] =
 
 extern volatile uint16_t Analog[] ;
 
+uint16_t *PulsePtr ;
+
+#define PPM_CENTER 1500*2
+
 void setupPulses()
 {
   uint32_t i ;
 	uint32_t total ;
-	uint32_t current ;
+	uint32_t pulse ;
 	uint16_t *ptr ;
+  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
 
   ptr = PpmStream ;
 
-	total = 45000 ;
-	for ( i = 0 ; i < 8 ; i += 1 )
-	{
-		current = Analog[i] ;
-		total -= current ;
-		current += 2000 ;
-		*ptr++ = current ;
-	}
-	*ptr = total ;
-	TIM1->CCR2 = total - 1000 ;		// Update time
-}
+	total = 22500u*2; //Minimum Framelen=22.5 ms
+  total += (int16_t(g_model.ppmFrameLength))*1000;
 
+	for ( i = 0 ; i < p ; i += 1 )
+	{
+//  	pulse = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
+		
+		pulse = Analog[i] >> 1 ;
+		pulse += 2000 ;
+		
+		total -= pulse ;
+		*ptr++ = pulse ;
+	}
+	*ptr++ = total ;
+	*ptr = 0 ;
+	TIM1->CCR2 = total - 1000 ;		// Update time
+	TIM1->CCR1 = (g_model.ppmDelay*50+300)*2 ;
+}
 
 
 // PPM output
@@ -187,12 +199,15 @@ void setupPulses()
 void init_ppm()
 {
 	// Timer1
+	setupPulses() ;
+	PulsePtr = PpmStream ;
+	
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
 	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
 	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	
-	TIM1->ARR = 3000 ;		// 1.5 mS
+	TIM1->ARR = *PulsePtr++ ;
 	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
 	TIM1->CCER = TIM_CCER_CC1E ;	
 	TIM1->CCMR1 = TIM_CCMR1_IC1F_1 | TIM_CCMR1_IC1F_2 | TIM_CCMR1_IC1PSC_1 ;			// PWM mode 1
@@ -200,21 +215,13 @@ void init_ppm()
 	TIM1->BDTR = TIM_BDTR_MOE ;
  	TIM1->EGR = 1 ;
 	TIM1->DIER = TIM_DIER_UDE ;
-	TIM1->CCR2 = SyncLength - 1000 ;		// Update time
 
-	// DMA channel 6
-	DMA2_Stream5->CR = ( 6 << 25) | (1 << 6) | DMA_SxCR_PL_1 | DMA_SxCR_MSIZE_0 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC | DMA_SxCR_CIRC ;
-	DMA2_Stream5->PAR = (uint32_t) &TIM1->DMAR ;
-	DMA2_Stream5->M0AR = (uint32_t) PpmStream ;
-	DMA2_Stream5->FCR = 0 ;
-	 
-	TIM1->DCR = 11 ;
-	DMA2->HIFCR = DMA_HIFCR_CTCIF6 | DMA_HIFCR_CHTIF6 |DMA_HIFCR_CTEIF6 | DMA_HIFCR_CDMEIF6 | DMA_HIFCR_CFEIF6 ; // Write ones to clear bits
-	DMA2_Stream5->NDTR = 9 ;
-	DMA2_Stream5->CR |= DMA_SxCR_EN ;		// Start DMA
+	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
 	TIM1->DIER |= TIM_DIER_CC2IE ;
+	TIM1->DIER |= TIM_DIER_UDE ;
 
-	TIM1->CR1 = TIM_CR1_ARPE | TIM_CR1_CEN ;
+	TIM1->CR1 = TIM_CR1_CEN ;
 	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
 	NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn) ;
 
@@ -227,8 +234,10 @@ extern "C" void TIM1_CC_IRQHandler()
 
 	setupPulses() ;
 
-//	DMA2_Stream5->NDTR = 9 ;
-	TIM1->CCR1 = 600 ;		// 300 uS pulse
+	PulsePtr = PpmStream ;
+
+	TIM1->DIER |= TIM_DIER_UDE ;
+
 	
 	TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
 	TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
@@ -236,11 +245,14 @@ extern "C" void TIM1_CC_IRQHandler()
 
 extern "C" void TIM1_UP_TIM10_IRQHandler()
 {
-	TIM1->DIER &= ~TIM_DIER_UIE ;		// stop this interrupt
 	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
-	// setupPulses()
-	TIM1->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
-	TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+
+	TIM1->ARR = *PulsePtr++ ;
+	if ( *PulsePtr == 0 )
+	{
+		TIM1->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
+		TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+	}
 }
 
 

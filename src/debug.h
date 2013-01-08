@@ -8,7 +8,7 @@
 #define TRACE_WARNING_WP(...) { }
 #define TRACE_ERROR(...) { }
 
-extern void handle_serial( void ) ;
+extern void handle_serial( void* pdata ) ;
 extern void hello( void ) ;
 extern void dbl9x( void ) ;
 //extern uint32_t read_switch( enum EnumKeys enuk ) ;
