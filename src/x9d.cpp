@@ -36,6 +36,8 @@ EEGeneral  g_eeGeneral;
 //ModelData  g_oldmodel;
 SKYModelData  g_model;
 
+int16_t g_ppmIns[8];
+uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
 
 const uint8_t splashdata[] = { 'S','P','S',0,
 #include "s9xsplash.lbm"
@@ -312,12 +314,21 @@ int main( void )
 	init_adc() ;
 
 	init_ppm() ;
+	
+	init_trainer_ppm() ;
+
+	init_trainer_capture() ;
 
 	disp_256( TIM1_BASE, 6 ) ;
 	crlf() ;
 
-	dispw_256( DMA2_BASE, 12 ) ;
+	dispw_256( GPIOA_BASE, 4 ) ;
 	crlf() ;
+	
+	dispw_256( GPIOC_BASE, 4 ) ;
+	crlf() ;
+//	dispw_256( DMA2_BASE, 12 ) ;
+//	crlf() ;
 
 	CoInitOS();
 	
@@ -355,6 +366,7 @@ void main_loop(void* pdata)
 			{
 				break ;
 			}
+			CoTickDelay(1) ;
 		}
 		txmit( 'X' ) ;
 		
@@ -405,6 +417,9 @@ void main_loop(void* pdata)
 
 		if ( screen == 0 )
 		{
+			
+			lcd_outhex4( 0, 0, CoGetOSTime() ) ;
+			
 			lcd_outhex4( 180, 0, tresult ) ;
 			lcd_outhex4( 180, 8, aaaa ) ;
 			lcd_outhex4( 150, 0, cccc ) ;
@@ -469,6 +484,15 @@ void main_loop(void* pdata)
 			{
 				lcd_putsnAtt( 90, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+17),3, keyState((EnumKeys)(SW_SA0+i+17)) ? INVERS : 0);
 			}
+			read_adc() ;
+			lcd_outhex4( 120, 0, g_ppmIns[0] ) ;
+			lcd_outhex4( 120, 8, g_ppmIns[1] ) ;
+			lcd_outhex4( 120, 16, g_ppmIns[2] ) ;
+			lcd_outhex4( 120, 24, g_ppmIns[3] ) ;
+			lcd_outhex4( 120, 32, g_ppmIns[4] ) ;
+			lcd_outhex4( 120, 40, g_ppmIns[5] ) ;
+			lcd_outhex4( 120, 48, g_ppmIns[6] ) ;
+			lcd_outhex4( 120, 56, g_ppmIns[7] ) ;
 
  		  lcd_puts_P(170, 0, "GPIO IN" ) ;
  		  lcd_putc(160,  8, 'A' ) ;

@@ -16,7 +16,16 @@
 /*---------------------------- Include ---------------------------------------*/
 #include <stdint.h>
 #include <coocox.h>
-#include "AT91SAM3S2.h"
+
+#ifdef PCBSKY
+#include "AT91SAM3S4.h"
+#endif
+
+#ifdef PCBX9D
+#include "x9d\stm32f2xx.h"
+#endif
+
+
 
 /*---------------------------- Variable Define -------------------------------*/
 volatile U8     OSIntNesting  = 0;         /*!< Use to indicate interrupt nesting level*/
@@ -1398,17 +1407,14 @@ void CoIdleTask(void* pdata)
   {
       /* Add your codes here */
 	// Toggle bits BACKLIGHT and EXT1, Backlight now on PWM
+#ifdef PCBSKY
 #define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
+#endif
+#ifdef PCBX9D
+#define wdt_reset()	(IWDG->KR = 0x0000AAAAL)
+#endif
 		
     wdt_reset();
-		if ( i & 1 )
-		{
-			PIOC->PIO_CODR = 0x80000000L ;	// Set bit C31 OFF
-		}
-		else
-		{
-			PIOC->PIO_SODR = 0x80000000L ;	// Set bit C31 ON
-		}
 		i += 1 ;
   }
 }

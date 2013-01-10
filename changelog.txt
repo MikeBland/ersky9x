@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 10-Jan-2013  MPB
+r143 FIx trainer bug, more X9D additions
+
+******************************************
 CHANGELOG: 05-Jan-2013  MPB
 r132 Add X9D.cpp test program
 

@@ -93,6 +93,7 @@ ifeq ($(RUN_FROM_FLASH), 0)
    else
      LDSCRIPT = sam3s4c_ram.ld
 	  CPPDEFS += -DPCBSKY 
+     UDEFS = -Dat91sam3s4
 	endif
  endif
  FULL_PRJ = $(PROJECT)_ram
@@ -111,13 +112,22 @@ else
    else
     CPPDEFS += -DPCBSKY 
     LDSCRIPT = sam3s4c_flash.ld
+    UDEFS = -Dat91sam3s4
 	endif
  endif
  FULL_PRJ = $(PROJECT)_rom
 endif
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -Dat91sam3s4
+
+ifeq ($(PCB), X9D)
+UDEFS = 
+endif
+
+ifeq ($(SAM3S2), 1)
+UDEFS = -Dat91sam3s2
+endif
+
 
 # Define ASM defines here
 UADEFS = 
@@ -226,6 +236,7 @@ LDFLAGS = $(MCFLAGS) -mthumb -nostartfiles -T$(LDSCRIPT) -Wl,-Map=$(FULL_PRJ).ma
 CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.cpp=.lst) $(DEFS)
 
 CPPFLAGS += $(CPPDEFS)
+CPFLAGS += $(CPPDEFS)
 
 ifeq ($(STAMP), 1)
 AVER = ${shell sh -c "grep \"SUB_VERS\" stamp-ersky9x.h | egrep -o \"[[:digit:]]*\""}

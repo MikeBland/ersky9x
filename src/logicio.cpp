@@ -154,8 +154,8 @@ void configure_pins( uint32_t pins, uint16_t config )
       pgpio->PUPDR &= ~(GPIO_PUPDR_PUPDR0 << ((uint16_t)pos * 2));
       pgpio->PUPDR |= ((config & PIN_PULL_MASK) >> 2) << (pos * 2) ;
 
-			pgpio->AFR[pos >> 3] &= ~(0x000F << (pos & 7)) ;
-			pgpio->AFR[pos >> 3] |=	((config & PIN_PERI_MASK) >> 4) << (pos & 7) ;
+			pgpio->AFR[pos >> 3] &= ~(0x000F << ((pos & 7)*4)) ;
+			pgpio->AFR[pos >> 3] |=	((config & PIN_PERI_MASK) >> 4) << ((pos & 7)*4) ;
     }
   }
 }

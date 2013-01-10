@@ -1242,12 +1242,12 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 	(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
   
 
-  val = (capture - lastCapt) / 2 ;
+  val = (uint16_t)(capture - lastCapt) / 2 ;
   lastCapt = capture;
 
   // We prcoess g_ppmInsright here to make servo movement as smooth as possible
   //    while under trainee control
-  if (val>4000 && val < 16000) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
+  if (val>4000 && val < 19000) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
     ppmInState = 1; // triggered
   else
   {

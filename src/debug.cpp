@@ -38,9 +38,15 @@
 #include <ctype.h>
 #include <string.h>
 
+#ifdef PCBSKY
 #include "AT91SAM3S4.h"
-#include "core_cm3.h"
+#endif
 
+#ifdef PCBX9D
+#include "x9d\stm32f2xx.h"
+#endif
+
+#include "core_cm3.h"
 
 #include "ersky9x.h"
 #include "sound.h"
@@ -165,6 +171,14 @@ FATFS g_FATFS_Obj ;
 DIR Dir ;
 #endif
 
+extern uint16_t Captures[256] ;
+extern uint32_t Cap_index ;
+
+uint16_t Tcaptures[256] ;
+uint32_t Tcap_index ;
+
+
+
 void handle_serial(void* pdata)
 {
 	uint16_t rxchar ;
@@ -186,6 +200,7 @@ void handle_serial(void* pdata)
 		while ( ( rxchar = rxuart() ) == 0xFFFF )
 		{
 			CoTickDelay(5) ;					// 10mS for now
+
 		}
 		// Got a char, what to do with it?
 

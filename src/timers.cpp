@@ -141,8 +141,21 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 }
 
 
-//uint16_t SyncLength = 45000-21600 ;
 uint16_t PpmStream[20] =
+{
+	2000,
+	2200,
+	2400,
+	2600,
+	2800,
+	3000,
+	3200,
+	3400,
+	45000-21600,
+	0,0,0,0,0,0,0,0,0,0,0
+} ;
+
+uint16_t TrainerPpmStream[20] =
 {
 	2000,
 	2200,
@@ -160,6 +173,7 @@ uint16_t PpmStream[20] =
 extern volatile uint16_t Analog[] ;
 
 uint16_t *PulsePtr ;
+uint16_t *TrainerPulsePtr ;
 
 #define PPM_CENTER 1500*2
 
@@ -205,12 +219,11 @@ void init_ppm()
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
 	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
 	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
-	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	
 	TIM1->ARR = *PulsePtr++ ;
 	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
 	TIM1->CCER = TIM_CCER_CC1E ;	
-	TIM1->CCMR1 = TIM_CCMR1_IC1F_1 | TIM_CCMR1_IC1F_2 | TIM_CCMR1_IC1PSC_1 ;			// PWM mode 1
+	TIM1->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC2PE ;			// PWM mode 1
 	TIM1->CCR1 = 600 ;		// 300 uS pulse
 	TIM1->BDTR = TIM_BDTR_MOE ;
  	TIM1->EGR = 1 ;
@@ -219,7 +232,7 @@ void init_ppm()
 	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
 	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
 	TIM1->DIER |= TIM_DIER_CC2IE ;
-	TIM1->DIER |= TIM_DIER_UDE ;
+	TIM1->DIER |= TIM_DIER_UIE ;
 
 	TIM1->CR1 = TIM_CR1_CEN ;
 	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
@@ -235,10 +248,10 @@ extern "C" void TIM1_CC_IRQHandler()
 	setupPulses() ;
 
 	PulsePtr = PpmStream ;
-
+	
 	TIM1->DIER |= TIM_DIER_UDE ;
 
-	
+
 	TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
 	TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
 }
@@ -279,6 +292,147 @@ void hw_delay( uint16_t time )
 		// wait
 	}
 }
+
+void setupTrainerPulses()
+{
+  uint32_t i ;
+	uint32_t total ;
+	uint32_t pulse ;
+	uint16_t *ptr ;
+  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
+
+  ptr = TrainerPpmStream ;
+
+	total = 22500u*2; //Minimum Framelen=22.5 ms
+  total += (int16_t(g_model.ppmFrameLength))*1000;
+
+	for ( i = 0 ; i < p ; i += 1 )
+	{
+//  	pulse = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
+		
+		pulse = Analog[i] >> 1 ;
+		pulse += 2000 ;
+		
+		total -= pulse ;
+		*ptr++ = pulse ;
+	}
+	*ptr++ = total ;
+	*ptr = 0 ;
+	TIM8->CCR2 = total - 1000 ;		// Update time
+	TIM8->CCR4 = (g_model.ppmDelay*50+300)*2 ;
+}
+
+
+
+// Trainer PPM oputput PC9, Timer 8 channel 4
+void init_trainer_ppm()
+{
+	setupTrainerPulses() ;
+	TrainerPulsePtr = TrainerPpmStream ;
+	
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
+	configure_pins( 0x0200, PIN_PERIPHERAL | PIN_PORTC | PIN_PER_3 | PIN_OS25 | PIN_PUSHPULL ) ;
+	RCC->APB2ENR |= RCC_APB2ENR_TIM8EN ;		// Enable clock
+	
+	TIM8->ARR = *TrainerPulsePtr++ ;
+	TIM8->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
+	TIM8->CCER = TIM_CCER_CC4E ;	
+	TIM8->CCMR2 = TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4PE ;			// PWM mode 1
+	TIM8->CCR4 = 600 ;		// 300 uS pulse
+	TIM8->BDTR = TIM_BDTR_MOE ;
+ 	TIM8->EGR = 1 ;
+	TIM8->DIER = TIM_DIER_UDE ;
+
+	TIM8->SR &= ~TIM_SR_UIF ;				// Clear flag
+	TIM8->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+	TIM8->DIER |= TIM_DIER_CC2IE ;
+	TIM8->DIER |= TIM_DIER_UIE ;
+
+	TIM8->CR1 = TIM_CR1_CEN ;
+	NVIC_EnableIRQ(TIM8_CC_IRQn) ;
+	NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn) ;
+}
+
+extern "C" void TIM8_CC_IRQHandler()
+{
+	TIM8->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
+	TIM8->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+
+	setupTrainerPulses() ;
+
+	TrainerPulsePtr = TrainerPpmStream ;
+	TIM8->DIER |= TIM_DIER_UDE ;
+
+	TIM8->SR &= ~TIM_SR_UIF ;					// Clear this flag
+	TIM8->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
+}
+
+extern "C" void TIM8_UP_TIM13_IRQHandler()
+{
+	TIM8->SR &= ~TIM_SR_UIF ;				// Clear flag
+
+	TIM8->ARR = *TrainerPulsePtr++ ;
+	if ( *TrainerPulsePtr == 0 )
+	{
+		TIM8->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
+		TIM8->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+	}
+}
+
+// Trainer capture, PC8, Timer 3 channel 3
+void init_trainer_capture()
+{
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
+	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTC | PIN_PER_2 ) ;
+	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN ;		// Enable clock
+	
+	TIM3->ARR = 0xFFFF ;
+	TIM3->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM3->CR2 = 0 ;
+	TIM3->CCMR2 = TIM_CCMR2_IC3F_0 | TIM_CCMR2_IC3F_1 | TIM_CCMR2_CC3S_0 ;
+	TIM3->CCER = TIM_CCER_CC3E ;	 
+	TIM3->SR &= ~TIM_SR_CC3IF ;				// Clear flag
+	TIM3->DIER |= TIM_DIER_CC3IE ;
+	TIM3->CR1 = TIM_CR1_CEN ;
+	NVIC_EnableIRQ(TIM3_IRQn) ;
+	
+}
+
+
+extern "C" void TIM3_IRQHandler()
+{
+  
+	uint16_t capture ;
+  static uint16_t lastCapt ;
+  uint16_t val ;
+	
+	capture = TIM3->CCR3 ;
+
+  val = (uint16_t)(capture - lastCapt) / 2 ;
+  lastCapt = capture;
+	
+
+  // We prcoess g_ppmInsright here to make servo movement as smooth as possible
+  //    while under trainee control
+  if ((val>4000) && (val < 19000)) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
+	{
+    ppmInState = 1; // triggered
+	}
+  else
+  {
+  	if(ppmInState && (ppmInState<=8))
+		{
+    	if((val>800) && (val<2200))
+			{
+  	    g_ppmIns[ppmInState++ - 1] = (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
+
+	    }else{
+  	    ppmInState=0; // not triggered
+    	}
+    }
+  }
+}
+
 
 
 #endif

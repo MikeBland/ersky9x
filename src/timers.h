@@ -32,6 +32,8 @@ extern uint32_t Timer_mult2 ;
 extern void init_hw_timer( void ) ;
 extern void hw_delay( uint16_t time ) ;
 extern void init_ppm( void ) ;
+extern void init_trainer_ppm( void ) ;
+extern void init_trainer_capture( void ) ;
 
 #endif
 
