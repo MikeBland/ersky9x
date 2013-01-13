@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 13-Jan-2013  MPB
+Fix Pilot name editing bug, slow and delay 25 secs in steps of 0.1 sec
+
+******************************************
 CHANGELOG: 10-Jan-2013  MPB
 r143 FIx trainer bug, more X9D additions
 

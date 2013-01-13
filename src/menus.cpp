@@ -952,7 +952,7 @@ uint8_t MState2::check(uint8_t event, uint8_t curr, MenuFuncP *menuTab, uint8_t 
     break;
     case EVT_KEY_BREAK(BTN_RE):
     case EVT_KEY_FIRST(KEY_MENU):
-//        if (maxcol > 0)
+        if (m_posVert > 0)
             s_editMode = !s_editMode;
     break;
     case EVT_KEY_LONG(KEY_EXIT):
@@ -1995,7 +1995,7 @@ void menuProcMixOne(uint8_t event)
         switch(i){
         case 0:
             lcd_puts_P(  2*FW,y,PSTR("Source"));
-            putsChnRaw(   FW*14,y,md2->srcRaw,attr | MIX_SOURCE);
+            putsChnRaw(   FW*13,y,md2->srcRaw,attr | MIX_SOURCE);
 #if GVARS
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->srcRaw, 1,NUM_SKYXCHNRAW+1+MAX_GVARS );
 #else
@@ -2007,7 +2007,7 @@ void menuProcMixOne(uint8_t event)
 #if GVARS
 						md2->weight = gvarMenuItem( FW*16, y, md2->weight, -125, 125, attr, event ) ;
 #else
-            lcd_outdezAtt(FW*14,y,md2->weight,attr|LEFT);
+            lcd_outdezAtt(FW*13,y,md2->weight,attr|LEFT);
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->weight, -125,125);
 #endif
             break;
@@ -2016,26 +2016,26 @@ void menuProcMixOne(uint8_t event)
 #if GVARS
 						md2->sOffset = gvarMenuItem( FW*16, y, md2->sOffset, -125, 125, attr, event ) ;
 #else
-						lcd_outdezAtt(FW*14,y,md2->sOffset,attr|LEFT);
+						lcd_outdezAtt(FW*13,y,md2->sOffset,attr|LEFT);
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->sOffset, -125,125);
 #endif
             break;
         case 3:
     				b = md2->enableFmTrim ;
             lcd_puts_P(  2*FW,y,PSTR("FlModetrim"));
-            lcd_putsnAtt(FW*14,y, PSTR("OFFON ")+3*b,3,attr);  //default is 0=OFF
+            lcd_putsnAtt(FW*13,y, PSTR("OFFON ")+3*b,3,attr);  //default is 0=OFF
             //            lcd_putsnAtt( x, y, PSTR("OFFON ")+3*value,3,mode ? INVERS:0) ;
-            //            menu_lcd_onoff( FW*14, y, md2->enableFmTrim, sub==i ) ;
+            //            menu_lcd_onoff( FW*13, y, md2->enableFmTrim, sub==i ) ;
             if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,1); md2->enableFmTrim = b ; }
             break;
         case 4:
             lcd_puts_P(  2*FW,y,PSTR("Trim"));
-            lcd_putsnAtt(FW*14,y, PSTR("ON OFF")+3*md2->carryTrim,3,attr);  //default is 0=ON
+            lcd_putsnAtt(FW*13,y, PSTR("ON OFF")+3*md2->carryTrim,3,attr);  //default is 0=ON
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->carryTrim, 0,1);
             break;
         case 5:
             lcd_putsAtt(  2*FW,y,PSTR("Curves"),0);
-            lcd_putsnAtt( FW*14,y,get_curve_string()+md2->curve*3,3,attr);
+            lcd_putsnAtt( FW*13,y,get_curve_string()+md2->curve*3,3,attr);
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->curve, 0,MAX_CURVE5+MAX_CURVE9+7-1);
             if(attr && md2->curve>=CURVE_BASE && event==EVT_KEY_FIRST(KEY_MENU)){
                 s_curveChan = md2->curve-CURVE_BASE;
@@ -2051,39 +2051,43 @@ void menuProcMixOne(uint8_t event)
             lcd_puts_P(  2*FW,y,PSTR("Warning"));
 						b = md2->mixWarn ;
             if(b)
-                lcd_outdezAtt(FW*14,y,b,attr|LEFT);
+                lcd_outdezAtt(FW*13,y,b,attr|LEFT);
             else
-                lcd_putsAtt(  FW*14,y,PSTR("OFF"),attr);
+                lcd_putsAtt(  FW*13,y,PSTR("OFF"),attr);
             if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,3); md2->mixWarn = b ; }
             break;
         case 8:
             lcd_puts_P(  2*FW,y,PSTR("Multpx"));
-            lcd_putsAttIdx(14*FW, y,PSTR("\010Add     MultiplyReplace "),md2->mltpx,attr);
+            lcd_putsAttIdx(13*FW, y,PSTR("\010Add     MultiplyReplace "),md2->mltpx,attr);
             if(attr) CHECK_INCDEC_H_MODELVAR( event, md2->mltpx, 0, 2); //!! bitfield
             break;
         case 9:
-            lcd_puts_P(  2*FW,y,PSTR("Delay Down"));
-						b = md2->delayDown/10 ;
-            lcd_outdezAtt(FW*16,y,b,attr);
-            if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,15); md2->delayDown = b * 10 ;}
+						b = md2->delayDown ;
+            lcd_puts_P(  2*FW,y,PSTR("Delay Down\020."));
+            lcd_outdezAtt(FW*16,y,b/10,attr);
+            lcd_outdezAtt(FW*18-3,y,b%10,attr);
+            if(attr) { md2->delayDown = checkIncDec16( event, b, 0, 250, EE_MODEL); }
             break;
         case 10:
-            lcd_puts_P(  2*FW,y,PSTR("Delay Up"));
-						b = md2->delayUp/10 ;
-            lcd_outdezAtt(FW*16,y,b,attr);
-            if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,15); md2->delayUp = b * 10 ; }
+						b = md2->delayUp ;
+            lcd_puts_P(  2*FW,y,PSTR("Delay Up\020."));
+            lcd_outdezAtt(FW*16,y,b/10,attr);
+            lcd_outdezAtt(FW*18-3,y,b%10,attr);
+            if(attr) { md2->delayUp = checkIncDec16( event, b, 0, 250, EE_MODEL); }
             break;
         case 11:
-            lcd_puts_P(  2*FW,y,PSTR("Slow  Down"));
-						b = md2->speedDown / 10 ;
-            lcd_outdezAtt(FW*16,y,b,attr);
-            if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,15); md2->speedDown = b * 10 ; }
+						b = md2->speedDown ;
+            lcd_puts_P(  2*FW,y,PSTR("Slow  Down\020."));
+            lcd_outdezAtt(FW*16,y,b/10,attr);
+            lcd_outdezAtt(FW*18-3,y,b%10,attr);
+            if(attr) { md2->speedDown = checkIncDec16( event, b, 0, 250, EE_MODEL); }
             break;
         case 12:
-            lcd_puts_P(  2*FW,y,PSTR("Slow  Up"));
-						b = md2->speedUp/10 ;
-            lcd_outdezAtt(FW*16,y,b,attr);
-            if(attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0,15); md2->speedUp = b * 10 ; }
+						b = md2->speedUp ;
+            lcd_puts_P(  2*FW,y,PSTR("Slow  Up\020."));
+            lcd_outdezAtt(FW*16,y,b/10,attr);
+            lcd_outdezAtt(FW*18-3,y,b%10,attr);
+            if(attr) { md2->speedUp = checkIncDec16( event, b, 0, 250, EE_MODEL); }
             break;
 //        case 13:
 //            lcd_putsAtt(  2*FW,y,PSTR("DELETE MIX [MENU]"),attr);
@@ -3928,9 +3932,9 @@ void menuProcSetup(uint8_t event)
 
   switch(event)
 	{
-		case EVT_KEY_FIRST(KEY_MENU):
-  	  if(sub>0) s_editMode = !s_editMode;
-  	break;
+//		case EVT_KEY_FIRST(KEY_MENU):
+//  	  if(sub>0) s_editMode = !s_editMode;
+//  	break;
 
   	case EVT_KEY_FIRST(KEY_EXIT):
   	  if(s_editMode)
@@ -5794,7 +5798,7 @@ void perOut(int16_t *chanOut, uint8_t att)
                     if(mixweight) act[i] /= mixweight ;
                 }
                 diff = v-act[i]/DEL_MULT;
-                if(diff) sDelay[i] = (diff<0 ? md->delayUp/10 :  md->delayDown/10) * 100;
+                if(diff) sDelay[i] = (diff<0 ? md->delayUp :  md->delayDown) * 10 ;
             }
 
             if(sDelay[i]){ // perform delay
@@ -5816,8 +5820,8 @@ void perOut(int16_t *chanOut, uint8_t att)
                 if(tick10ms) {
                     int32_t rate = (int32_t)DEL_MULT*2048*100;
                     if(mixweight) rate /= abs(mixweight);
-                    act[i] = (diff>0) ? ((md->speedUp>0)   ? act[i]+(rate)/((int16_t)100*(md->speedUp/10))   :  (int32_t)v*DEL_MULT) :
-                                        ((md->speedDown>0) ? act[i]-(rate)/((int16_t)100*(md->speedDown/10)) :  (int32_t)v*DEL_MULT) ;
+                    act[i] = (diff>0) ? ((md->speedUp>0)   ? act[i]+(rate)/((int16_t)10*(md->speedUp))   :  (int32_t)v*DEL_MULT) :
+                                        ((md->speedDown>0) ? act[i]-(rate)/((int16_t)10*(md->speedDown)) :  (int32_t)v*DEL_MULT) ;
                 }
 
                 if(((diff>0) && (v<(act[i]/DEL_MULT))) || ((diff<0) && (v>(act[i]/DEL_MULT)))) act[i]=(int32_t)v*DEL_MULT; //deal with overflow

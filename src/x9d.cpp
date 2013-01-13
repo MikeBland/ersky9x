@@ -142,6 +142,7 @@ void hex_digit_send( unsigned char c )
 }
 
 extern void disp_256( register uint32_t address, register uint32_t lines ) ;
+extern void dispw_256( register uint32_t address, register uint32_t lines ) ;
 
 //void disp_256( register uint32_t address, register uint32_t lines )
 //{
@@ -159,24 +160,6 @@ extern void disp_256( register uint32_t address, register uint32_t lines ) ;
 //	}
 //}
 
-void dispw_256( register uint32_t address, register uint32_t lines ) ;
-
-void dispw_256( register uint32_t address, register uint32_t lines )
-{
-	register uint32_t i ;
-	register uint32_t j ;
-	for ( i = 0 ; i < lines ; i += 1 )
-	{
-		p8hex( address ) ;
-		for ( j = 0 ; j < 4 ; j += 1 )
-		{
-			txmit(' ') ;
-			p8hex( *( (uint32_t *)address ) ) ;
-			address += 4 ;
-		}
-		crlf() ;
-	}
-}
 
 
 //volatile uint16_t g_tmr10ms;
@@ -258,10 +241,10 @@ int main( void )
 {
 	uint32_t i ;
 	uint16_t time ;
+
   
-	lcd_init();
-  
-	
+
+
 	// Serial configure  
 	RCC->APB1ENR |= RCC_APB1ENR_USART3EN ;		// Enable clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
@@ -281,6 +264,7 @@ int main( void )
 	disp_256( RCC_BASE, 4 ) ;
 	crlf() ;
 
+	lcd_init();
 	
 	GPIO_SetBits(GPIOB, GPIO_Pin_BL);
 
@@ -342,6 +326,12 @@ int main( void )
 	while(1);
 }
 
+const char Switches_Str[] = "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2" ;
+
+extern uint32_t test_sound( void ) ;
+extern void stop_sound( void ) ;
+uint32_t SoundTime ;
+
 // This is the main task for the RTOS
 void main_loop(void* pdata)
 {
@@ -362,7 +352,7 @@ void main_loop(void* pdata)
 		time = get_tmr10ms() ;
 		for ( i = 0 ; i < 4000000 ; i += 1 )
 		{
-			if ( (uint16_t)( get_tmr10ms() - time ) > 25 )
+			if ( (uint16_t)( get_tmr10ms() - time ) > 10 )
 			{
 				break ;
 			}
@@ -418,7 +408,10 @@ void main_loop(void* pdata)
 		if ( screen == 0 )
 		{
 			
+			
 			lcd_outhex4( 0, 0, CoGetOSTime() ) ;
+			lcd_outhex4( 0, 8, DMA1_Stream5->CR ) ;
+			lcd_outhex4( 20, 8, DMA1_Stream5->NDTR ) ;
 			
 			lcd_outhex4( 180, 0, tresult ) ;
 			lcd_outhex4( 180, 8, aaaa ) ;
@@ -431,6 +424,34 @@ void main_loop(void* pdata)
   		  lcd_putsn_P(172, y,PSTR(" Menu Exit Down   UpRight Left")+5*i,5) ;
   		  lcd_putcAtt(172+FW*5+2,  y,t+'0',t);
   		}
+
+			static uint32_t last = 0 ;
+			if ( keyState((EnumKeys)(KEY_RIGHT)) )
+			{
+				if ( last == 0 )
+				{
+					SoundTime = test_sound() ;
+					last = 1 ;
+				}
+			}
+			else
+			{
+				last = 0 ;
+			}
+
+			static uint32_t lastx = 0 ;
+			if ( keyState((EnumKeys)(KEY_LEFT)) )
+			{
+				if ( lastx == 0 )
+				{
+					stop_sound() ;
+					lastx = 1 ;
+				}
+			}
+			else
+			{
+				lastx = 0 ;
+			}
 
 			uint32_t x ;
   		x=0;
@@ -470,19 +491,19 @@ void main_loop(void* pdata)
 					
 			for( i=0 ; i<5; i += 1)
 			{
-				lcd_putsnAtt( 0, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*i,3, keyState((EnumKeys)(SW_SA0+i)) ? INVERS : 0);
+				lcd_putsnAtt( 0, (i+1)*FH, Switches_Str+3*i,3, keyState((EnumKeys)(SW_SA0+i)) ? INVERS : 0);
 			}
 			for( i=0 ; i<6; i += 1)
 			{
-				lcd_putsnAtt( 30, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+5),3, keyState((EnumKeys)(SW_SA0+i+5)) ? INVERS : 0);
+				lcd_putsnAtt( 30, (i+1)*FH, Switches_Str+3*(i+5),3, keyState((EnumKeys)(SW_SA0+i+5)) ? INVERS : 0);
 			}
 			for( i=0 ; i<6; i += 1)
 			{
-				lcd_putsnAtt( 60, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+11),3, keyState((EnumKeys)(SW_SA0+i+11)) ? INVERS : 0);
+				lcd_putsnAtt( 60, (i+1)*FH, Switches_Str+3*(i+11),3, keyState((EnumKeys)(SW_SA0+i+11)) ? INVERS : 0);
 			}
 			for( i=0 ; i<5; i += 1)
 			{
-				lcd_putsnAtt( 90, (i+1)*FH, "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2"+3*(i+17),3, keyState((EnumKeys)(SW_SA0+i+17)) ? INVERS : 0);
+				lcd_putsnAtt( 90, (i+1)*FH, Switches_Str+3*(i+17),3, keyState((EnumKeys)(SW_SA0+i+17)) ? INVERS : 0);
 			}
 			read_adc() ;
 			lcd_outhex4( 120, 0, g_ppmIns[0] ) ;

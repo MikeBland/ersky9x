@@ -144,6 +144,7 @@ SRC  = x9d/system_stm32f2xx.c \
 CPPSRC = x9d.cpp \
          x9d/lcd_driver.cpp \
          x9d/aspi.cpp \
+         x9d/sound.cpp \
          timers.cpp \
          logicio.cpp \
          analog.cpp \

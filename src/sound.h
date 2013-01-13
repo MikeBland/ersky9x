@@ -74,7 +74,7 @@ extern void buzzer_on( void ) ;
 extern void buzzer_off( void ) ;
 extern void buzzer_sound( uint8_t time ) ;
 extern void set_frequency( uint32_t frequency ) ;
-extern void start_timer1( void ) ;
+extern void start_dactimer( void ) ;
 extern void init_dac( void ) ;
 extern "C" void DAC_IRQHandler( void ) ;
 extern void end_sound( void ) ;

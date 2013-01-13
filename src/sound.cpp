@@ -53,7 +53,7 @@ void start_sound( void ) ;
 void buzzer_on( void ) ;
 void buzzer_off( void ) ;
 void buzzer_sound( uint8_t time ) ;
-void start_timer1( void ) ;
+void start_dactimer( void ) ;
 void init_dac( void ) ;
 extern "C" void DAC_IRQHandler( void ) ;
 void disp_mem( register uint32_t address ) ;
@@ -150,7 +150,7 @@ void start_sound()
 {
 	register Pio *pioptr ;
 	
-	start_timer1() ;
+	start_dactimer() ;
 	init_dac() ;
 	init_twi() ;
 
@@ -218,7 +218,7 @@ void set_frequency( uint32_t frequency )
 
 
 // Start TIMER1 at 100000Hz, used for DACC trigger
-void start_timer1()
+void start_dactimer()
 {
   register Tc *ptc ;
 	register uint32_t timer ;

@@ -84,6 +84,7 @@ extern "C" void up8hex( uint32_t value )
 //extern uint32_t Per10ms_action ;
 //extern uint32_t Permenu_action ;
 void disp_256( uint32_t address, uint32_t lines ) ;
+extern void dispw_256( register uint32_t address, register uint32_t lines ) ;
 //extern uint8_t eeprom[] ;
 
 #if YMODEM
@@ -225,7 +226,7 @@ void handle_serial(void* pdata)
 				{
 					Mem_address = Next_mem_address ;
 				}
-				disp_256( Mem_address, 4 ) ;
+				dispw_256( Mem_address, 4 ) ;
 				Next_mem_address = Mem_address + 64 ;
 				Memaddmode = 0 ;				
 			}
@@ -437,6 +438,15 @@ void handle_serial(void* pdata)
 		}
 #endif
 	 
+		if ( rxchar == 'X' )
+		{
+			start_sound() ;
+			
+		}	
+		if ( rxchar == 'W' )
+		{
+			end_sound() ;
+		}	
 
 		if ( rxchar == '?' )
 		{
@@ -902,8 +912,15 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		crlf() ;
 	//	}
 	
-	//	if ( rxchar == 'X' )
-	//	{
+		if ( rxchar == 'X' )
+		{
+			start_sound() ;
+			
+		}	
+		if ( rxchar == 'W' )
+		{
+			end_sound() ;
+		}	
 	//		register uint8_t *p ;
 	//		register uint32_t x ;
 		
@@ -1083,6 +1100,23 @@ void disp_256( register uint32_t address, register uint32_t lines )
 	}
 }
 
+
+void dispw_256( register uint32_t address, register uint32_t lines )
+{
+	register uint32_t i ;
+	register uint32_t j ;
+	for ( i = 0 ; i < lines ; i += 1 )
+	{
+		p8hex( address ) ;
+		for ( j = 0 ; j < 4 ; j += 1 )
+		{
+			txmit(' ') ;
+			p8hex( *( (uint32_t *)address ) ) ;
+			address += 4 ;
+		}
+		crlf() ;
+	}
+}
 
 
 
