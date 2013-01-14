@@ -2444,7 +2444,7 @@ void menuProcMix(uint8_t event)
 							}
 						}
         	  if(firstMix != mix_index) //show prefix only if not first mix
-        	 		lcd_putsAttIdx( 4*FW, y, PSTR("\001+*R"),pmd->mltpx,0 ) ;
+        	 		lcd_putsAttIdx( 4*FW-5, y, PSTR("\001+*R"),pmd->mltpx,0 ) ;
     	    
 						putsChnRaw(     9*FW, y, pmd->srcRaw, /*attr | */ MIX_SOURCE ) ;
 	#if GVARS
@@ -2453,12 +2453,12 @@ void menuProcMix(uint8_t event)
 						lcd_outdezAtt(  7*FW+FW/2, y, pmd->weight, attr ) ; //attr);
 	#endif
     	  	  lcd_putcAtt(    7*FW+FW/2, y, '%', 0 ) ; //tattr);
-    	  	  if( pmd->swtch) putsDrSwitches( 13*FW, y, pmd->swtch, 0 ) ; //tattr);
-          
+    	  	  if( pmd->swtch) putsDrSwitches( 13*FW-1, y, pmd->swtch, 0 ) ; //tattr);
+            if(pmd->curve) lcd_putsnAtt( 17*FW, y, get_curve_string()+pmd->curve*3,3, 0 ) ;
 						char cs = ' ';
         	  if (pmd->speedDown || pmd->speedUp)
         	    cs = 'S';
-        	  if ((pmd->delayUp || pmd->delayDown))
+        	  if (pmd->delayUp || pmd->delayDown)
         	    cs = (cs =='S' ? '*' : 'D');
         	  lcd_putc(20*FW+1, y, cs ) ;
 

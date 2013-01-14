@@ -7,6 +7,7 @@
 #include "analog.h"
 #include "drivers.h"
 #include "myeeprom.h"
+#include "sound.h"
 
 #include "x9d\stm32f2xx.h"
 #include "x9d\stm32f2xx_gpio.h"
@@ -202,7 +203,7 @@ void interrupt5ms()
 {
 	static uint32_t pre_scale ;		// Used to get 10 Hz counter
 	
-//	sound_5ms() ;
+	sound_5ms() ;
 	
 	if ( ++pre_scale >= 2 )
 	{
@@ -314,6 +315,8 @@ int main( void )
 //	dispw_256( DMA2_BASE, 12 ) ;
 //	crlf() ;
 
+	start_sound() ;
+
 	CoInitOS();
 	
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
@@ -410,7 +413,7 @@ void main_loop(void* pdata)
 			
 			
 			lcd_outhex4( 0, 0, CoGetOSTime() ) ;
-			lcd_outhex4( 0, 8, DMA1_Stream5->CR ) ;
+			lcd_outhex4( 0, 8, TIM6->CNT ) ;
 			lcd_outhex4( 20, 8, DMA1_Stream5->NDTR ) ;
 			
 			lcd_outhex4( 180, 0, tresult ) ;
@@ -430,7 +433,7 @@ void main_loop(void* pdata)
 			{
 				if ( last == 0 )
 				{
-					SoundTime = test_sound() ;
+					queueTone( 75 * 61 / 2, 10 * 10, 0 ) ;
 					last = 1 ;
 				}
 			}
@@ -444,7 +447,7 @@ void main_loop(void* pdata)
 			{
 				if ( lastx == 0 )
 				{
-					stop_sound() ;
+					queueTone( 65 * 61 / 2, 10 * 10, 0 ) ;
 					lastx = 1 ;
 				}
 			}

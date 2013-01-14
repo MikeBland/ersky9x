@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 14-Jan-2013  MPB
+Cosmetic changes to mixer menu, X9D sound
+
+******************************************
 CHANGELOG: 13-Jan-2013  MPB
 Fix Pilot name editing bug, slow and delay 25 secs in steps of 0.1 sec
 
