@@ -38,7 +38,13 @@
 #ifndef DEF_DISKIO
 #define DEF_DISKIO
 
+#ifdef PCBSKY
 #include "board.h"
+#endif
+#ifdef PCBX9D
+#include "x9d\stm32f2xx.h"
+#endif
+
 #if !defined(SIMU)
 #include "core_cm3.h"
 #endif

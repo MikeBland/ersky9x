@@ -14,7 +14,14 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#ifdef PCBSKY
 #include "AT91SAM3S4.h"
+#endif
+#ifdef PCBX9D
+#include "x9d\stm32f2xx.h"
+#include "x9d\stm32f2xx_gpio.h"
+#include "x9d\hal.h"
+#endif
 #if !defined(SIMU)
 // Mike I think this include is not needed (already present in diskio.h)
 #include "core_cm3.h"

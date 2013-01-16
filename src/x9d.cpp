@@ -8,11 +8,13 @@
 #include "drivers.h"
 #include "myeeprom.h"
 #include "sound.h"
+#include "audio.h"
 
 #include "x9d\stm32f2xx.h"
 #include "x9d\stm32f2xx_gpio.h"
 #include "x9d\stm32f2xx_rcc.h"
 #include "x9d\hal.h"
+#include "X9D/i2c_ee.h"
 
 #include "lcd.h"
 
@@ -33,6 +35,12 @@ OS_TID DebugTask;
 OS_STK debug_stk[DEBUG_STACK_SIZE] ;
 #endif
 
+
+//Temporary
+const char Str_telemItems[] = "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZ" ; 
+
+
+
 EEGeneral  g_eeGeneral;
 //ModelData  g_oldmodel;
 SKYModelData  g_model;
@@ -45,6 +53,57 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 	'S','P','E',0};
 
 #include "sticks.lbm"
+
+
+const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
+                                1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
+                                2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
+                                3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
+                                4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
+const uint8_t bchout_ar[] = {
+															0x1B, 0x1E, 0x27, 0x2D, 0x36, 0x39,
+															0x4B, 0x4E, 0x63, 0x6C, 0x72, 0x78,
+                              0x87, 0x8D, 0x93, 0x9C, 0xB1, 0xB4,
+                              0xC6, 0xC9, 0xD2, 0xD8, 0xE1, 0xE4		} ;
+
+
+//new audio object
+//audioQueue  audio;
+
+
+uint8_t AlarmTimer = 100 ;		// Units of 10 mS
+uint8_t AlarmCheckFlag = 0 ;
+uint8_t CsCheckFlag = 0 ;
+uint8_t VoiceTimer = 10 ;		// Units of 10 mS
+uint8_t VoiceCheckFlag = 0 ;
+int8_t  CsTimer[NUM_SKYCSW] ;
+
+const char modi12x3[]=
+  "RUD ELE THR AIL "
+  "RUD THR ELE AIL "
+  "AIL ELE THR RUD "
+  "AIL THR ELE RUD ";
+// Now indexed using modn12x3
+
+MenuFuncP g_menuStack[5];
+
+uint8_t  g_menuStackPtr = 0;
+
+// Temporary to allow compile
+uint8_t g_vbat100mV = 98 ;
+uint8_t heartbeat ;
+uint8_t heartbeat_running ;
+
+uint16_t ResetReason ;
+
+
+
+#define DO_SQUARE(xx,yy,ww)         \
+{uint8_t x,y,w ; x = xx; y = yy; w = ww ; \
+    lcd_vline(x-w/2,y-w/2,w);  \
+    lcd_hline(x-w/2,y+w/2,w);  \
+    lcd_vline(x+w/2,y-w/2,w);  \
+    lcd_hline(x-w/2,y-w/2,w);}
 
 
 int main( void ) ;
@@ -65,12 +124,150 @@ uint32_t Master_frequency ;
 volatile uint32_t Tenms ;						// Modified in interrupt routine
 volatile uint8_t tick10ms = 0 ;
 
-uint8_t AlarmTimer = 100 ;		// Units of 10 mS
-uint8_t AlarmCheckFlag = 0 ;
-uint8_t CsCheckFlag = 0 ;
-uint8_t VoiceTimer = 10 ;		// Units of 10 mS
-uint8_t VoiceCheckFlag = 0 ;
-//int8_t  CsTimer[NUM_SKYCSW] ;
+
+
+static void checkAlarm() // added by Gohst
+{
+    if(g_eeGeneral.disableAlarmWarning) return;
+    if(!g_eeGeneral.beeperVal) alert(PSTR("Alarms Disabled"));
+}
+
+static void checkWarnings()
+{
+    if(sysFlags && sysFLAG_OLD_EEPROM)
+    {
+        alert(PSTR(" Old Version EEPROM   CHECK SETTINGS/CALIB")); //will update on next save
+        sysFlags &= ~(sysFLAG_OLD_EEPROM); //clear flag
+    }
+}
+
+inline uint8_t keyDown()
+{
+    return ~read_keys() & 0x7E ;
+}
+
+void clearKeyEvents()
+{
+    while(keyDown())
+		{
+			  // loop until all keys are up
+//			if ( PIOC->PIO_PDSR & 0x02000000 )
+//			{
+				// Detected USB
+//				break ;
+//			}
+			if ( heartbeat_running )
+			{
+  			if(heartbeat == 0x3)
+  			{
+  			  heartbeat = 0;
+//  			  wdt_reset();
+  			}
+			}
+			else
+			{
+//				wdt_reset() ;
+			}
+		}	
+    putEvent(0);
+}
+
+void alertMessages( const char * s, const char * t )
+{
+  lcd_clear();
+  lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
+  lcd_puts_P(0,4*FH,s);
+  lcd_puts_P(0,5*FH,t);
+  lcd_puts_P(0,6*FH,  PSTR("Press any key to skip") ) ;
+  refreshDisplay();
+//  lcdSetRefVolt(g_eeGeneral.contrast);
+
+  clearKeyEvents();
+}
+
+
+void alert(const char * s, bool defaults)
+{
+  lcd_clear();
+  lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
+  lcd_puts_P(0,4*FH,s);
+  lcd_puts_P(64-6*FW,7*FH,PSTR("press any Key"));
+  refreshDisplay();
+  lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
+
+//  audioVoiceDefevent(AU_ERROR, V_ERROR);
+  clearKeyEvents();
+  while(1)
+  {
+#ifdef SIMU
+    if (!main_thread_running) return;
+    sleep(1/*ms*/);
+#endif
+
+    if(keyDown())
+    {
+      return;  //wait for key release
+    }
+//    wdt_reset();
+//		if ( check_power_or_usb() ) return ;		// Usb on or power off
+//    if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
+//      BACKLIGHT_ON;
+//    else
+//      BACKLIGHT_OFF;
+  }
+}
+
+void message(const char * s)
+{
+  lcd_clear();
+  lcd_putsAtt(64-5*FW,0*FH,PSTR("MESSAGE"),DBLSIZE);
+  lcd_puts_P(0,4*FW,s);
+  refreshDisplay();
+//  lcdSetRefVolt(g_eeGeneral.contrast);
+}
+
+MenuFuncP lastPopMenu()
+{
+  return  g_menuStack[g_menuStackPtr+1];
+}
+
+void popMenu(bool uppermost)
+{
+  if(g_menuStackPtr>0 || uppermost){
+    g_menuStackPtr = uppermost ? 0 : g_menuStackPtr-1;
+//    audioDefevent(AU_MENUS);
+    (*g_menuStack[g_menuStackPtr])(EVT_ENTRY_UP);
+  }else{
+    alert(PSTR("menuStack underflow"));
+  }
+}
+
+void chainMenu(MenuFuncP newMenu)
+{
+  g_menuStack[g_menuStackPtr] = newMenu;
+  (*newMenu)(EVT_ENTRY);
+//  audioDefevent(AU_MENUS);
+}
+void pushMenu(MenuFuncP newMenu)
+{
+
+  g_menuStackPtr++;
+  if(g_menuStackPtr >= DIM(g_menuStack))
+  {
+    g_menuStackPtr--;
+    alert(PSTR("menuStack overflow"));
+    return;
+  }
+//  audioDefevent(AU_MENUS);
+  g_menuStack[g_menuStackPtr] = newMenu;
+  (*newMenu)(EVT_ENTRY);
+}
+
+
+
+
+
+
 
 
 void txmit( uint8_t c )
@@ -317,6 +514,8 @@ int main( void )
 
 	start_sound() ;
 
+	I2C_EE_Init() ;
+
 	CoInitOS();
 	
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
@@ -537,4 +736,357 @@ void main_loop(void* pdata)
 		
 	}
 }
+
+
+void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
+{
+  if ( tme<0 )
+  {
+    lcd_putcAtt( x - ((att&DBLSIZE) ? FWNUM*6-2 : FWNUM*3),    y, '-',att);
+    tme = -tme;
+  }
+
+  lcd_putcAtt(x, y, ':',att&att2);
+  lcd_outdezNAtt(x/*+ ((att&DBLSIZE) ? 2 : 0)*/, y, tme/60, LEADING0|att,2);
+  x += (att&DBLSIZE) ? FWNUM*6-4 : FW*3-3;
+  lcd_outdezNAtt(x, y, tme%60, LEADING0|att2,2);
+}
+
+void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att)
+{
+  lcd_outdezAtt(x, y, volts, att|PREC1);
+  if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
+}
+
+
+void putsVBat(uint8_t x,uint8_t y,uint8_t att)
+{
+  att |= g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0;
+  putsVolts(x, y, g_vbat100mV, att);
+}
+
+void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
+{
+	uint8_t chanLimit = NUM_SKYXCHNRAW ;
+	if ( att & MIX_SOURCE )
+	{
+#if GVARS
+		chanLimit += 6 ;
+#else
+		chanLimit += 1 ;
+#endif
+		att &= ~MIX_SOURCE ;		
+	}
+  if(idx==0)
+    lcd_putsnAtt(x,y,PSTR("----"),4,att);
+  else if(idx<=4)
+    lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
+//    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
+  else if(idx<=chanLimit)
+#if GVARS
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 ")+4*(idx-5),4,att);
+#else
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS")+4*(idx-5),4,att);
+#endif
+	else
+  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_SKYXCHNRAW-1),att);
+}
+
+void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
+{
+  // !! todo NUM_CHN !!
+  lcd_putsnAtt(x,y,PSTR("--- CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16"
+                        "CH17CH18CH19CH20CH21CH22CH23CH24CH25CH26CH27CH28CH29CH30")+4*idx1,4,att);
+}
+
+//void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
+//{
+//	const char *pstr ;
+//  switch(idx1){
+//    case  0:            lcd_putsAtt(x+FW,y,PSTR("---"),att);return;
+//    case  MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("ON "),att);return;
+//    case -MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("OFF"),att);return;
+//  }
+//	if ( idx1 < 0 )
+//	{
+//  	lcd_putcAtt(x,y, '!',att);
+//	}
+//	pstr = get_switches_string()+3*(abs(idx1)-1) ;
+//  lcd_putsnAtt(x+FW,y,pstr,3,att);
+//	if ( att & CONDENSED )
+//	{
+//		pstr += 2 ;
+//		att &= ~CONDENSED ;
+//  	lcd_putcAtt(x+3*FW-1, y,*pstr,att);
+//	}
+//}
+
+////Type 1-trigA, 2-trigB, 0 best for display
+//void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type )
+//{
+//  int8_t tm = g_model.timer[timer].tmrModeA ;
+//	if ( type < 2 )		// 0 or 1
+//	{
+//	  if(tm<TMR_VAROFS) {
+//        lcd_putsnAtt(  x, y, PSTR("OFFABSTHsTH%")+3*abs(tm),3,attr);
+////    return;
+//  	}
+//		else
+//		{
+//  		tm -= TMR_VAROFS ;
+//  		lcd_putsnAtt(  x, y, PSTR( CURV_STR ) + 21 + 3*tm, 3, attr ) ;		// Cheat to get chan# text
+//			if ( tm < 9 )
+//			{
+//				x -= FW ;		
+//			}
+//  		lcd_putcAtt(x+3*FW,  y,'%',attr);
+//		}
+//	}
+//	if ( ( type == 2 ) || ( ( type == 0 ) && ( tm == 1 ) ) )
+//	{
+//    tm = g_model.timer[timer].tmrModeB;
+//    if(abs(tm)>=(MAX_SKYDRSWITCH))	 //momentary on-off
+//		{
+//  	  lcd_putcAtt(x+3*FW,  y,'m',attr);
+//			if ( tm > 0 )
+//			{
+//				tm -= MAX_SKYDRSWITCH - 1 ;
+//			}
+//		}			 
+//   	putsDrSwitches( x-1*FW, y, tm, attr );
+//	}
+//}
+
+
+
+//inline int16_t getValue(uint8_t i)
+//{
+//	int8_t j ;
+//	int16_t offset = 0 ;
+
+//  if(i<PPM_BASE) return calibratedStick[i];//-512..512
+//  else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
+//  else if(i<CHOUT_BASE) return g_ppmIns[i-PPM_BASE]*2;
+//  else if(i<CHOUT_BASE+NUM_SKYCHNOUT) return ex_chans[i-CHOUT_BASE];
+//#ifdef FRSKY
+//  else if(i<CHOUT_BASE+NUM_SKYCHNOUT+NUM_TELEM_ITEMS)
+//	{
+//		j = TelemIndex[i-CHOUT_BASE-NUM_SKYCHNOUT] ;
+//		if ( j >= 0 )
+//		{
+//      if ( j == FR_ALT_BARO )
+//			{
+//        offset = AltOffset ;
+//			}
+//			return FrskyHubData[j] + offset ;
+//		}
+//		else if ( j == -3 )		// Battery
+//		{
+//			return g_vbat100mV ;
+//		}
+//		else
+//		{
+//			return s_timer[j+2].s_timerVal ;
+//		}
+//	}
+//#endif
+//  else return 0;
+//}
+
+
+
+bool Last_switch[NUM_SKYCSW] ;
+
+//bool getSwitch(int8_t swtch, bool nc, uint8_t level)
+//{
+//  bool ret_value ;
+//  uint8_t cs_index ;
+  
+//	if(level>5) return false ; //prevent recursive loop going too deep
+
+//  switch(swtch){
+//    case  0:            return  nc;
+//    case  MAX_SKYDRSWITCH: return  true ;
+//    case -MAX_SKYDRSWITCH: return  false ;
+//  }
+
+//	if ( swtch > MAX_SKYDRSWITCH )
+//	{
+//		return false ;
+//	}
+
+//  uint8_t dir = swtch>0;
+//  if(abs(swtch)<(MAX_SKYDRSWITCH-NUM_SKYCSW)) {
+//    if(!dir) return ! keyState((enum EnumKeys)(SW_BASE-swtch-1));
+//    return            keyState((enum EnumKeys)(SW_BASE+swtch-1));
+//  }
+
+//  //use putsChnRaw
+//  //input -> 1..4 -> sticks,  5..8 pots
+//  //MAX,FULL - disregard
+//  //ppm
+//  cs_index = abs(swtch)-(MAX_SKYDRSWITCH-NUM_SKYCSW);
+//  SKYCSwData &cs = g_model.customSw[cs_index];
+//  if(!cs.func) return false;
+
+//  if ( level>4 )
+//  {
+//    ret_value = Last_switch[cs_index] ;
+//    return swtch>0 ? ret_value : !ret_value ;
+//  }
+
+//  int8_t a = cs.v1;
+//  int8_t b = cs.v2;
+//  int16_t x = 0;
+//  int16_t y = 0;
+//	uint8_t valid = 1 ;
+
+//  // init values only if needed
+//  uint8_t s = CS_STATE(cs.func);
+
+//  if(s == CS_VOFS)
+//  {
+//      x = getValue(cs.v1-1);
+//#ifdef FRSKY
+//      if (cs.v1 > CHOUT_BASE+NUM_SKYCHNOUT)
+//			{
+//        y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_SKYCHNOUT-1, cs.v2 ) ;
+//				valid = telemItemValid( cs.v1-CHOUT_BASE-NUM_SKYCHNOUT-1 ) ;
+//			}
+//      else
+//#endif
+//      y = calc100toRESX(cs.v2);
+//  }
+//  else if(s == CS_VCOMP)
+//  {
+//      x = getValue(cs.v1-1);
+//      y = getValue(cs.v2-1);
+//  }
+
+//  switch (cs.func) {
+//  case (CS_VPOS):
+//      ret_value = (x>y);
+//      break;
+//  case (CS_VNEG):
+//      ret_value = (x<y) ;
+//      break;
+//  case (CS_APOS):
+//  {
+//      ret_value = (abs(x)>y) ;
+//  }
+//      break;
+//  case (CS_ANEG):
+//  {
+//      ret_value = (abs(x)<y) ;
+//  }
+//      break;
+
+//  case (CS_AND):
+//  case (CS_OR):
+//  case (CS_XOR):
+//  {
+//    bool res1 = getSwitch(a,0,level+1) ;
+//    bool res2 = getSwitch(b,0,level+1) ;
+//    if ( cs.func == CS_AND )
+//    {
+//      ret_value = res1 && res2 ;
+//    }
+//    else if ( cs.func == CS_OR )
+//    {
+//      ret_value = res1 || res2 ;
+//    }
+//    else  // CS_XOR
+//    {
+//      ret_value = res1 ^ res2 ;
+//    }
+//  }
+//  break;
+
+//  case (CS_EQUAL):
+//      ret_value = (x==y);
+//      break;
+//  case (CS_NEQUAL):
+//      ret_value = (x!=y);
+//      break;
+//  case (CS_GREATER):
+//      ret_value = (x>y);
+//      break;
+//  case (CS_LESS):
+//      ret_value = (x<y);
+//      break;
+//  case (CS_EGREATER):
+//      ret_value = (x>=y);
+//      break;
+//  case (CS_ELESS):
+//      ret_value = (x<=y);
+//      break;
+//  case (CS_TIME):
+//      ret_value = CsTimer[cs_index] >= 0 ;
+//      break;
+//  default:
+//      ret_value = false;
+//      break;
+//  }
+//	if ( valid == 0 )			// Catch telemetry values not present
+//	{
+//     ret_value = false;
+//	}
+//	if ( ret_value )
+//	{
+//		if ( cs.andsw )
+//		{
+//			int8_t x ;
+//			x = cs.andsw ;
+//			if ( x > 8 )
+//			{
+//				x += 1 ;
+//			}
+//      ret_value = getSwitch( x, 0, level+1) ;
+//		}
+//	}
+//	Last_switch[cs_index] = ret_value ;
+//	return swtch>0 ? ret_value : !ret_value ;
+
+//}
+
+
+//int8_t getMovedSwitch()
+//{
+//  static uint8_t switches_states = 0;
+//  static uint16_t s_last_time = 0;
+
+//  int8_t result = 0;
+
+//  for (uint8_t i=MAX_PSWITCH; i>0; i--) {
+//    bool prev;
+//    uint8_t mask = 0;
+//    if (i <= 3) {
+//      mask = (1<<(i-1));
+//      prev = (switches_states & mask);
+//    }
+//    else if (i <= 6) {
+//      prev = ((switches_states & 0x18) == ((i-3) << 3));
+//    }
+//    else {
+//      mask = (1<<(i-2));
+//      prev = (switches_states & mask);
+//    }
+//    bool next = getSwitch(i, 0, 0) ;
+//    if (prev != next) {
+//      if (i!=MAX_PSWITCH || next==true)
+//	      result = i;
+//      if (mask)
+//        switches_states ^= mask;
+//      else
+//        switches_states = (switches_states & 0xE7) | ((i-3) << 3);
+//    }
+//  }
+
+//  if (get_tmr10ms() - s_last_time > 10)
+//    result = 0;
+
+//  s_last_time = get_tmr10ms();
+
+//  return result;
+//}
 

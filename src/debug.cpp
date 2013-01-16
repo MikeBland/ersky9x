@@ -43,7 +43,10 @@
 #endif
 
 #ifdef PCBX9D
-#include "x9d\stm32f2xx.h"
+#include "x9d/stm32f2xx.h"
+#include "x9d/stm32f2xx_gpio.h"
+#include "X9D/i2c_ee.h"
+#include "X9D/hal.h"
 #endif
 
 #include "core_cm3.h"
@@ -175,9 +178,8 @@ DIR Dir ;
 extern uint16_t Captures[256] ;
 extern uint32_t Cap_index ;
 
-uint16_t Tcaptures[256] ;
+uint8_t EEdata[256] ;
 uint32_t Tcap_index ;
-
 
 
 void handle_serial(void* pdata)
@@ -440,12 +442,43 @@ void handle_serial(void* pdata)
 	 
 		if ( rxchar == 'X' )
 		{
-			start_sound() ;
-			
+			txmit( 'x' ) ;
+			uint32_t i ;
+			for ( i = 0 ; i < 64 ; i += 1 )
+			{
+				EEdata[i] = 0x55 ;
+			}
+			disp_256( (uint32_t)EEdata, 4 ) ;
+			I2C_EE_BufferRead( EEdata, 0, 64 ) ;
+			txmit( 'y' ) ;
+			disp_256( (uint32_t)EEdata, 4 ) ;
 		}	
 		if ( rxchar == 'W' )
 		{
-			end_sound() ;
+			txmit( 'w' ) ;
+			uint32_t i ;
+			for ( i = 0 ; i < 64 ; i += 1 )
+			{
+				EEdata[i] = i ;
+			}
+			disp_256( (uint32_t)EEdata, 4 ) ;
+			WP_L ;
+			I2C_EE_BufferWrite( EEdata, 0, 64 ) ;
+			txmit( 'z' ) ;
+		}	
+		
+		if ( rxchar == 'Q' )
+		{
+			txmit( 'q' ) ;
+			uint32_t i ;
+			for ( i = 0 ; i < 64 ; i += 1 )
+			{
+				EEdata[i] = 0xFF ;
+			}
+			disp_256( (uint32_t)EEdata, 4 ) ;
+			WP_L ;
+			I2C_EE_BufferWrite( EEdata, 0, 64 ) ;
+			txmit( 'z' ) ;
 		}	
 
 		if ( rxchar == '?' )
@@ -459,6 +492,27 @@ void handle_serial(void* pdata)
 		{
 			uputs( (char *)VERSION ) ;
 			crlf() ;
+		}
+
+		if ( rxchar == '+' )
+		{
+			uint8_t volume ;
+			volume = I2C_read_volume() ;
+			if ( volume < 127 )
+			{
+				I2C_set_volume( ++volume ) ;				
+			}
+		}
+
+
+		if ( rxchar == '-' )
+		{
+			uint8_t volume ;
+			volume = I2C_read_volume() ;
+			if ( volume > 0 )
+			{
+				I2C_set_volume( --volume ) ;				
+			}
 		}
 
 	//	if ( rxchar == 'A' )
@@ -912,15 +966,6 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		crlf() ;
 	//	}
 	
-		if ( rxchar == 'X' )
-		{
-			start_sound() ;
-			
-		}	
-		if ( rxchar == 'W' )
-		{
-			end_sound() ;
-		}	
 	//		register uint8_t *p ;
 	//		register uint32_t x ;
 		
@@ -983,6 +1028,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		crlf() ;
 	//	}
 
+		if ( rxchar == '+' )
 		if ( rxchar == '-' )
 		{
 			register uint32_t x ;

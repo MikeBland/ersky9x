@@ -144,13 +144,18 @@ SRC  = x9d/system_stm32f2xx.c \
 CPPSRC = x9d.cpp \
          x9d/lcd_driver.cpp \
          x9d/aspi.cpp \
+         drivers.cpp \
          x9d/sound.cpp \
+       	x9d/i2c_ee.cpp \
          timers.cpp \
          logicio.cpp \
          analog.cpp \
-         drivers.cpp \
          debug.cpp \
 		   lcd.cpp
+
+#         x9d/diskio.cpp \
+#         audio.cpp \
+#         ff.cpp \
 
 # List ASM source files here
 ASRC = x9d/startup_stm32f2xx.s
