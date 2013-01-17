@@ -37,8 +37,15 @@ OS_STK debug_stk[DEBUG_STACK_SIZE] ;
 
 
 //Temporary
-const char Str_telemItems[] = "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZ" ; 
 
+const char Str_telemItems[] = "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZ" ; 
+uint32_t sd_card_ready()
+{
+	return 0 ;
+}
+struct t_voice Voice ;
+
+// End temporary
 
 
 EEGeneral  g_eeGeneral;
