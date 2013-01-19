@@ -68,12 +68,14 @@
 
 
 extern "C" void utxmit( uint8_t c ) ;
+
 extern "C" void utxmit( uint8_t c )
 {
 	txmit( c ) ;
 }
 
 extern "C" void up8hex( uint32_t value ) ;
+
 extern "C" void up8hex( uint32_t value )
 {
 	p8hex( value ) ;
@@ -147,6 +149,10 @@ extern uint8_t tab_1024[1024];
 *                  -1: Timeout
 *******************************************************************************/
 extern struct t_fifo32 Console_fifo ;
+
+extern uint16_t Sine_values[] ;
+uint32_t PlayVoice ;
+
 
 
 FILINFO FileInfo ;
@@ -440,6 +446,7 @@ void handle_serial(void* pdata)
 		}
 #endif
 	 
+#ifdef PCBX9D
 		if ( rxchar == 'X' )
 		{
 			txmit( 'x' ) ;
@@ -481,6 +488,19 @@ void handle_serial(void* pdata)
 			txmit( 'z' ) ;
 		}	
 
+		if ( rxchar == 'R' )
+		{
+			txmit( 'R' ) ;
+			PlayVoice = 1 ;			
+		}
+
+		if ( rxchar == 'L' )
+		{
+			lcd_init() ;		
+		}
+
+#endif
+
 		if ( rxchar == '?' )
 		{
 			Memaddmode = 1 ;
@@ -494,6 +514,7 @@ void handle_serial(void* pdata)
 			crlf() ;
 		}
 
+#ifdef PCBX9D
 		if ( rxchar == '+' )
 		{
 			uint8_t volume ;
@@ -514,6 +535,7 @@ void handle_serial(void* pdata)
 				I2C_set_volume( --volume ) ;				
 			}
 		}
+#endif
 
 	//	if ( rxchar == 'A' )
 	//	{
@@ -1585,9 +1607,109 @@ int32_t Ymodem_Receive (uint8_t *buf)
 //  return 0;
 //}
 
-
-
 #endif
 
+#ifdef PCBX9D
+void voice_task(void* pdata)
+{
+	uint32_t v_index ;
+//	FRESULT fr ;
+//	UINT nread ;
+	uint32_t x ;
+//	uint32_t w8or16 ;
+//	uint32_t mounted = 0 ;
+	uint32_t size ;
+
+	for(;;)
+	{
+		while ( PlayVoice == 0 )
+		{
+			CoTickDelay(3) ;					// 6mS for now
+		}
+
+		PlayVoice = 0 ;
+		txmit( '1' ) ;
+
+		if ( 1 )
+		{
+			uint32_t i ;
+			uint32_t j ;
+			i = 0 ;
+			for ( j = 0 ; j < 400 ; j += 1 )
+			{
+				VoiceBuffer[0].data[j] = Sine_values[i] ;
+				i += 1 ;
+				if ( i >= 100 )
+				{
+					i = 0 ;					
+				}
+			}
+			VoiceBuffer[0].count = 400 ;
+
+			i = 0 ;
+			for ( j = 0 ; j < 400 ; j += 1 )
+			{
+				VoiceBuffer[1].data[j] = Sine_values[i] ;
+				i += 1 ;
+				if ( i >= 100 )
+				{
+					i = 0 ;					
+				}
+			}
+			VoiceBuffer[1].count = 400 ;
+
+			i = 0 ;
+			for ( j = 0 ; j < 400 ; j += 1 )
+			{
+				VoiceBuffer[2].data[j] = Sine_values[i] ;
+				i += 1 ;
+				if ( i >= 100 )
+				{
+					i = 0 ;					
+				}
+			}
+			VoiceBuffer[2].count = 400 ;
+
+
+				VoiceBuffer[0].frequency = 25000 ;		// sample rate
+
+				startVoice( 3 ) ;
+		txmit( '2' ) ;
+				for(x = 0, size = 0 ; size < 25 ; size += 1 )
+				{
+	  			while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
+					{
+						CoTickDelay(1) ;					// 2mS for now
+					}
+					VoiceBuffer[x].count = 400 ;
+					VoiceBuffer[x].frequency = 0 ;
+					appendVoice( x ) ;					// index of next buffer
+
+extern uint8_t VoiceCount ;
+
+		txmit( VoiceCount + '0' ) ;
+					v_index = x ;		// Last buffer sent
+					x += 1 ;
+					if ( x > 2 )
+					{
+						x = 0 ;							
+					}
+				}
+			// Now wait for last buffer to have been sent
+			x = 100 ;
+		txmit( '4' ) ;
+ 			while ( ( VoiceBuffer[v_index].flags & VF_SENT ) == 0 )
+			{
+				CoTickDelay(1) ;					// 2mS for now
+				if ( --x == 0 )
+				{
+					break ;		// Timeout, 200 mS
+				}
+			}
+		}
+		CoTickDelay(1) ;					// 2mS for now
+	} // for(;;)
+}
+#endif
 
 

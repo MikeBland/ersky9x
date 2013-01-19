@@ -26,6 +26,7 @@
 
 #define MAIN_STACK_SIZE		500
 #define DEBUG_STACK_SIZE	130
+#define VOICE_STACK_SIZE	130
 
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
@@ -33,6 +34,8 @@ OS_STK main_stk[MAIN_STACK_SIZE] ;
 #ifdef	DEBUG
 OS_TID DebugTask;
 OS_STK debug_stk[DEBUG_STACK_SIZE] ;
+OS_TID VoiceTask;
+OS_STK voice_stk[VOICE_STACK_SIZE] ;
 #endif
 
 
@@ -529,6 +532,7 @@ int main( void )
 
 #ifdef	DEBUG
 	DebugTask = CoCreateTaskEx( handle_serial,NULL,18,&debug_stk[DEBUG_STACK_SIZE-1],DEBUG_STACK_SIZE, 1, FALSE );
+	VoiceTask = CoCreateTaskEx( voice_task,NULL,17,&voice_stk[VOICE_STACK_SIZE-1], VOICE_STACK_SIZE, 1, FALSE );
 #endif 
 
 	CoStartOS();
@@ -551,6 +555,7 @@ void main_loop(void* pdata)
 	uint32_t screen ;
 	uint32_t ttest = 0 ;
 	uint16_t tresult = 0 ;
+	uint16_t xxx = 0 ;
 	
 	counter = 0 ;
 	counter1 = 0 ;
@@ -567,10 +572,19 @@ void main_loop(void* pdata)
 			}
 			CoTickDelay(1) ;
 		}
-		txmit( 'X' ) ;
+		if ( xxx == 0  )
+		{
+			txmit( 'X' ) ;
+		}
+		if ( ++xxx > 7 )
+		{
+			xxx = 0 ;			
+		}
 		
 		lcd_clear();
-		
+
+		lcd_outhex4( 0, 16, tresult ) ;
+		 
 		lcd_outhex4( 140, 56, g_tmr10ms ) ;
 
     if ( keyState((EnumKeys)KEY_MENU) )
@@ -583,7 +597,11 @@ void main_loop(void* pdata)
 		}
 		if ( counter > 5 )
 		{
-			screen ^= 1 ;
+			screen += 1 ;
+			if ( screen > 1 )
+			{
+				screen = 0 ;				
+			}
 			counter = 0 ;
 		}
 
@@ -616,8 +634,6 @@ void main_loop(void* pdata)
 
 		if ( screen == 0 )
 		{
-			
-			
 			lcd_outhex4( 0, 0, CoGetOSTime() ) ;
 			lcd_outhex4( 0, 8, TIM6->CNT ) ;
 			lcd_outhex4( 20, 8, DMA1_Stream5->NDTR ) ;
@@ -739,7 +755,16 @@ void main_loop(void* pdata)
 
 
 		}
+
+//		if ( screen == 2 )
+//		{
+			
+			
+//		}
+
+		time = get_tmr10ms() ;
 		refreshDisplay();
+		tresult = get_tmr10ms() - time ;
 		
 	}
 }

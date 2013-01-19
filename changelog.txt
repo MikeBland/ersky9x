@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 19-Jan-2013  MPB
+Fix voice temps in degF, X9D voice, X9D lcd speedup
+
+******************************************
 CHANGELOG: 17-Jan-2013  MPB
 X9d volume, add i2c files, changes to X9D/sound.cpp for voice
 

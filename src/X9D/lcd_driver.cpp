@@ -22,6 +22,8 @@
 #define	WriteData(x)	 AspiData(x)
 #define	WriteCommand(x)	 AspiCmd(x)
 
+#define __no_operation     __NOP
+
 
 extern uint8_t DisplayBuf[] ;
 
@@ -36,16 +38,50 @@ void Set_Address(uint8_t x, uint8_t y)
 
 void refreshDisplay()
 {  
-  for (uint8_t y=0; y<DISPLAY_H; y++) {
+  for (uint32_t y=0; y<DISPLAY_H; y++)
+	{
     uint8_t *p = &DisplayBuf[(y>>3)*DISPLAY_W];
     uint8_t mask = (1 << (y%8));
     Set_Address(0, y);
     AspiCmd(0xAF);
-    for (uint8_t x=0; x<DISPLAY_W; x+=2)
+    
+		LCD_CLK_HIGH();
+    LCD_A0_HIGH();
+    LCD_NCS_LOW();
+    
+		for (uint32_t x=0; x<DISPLAY_W; x+=2)
 		{
-      uint8_t data = (p[x] & mask ? 0xF0 : 0) + (p[x+1] & mask ? 0x0F : 0);
-      WriteData(data);
-    }
+      uint32_t data ;
+			data = 0 ;
+			if ( p[x] & mask )
+			{
+				data = 0xF0 ;
+			}
+			if (p[x+1] & mask )
+			{
+				data += 0x0F ;
+			}	
+			int i=8;
+    	while (i--) 
+    	{
+        if(data&0x80)
+        {
+					GPIOD->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					GPIOD->BSRRH = PIN_LCD_MOSI ;
+				}
+				GPIOD->BSRRH = PIN_LCD_CLK ;
+        data<<=1;
+				__no_operation() ;
+				__no_operation() ;
+				__no_operation() ;
+				GPIOD->BSRRL = PIN_LCD_CLK ;
+			}
+		}
+    LCD_NCS_HIGH();
+    LCD_A0_HIGH();  
     WriteData(0);
   }
 }

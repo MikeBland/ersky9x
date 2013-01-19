@@ -236,6 +236,7 @@ void init_dac()
 	DAC->DHR12R1 = 2010 ;
 	DAC->SR = DAC_SR_DMAUDR1 ;		// Write 1 to clear flag
 	DAC->CR = DAC_CR_TEN1 | DAC_CR_EN1 ;			// Enable DAC
+	NVIC_SetPriority( DMA1_Stream5_IRQn, 2 ) ; // High priority interrupt
 	NVIC_EnableIRQ(TIM6_DAC_IRQn) ;
 	NVIC_EnableIRQ(DMA1_Stream5_IRQn) ;
 }
@@ -243,11 +244,13 @@ void init_dac()
 #ifndef SIMU
 extern "C" void TIM6_DAC_IRQHandler()
 {
-	DAC->CR &= ~DAC_CR_DMAEN1 ;			// Stop DMA rewuests
+	DAC->CR &= ~DAC_CR_DMAEN1 ;			// Stop DMA requests
 	DAC->CR &= ~DAC_CR_DMAUDRIE1 ;	// Stop underrun interrupt
+	DacIdle = 1 ;
 	DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
 }
 
+uint32_t Underrun ;
 
 extern "C" void DMA1_Stream5_IRQHandler()
 {
@@ -262,7 +265,9 @@ extern "C" void DMA1_Stream5_IRQHandler()
 		VoiceCount -= 1 ;
 		if ( VoiceCount == 0 )		// Run out of buffers
 		{
+			Underrun = 1 ;		// For debug
 			Sound_g.VoiceActive = 0 ;
+//			DMA1_Stream5->CR &= ~DMA_SxCR_TCIE ;			// Disable DMA interrupt
 			DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
 			DacIdle = 1 ;
 		}
@@ -271,13 +276,26 @@ extern "C" void DMA1_Stream5_IRQHandler()
 			DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
 			DMA1_Stream5->M0AR = (uint32_t) PtrVoiceBuffer[0]->data ;
 			DMA1_Stream5->NDTR =  PtrVoiceBuffer[0]->count ;
-			DMA1_Stream5->CR |= DMA_SxCR_EN ;				// Enable DMA channel
+			DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
+			DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;	// Enable DMA channel
+			DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
 		}
 	}
-	else
-	{
-		DacIdle = 1 ;
-	}
+//	else
+//	{
+//		if ( Sound_g.Tone_timer )
+//		{
+//			if ( --Sound_g.Tone_timer == 0 )
+//			{
+//				DMA1_Stream5->CR &= ~DMA_SxCR_EN & ~DMA_SxCR_TCIE ;				// Disable DMA channel
+//				DacIdle = 1 ;
+//			}
+//			else
+//			{
+//				DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;	// Enable DMA channel
+//			}
+//		}
+//	}
 }
 #endif
 
@@ -295,12 +313,14 @@ void end_sound()
 // Called every 5mS from interrupt routine
 void sound_5ms()
 {
-//	register Dacc *dacptr ;
-
-//	dacptr = DACC ;
 	if ( Sound_g.Tone_ms_timer > 0 )
 	{
-		Sound_g.Tone_ms_timer -= 1 ;
+		
+		if ( --Sound_g.Tone_ms_timer == 0 )
+		{
+			DMA1_Stream5->CR &= ~DMA_SxCR_CIRC ;		// Stops DMA at end of cycle
+//			Sound_g.Tone_timer = 0 ;	
+		}
 	}
 		
 	if ( Sound_g.Tone_ms_timer == 0 )
@@ -319,9 +339,13 @@ void sound_5ms()
 			
 #ifndef SIMU
 				DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
+				DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
 				DMA1_Stream5->M0AR = (uint32_t) VoiceBuffer[0].data ;
 				DMA1_Stream5->NDTR =  VoiceBuffer[0].count ;
-				DMA1_Stream5->CR |= DMA_SxCR_EN ;				// Enable DMA channel
+				DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;		// Enable DMA channel and interrupt
+				DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
+				DAC->CR |= DAC_CR_EN1 | DAC_CR_DMAEN1 ;			// Enable DAC
+				
 #endif
 			}
 			return ;
@@ -353,13 +377,14 @@ void sound_5ms()
 			else
 			{
 				DMA1_Stream5->CR &= ~DMA_SxCR_CIRC ;		// Stops DMA at end of cycle
+				DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;	// Enable DMA channel
 			}
 			Sound_g.Sound_time = 0 ;
 		}
 		else
 		{
-//			dacptr->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
 			DMA1_Stream5->CR &= ~DMA_SxCR_CIRC ;		// Stops DMA at end of cycle
+//			Sound_g.Tone_timer = 0 ;	
 		}
 	}
 	else if ( ( Sound_g.Tone_ms_timer & 1 ) == 0 )		// Every 10 mS
@@ -421,7 +446,8 @@ void tone_start( register uint32_t time )
 	DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
 	DMA1_Stream5->CR |= DMA_SxCR_CIRC | DMA_SxCR_EN ;				// Enable DMA channel
 	DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
-	DAC->CR |= DAC_CR_EN1 | DAC_CR_DMAEN1 ;			// Enable DAC
+	DAC->CR |= DAC_CR_EN1 | DAC_CR_DMAEN1 | DAC_CR_DMAUDRIE1 ;			// Enable DAC
+	DMA1_Stream5->CR |= DMA_SxCR_TCIE ;	// Enable DMA interrupt
 }
 
 void tone_stop()

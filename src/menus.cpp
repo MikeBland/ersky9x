@@ -98,6 +98,15 @@ int16_t m_to_ft( int16_t metres )
   // m to ft *105/32
   return metres * 3 + ( metres >> 2 ) + (metres >> 5) ;
 }
+
+int16_t c_to_f( int16_t degrees )
+{
+  degrees += 18 ;
+  degrees *= 115 ;
+  degrees >>= 6 ;
+  return degrees ;
+}
+									 
 									 
 uint8_t telemItemValid( uint8_t index )
 {
@@ -218,6 +227,10 @@ void voice_telem_item( int8_t index )
 		case FR_TEMP1:
 		case FR_TEMP2:
 			unit = V_DEGREES ;			
+  		if ( g_model.FrSkyImperial )
+  		{
+				value = c_to_f(value) ;
+			}
 		break ;
 #endif
 
@@ -381,9 +394,7 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			unit = 'C' ;
   		if ( g_model.FrSkyImperial )
   		{
-  		  val += 18 ;
-  		  val *= 115 ;
-  		  val >>= 6 ;
+				val = c_to_f(val) ;
   		  unit = 'F' ;
 				x -= fieldW ;
   		}
