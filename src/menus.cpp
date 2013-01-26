@@ -3362,6 +3362,7 @@ void menuProcModelSelect(uint8_t event)
       break;
   case  EVT_KEY_FIRST(KEY_MENU):
       sel_editMode = true;
+      s_editMode = 0 ;
       audioDefevent(AU_MENUS);
       break;
   case  EVT_KEY_LONG(KEY_EXIT):  // make sure exit long exits to main

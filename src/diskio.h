@@ -128,7 +128,14 @@ void disk_timerproc (void);
 #define NAND_FORMAT			30	/* Create physical format */
 
 
+
+#ifdef PCBSKY
 volatile extern BYTE Timer1, Timer2;	/* 100Hz decrement timer */
+#endif
+
+//#ifdef PCBX9D
+//volatile extern DWORD Timer1, Timer2;	/* 100Hz decrement timer */
+//#endif
 
 //------------------------------------------------------------------------------
 /// Detect if SD card is connected

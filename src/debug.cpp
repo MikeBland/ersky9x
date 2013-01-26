@@ -60,6 +60,7 @@
 #include "file.h"
 #include "ff.h"
 #include "Audio.h"
+#include "timers.h"
 
 
 #ifndef SIMU
@@ -447,6 +448,22 @@ void handle_serial(void* pdata)
 #endif
 	 
 #ifdef PCBX9D
+
+		if ( rxchar == 'P' )
+		{
+			txmit( 'p' ) ;
+			if ( g_model.protocol == PROTO_PPM )
+			{
+				g_model.protocol = PROTO_PXX ;
+				txmit( 'x' ) ;
+			}
+			else
+			{
+				g_model.protocol = PROTO_PPM ;
+				txmit( 'm' ) ;
+			}
+		}
+
 		if ( rxchar == 'X' )
 		{
 			txmit( 'x' ) ;

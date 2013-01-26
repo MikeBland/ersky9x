@@ -42,12 +42,16 @@ void refreshDisplay()
 	{
     uint8_t *p = &DisplayBuf[(y>>3)*DISPLAY_W];
     uint8_t mask = (1 << (y%8));
+		GPIO_TypeDef *gpiod = GPIOD ;
     Set_Address(0, y);
     AspiCmd(0xAF);
     
-		LCD_CLK_HIGH();
-    LCD_A0_HIGH();
-    LCD_NCS_LOW();
+		gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+		gpiod->BSRRL = PIN_LCD_A0 ;			// A0 high
+    gpiod->BSRRH = PIN_LCD_NCS ;		// CS low
+//		LCD_CLK_HIGH();
+//    LCD_A0_HIGH();
+//    LCD_NCS_LOW();
     
 		for (uint32_t x=0; x<DISPLAY_W; x+=2)
 		{
@@ -61,27 +65,116 @@ void refreshDisplay()
 			{
 				data += 0x0F ;
 			}	
-			int i=8;
-    	while (i--) 
-    	{
+			
         if(data&0x80)
         {
-					GPIOD->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI ;
         }
 				else
 				{
-					GPIOD->BSRRH = PIN_LCD_MOSI ;
+					gpiod->BSRRH = PIN_LCD_MOSI ;
 				}
-				GPIOD->BSRRH = PIN_LCD_CLK ;
-        data<<=1;
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x40)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x20)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-				GPIOD->BSRRL = PIN_LCD_CLK ;
-			}
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x10)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
+				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x08)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
+				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x04)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
+				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x02)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
+				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
+        if(data&0x01)
+        {
+					gpiod->BSRRL = PIN_LCD_MOSI ;
+        }
+				else
+				{
+					gpiod->BSRRH = PIN_LCD_MOSI ;
+				}
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
+				__no_operation() ;
+//				__no_operation() ;
+				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+
 		}
-    LCD_NCS_HIGH();
-    LCD_A0_HIGH();  
+//    LCD_NCS_HIGH();
+//    LCD_A0_HIGH();  
+    gpiod->BSRRL = PIN_LCD_NCS ;
+		gpiod->BSRRL = PIN_LCD_A0 ;
     WriteData(0);
   }
 }

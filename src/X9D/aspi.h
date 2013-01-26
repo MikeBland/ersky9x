@@ -13,20 +13,21 @@
 
 #include "stm32f2xx.h"
 
-#define	LCD_NCS_HIGH()		    do{GPIO_SetBits(GPIO_LCD, PIN_LCD_NCS);}while(0)
-#define	LCD_NCS_LOW()		    do{GPIO_ResetBits(GPIO_LCD, PIN_LCD_NCS);}while(0)
+#define	LCD_NCS_HIGH()		    (GPIO_LCD->BSRRL = PIN_LCD_NCS)
+#define	LCD_NCS_LOW()		    	(GPIO_LCD->BSRRH = PIN_LCD_NCS)
 
-#define LCD_A0_HIGH()           do{GPIO_SetBits(GPIO_LCD, PIN_LCD_A0);}while(0)
-#define LCD_A0_LOW()            do{GPIO_ResetBits(GPIO_LCD, PIN_LCD_A0);}while(0)
+#define LCD_A0_HIGH()         (GPIO_LCD->BSRRL = PIN_LCD_A0)
+#define LCD_A0_LOW()          (GPIO_LCD->BSRRH = PIN_LCD_A0)
 
-#define LCD_RST_HIGH()		    do{GPIO_SetBits(GPIO_LCD, PIN_LCD_RST);}while(0)
-#define LCD_RST_LOW()		    do{GPIO_ResetBits(GPIO_LCD, PIN_LCD_RST);}while(0)
+#define LCD_RST_HIGH()		    (GPIO_LCD->BSRRL = PIN_LCD_RST)
+#define LCD_RST_LOW()		    	(GPIO_LCD->BSRRH = PIN_LCD_RST)
 
-#define LCD_CLK_HIGH()		    do{GPIO_SetBits(GPIO_LCD, PIN_LCD_CLK);}while(0)
-#define LCD_CLK_LOW()		    do{GPIO_ResetBits(GPIO_LCD, PIN_LCD_CLK);}while(0)
+#define LCD_CLK_HIGH()		    (GPIO_LCD->BSRRL = PIN_LCD_CLK)
+#define LCD_CLK_LOW()		    	(GPIO_LCD->BSRRH = PIN_LCD_CLK)
 
-#define LCD_MOSI_HIGH()		    do{GPIO_SetBits(GPIO_LCD, PIN_LCD_MOSI);}while(0)
-#define LCD_MOSI_LOW()		    do{GPIO_ResetBits(GPIO_LCD, PIN_LCD_MOSI);}while(0)
+#define LCD_MOSI_HIGH()		    (GPIO_LCD->BSRRL = PIN_LCD_MOSI)
+#define LCD_MOSI_LOW()		    (GPIO_LCD->BSRRH = PIN_LCD_MOSI)
+
 
 void AspiCmd(u8 Command_Byte);
 void AspiData(u8 Para_data);

@@ -137,6 +137,7 @@ ifeq ($(PCB), X9D)
 # List C source files here
 SRC  = x9d/system_stm32f2xx.c \
        x9d/stm32f2xx_gpio.c \
+       x9d/stm32f2xx_spi.c \
        coos.c \
        x9d/stm32f2xx_rcc.c
 
@@ -144,6 +145,7 @@ SRC  = x9d/system_stm32f2xx.c \
 CPPSRC = x9d.cpp \
          x9d/lcd_driver.cpp \
          x9d/aspi.cpp \
+         x9d/diskio.cpp \
          drivers.cpp \
          x9d/sound.cpp \
        	x9d/i2c_ee.cpp \
@@ -153,7 +155,6 @@ CPPSRC = x9d.cpp \
          debug.cpp \
 		   lcd.cpp
 
-#         x9d/diskio.cpp \
 #         audio.cpp \
 #         ff.cpp \
 

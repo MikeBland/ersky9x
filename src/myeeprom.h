@@ -434,7 +434,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   protocol;
   int8_t    ppmNCH;
   uint8_t   thrTrim:1;            // Enable Throttle Trim
-	uint8_t   xnumBlades:2;					// RPM scaling
+	uint8_t   xnumBlades:2;					// RPM scaling, now elsewhere as uint8_t
 	uint8_t   spare10:1;
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   spare11:3;

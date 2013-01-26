@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 16-Jan-2013  MPB
+Fix model move in modelselect menu, X9D add PXX
+
+******************************************
 CHANGELOG: 19-Jan-2013  MPB
 Fix voice temps in degF, X9D voice, X9D lcd speedup
 

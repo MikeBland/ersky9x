@@ -9,6 +9,7 @@
 #include "myeeprom.h"
 #include "sound.h"
 #include "audio.h"
+#include "diskio.h"
 
 #include "x9d\stm32f2xx.h"
 #include "x9d\stm32f2xx_gpio.h"
@@ -47,6 +48,8 @@ uint32_t sd_card_ready()
 	return 0 ;
 }
 struct t_voice Voice ;
+
+int16_t g_chans512[NUM_SKYCHNOUT];
 
 // End temporary
 
@@ -505,7 +508,7 @@ int main( void )
 
 	init_adc() ;
 
-	init_ppm() ;
+	init_main_ppm() ;
 	
 	init_trainer_ppm() ;
 
@@ -514,7 +517,9 @@ int main( void )
 	disp_256( TIM1_BASE, 6 ) ;
 	crlf() ;
 
-	dispw_256( GPIOA_BASE, 4 ) ;
+	disk_initialize( 0 ) ;
+
+	dispw_256( GPIOB_BASE, 4 ) ;
 	crlf() ;
 	
 	dispw_256( GPIOC_BASE, 4 ) ;
@@ -692,6 +697,17 @@ void main_loop(void* pdata)
   		}
 		
 			lcd_outhex4( 100, 8, read_adc() ) ;
+
+			static uint32_t counterx ;
+
+			if ( ++counterx > 0 )
+			{
+				for( x = 0 ; x < 8 ; x += 1 )
+				{
+					g_chans512[x] = ( Analog[x] - 0x800) / 2 ;
+				}
+				counterx = 0 ;
+			}
 
 			lcd_outhex4( 100, 16, Analog[0] ) ;
 			lcd_outhex4( 100, 24, Analog[1] ) ;
@@ -1121,4 +1137,9 @@ bool Last_switch[NUM_SKYCSW] ;
 
 //  return result;
 //}
+
+
+
+
+
 
