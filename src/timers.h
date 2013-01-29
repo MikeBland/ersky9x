@@ -20,8 +20,9 @@ void init5msTimer( void ) ;
 void stop5msTimer( void ) ;
 
 #ifdef PCBSKY
-void start_timer0( void ) ;
-void stop_timer0( void ) ;
+extern void start_timer0( void ) ;
+extern void stop_timer0( void ) ;
+extern void init_pwm( void ) ;
 #endif
 
 #ifdef PCBX9D

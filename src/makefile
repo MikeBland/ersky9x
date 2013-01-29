@@ -194,6 +194,7 @@ CPPSRC = stamp.cpp \
          ersky9x.cpp \
          timers.cpp \
          logicio.cpp \
+         pulses.cpp \
          massstorage.cpp
 
 # List ASM source files here

@@ -113,6 +113,107 @@ void stop_timer0( void )
 	TC0->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;		// Disable clock
 }
 
+// PWM used for PPM generation, and LED Backlight
+// Output pin PB5 not used, PA17 used as PWMH3 peripheral C
+// PWM peripheral ID = 31 (0x80000000)
+// Ensure PB5 is three state/input, used on REVB for MENU KEY
+
+// Configure PWM3 as PPM drive, 
+// PWM0 is LED backlight PWM on PWMH0
+// This is PC18 peripheral B, Also enable PC22 peripheral B, this is PPM-JACK (PWML3)
+//
+// REVB board:
+// PWML2, output as peripheral C on PA16, is for HAPTIC
+// For testing, just drive it out with PWM
+// PWML1 for PPM2 output as peripheral B on PC15
+// For testing, just drive it out with PWM
+void init_pwm()
+{
+#ifdef REVB
+#else
+	register Pio *pioptr ;
+#endif
+	register Pwm *pwmptr ;
+	register uint32_t timer ;
+
+  PMC->PMC_PCER0 |= ( 1 << ID_PWM ) ;		// Enable peripheral clock to PWM
+  
+	MATRIX->CCFG_SYSIO |= 0x00000020L ;				// Disable TDO let PB5 work!
+	
+	/* Configure PIO */
+#ifdef REVB
+#else
+	pioptr = PIOB ;
+	pioptr->PIO_PER = 0x00000020L ;		// Enable bit B5
+	pioptr->PIO_ODR = 0x00000020L ;		// set as input
+#endif
+
+#ifdef REVB
+	configure_pins( PIO_PA16, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_C | PIN_PORTA | PIN_NO_PULLUP ) ;
+#endif
+
+	configure_pins( PIO_PC18, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+
+#ifdef REVB
+	configure_pins( PIO_PC15, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+#endif
+
+#ifdef REVB
+	configure_pins( PIO_PC22, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+#endif
+
+	// Configure clock - depends on MCK frequency
+	timer = Master_frequency / 2000000 ;
+	timer |= ( Master_frequency / ( 32* 10000 ) ) << 16 ;
+	timer &= 0x00FF00FF ;
+
+	pwmptr = PWM ;
+	pwmptr->PWM_CLK = 0x05000000 | timer ;	// MCK for DIVA, DIVA = 18 gives 0.5uS clock period @35MHz
+																		// MCK/32 / timer = 10000Hz for CLKB
+	
+	// PWM0 for LED backlight
+	pwmptr->PWM_CH_NUM[0].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[0].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[0].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[0].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[0].PWM_CDTYUPD = 40 ;		// Duty
+	pwmptr->PWM_ENA = PWM_ENA_CHID0 ;						// Enable channel 0
+
+#ifdef REVB
+	// PWM1 for PPM2 output 100Hz test
+	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[1].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
+	pwmptr->PWM_ENA = PWM_ENA_CHID1 ;						// Enable channel 1
+#endif
+
+#ifdef REVB
+	// PWM2 for HAPTIC drive 100Hz test
+	pwmptr->PWM_CH_NUM[2].PWM_CMR = 0x0000000C ;	// CLKB
+	pwmptr->PWM_CH_NUM[2].PWM_CPDR = 100 ;			// Period
+	pwmptr->PWM_CH_NUM[2].PWM_CPDRUPD = 100 ;		// Period
+	pwmptr->PWM_CH_NUM[2].PWM_CDTY = 40 ;				// Duty
+	pwmptr->PWM_CH_NUM[2].PWM_CDTYUPD = 40 ;		// Duty
+	pwmptr->PWM_OOV &= ~0x00040000 ;	// Force low
+	pwmptr->PWM_OSS = 0x00040000 ;	// Force low
+//	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
+#endif
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
 #endif
 
 // Starts TIMER at 200Hz, 5mS period

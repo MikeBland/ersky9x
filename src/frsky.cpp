@@ -27,6 +27,7 @@
 #ifndef SIMU
 #include "core_cm3.h"
 #endif
+#include "lcd.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -163,7 +164,11 @@ void store_hub_data( uint8_t index, uint16_t value )
 		}
 		if ( index == FR_RPM )			// RPM
 		{
-			FrskyHubData[FR_RPM] *= 60/(g_model.numBlades) ;// == 2 ) ? 15 : ( (g_model.numBlades == 1 ) ? 20 : 30 ) ;
+			uint32_t x ;
+
+			x = FrskyHubData[FR_RPM] ;
+			x *= 60 ;
+			FrskyHubData[FR_RPM] = x / g_model.numBlades ;
 		}
 		if ( index == FR_V_AMPd )
 		{
@@ -773,6 +778,111 @@ void process_frsky_q()
 //}
 
 
+uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att )
+{
+  uint32_t value ;
+	uint16_t ratio ;
+	
+  value = val ;
+  ratio = g_model.frsky.channels[channel].ratio ;
+  if ( times2 )
+  {
+      ratio <<= 1 ;
+  }
+  value *= ratio ;
+	if (g_model.frsky.channels[channel].type == 3/*A*/)
+  {
+      value /= 100 ;
+      *p_att |= PREC1 ;
+  }
+  else if ( ratio < 100 )
+  {
+      value *= 2 ;
+      value /= 51 ;  // Same as *10 /255 but without overflow
+      *p_att |= PREC2 ;
+  }
+  else
+  {
+      value /= 255 ;
+  }
+	return value ;
+}
 
+
+uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
+{
+    uint32_t value ;
+    //  uint8_t ratio ;
+    uint16_t ratio ;
+    uint8_t times2 ;
+    uint8_t unit = ' ' ;
+
+    value = val ;
+    if (g_model.frsky.channels[channel].type == 2/*V*/)
+    {
+        times2 = 1 ;
+    }
+    else
+    {
+        times2 = 0 ;
+    }
+
+    if ( scale )
+    {
+        ratio = g_model.frsky.channels[channel].ratio ;
+        if ( times2 )
+        {
+            ratio <<= 1 ;
+        }
+        value *= ratio ;
+  	if (g_model.frsky.channels[channel].type == 3/*A*/)
+        {
+            value /= 100 ;
+            att |= PREC1 ;
+        }
+        else if ( ratio < 100 )
+        {
+            value *= 2 ;
+            value /= 51 ;  // Same as *10 /255 but without overflow
+            att |= PREC2 ;
+        }
+        else
+        {
+            value /= 255 ;
+        }
+    }
+    else
+    {
+        if ( times2 )
+        {
+            value <<= 1 ;
+        }
+  	if (g_model.frsky.channels[channel].type == 3/*A*/)
+        {
+            value *= 255 ;
+            value /= 100 ;
+            att |= PREC1 ;
+        }
+    }
+    //              val = (uint16_t)staticTelemetry[i]*g_model.frsky.channels[i].ratio / 255;
+    //              putsTelemetry(x0-2, 2*FH, val, g_model.frsky.channels[i].type, blink|DBLSIZE|LEFT);
+    //  if (g_model.frsky.channels[channel].type == 0/*v*/)
+    if ( (g_model.frsky.channels[channel].type == 0/*v*/) || (g_model.frsky.channels[channel].type == 2/*v*/) )
+    {
+      lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
+			unit = 'v' ;
+      if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
+    }
+    else
+    {
+      lcd_outdezAtt(x, y, value, att);
+	    if (g_model.frsky.channels[channel].type == 3/*A*/)
+			{
+					unit = 'A' ;
+       	if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
+			}
+    }
+		return unit ;
+}
 
 

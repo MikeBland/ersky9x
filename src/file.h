@@ -30,7 +30,9 @@ extern void ee32LoadModel(uint8_t id) ;
 extern void ee32WaitLoadModel(uint8_t id) ;
 extern void ee32_delete_model( uint8_t id ) ;
 extern bool ee32ModelExists(uint8_t id) ;
-extern uint32_t ee32_process( void ) ;
+extern void ee32_process( void ) ;
+extern bool ee32CopyModel( uint8_t dst, uint8_t src ) ;
+extern void ee32SwapModels( uint8_t id1, uint8_t id2 ) ;
 
 
 struct t_file_entry

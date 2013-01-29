@@ -10,6 +10,15 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 29-Jan-2013  MPB
+Improve RPM calculation
+Move telemetry procedures to frsky.cpp
+Move display procedures to lcd.cpp
+Add copy and swap models in EEPROM
+Make model copy and move work in modelselect menu
+Add new file pulses.cpp
+
+******************************************
 CHANGELOG: 16-Jan-2013  MPB
 Fix model move in modelselect menu, X9D add PXX
 

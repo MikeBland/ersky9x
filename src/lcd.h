@@ -88,6 +88,10 @@ extern void lcdSetRefVolt(uint8_t val) ;
 extern void lcdSendCtl(uint8_t val) ;
 extern void refreshDisplay( void ) ;
 
+extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
+extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
+extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
+
 
 #define BLINK_ON_PHASE (g_blinkTmr10ms & (1<<6))
 #define BLINK_SYNC      g_blinkTmr10ms = (3<<5)

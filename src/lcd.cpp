@@ -70,29 +70,35 @@ const uint8_t Lcd_lookup[] =
 } ;
 #endif 
 
-// prototypes
-void lcd_init( void ) ;
-void lcdSetRefVolt(uint8_t val) ;
-void lcdSendCtl(uint8_t val) ;
-void refreshDisplay( void ) ;
-uint32_t read_keys( void ) ;
-void lcd_putc(uint8_t x,uint8_t y,const char c ) ;
-uint8_t lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
-void lcd_putsnAtt(uint8_t x,uint8_t y,const char * s,uint8_t len,uint8_t mode) ;
-void lcd_putsn_P(uint8_t x,uint8_t y,const char * s,uint8_t len) ;
-void lcd_clear( void ) ;
-void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mode ) ;
-uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode ) ;
-void lcd_puts_Pleft( uint8_t y, const char *s ) ;
-void lcd_puts_P( uint8_t x, uint8_t y, const char *s ) ;
-void lcd_outhex4(uint8_t x,uint8_t y,uint16_t val) ;
-void lcd_outdez( uint8_t x, uint8_t y, int16_t val ) ;
-void lcd_outdezAtt( uint8_t x, uint8_t y, int16_t val, uint8_t mode ) ;
-void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len ) ;
-void lcd_plot( uint8_t x, uint8_t y ) ;
-void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat ) ;
-void lcd_hline( uint8_t x, uint8_t y, int8_t w ) ;
-void lcd_vline( uint8_t x, uint8_t y, int8_t h ) ;
+
+void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
+{
+  if ( tme<0 )
+  {
+    lcd_putcAtt( x - ((att&DBLSIZE) ? FWNUM*6-2 : FWNUM*3),    y, '-',att);
+    tme = -tme;
+  }
+
+  lcd_putcAtt(x, y, ':',att&att2);
+  lcd_outdezNAtt(x/*+ ((att&DBLSIZE) ? 2 : 0)*/, y, tme/60, LEADING0|att,2);
+  x += (att&DBLSIZE) ? FWNUM*6-4 : FW*3-3;
+  lcd_outdezNAtt(x, y, tme%60, LEADING0|att2,2);
+}
+
+void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att)
+{
+  lcd_outdezAtt(x, y, volts, att|PREC1);
+  if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
+}
+
+
+void putsVBat(uint8_t x,uint8_t y,uint8_t att)
+{
+  att |= g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0;
+  putsVolts(x, y, g_vbat100mV, att);
+}
+
+
 
 
 

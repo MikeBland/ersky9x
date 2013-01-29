@@ -35,6 +35,9 @@
 #ifdef FRSKY
 #include "frsky.h"
 #endif
+#ifndef SIMU
+#include "CoOS.h"
+#endif
 
 extern int32_t Rotary_diff ;
 extern int16_t AltOffset ;
@@ -2854,7 +2857,7 @@ void menuDeleteDupModel(uint8_t event)
 {
     lcd_puts_Pleft(1*FH,DupIfNonzero ? PSTR("DUPLICATE MODEL") : PSTR("DELETE MODEL"));
     //  lcd_putsAtt(0,1*FH,PSTR("DELETE MODEL"),0);
-    lcd_putsnAtt(1,2*FH, g_model.name,sizeof(g_model.name),/*BSS*/0);
+    lcd_putsnAtt(1,2*FH, (char *)ModelNames[DupSub],sizeof(g_model.name),/*BSS*/0);
     lcd_putc(sizeof(g_model.name)*FW+FW,2*FH,'?');
     lcd_puts_P(3*FW,5*FH,PSTR("YES     NO"));
     lcd_puts_P(3*FW,6*FH,PSTR("[MENU]  [EXIT]"));
@@ -2878,8 +2881,6 @@ void menuDeleteDupModel(uint8_t event)
         else
         {
 						ee32_delete_model( g_eeGeneral.currModel ) ;
-//            EFile::rm(FILE_MODEL(g_eeGeneral.currModel)); //delete file
-
             i = g_eeGeneral.currModel;//loop to find next available model
             while ( ! ee32ModelExists( i ) ) {
                 i--;
@@ -3195,6 +3196,7 @@ if(s_pgOfs<subN) {
         s_noHi = NO_HI_LEN;
         killEvents(event);
         DupIfNonzero = 0 ;
+				DupSub = g_eeGeneral.currModel+1 ;
         pushMenu(menuDeleteDupModel);
     }
     if((y+=FH)>7*FH) return;
@@ -3361,7 +3363,14 @@ void menuProcModelSelect(uint8_t event)
       //      if(event==EVT_KEY_FIRST(KEY_EXIT))  chainMenu(menuProcModelSelect);
       break;
   case  EVT_KEY_FIRST(KEY_MENU):
-      sel_editMode = true;
+      if(sel_editMode)
+			{
+      	sel_editMode = false ;
+			}
+			else
+			{
+      	sel_editMode = true ;
+			}	 
       s_editMode = 0 ;
       audioDefevent(AU_MENUS);
       break;
@@ -3372,7 +3381,7 @@ void menuProcModelSelect(uint8_t event)
       if(sel_editMode){
 
           DupIfNonzero = 1 ;
-          DupSub = sub ;
+          DupSub = sub + 1 ;
           pushMenu(menuDeleteDupModel);//menuProcExpoAll);
 
           //        message(PSTR("Duplicating model"));
@@ -3388,13 +3397,22 @@ void menuProcModelSelect(uint8_t event)
       sel_editMode = false;
 
       mstate2.m_posVert = g_eeGeneral.currModel;
-//      eeCheck(true); //force writing of current model data before this is changed
       break;
   }
   if(sel_editMode && subOld!=sub)
 	{
-// ****** This needs sorting out
-//    EFile::swap(FILE_MODEL(subOld),FILE_MODEL(sub));
+		ee32SwapModels( subOld+1, sub+1 ) ;
+
+		if ( sub == g_eeGeneral.currModel )
+		{
+			g_eeGeneral.currModel = subOld ;
+      STORE_GENERALVARS ;     //eeWriteGeneral();
+		}
+		else if ( subOld == g_eeGeneral.currModel )
+		{
+			g_eeGeneral.currModel = sub ;
+      STORE_GENERALVARS ;     //eeWriteGeneral();
+		}
   }
 
   if(sub-s_pgOfs < 1)        s_pgOfs = max(0,sub-1);
@@ -3407,7 +3425,11 @@ void menuProcModelSelect(uint8_t event)
 //    static char buf[sizeof(g_model.name)+5];
     if(k==g_eeGeneral.currModel) lcd_putc(1,  y,'*');
 //    eeLoadModelName(k,buf,sizeof(buf));
-    lcd_putsnAtt(  4*FW, y, (char *)ModelNames[k+1],sizeof(g_model.name),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
+    lcd_putsn_P(  4*FW, y, (char *)ModelNames[k+1],sizeof(g_model.name) ) ;
+		if ( (sub==k) && (sel_editMode ) )
+		{
+			lcd_rect( 0, y-1, 125, 9 ) ;
+		}
 //    lcd_putsnAtt(  4*FW, y, (char *)buf,sizeof(buf),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
   }
 

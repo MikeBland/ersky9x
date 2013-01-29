@@ -64,8 +64,6 @@ struct t_fifo32 BtRx_fifo ;
 volatile uint32_t Spi_complete ;
 
 void putEvent( register uint8_t evt) ;
-uint32_t read_keys( void ) ;
-uint32_t read_trims( void ) ;
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( register char *string ) ;

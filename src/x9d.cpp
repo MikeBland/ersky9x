@@ -111,14 +111,6 @@ uint16_t ResetReason ;
 
 
 
-#define DO_SQUARE(xx,yy,ww)         \
-{uint8_t x,y,w ; x = xx; y = yy; w = ww ; \
-    lcd_vline(x-w/2,y-w/2,w);  \
-    lcd_hline(x-w/2,y+w/2,w);  \
-    lcd_vline(x+w/2,y-w/2,w);  \
-    lcd_hline(x-w/2,y-w/2,w);}
-
-
 int main( void ) ;
 
 

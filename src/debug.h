@@ -9,8 +9,6 @@
 #define TRACE_ERROR(...) { }
 
 extern void handle_serial( void* pdata ) ;
-extern void hello( void ) ;
-extern void dbl9x( void ) ;
 //extern uint32_t read_switch( enum EnumKeys enuk ) ;
 extern void txmit( uint8_t c ) ;
 //extern void disp_mem( register uint32_t address ) ;
