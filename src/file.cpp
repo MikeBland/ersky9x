@@ -35,6 +35,30 @@
 extern PROGMEM s9xsplash[] ;
 
 
+// EEPROM Addresses
+// General 0x00000 - 0x01FFF
+// Model01 0x02000 - 0x03FFF
+// Model02 0x04000 - 0x05FFF
+// Model03 0x06000 - 0x07FFF
+// Model04 0x08000 - 0x09FFF
+// Model05 0x0A000 - 0x0BFFF
+// Model06 0x0C000 - 0x0DFFF
+// Model07 0x0E000 - 0x0FFFF
+// Model08 0x10000 - 0x11FFF
+// Model09 0x12000 - 0x13FFF
+// Model10 0x14000 - 0x15FFF
+// Model11 0x16000 - 0x17FFF
+// Model12 0x18000 - 0x19FFF
+// Model13 0x1A000 - 0x1BFFF
+// Model14 0x1C000 - 0x1DFFF
+// Model15 0x1E000 - 0x1FFFF
+// Model16 0x20000 - 0x21FFF
+// Model17 0x22000 - 0x23FFF
+// Model18 0x24000 - 0x25FFF
+// Model19 0x26000 - 0x27FFF
+// Model20 0x28000 - 0x29FFF
+
+
 
 // Logic for storing to EERPOM/loading from EEPROM
 // If main needs to wait for the eeprom, call mainsequence without actioning menus
@@ -166,7 +190,7 @@ struct t_eeprom_buffer
 
 static void ee32WaitFinished()
 {
-  while (Eeprom32_process_state != E32_IDLE)
+  while ( ee32_check_finished() == 0 )
 	{
 		if ( General_timer )
 		{
@@ -239,6 +263,14 @@ bool ee32CopyModel(uint8_t dst, uint8_t src)
 	while (ee32_check_finished() == 0)
 	{	// wait
 #ifndef SIMU
+		if ( General_timer )
+		{
+			General_timer = 1 ;		// Make these happen soon
+		}
+		if ( Model_timer )
+		{
+			Model_timer = 1 ;
+		}
 		CoTickDelay(1) ;					// 2mS for now
 #endif
 	}
@@ -507,7 +539,8 @@ void ee32WaitLoadModel(uint8_t id)
 
 	while( ( Eeprom32_process_state != E32_IDLE )
 			|| ( General_timer )
-			|| ( Model_timer ) )
+			|| ( Model_timer )
+			|| ( Ee32_model_delete_pending) )
 	{
 		mainSequence( NO_MENU ) ;		// Wait for EEPROM to be IDLE
 	}
@@ -624,7 +657,8 @@ uint32_t ee32_check_finished()
 {
 	if ( ( Eeprom32_process_state != E32_IDLE )
 			|| ( General_timer )
-			|| ( Model_timer ) )
+			|| ( Model_timer )
+			|| ( Ee32_model_delete_pending) )
 	{
 		ee32_process() ;
 		return 0 ;

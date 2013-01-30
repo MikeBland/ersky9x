@@ -11,6 +11,10 @@ description here
 
 ******************************************
 CHANGELOG: 30-Jan-2013  MPB
+Fix obscure bug in move model
+
+******************************************
+CHANGELOG: 30-Jan-2013  MPB
 Minor tweaks to model copy/move, enhance 'MEMORY STAT' menu
 
 ******************************************
