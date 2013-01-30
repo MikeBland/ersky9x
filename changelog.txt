@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 30-Jan-2013  MPB
+Minor tweaks to model copy/move, enhance 'MEMORY STAT' menu
+
+******************************************
 CHANGELOG: 29-Jan-2013  MPB
 Improve RPM calculation
 Move telemetry procedures to frsky.cpp

@@ -64,7 +64,6 @@ struct t_file_entry File_system[MAX_MODELS+1] ;
 
 unsigned char ModelNames[MAX_MODELS+1][sizeof(g_model.name)+1] ;		// Allow for general
 
-
 uint16_t General_timer ;
 uint16_t Model_timer ;
 uint32_t Update_timer ;
@@ -249,7 +248,7 @@ bool ee32CopyModel(uint8_t dst, uint8_t src)
   if (size > sizeof(g_model.name))
     memcpy( ModelNames[dst], Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
   else
-    memset( ModelNames[dst], 0, sizeof(g_model.name)) ;
+    memset( ModelNames[dst], ' ', sizeof(g_model.name)) ;
 
   Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.model_data ;		// Get data from here
   Eeprom32_data_size = sizeof(g_model) ;																	// This much
@@ -277,7 +276,8 @@ void ee32SwapModels(uint8_t id1, uint8_t id2)
   }
   else
 	{
-    memset( ModelNames[id1], 0, sizeof(g_model.name)) ;
+    memset( ModelNames[id1], ' ', sizeof(g_model.name)) ;
+		id2_size = 0 ;
   }
 
   Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.model_data ;		// Get data from here

@@ -2882,13 +2882,15 @@ void menuDeleteDupModel(uint8_t event)
         {
 						ee32_delete_model( g_eeGeneral.currModel ) ;
             i = g_eeGeneral.currModel;//loop to find next available model
-            while ( ! ee32ModelExists( i ) ) {
-                i--;
-                if(i>MAX_MODELS) i=MAX_MODELS-1;
-                if(i==g_eeGeneral.currModel) {
-                    i=0;
-                    break;
-                }
+            while ( ! ee32ModelExists( i ) )
+						{
+							i--;
+              if(i>MAX_MODELS) i=MAX_MODELS-1;
+              if(i==g_eeGeneral.currModel)
+							{
+              	i=0;
+                break;
+              }
             }
             g_eeGeneral.currModel = i;
             STORE_GENERALVARS;
@@ -3792,7 +3794,8 @@ void menuProcSetup1(uint8_t event)
 void menuProcSetup2(uint8_t event)
 {
 	uint32_t i ;
-  MENU("MEMORY STAT", menuTabDiag, e_Setup2, 1, {0/*, 0*/});
+	uint32_t j ;
+  MENU("MEMORY STAT", menuTabDiag, e_Setup2, 15, {0/*, 0*/});
 	
 	int8_t  sub    = mstate2.m_posVert;
 //	uint8_t subSub = mstate2.m_posHorz;
@@ -3801,6 +3804,11 @@ void menuProcSetup2(uint8_t event)
 
 	evalOffset(sub, 1);
 
+	j = sub + 1 ;
+	if ( j > 15 )
+	{
+		j = 15 ;		
+	}
 	lcd_puts_Pleft( 1*FH, PSTR("General"));
   lcd_outhex4( 8*FW+3, 1*FH, File_system[0].block_no ) ;
   lcd_outhex4( 12*FW+3, 1*FH, File_system[0].sequence_no ) ;
@@ -3808,10 +3816,12 @@ void menuProcSetup2(uint8_t event)
 	for ( i = 1 ; i < 7 ; i += 1 )
 	{
 		lcd_puts_Pleft( (i+1)*FH, PSTR("Model"));
-		lcd_putc( 5*FW, (i+1)*FH, i + '0' ) ;
-  	lcd_outhex4( 8*FW+3, (i+1)*FH, File_system[i].block_no ) ;
-  	lcd_outhex4( 12*FW+3, (i+1)*FH, File_system[i].sequence_no ) ;
-  	lcd_outhex4( 16*FW+3, (i+1)*FH, File_system[i].size ) ;
+		lcd_putc( 5*FW, (i+1)*FH, j/10 + '0' ) ;
+		lcd_putc( 6*FW, (i+1)*FH, j%10 + '0' ) ;
+  	lcd_outhex4( 8*FW+3, (i+1)*FH, File_system[j].block_no ) ;
+  	lcd_outhex4( 12*FW+3, (i+1)*FH, File_system[j].sequence_no ) ;
+  	lcd_outhex4( 16*FW+3, (i+1)*FH, File_system[j].size ) ;
+		j += 1 ;
 	}
 }
 

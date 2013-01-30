@@ -69,7 +69,14 @@ bool eeDuplicateModel(uint8_t id)
   {
     if(! ee32ModelExists(i) ) break;
   }
-  if(i>=MAX_MODELS) return false; //no free space in directory left
+  if(i>=MAX_MODELS)
+	{
+  	for( i=0 ; i<id ; i++)
+		{
+    	if(! ee32ModelExists(i) ) break;
+		}
+  	if(i>=id) return false; //no free space in directory left
+	}
 
 	ee32CopyModel( i+1, id ) ;
 

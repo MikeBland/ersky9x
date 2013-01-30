@@ -715,6 +715,27 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 #endif
 
 #if PCBSKY
+		if ( rxchar == 'f' )
+		{
+			uint32_t i ;
+			for ( i = 0 ; i < 21 ; i += 1 )
+			{
+				crlf() ;
+				p8hex( File_system[i].block_no ) ;
+				txmit( ' ' ) ;
+				p8hex( File_system[i].sequence_no ) ;
+				txmit( ' ' ) ;
+				p4hex( File_system[i].size ) ;
+				txmit( ' ' ) ;
+				p4hex( File_system[i].flags ) ;
+				txmit( ' ' ) ;
+				p2hex( ModelNames[i][0] ) ;
+				p2hex( ModelNames[i][1] ) ;
+				p2hex( ModelNames[i][2] ) ;
+				p2hex( ModelNames[i][3] ) ;
+			}
+		}
+
 		if ( rxchar == 'H' )
 		{
 			txmit( 'H' ) ;
