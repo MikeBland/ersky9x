@@ -218,3 +218,13 @@ uint16_t stack_free()
 {
   return 500;
 }
+
+void init_main_ppm( uint32_t period, uint32_t out_enable )
+{
+}
+
+void disable_main_ppm()
+{
+}
+
+uint8_t pxxFlag = 0 ;
