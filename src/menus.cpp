@@ -606,7 +606,8 @@ void menuProcSDstat(uint8_t event) ;
 void menuProcTrainer(uint8_t event) ;
 void menuProcDiagVers(uint8_t event) ;
 void menuProcModel(uint8_t event) ;
-void menuProcHeli(uint8_t event);
+void menuModelPhases(uint8_t event) ;
+void menuProcHeli(uint8_t event) ;
 void menuProcModelSelect(uint8_t event) ;
 void menuProcMix(uint8_t event) ;
 void menuProcExpoAll(uint8_t event);
@@ -658,6 +659,9 @@ enum EnumTabModel {
 #ifndef NO_HELI
     e_Heli,
 #endif
+#ifdef PHASES
+		e_Phases,
+#endif
     e_ExpoAll,
     e_Mix,
     e_Limits,
@@ -682,6 +686,9 @@ MenuFuncP menuTabModel[] = {
     #ifndef NO_HELI
     menuProcHeli,
     #endif
+#ifdef PHASES
+		menuProcPhases,
+#endif
     menuProcExpoAll,
     menuProcMix,
     menuProcLimits,
@@ -3204,6 +3211,61 @@ if(s_pgOfs<subN) {
     if((y+=FH)>7*FH) return;
 }subN++;
 }
+
+#ifdef PHASES
+
+int16_t getRawTrimValue(uint8_t phase, uint8_t idx)
+{
+	return g_model.phaseData[phase].trim[idx] ;
+}
+
+void putsTrimMode( uint8_t x, uint8_t y, uint8_t phase, uint8_t idx, uint8_t att )
+{
+  int16_t v = getRawTrimValue(phase, idx);
+
+//  if (v > TRIM_EXTENDED_MAX)
+  if (v > 500)
+	{
+//    uint8_t p = v - TRIM_EXTENDED_MAX - 1;
+    uint8_t p = v - 500 - 1;
+    if (p >= phase) p += 1 ;
+    lcd_putcAtt(x, y, '0'+p, att);
+  }
+  else
+	{
+  	lcd_putsAttIdx( x, y, "RETA", idx-1, att ) ;
+  }
+}
+
+
+void menuModelPhases(uint8_t event)
+{
+	uint32_t i ;
+  uint8_t attr ;
+  
+	MENU("PHASES", menuTabModel, e_Phases, 6, {0 /*repeated*/});
+	
+	int8_t  sub    = mstate2.m_posVert ;
+	evalOffset(sub, 6) ;
+
+  for ( i=0 ; i<MAX_PHASES ; i += 1 )
+	{
+    uint8_t y=(i+1)*FH ;
+		PhaseData *p = &g_model.phaseData[i] ;
+    attr = i == sub ? INVERS : 0 ;
+    lcd_puts_Pleft( y, "FP" ) ;
+    lcd_putc( 2*FW, y, '1'+i ) ;
+    putsSwitches( 11*FW, y, p->swtch, 0 ) ;
+    for ( uint8_t t = 0 ; t < NUM_STICKS ; t += 1 )
+		{
+			putsTrimMode( (15+t)*FW, y, i, t, 0 ) ;
+		}
+		 
+	}	 
+}
+
+#endif
+
 
 #ifndef NO_HELI
 void menuProcHeli(uint8_t event)

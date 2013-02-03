@@ -74,6 +74,8 @@
 
 #define MAX_GVARS 5
 
+#define MAX_PHASES		6
+
 #ifndef PACK
 #define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
 #endif
@@ -435,7 +437,7 @@ PACK(typedef struct te_ModelData {
   int8_t    ppmNCH;
   uint8_t   thrTrim:1;            // Enable Throttle Trim
 	uint8_t   xnumBlades:2;					// RPM scaling, now elsewhere as uint8_t
-	uint8_t   spare10:1;
+	uint8_t   extendedTrims:1;			// Only applies to phases
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   spare11:3;
   int8_t    trimInc;          // Trim Increments
@@ -471,7 +473,7 @@ PACK(typedef struct te_ModelData {
 // Add 6 bytes for custom telemetry screen
 	uint8_t customDisplayIndex[6] ;
   FuncSwData   funcSw[NUM_FSW];
-	PhaseData phaseData[6] ;
+	PhaseData phaseData[MAX_PHASES] ;
 	GvarData gvars[MAX_GVARS] ;
 	uint8_t   numBlades ;					// RPM scaling
 }) SKYModelData;

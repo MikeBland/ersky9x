@@ -449,6 +449,22 @@ void handle_serial(void* pdata)
 	 
 #ifdef PCBX9D
 
+extern void initWatchdog( void ) ;
+
+		if ( rxchar == 'w' )
+		{
+			// Watchdog test
+			txmit( 'w' ) ;
+			initWatchdog() ;
+		}
+
+		if ( rxchar == 'z' )
+		{
+			// Watchdog test
+			txmit( 'z' ) ;
+			wdt_reset() ;
+		}
+		
 		if ( rxchar == 'P' )
 		{
 			txmit( 'p' ) ;

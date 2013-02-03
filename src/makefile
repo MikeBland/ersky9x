@@ -148,6 +148,8 @@ CPPSRC = x9d.cpp \
          x9d/diskio.cpp \
          drivers.cpp \
          x9d/sound.cpp \
+         x9d/power.cpp \
+         x9d/watchdog.cpp \
        	x9d/i2c_ee.cpp \
          timers.cpp \
          logicio.cpp \
@@ -255,6 +257,12 @@ endif
 # If REVB board
 ifeq ($(REVB), 1)
  CPPDEFS += -DREVB
+ EXT_MOD=REVB
+endif
+
+# If Flight Phases
+ifeq ($(PHASES), 1)
+ CPPDEFS += -DPHASES
  EXT_MOD=REVB
 endif
 

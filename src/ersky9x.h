@@ -28,7 +28,12 @@
 #else
 // Items set to make things compile, will need to be sorted eventually
 #define assert(x)
+#ifdef PCBSKY
 #define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
+#endif
+#ifdef PCBX9D
+#define wdt_reset()	(IWDG->KR = 0x0000AAAAL)
+#endif
 #endif
 
 #define VERSION	"V0.26"
@@ -583,6 +588,15 @@ extern uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
 #if GVARS
 extern int8_t REG(int8_t x, int8_t min, int8_t max) ;
 #endif
+
+enum PowerState
+{
+  e_power_on,
+  e_power_trainer,
+  e_power_usb,
+  e_power_off
+} ;
+
 
 
 #endif

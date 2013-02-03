@@ -25,6 +25,8 @@
 
 #include "debug.h"
 
+extern void initWatchdog( void ) ;
+
 #define MAIN_STACK_SIZE		500
 #define DEBUG_STACK_SIZE	130
 #define VOICE_STACK_SIZE	130
@@ -558,6 +560,8 @@ void main_loop(void* pdata)
 	counter1 = 0 ;
 	screen = 0 ;
 
+	initWatchdog() ;
+	
 	for(;;)
 	{
 		time = get_tmr10ms() ;
@@ -569,6 +573,8 @@ void main_loop(void* pdata)
 			}
 			CoTickDelay(1) ;
 		}
+		wdt_reset() ;
+
 		if ( xxx == 0  )
 		{
 			txmit( 'X' ) ;
@@ -777,33 +783,6 @@ void main_loop(void* pdata)
 	}
 }
 
-
-void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
-{
-  if ( tme<0 )
-  {
-    lcd_putcAtt( x - ((att&DBLSIZE) ? FWNUM*6-2 : FWNUM*3),    y, '-',att);
-    tme = -tme;
-  }
-
-  lcd_putcAtt(x, y, ':',att&att2);
-  lcd_outdezNAtt(x/*+ ((att&DBLSIZE) ? 2 : 0)*/, y, tme/60, LEADING0|att,2);
-  x += (att&DBLSIZE) ? FWNUM*6-4 : FW*3-3;
-  lcd_outdezNAtt(x, y, tme%60, LEADING0|att2,2);
-}
-
-void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att)
-{
-  lcd_outdezAtt(x, y, volts, att|PREC1);
-  if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, 'v', att);
-}
-
-
-void putsVBat(uint8_t x,uint8_t y,uint8_t att)
-{
-  att |= g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0;
-  putsVolts(x, y, g_vbat100mV, att);
-}
 
 void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 {

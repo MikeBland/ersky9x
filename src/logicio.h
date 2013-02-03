@@ -111,5 +111,10 @@ extern uint32_t read_trims( void ) ;
 extern uint32_t keyState( enum EnumKeys enuk) ;
 extern void init_trims( void ) ;
 extern void setup_switches( void ) ;
+extern void config_free_pins( void ) ;
+
+#define GPIO_ResetBits( port, bits ) (port->BSRRH = bits)
+#define GPIO_SetBits( port, bits ) (port->BSRRL = bits)
+#define GPIO_ReadInputDataBit( port, bit) ( (port->IDR & bit) ? Bit_SET : Bit_RESET)
 
 

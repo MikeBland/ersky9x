@@ -66,16 +66,19 @@
 
 #ifndef SIMU
 #define MAIN_STACK_SIZE		500
+#ifdef PCBSKY
 #define BT_STACK_SIZE			100
+#endif
 #define DEBUG_STACK_SIZE	130
 #define VOICE_STACK_SIZE	130
 
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
 
+#ifdef PCBSKY
 OS_TID BtTask;
 OS_STK Bt_stk[BT_STACK_SIZE] ;
-
+#endif
 OS_TID VoiceTask;
 OS_STK voice_stk[VOICE_STACK_SIZE] ;
 
@@ -84,8 +87,6 @@ OS_TID DebugTask;
 OS_STK debug_stk[DEBUG_STACK_SIZE] ;
 #endif
 
-//OS_TCID tmrBt1S;
-//OS_FlagID Bt1SFlag;
 #endif
 
 const uint8_t splashdata[] = { 'S','P','S',0,
@@ -143,8 +144,10 @@ uint8_t Vs_state[NUM_SKYCHNOUT] ;
 int8_t RotaryControl ;
 
 
+#ifdef PCBSKY
 void tmrBt_Handle( void ) ;
 void bt_task(void* pdata) ;
+#endif
 void main_loop( void* pdata ) ;
 void mainSequence( uint32_t no_menu ) ;
 void doSplash( void ) ;
@@ -174,7 +177,6 @@ void init_adc( void ) ;
 //uint32_t hextoi( uint8_t *string ) ;
 //uint32_t gets( uint8_t *string, uint32_t maxcount ) ;
 //uint32_t get_switches( void ) ;
-static void config_free_pins( void ) ;
 void checkTHR( void ) ;
 static void checkSwitches( void ) ;
 void check_backlight( void ) ;
@@ -378,6 +380,7 @@ void clearKeyEvents()
 
 //extern uint8_t CustomDisplayIndex[6] ;
 
+#ifdef PCBSKY
 #define BT_115200		0
 #define BT_9600			1
 #define BT_19200		2
@@ -400,7 +403,7 @@ void setBtBaudrate( uint32_t index )
 	}
 	UART3_Configure( brate, Master_frequency ) ;		// Testing
 }
-
+#endif
 
 
 int main(void)
@@ -425,18 +428,12 @@ int main(void)
 	pioptr->PIO_SODR = PIO_PA21 ;	// Set bit A21 ON
 #endif
 
-//	pioptr->PIO_PUER = 0x80000000 ;		// Enable pullup on bit A31 (EXIT)
-//	pioptr->PIO_PER = 0x80000000 ;		// Enable bit A31
-
 	pioptr = PIOC ;
 	pioptr->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
-//	pioptr->PIO_OER = 0x80000000L ;		// Set bit C31 as output
-//	pioptr->PIO_SODR = 0x80000000L ;	// Set bit C31
 
 	if ( ( pioptr->PIO_PDSR & 0x02000000 ) == 0 )
 	{
 		// USB not the power source
-//		WDT->WDT_MR = 0x3FFFAFFF ;			// Disable watchdog
 		WDT->WDT_MR = 0x3FFF217F ;				// Enable watchdog 1.5 Secs
 	}
 
@@ -500,9 +497,11 @@ int main(void)
 		 
 	eeReadAll() ;
 
+#ifdef PCBSKY
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
 	// Set ADC gains here
 	set_stick_gain( g_eeGeneral.stickGain ) ;
+#endif
 
 #ifdef FRSKY
   FRSKY_Init();
@@ -562,10 +561,9 @@ int main(void)
 
 	CoInitOS();
 
-//	Bt1SFlag = CoCreateFlag(TRUE,FALSE);		// Auto-reset, start FALSE
-//	tmrBt1S = CoCreateTmr(TMR_TYPE_PERIODIC,1000/(1000/CFG_SYSTICK_FREQ),1000/(1000/CFG_SYSTICK_FREQ),tmrBt_Handle);
-	
+#ifdef PCBSKY
 	BtTask = CoCreateTask(bt_task,NULL,19,&Bt_stk[BT_STACK_SIZE-1],BT_STACK_SIZE);
+#endif
 
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
 
@@ -602,6 +600,7 @@ int main(void)
 //	CoSetFlag(Bt1SFlag);		// 1 second return,set flag
 //}
 
+#ifdef PCBSKY
 OS_FlagID Bt_flag ;
 struct t_fifo32 Bt_fifo ;
 struct t_serial_tx Bt_tx ;
@@ -621,16 +620,6 @@ void bt_send_buffer()
 
 #define BT_POLL_TIMEOUT		500
 
-//uint8_t BtRxDebug[32] ;
-//uint32_t BtRxCtr = 0 ;
-
-//void rxDebugproc( uint8_t x )
-//{
-//	if ( BtRxCtr < 32 )
-//	{
-//		BtRxDebug[BtRxCtr++] = x ;		
-//	}
-//}
 
 uint32_t poll_bt_device()
 {
@@ -638,11 +627,6 @@ uint32_t poll_bt_device()
 	uint32_t y ;
 	uint16_t rxchar ;
 
-//	if ( ( rxchar = rxBtuart() ) != 0xFFFF )
-//	{
-//		rxDebugproc( rxchar ) ;
-//	}
-	
 	x = 'O' ;
 	BtTxBuffer[0] = 'A' ;
 	BtTxBuffer[1] = 'T' ;
@@ -863,6 +847,7 @@ void telem_byte_to_bt( uint8_t data )
 #endif
 }
 
+#endif
 
 uint32_t UsbTimer = 0 ;
 extern void usbMassStorage( void ) ;
@@ -1020,7 +1005,7 @@ uint32_t OneSecTimer ;
 extern int16_t AltOffset ;
 #endif
 
-uint16_t Debug_analog[8] ;
+//uint16_t Debug_analog[8] ;
 
 void mainSequence( uint32_t no_menu )
 {
@@ -1046,16 +1031,16 @@ void mainSequence( uint32_t no_menu )
 		Current_max = Current_analogue ;		
 	}
 
-	// ADC debug code
-	{
-		uint32_t x ;
-		for( x = 0 ; x < 8 ; x += 1 )
-		{
-			read_9_adc() ;
-			Debug_analog[x] = Analog_values[0] ;
-		}
-	}
-	// End debug code
+//	// ADC debug code
+//	{
+//		uint32_t x ;
+//		for( x = 0 ; x < 8 ; x += 1 )
+//		{
+//			read_9_adc() ;
+//			Debug_analog[x] = Analog_values[0] ;
+//		}
+//	}
+//	// End debug code
 
 	perMain( no_menu ) ;		// Allow menu processing
 
@@ -1082,12 +1067,14 @@ void mainSequence( uint32_t no_menu )
 		sd_poll_10mS() ;
 #endif
 
+ #ifdef PCBSKY
 		if ( ++coProTimer > 24 )
 		{
 			coProTimer -= 25 ;
 			read_coprocessor() ;
 		}
 	}
+#endif
 
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
@@ -2013,76 +2000,20 @@ void getADC_filt()
 
 
 
-// Switch input pins
-// Needs updating for REVB board ********
-// AIL-DR  PA2
-// TRIM_LH_DOWN PA7 (PA23)
-// ELE_DR   PA8 (PC31)
-// RUN_DR   PA15
-// TRIM_LV_DOWN  PA27 (PA24)
-// SW_TCUT     PA28 (PC20)
-// TRIM_RH_DOWN    PA29 (PA0)
-// TRIM_RV_UP    PA30 (PA1)
-// TRIM_LH_UP    //PB4
-// SW-TRAIN    PC8
-// TRIM_RH_UP   PC9
-// TRIM_RV_DOWN   PC10
-// SW_IDL2     PC11
-// SW_IDL1     PC14
-// SW_GEAR     PC16
-// TRIM_LV_UP   PC28
-
-// KEY_MENU    PB6 (PB5)
-// KEY_EXIT    PA31 (PC24)
-// Shared with LCD data
-// KEY_DOWN  LCD5  PC3
-// KEY_UP    LCD6  PC2
-// KEY_RIGHT LCD4  PC4
-// KEY_LEFT  LCD3  PC5
-
-// PORTA 1111 1000 0000 0000 1000 0001 1000 0100 = 0xF8008184 proto
-// PORTA 0000 0001 1000 0000 1000 0000 0000 0111 = 0x01808087 REVB
-// PORTB 0000 0000 0001 0000										 = 0x0010     proto
-// PORTB 0000 0000 0010 0000										 = 0x0030     REVB
-// PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900 proto
-// PORTC 1001 0001 0001 0001 0100 1001 0000 0000 = 0x91114900 REVB
-
-
-// Prototype
-// Free pins (PA16 is stock buzzer)
-// PA23, PA24, PA25, PB7, PB13
-// PC20, PC21(labelled 17), PC22, PC24
-// REVB
-// PA25, use for stock buzzer
-// PB14, PB6
-// PC21, PC19, PC15 (PPM2 output)
-static void config_free_pins()
+uint8_t getFlightPhase()
 {
-	
-#ifdef REVB
-//	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
-	configure_pins( PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
-
-//	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;	// 19 and 21 are rotary encoder
-#else 
-	register Pio *pioptr ;
-
-	pioptr = PIOA ;
-	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
-	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
-	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
-
-	pioptr = PIOB ;
-	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
-	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
-	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
-
-	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
-	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
-	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
-#endif 
+	uint32_t i ;
+  for ( i = 0 ; i < MAX_PHASES ; i++ )
+	{
+    PhaseData *phase = &g_model.phaseData[i];
+    if ( phase->swtch && getSwitch( phase->swtch, 0 ) )
+		{
+      return i + 1 ;
+    }
+  }
+  return 0 ;
 }
+
 
 
 static uint8_t checkTrim(uint8_t event)

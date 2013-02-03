@@ -1407,14 +1407,14 @@ void CoIdleTask(void* pdata)
   {
       /* Add your codes here */
 	// Toggle bits BACKLIGHT and EXT1, Backlight now on PWM
-#ifdef PCBSKY
-#define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
-#endif
-#ifdef PCBX9D
-#define wdt_reset()	(IWDG->KR = 0x0000AAAAL)
-#endif
+//#ifdef PCBSKY
+//#define wdt_reset()	(WDT->WDT_CR = 0xA5000001)
+//#endif
+//#ifdef PCBX9D
+//#define wdt_reset()	(IWDG->KR = 0x0000AAAAL)
+//#endif
 		
-    wdt_reset();
+//    wdt_reset();
 		i += 1 ;
   }
 }

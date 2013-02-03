@@ -238,6 +238,79 @@ void setup_switches()
 }
 
 
+// Switch input pins
+// Needs updating for REVB board ********
+// AIL-DR  PA2
+// TRIM_LH_DOWN PA7 (PA23)
+// ELE_DR   PA8 (PC31)
+// RUN_DR   PA15
+// TRIM_LV_DOWN  PA27 (PA24)
+// SW_TCUT     PA28 (PC20)
+// TRIM_RH_DOWN    PA29 (PA0)
+// TRIM_RV_UP    PA30 (PA1)
+// TRIM_LH_UP    //PB4
+// SW-TRAIN    PC8
+// TRIM_RH_UP   PC9
+// TRIM_RV_DOWN   PC10
+// SW_IDL2     PC11
+// SW_IDL1     PC14
+// SW_GEAR     PC16
+// TRIM_LV_UP   PC28
+
+// KEY_MENU    PB6 (PB5)
+// KEY_EXIT    PA31 (PC24)
+// Shared with LCD data
+// KEY_DOWN  LCD5  PC3
+// KEY_UP    LCD6  PC2
+// KEY_RIGHT LCD4  PC4
+// KEY_LEFT  LCD3  PC5
+
+// PORTA 1111 1000 0000 0000 1000 0001 1000 0100 = 0xF8008184 proto
+// PORTA 0000 0001 1000 0000 1000 0000 0000 0111 = 0x01808087 REVB
+// PORTB 0000 0000 0001 0000										 = 0x0010     proto
+// PORTB 0000 0000 0010 0000										 = 0x0030     REVB
+// PORTC 0001 0000 0000 0001 0100 1001 0000 0000 = 0x10014900 proto
+// PORTC 1001 0001 0001 0001 0100 1001 0000 0000 = 0x91114900 REVB
+
+
+// Prototype
+// Free pins (PA16 is stock buzzer)
+// PA23, PA24, PA25, PB7, PB13
+// PC20, PC21(labelled 17), PC22, PC24
+// REVB
+// PA25, use for stock buzzer
+// PB14, PB6
+// PC21, PC19, PC15 (PPM2 output)
+void config_free_pins()
+{
+	
+#ifdef REVB
+//	configure_pins( PIO_PB6 | PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+	configure_pins( PIO_PB14, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+
+//	configure_pins( PIO_PC19 | PIO_PC21, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_PULLUP ) ;	// 19 and 21 are rotary encoder
+#else 
+	register Pio *pioptr ;
+
+	pioptr = PIOA ;
+	pioptr->PIO_PER = 0x03800000L ;		// Enable bits A25,24,23
+	pioptr->PIO_ODR = 0x03800000L ;		// Set as input
+	pioptr->PIO_PUER = 0x03800000L ;	// Enable pullups
+
+	pioptr = PIOB ;
+	pioptr->PIO_PER = 0x00002080L ;		// Enable bits B13, 7
+	pioptr->PIO_ODR = 0x00002080L ;		// Set as input
+	pioptr->PIO_PUER = 0x00002080L ;	// Enable pullups
+
+	pioptr = PIOC ;
+	pioptr->PIO_PER = 0x01700000L ;		// Enable bits C24,22,21,20
+	pioptr->PIO_ODR = 0x01700000L ;		// Set as input
+	pioptr->PIO_PUER = 0x01700000L ;	// Enable pullups
+#endif 
+}
+
+
+
 #endif
 
 
