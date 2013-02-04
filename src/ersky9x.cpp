@@ -837,17 +837,15 @@ void bt_task(void* pdata)
 }
 #endif
 
-
+#endif
 
 void telem_byte_to_bt( uint8_t data )
 {
 #ifndef SIMU
-	put_fifo32( &Bt_fifo, data ) ;
-	CoSetFlag( Bt_flag ) ;			// Tell the Bt task something to do
+        put_fifo32( &Bt_fifo, data ) ;
+        CoSetFlag( Bt_flag ) ;                  // Tell the Bt task something to do
 #endif
 }
-
-#endif
 
 uint32_t UsbTimer = 0 ;
 extern void usbMassStorage( void ) ;
