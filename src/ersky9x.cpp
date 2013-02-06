@@ -548,6 +548,7 @@ int main(void)
 		putVoiceQueue( g_model.modelVoice + 260 ) ;
 	}
 
+	// Must do this to start PPM2 as well
 	init_main_ppm( 3000, 1 ) ;		// Default for now, initial period 1.5 mS, output on
 
 	start_ppm_capture() ;
@@ -984,6 +985,7 @@ void actionUsb()
 	PWM->PWM_DIS = PWM_DIS_CHID0 | PWM_DIS_CHID1 | PWM_DIS_CHID2 | PWM_DIS_CHID3 ;	// Disable all
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
 	disable_main_ppm() ;
+	disable_ppm2() ;
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
 //	NVIC_DisableIRQ(PWM_IRQn) ;
 	disable_ssc() ;
@@ -1993,15 +1995,10 @@ void getADC_filt()
 }
 
 
-
-
-
-
-
-uint8_t getFlightPhase()
+uint32_t getFlightPhase()
 {
 	uint32_t i ;
-  for ( i = 0 ; i < MAX_PHASES ; i++ )
+  for ( i = 0 ; i < MAX_PHASES ; i += 1 )
 	{
     PhaseData *phase = &g_model.phaseData[i];
     if ( phase->swtch && getSwitch( phase->swtch, 0 ) )
@@ -2012,19 +2009,80 @@ uint8_t getFlightPhase()
   return 0 ;
 }
 
+int16_t getRawTrimValue( uint8_t phase, uint8_t idx )
+{
+	if ( phase )
+	{
+		return g_model.phaseData[phase-1].trim[idx] ;
+	}	
+	else
+	{
+		return *TrimPtr[idx] ;
+	}
+}
+
+uint32_t getTrimFlightPhase( uint8_t phase, uint8_t idx )
+{
+  for ( uint32_t i=0 ; i<MAX_PHASES ; i += 1 )
+	{
+    if (phase == 0) return 0;
+    int16_t trim = getRawTrimValue( phase, idx ) ;
+    if ( trim <= TRIM_EXTENDED_MAX )
+		{
+			return phase ;
+		}
+    uint32_t result = trim-TRIM_EXTENDED_MAX-1 ;
+    if (result >= phase)
+		{
+			result += 1 ;
+		}
+    phase = result;
+  }
+  return 0;
+}
+
+
+int16_t getTrimValue( uint8_t phase, uint8_t idx )
+{
+  return getRawTrimValue( getTrimFlightPhase( phase, idx ), idx ) ;
+}
+
+
+void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim)
+{
+	if ( phase )
+	{
+		phase = getTrimFlightPhase( phase, idx ) ;
+	}
+	if ( phase )
+	{
+  	g_model.phaseData[phase-1].trim[idx] = trim ;
+	}
+	else
+	{
+    if(trim < -125 || trim > 125)
+		{
+			trim = ( trim > 0 ) ? 125 : -125 ;
+		}	
+   	*TrimPtr[idx] = trim ;
+	}
+  STORE_MODELVARS_TRIM ;
+}
 
 
 static uint8_t checkTrim(uint8_t event)
 {
   int8_t  k = (event & EVT_KEY_MASK) - TRM_BASE;
   int8_t  s = g_model.trimInc;
-  if (s>1) s = 1 << (s-1);  // 1=>1  2=>2  3=>4  4=>8
+  
+	if (s>1) s = 1 << (s-1);  // 1=>1  2=>2  3=>4  4=>8
 
   if((k>=0) && (k<8))// && (event & _MSK_KEY_REPT))
   {
     //LH_DWN LH_UP LV_DWN LV_UP RV_DWN RV_UP RH_DWN RH_UP
     uint8_t idx = k/2;
-    int8_t tm = *TrimPtr[idx] ;
+		uint32_t phaseNo = getTrimFlightPhase( CurrentPhase, idx ) ;
+    int16_t tm = getTrimValue( phaseNo, idx ) ;
     int8_t  v = (s==0) ? (abs(tm)/4)+1 : s;
     bool thrChan = ((2-(g_eeGeneral.stickMode&1)) == idx);
     bool thro = (thrChan && (g_model.thrTrim));
@@ -2032,26 +2090,31 @@ static uint8_t checkTrim(uint8_t event)
     if(thrChan && g_eeGeneral.throttleReversed) v = -v;  // throttle reversed = trim reversed
     int16_t x = (k&1) ? tm + v : tm - v;   // positive = k&1
 
-    if(((x==0)  ||  ((x>=0) != (tm>=0))) && (!thro) && (tm!=0)){
-      *TrimPtr[idx]=0;
+    if(((x==0)  ||  ((x>=0) != (tm>=0))) && (!thro) && (tm!=0))
+		{
+			setTrimValue( phaseNo, idx, 0 ) ;
       killEvents(event);
       audioDefevent(AU_TRIM_MIDDLE);
-
-    } else if(x>-125 && x<125){
-      *TrimPtr[idx] = (int8_t)x;
+    }
+		else if(x>-125 && x<125)
+		{
+			setTrimValue( phaseNo, idx, x ) ;
       STORE_MODELVARS_TRIM;
       //if(event & _MSK_KEY_REPT) warble = true;
-			if(x <= 125 && x >= -125){
+			if(x <= 125 && x >= -125)
+			{
 				if(g_eeGeneral.speakerMode == 0){
 					audioDefevent(AU_TRIM_MOVE);
-				} else {
+				}
+				else
+				{
 					audio.event(AU_TRIM_MOVE,(abs(x)/4)+60);
 				}
 			}	
     }
     else
     {
-      *TrimPtr[idx] = (x>0) ? 125 : -125;
+			setTrimValue( phaseNo, idx, (x>0) ? 125 : -125 ) ;
       STORE_MODELVARS_TRIM;
 			if(x <= 125 && x >= -125){
 				if(g_eeGeneral.speakerMode == 0){
@@ -2061,7 +2124,6 @@ static uint8_t checkTrim(uint8_t event)
 				}
 			}	
     }
-
     return 0;
   }
   return event;

@@ -236,6 +236,8 @@ enum EnumKeys {
 #define RESKul  100ul
 #define RESX_PLUS_TRIM (RESX+128)
 
+#define TRIM_EXTENDED_MAX	500
+
 #define NUM_PPM     8
 //number of real outputchannels CH1-CH16
 #define NUM_CHNOUT  16
@@ -245,6 +247,8 @@ enum EnumKeys {
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
 
 #define NUM_FSW			16
+
+#define NUM_STICKS	4
 
 #define SWASH_TYPE_STR   "---   ""120   ""120X  ""140   ""90    "
 
@@ -562,6 +566,10 @@ extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
 extern int16_t m_to_ft( int16_t metres ) ;
 
 extern uint32_t check_soft_power( void ) ;
+extern uint32_t getFlightPhase( void ) ; 
+extern int16_t getRawTrimValue( uint8_t phase, uint8_t idx ) ;
+extern int16_t getTrimValue( uint8_t phase, uint8_t idx ) ;
+extern void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim) ;
 
 struct t_timer
 {

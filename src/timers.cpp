@@ -155,10 +155,6 @@ void init_pwm()
 	configure_pins( PIO_PC18, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
 
 #ifdef REVB
-	configure_pins( PIO_PC15, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
-#endif
-
-#ifdef REVB
 	configure_pins( PIO_PC22, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
 #endif
 
@@ -178,16 +174,6 @@ void init_pwm()
 	pwmptr->PWM_CH_NUM[0].PWM_CDTY = 40 ;				// Duty
 	pwmptr->PWM_CH_NUM[0].PWM_CDTYUPD = 40 ;		// Duty
 	pwmptr->PWM_ENA = PWM_ENA_CHID0 ;						// Enable channel 0
-
-#ifdef REVB
-	// PWM1 for PPM2 output 100Hz test
-	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000C ;	// CLKB
-	pwmptr->PWM_CH_NUM[1].PWM_CPDR = 100 ;			// Period
-	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = 100 ;		// Period
-	pwmptr->PWM_CH_NUM[1].PWM_CDTY = 40 ;				// Duty
-	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = 40 ;		// Duty
-	pwmptr->PWM_ENA = PWM_ENA_CHID1 ;						// Enable channel 1
-#endif
 
 #ifdef REVB
 	// PWM2 for HAPTIC drive 100Hz test

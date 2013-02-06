@@ -66,6 +66,9 @@ extern bool warble;*/
 
 #define min(x,y) ((x<y)?x:y)
 
+
+extern uint8_t CurrentPhase ;
+
 // Menus related stuff ...
 struct MState2
 {

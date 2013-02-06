@@ -50,9 +50,11 @@
 
 extern void init_main_ppm( uint32_t period, uint32_t out_enable ) ;
 extern void disable_main_ppm( void ) ;
+extern void disable_ppm2( void ) ;
 extern void perOut( int16_t *chanOut, uint8_t att ) ;
 extern void setupPulses( void ) ;
 extern void setupPulsesPPM( void ) ;
+extern void setupPulsesPPM2( void ) ;
 extern void setupPulsesDsm2(uint8_t chns) ;
 extern void setupPulsesPXX( void ) ;
 

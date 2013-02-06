@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 06-Feb-2013  MPB
+Add PPM2 output
+Add Flight Phases
+
+******************************************
 CHANGELOG: 30-Jan-2013  MPB
 Fix obscure bug in move model
 

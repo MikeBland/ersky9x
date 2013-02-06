@@ -71,7 +71,9 @@ uint8_t Current_protocol ;
 uint8_t pxxFlag = 0 ;
 
 uint16_t Pulses[18] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0,0,0,0,0,0, 0 } ;
+uint16_t Pulses2[18] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0,0,0,0,0,0, 0 } ;
 volatile uint32_t Pulses_index = 0 ;		// Modified in interrupt routine
+volatile uint32_t Pulses2_index = 0 ;		// Modified in interrupt routine
 
 // DSM2 control bits
 #define BindBit 0x80
@@ -110,8 +112,29 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = g_model.ppmDelay*100+600 ;		// Duty in half uS
 	pwmptr->PWM_ENA = PWM_ENA_CHID3 ;						// Enable channel 3
 
-	NVIC_EnableIRQ(PWM_IRQn) ;
 	pwmptr->PWM_IER1 = PWM_IER1_CHID3 ;
+
+
+#ifdef REVB
+	configure_pins( PIO_PC15, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_NO_PULLUP ) ;
+#endif
+
+#ifdef REVB
+	// PWM1 for PPM2
+	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000B ;	// CLKB
+	if (g_model.pulsePol)
+	{
+		pwmptr->PWM_CH_NUM[1].PWM_CMR |= 0x00000200 ;	// CPOL
+	}
+	pwmptr->PWM_CH_NUM[1].PWM_CPDR = period ;			// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = period ;		// Period
+	pwmptr->PWM_CH_NUM[1].PWM_CDTY = g_model.ppmDelay*100+600 ;				// Duty
+	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = g_model.ppmDelay*100+600 ;		// Duty
+	pwmptr->PWM_ENA = PWM_ENA_CHID1 ;						// Enable channel 1
+#endif
+
+	pwmptr->PWM_IER1 = PWM_IER1_CHID1 ;
+	NVIC_EnableIRQ(PWM_IRQn) ;
 
 }
 
@@ -123,8 +146,19 @@ void disable_main_ppm()
 	pioptr->PIO_PER = PIO_PA17 ;						// Assign A17 to PIO
 
 	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
-	NVIC_DisableIRQ(PWM_IRQn) ;
+//	NVIC_DisableIRQ(PWM_IRQn) ;
 	
+}
+
+void disable_ppm2()
+{
+	register Pio *pioptr ;
+	
+	pioptr = PIOC ;
+	pioptr->PIO_PER = PIO_PC17 ;						// Assign A17 to PIO
+
+	PWM->PWM_IDR1 = PWM_IDR1_CHID1 ;
+	NVIC_DisableIRQ(PWM_IRQn) ;
 }
 
 
@@ -134,9 +168,11 @@ extern "C" void PWM_IRQHandler (void)
 	register Pwm *pwmptr ;
 	register Ssc *sscptr ;
 	uint32_t period ;
-	
+	uint32_t reason ;
+
 	pwmptr = PWM ;
-	if ( pwmptr->PWM_ISR1 & PWM_ISR1_CHID3 )
+	reason = pwmptr->PWM_ISR1 ;
+	if ( reason & PWM_ISR1_CHID3 )
 	{
 		switch ( Current_protocol )		// Use the current, don't switch until set_up_pulses
 		{
@@ -202,6 +238,15 @@ extern "C" void PWM_IRQHandler (void)
 					sscptr->SSC_PTCR = SSC_PTCR_TXTEN ;	// Start transfers
 				}
 			break ;
+		}
+	}
+	if ( reason & PWM_ISR1_CHID1 )
+	{
+		pwmptr->PWM_CH_NUM[1].PWM_CPDRUPD = Pulses2[Pulses2_index++] ;	// Period in half uS
+		if ( Pulses2[Pulses2_index] == 0 )
+		{
+			Pulses2_index = 0 ;
+			setupPulsesPPM2() ;
 		}
 	}
 }
@@ -403,6 +448,51 @@ void setupPulsesPPM()			// Don't enable interrupts through here
 }
 
 
+void setupPulsesPPM2()
+{
+	register Pwm *pwmptr ;
+	
+	pwmptr = PWM ;
+	// Now set up pulses
+	int16_t PPM_range = g_model.extendedLimits ? 640*2 : 512*2;   //range of 0.7..1.7msec
+
+  //Total frame length = 22.5msec
+  //each pulse is 0.7..1.7ms long with a 0.3ms stop tail
+  //The pulse ISR is 2mhz that's why everything is multiplied by 2
+  uint16_t *ptr ;
+  ptr = Pulses2 ;
+  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
+    
+	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
+	
+	if (g_model.pulsePol)
+	{
+		pwmptr->PWM_CH_NUM[1].PWM_CMR &= ~0x00000200 ;	// CPOL
+	}
+	else
+	{
+		pwmptr->PWM_CH_NUM[1].PWM_CMR |= 0x00000200 ;	// CPOL
+	}
+    
+	uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
+  rest += (int16_t(g_model.ppmFrameLength))*1000;
+  //    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
+  for( uint32_t i = p ; i < p+8 ; i += 1 )
+	{ //NUM_SKYCHNOUT
+  	int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
+   	rest-=(v);
+	//        *ptr++ = q;      //moved down two lines
+    	    //        pulses2MHz[j++] = q;
+    *ptr++ = v ; /* as Pat MacKenzie suggests */
+    	    //        pulses2MHz[j++] = v - q + 600; /* as Pat MacKenzie suggests */
+	//        *ptr++ = q;      //to here
+ 	}
+	//    *ptr=q;       //reverse these two assignments
+	//    *(ptr+1)=rest;
+ 	*ptr = rest;
+ 	*(ptr+1) = 0;
+	
+}
 
 
 

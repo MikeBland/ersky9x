@@ -306,6 +306,8 @@ PACK(typedef struct t_ModelData {
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
 	uint8_t customDisplayIndex[6] ;
+	uint8_t startChannel ;		// for main output 0 = ch1
+	int8_t startPPM2channel ;	// for PPM2 output 0 = ch9
 }) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))

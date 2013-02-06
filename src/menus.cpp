@@ -42,6 +42,8 @@
 extern int32_t Rotary_diff ;
 extern int16_t AltOffset ;
 
+static uint8_t s_currIdx;
+
 struct t_timer s_timer[2] ;
 
 uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
@@ -659,9 +661,7 @@ enum EnumTabModel {
 #ifndef NO_HELI
     e_Heli,
 #endif
-#ifdef PHASES
 		e_Phases,
-#endif
     e_ExpoAll,
     e_Mix,
     e_Limits,
@@ -686,9 +686,7 @@ MenuFuncP menuTabModel[] = {
     #ifndef NO_HELI
     menuProcHeli,
     #endif
-#ifdef PHASES
-		menuProcPhases,
-#endif
+		menuModelPhases,
     menuProcExpoAll,
     menuProcMix,
     menuProcLimits,
@@ -3098,12 +3096,12 @@ if(s_pgOfs<subN) {
 			uint8_t x ;
 			if( g_model.protocol == PROTO_PPM )
 			{
-        lcd_putsAtt(    17*FW,    y, PSTR("uSec"),0);
+        lcd_putsAtt(    17*FW+2,    y, PSTR("uSec"),0);
 				x = 10*FW ;
 			}
 			else
 			{
-        lcd_putsAtt(    19*FW,    y, PSTR("uS"),0);
+        lcd_putsAtt(    19*FW+2,    y, PSTR("uS"),0);
 				x = 12*FW ;
 			}
       lcd_putsAttIdx(  x, y, PSTR("\0044CH 6CH 8CH 10CH12CH14CH16CH"),(g_model.ppmNCH+2),(sub==subN && subSub==1  ? (s_editMode ? BLINK : INVERS):0));
@@ -3145,7 +3143,7 @@ if(s_pgOfs<subN) {
 if(s_pgOfs<subN) {
     if(g_model.protocol == PROTO_PPM || g_model.protocol == PROTO_PPM16)
     {
-        lcd_puts_Pleft(    y, PSTR("PPM FrLen    mSec"));
+        lcd_puts_Pleft(    y, PSTR("PPM FrLen\016mSec"));
         lcd_outdezAtt(  13*FW, y, (int16_t)g_model.ppmFrameLength*5 + 225 ,(sub==subN ? INVERS:0) | PREC1);
         if(sub==subN) CHECK_INCDEC_H_MODELVAR(event,g_model.ppmFrameLength,-20,20);
     }
@@ -3212,30 +3210,84 @@ if(s_pgOfs<subN) {
 }subN++;
 }
 
-#ifdef PHASES
-
-int16_t getRawTrimValue(uint8_t phase, uint8_t idx)
-{
-	return g_model.phaseData[phase].trim[idx] ;
-}
 
 void putsTrimMode( uint8_t x, uint8_t y, uint8_t phase, uint8_t idx, uint8_t att )
 {
   int16_t v = getRawTrimValue(phase, idx);
 
-//  if (v > TRIM_EXTENDED_MAX)
-  if (v > 500)
+  if (v > TRIM_EXTENDED_MAX)
 	{
-//    uint8_t p = v - TRIM_EXTENDED_MAX - 1;
-    uint8_t p = v - 500 - 1;
+    uint8_t p = v - TRIM_EXTENDED_MAX - 1;
     if (p >= phase) p += 1 ;
     lcd_putcAtt(x, y, '0'+p, att);
   }
   else
 	{
-  	lcd_putsAttIdx( x, y, "RETA", idx-1, att ) ;
+  	lcd_putsAttIdx( x, y, "\001RETA", idx, att ) ;
   }
 }
+
+
+void menuPhaseOne(uint8_t event)
+{
+  PhaseData *phase = &g_model.phaseData[s_currIdx] ;
+  SUBMENU( "FL PHASE", 2, { 0, 3 /*, 0*/} ) ;
+  lcd_putc( 8*FW, 0, '1'+s_currIdx ) ;
+
+  int8_t sub = mstate2.m_posVert;
+  int8_t editMode = s_editMode;
+
+  for (uint8_t i = 0 ; i < 2 ; i += 1 )
+	{
+    uint8_t y = (i+1) * FH;
+		uint8_t attr = (sub==i ? (editMode>0 ? BLINK : INVERS) : 0);
+    
+		switch(i)
+		{
+      case 0 : // switch
+				lcd_puts_Pleft( y, "Switch" ) ;
+       	putsDrSwitches( 8*FW, y, phase->swtch ,attr ) ;
+	  			if( attr ) CHECK_INCDEC_H_MODELVAR( event, phase->swtch, -MAX_DRSWITCH, MAX_DRSWITCH ) ;
+			break;
+
+      case 1 : // trims
+				lcd_puts_Pleft( y, "Trims" ) ;
+        for ( uint8_t t = 0 ; t<NUM_STICKS ; t += 1 )
+				{
+          putsTrimMode( (8+t)*FW, y, s_currIdx+1, t, (mstate2.m_posHorz==t) ? attr : 0 ) ;
+          if (attr && mstate2.m_posHorz==t && ((editMode>0) || p1valdiff))
+					{
+            int16_t v = phase->trim[t] ;
+            if (v < TRIM_EXTENDED_MAX)
+						{
+							v = TRIM_EXTENDED_MAX;
+						}
+            v = checkIncDec16( event, v, TRIM_EXTENDED_MAX, TRIM_EXTENDED_MAX+MAX_PHASES, EE_MODEL ) ;
+            if (checkIncDec_Ret)
+						{
+              if (v == TRIM_EXTENDED_MAX) v = 0 ;
+  						phase->trim[t] = v ;
+            }
+          }
+        }
+      break;
+	  }
+//		{
+//			int16_t v ;
+//			v = getTrimValue( s_currIdx + 1, 0 ) ;
+//	    lcd_outdez( 5*FW, 6*FH, v ) ;
+//			v = getTrimValue( s_currIdx + 1, 1 ) ;
+//	    lcd_outdez( 10*FW, 6*FH, v ) ;
+//			v = getTrimValue( s_currIdx + 1, 2 ) ;
+//	    lcd_outdez( 15*FW, 6*FH, v ) ;
+//			v = getTrimValue( s_currIdx + 1, 3 ) ;
+//	    lcd_outdez( 20*FW, 6*FH, v ) ;
+//		}
+	}
+}
+
+
+
 
 
 void menuModelPhases(uint8_t event)
@@ -3243,28 +3295,42 @@ void menuModelPhases(uint8_t event)
 	uint32_t i ;
   uint8_t attr ;
   
-	MENU("PHASES", menuTabModel, e_Phases, 6, {0 /*repeated*/});
+	SIMPLE_MENU("PHASES", menuTabModel, e_Phases, 7 ) ;
 	
-	int8_t  sub    = mstate2.m_posVert ;
-	evalOffset(sub, 6) ;
+	uint8_t  sub    = mstate2.m_posVert ;
+//	evalOffset(sub, 6) ;
 
-  for ( i=0 ; i<MAX_PHASES ; i += 1 )
+  switch (event)
+	{
+    case EVT_KEY_FIRST(KEY_RIGHT) :
+			if ( sub > 0 && sub <= MAX_PHASES )
+			{
+        s_currIdx = sub - 1 ;
+        pushMenu(menuPhaseOne) ;
+    	}
+		break;
+  }
+    
+	lcd_puts_Pleft( FH, "FP0\017RETA" ) ;
+
+  for ( i=1 ; i<=MAX_PHASES ; i += 1 )
 	{
     uint8_t y=(i+1)*FH ;
-		PhaseData *p = &g_model.phaseData[i] ;
-    attr = i == sub ? INVERS : 0 ;
+		PhaseData *p = &g_model.phaseData[i-1] ;
+    attr = (i == sub) ? INVERS : 0 ;
     lcd_puts_Pleft( y, "FP" ) ;
-    lcd_putc( 2*FW, y, '1'+i ) ;
-    putsSwitches( 11*FW, y, p->swtch, 0 ) ;
+    lcd_putc( 2*FW, y, '0'+i ) ;
+    putsDrSwitches( 7*FW, y, p->swtch, attr ) ;
     for ( uint8_t t = 0 ; t < NUM_STICKS ; t += 1 )
 		{
-			putsTrimMode( (15+t)*FW, y, i, t, 0 ) ;
+			putsTrimMode( (15+t)*FW, y, i, t, attr ) ;
 		}
 		 
 	}	 
 }
 
-#endif
+
+
 
 
 #ifndef NO_HELI
@@ -5203,7 +5269,7 @@ void menuProc0(uint8_t event)
   	  static uint8_t vert[4] = {0,1,1,0};
   	  register uint8_t xm, ym ;
   	  xm=x[i] ;
-  	  register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(*TrimPtr[i]/4)));
+  	  register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(getTrimValue( CurrentPhase, i )/4)));
   	  if(vert[i])
 			{
   	    ym=31;
@@ -5591,6 +5657,7 @@ uint8_t  bpanaCenter = 0;
 int16_t  sDelay[MAX_SKYMIXERS] = {0};
 int32_t  act   [MAX_SKYMIXERS] = {0};
 uint8_t  swOn  [MAX_SKYMIXERS] = {0};
+uint8_t	CurrentPhase = 0 ;
 
 void perOut(int16_t *chanOut, uint8_t att)
 {
@@ -5623,6 +5690,9 @@ void perOut(int16_t *chanOut, uint8_t att)
         }
       }
     }
+  	
+		CurrentPhase = getFlightPhase() ;
+
     {
         uint8_t ele_stick, ail_stick ;
         ele_stick = ELE_STICK ;
@@ -5707,7 +5777,7 @@ void perOut(int16_t *chanOut, uint8_t att)
 		            if(IS_THROTTLE(i) && g_model.thrTrim)
 								{
 									int8_t ttrim ;
-									ttrim = *TrimPtr[i] ;
+									ttrim = getTrimValue( CurrentPhase, i ) ;
 									if(g_eeGeneral.throttleReversed)
 									{
 										ttrim = -ttrim ;
@@ -5717,7 +5787,7 @@ void perOut(int16_t *chanOut, uint8_t att)
 //                if(IS_THROTTLE(i) && g_model.thrTrim) vv = ((int32_t)*TrimPtr[i]+125)*(RESX-v)/(2*RESX);
 
                 //trim
-                trimA[i] = (vv==2*RESX) ? *TrimPtr[i]*2 : (int16_t)vv*2; //    if throttle trim -> trim low end
+                trimA[i] = (vv==2*RESX) ? getTrimValue( CurrentPhase, i )*2 : (int16_t)vv*2; //    if throttle trim -> trim low end
             }
             anas[i] = v; //set values for mixer
         }
