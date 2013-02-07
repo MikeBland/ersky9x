@@ -122,19 +122,60 @@ uint8_t FrskyVolts[12];
 uint8_t FrskyBattCells=0;
 uint16_t Frsky_Amp_hour_prescale ;
 
+#if defined(VARIO)
+stuct t_vario VarioData ;
+#endif
+
+void evalVario(int16_t altitude_bp, uint16_t altitude_ap)
+{
+#if defined(VARIO)
+	stuct t_vario *vptr ;
+	vptr = VarioData ;
+
+  int32_t vptr->VarioAltitude_cm = (int32_t)altitude_bp * 100 + (altitude_bp > 0 ? altitude_ap : -altitude_ap) ;
+  uint8_t varioAltitudeQueuePointer = vptr->VarioAltitudeQueuePointer + 1 ;
+  if (varioAltitudeQueuePointer >= VARIO_QUEUE_LENGTH)
+	{
+    varioAltitudeQueuePointer = 0 ;
+	}
+  vptr->VarioAltitudeQueuePointer = varioAltitudeQueuePointer ;
+  vptr->VarioSpeed -= vptr->VarioAltitudeQueue[varioAltitudeQueuePointer] ;
+  vptr->VarioAltitudeQueue[varioAltitudeQueuePointer] = varioAltitude_cm - vptr->VarioAltitude_cm;
+  vptr->VarioAltitude_cm = varioAltitude_cm;
+  vptr->VarioSpeed += vptr->VarioAltitudeQueue[varioAltitudeQueuePointer] ;
+#endif
+}
+
+
 void store_hub_data( uint8_t index, uint16_t value )
 {
 	if ( index < HUBDATALENGTH )
 	{
-		FrskyHubData[index] = value ;
-		if ( g_model.FrSkyGpsAlt )
+    if ( !g_model.FrSkyGpsAlt )         
+    {
+			FrskyHubData[index] = value ;
+    }                     
+		else
 		{
-			if ( index == FR_GPS_ALT )
+      if ( index != FR_ALT_BARO )
 			{
-				FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] ;		// Copy Gps Alt instead
-				index = FR_ALT_BARO ;			// For max and min
+			  FrskyHubData[index] = value ;           /* ReSt */
 			}
+      if ( index == FR_GPS_ALT )
+      {
+         FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] ;      // Copy Gps Alt instead
+         index = FR_ALT_BARO ;         // For max and min
+      }
 		}
+		
+#if defined(VARIO)
+		if ( index == FR_ALT_BARO )
+		{
+			evalVario( value, 0 ) ;
+		}
+#endif
+
+
 		if ( index < HUBMINMAXLEN )
 		{
 			if ( FrskyHubMax[index] < FrskyHubData[index] )
@@ -240,7 +281,13 @@ void frsky_proc_user_byte( uint8_t byte )
 		}
 		else
 		{
-			FrskyHubData[FR_ALT_BARO] = ( byte << 8 ) + Frsky_user_lobyte ;  // Store altitude info
+			int16_t value ;
+			value = ( byte << 8 ) + Frsky_user_lobyte ;
+			store_hub_data( FR_ALT_BARO, value ) ;	 // Store altitude info
+#if defined(VARIO)
+			evalVario( value, 0 ) ;
+#endif
+
 		}				
 	}
 }

@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 07-Feb-2013  MPB
+Allow protocol channel choice
+
+******************************************
 CHANGELOG: 06-Feb-2013  MPB
 Add PPM2 output
 Add Flight Phases

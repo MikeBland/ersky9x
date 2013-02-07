@@ -306,8 +306,6 @@ PACK(typedef struct t_ModelData {
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
 	uint8_t customDisplayIndex[6] ;
-	uint8_t startChannel ;		// for main output 0 = ch1
-	int8_t startPPM2channel ;	// for PPM2 output 0 = ch9
 }) ModelData;
 
 #define TOTAL_EEPROM_USAGE (sizeof(ModelData)*MAX_MODELS + sizeof(EEGeneral))
@@ -473,11 +471,14 @@ PACK(typedef struct te_ModelData {
 	TimerMode timer[2] ;
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
-	uint8_t customDisplayIndex[6] ;
+	uint8_t		customDisplayIndex[6] ;
   FuncSwData   funcSw[NUM_FSW];
 	PhaseData phaseData[MAX_PHASES] ;
-	GvarData gvars[MAX_GVARS] ;
+	GvarData	gvars[MAX_GVARS] ;
 	uint8_t   numBlades ;					// RPM scaling
+	uint8_t		startChannel ;			// for main output 0 = ch1
+	uint8_t		startPPM2channel ;	// for PPM2 output 0 follow
+  int8_t		ppm2NCH ;
 }) SKYModelData;
 
 

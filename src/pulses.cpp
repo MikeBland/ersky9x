@@ -414,7 +414,7 @@ void setupPulsesPPM()			// Don't enable interrupts through here
   //The pulse ISR is 2mhz that's why everything is multiplied by 2
   uint16_t *ptr ;
   ptr = Pulses ;
-  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
+  uint32_t p=8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
     
 	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	
@@ -430,7 +430,7 @@ void setupPulsesPPM()			// Don't enable interrupts through here
 	uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
   rest += (int16_t(g_model.ppmFrameLength))*1000;
   //    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
-  for(uint32_t i=0;i<p;i++)
+  for(uint32_t i=g_model.startChannel;i<p;i++)
 	{ //NUM_SKYCHNOUT
   	int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
    	rest-=(v);
@@ -461,8 +461,19 @@ void setupPulsesPPM2()
   //The pulse ISR is 2mhz that's why everything is multiplied by 2
   uint16_t *ptr ;
   ptr = Pulses2 ;
-  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
-    
+  
+	uint32_t p = g_model.startPPM2channel ;
+
+	if ( p == 0 )
+	{
+  	p = 8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+	}
+	else
+	{
+		p -= 1 ;
+	}
+	uint32_t q = 8+g_model.ppm2NCH*2 + p ;
+
 	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	
 	if (g_model.pulsePol)
@@ -477,7 +488,7 @@ void setupPulsesPPM2()
 	uint16_t rest=22500u*2; //Minimum Framelen=22.5 ms
   rest += (int16_t(g_model.ppmFrameLength))*1000;
   //    if(p>9) rest=p*(1720u*2 + q) + 4000u*2; //for more than 9 channels, frame must be longer
-  for( uint32_t i = p ; i < p+8 ; i += 1 )
+  for( uint32_t i = p ; i < q ; i += 1 )
 	{ //NUM_SKYCHNOUT
   	int16_t v = max( (int)min(g_chans512[i],PPM_range),-PPM_range) + PPM_CENTER;
    	rest-=(v);

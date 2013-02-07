@@ -31,6 +31,7 @@
 #include "drivers.h"
 #include "logicio.h"
 #include "file.h"
+#include "en.h"
 #include "templates.h"
 #ifdef FRSKY
 #include "frsky.h"
@@ -38,6 +39,7 @@
 #ifndef SIMU
 #include "CoOS.h"
 #endif
+
 
 extern int32_t Rotary_diff ;
 extern int16_t AltOffset ;
@@ -48,13 +50,15 @@ struct t_timer s_timer[2] ;
 
 uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
 
-const char Str_ALTeq[] =  "Alt=" ;
-const char Str_TXeq[] =  "Tx=" ;
-const char Str_RXeq[] =  "Rx=" ;
-const char Str_TRE012AG[] =  "TRE012AG" ;
-const char Str_YelOrgRed[] = "\003---YelOrgRed" ;
-const char Str_A_eq[] =  "A =" ;
-const char Str_Sounds[] = "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3" ;
+const char Str_ALTeq[] =  STR_ALTEQ ;
+const char Str_TXeq[] =  STR_TXEQ ;
+const char Str_RXeq[] =  STR_RXEQ ;
+const char Str_TRE012AG[] =  STR_TRE012AG ;
+const char Str_YelOrgRed[] = STR_YELORGRED ;
+const char Str_A_eq[] =  STR_A_EQ ;
+const char Str_Sounds[] = STR_SOUNDS ;
+
+const char Str_PpmChannels[] = STR_PPMCHANNELS ;
 
 #define BATTERY		-3
 #define TIMER1		-2
@@ -1492,7 +1496,7 @@ void menuProcTelemetry2(uint8_t event)
 		}
 
 		value = g_model.frskyAlarms.alarmData[0].frskyAlarmLimit << 6 ;
-		lcd_puts_Pleft(3*FH, PSTR("mAh Alarm"));
+		lcd_puts_Pleft(3*FH, PSTR(STR_MAH_ALARM));
   	uint8_t attr = ((sub==subN && subSub==0) ? (s_editMode ? BLINK : INVERS) : 0);
 		uint8_t active = (attr && s_editMode) ;
   	lcd_outdezAtt( 14*FW, 3*FH, value, attr ) ;
@@ -2919,7 +2923,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 22, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 25, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
@@ -3104,7 +3108,7 @@ if(s_pgOfs<subN) {
         lcd_putsAtt(    19*FW+2,    y, PSTR("uS"),0);
 				x = 12*FW ;
 			}
-      lcd_putsAttIdx(  x, y, PSTR("\0044CH 6CH 8CH 10CH12CH14CH16CH"),(g_model.ppmNCH+2),(sub==subN && subSub==1  ? (s_editMode ? BLINK : INVERS):0));
+      lcd_putsAttIdx(  x, y, Str_PpmChannels,(g_model.ppmNCH+2),(sub==subN && subSub==1  ? (s_editMode ? BLINK : INVERS):0));
       lcd_outdezAtt(  x+7*FW, y,  (g_model.ppmDelay*50)+300, (sub==subN && subSub==2 ? (s_editMode ? BLINK : INVERS):0));
     }
     if (g_model.protocol == PROTO_PXX)
@@ -3139,6 +3143,14 @@ if(s_pgOfs<subN) {
     }
     if((y+=FH)>7*FH) return;
 }subN++;
+
+if(s_pgOfs<subN)
+{
+  lcd_puts_Pleft( y, PSTR("Start Chan."));
+	lcd_outdezAtt(  13*FW, y, g_model.startChannel + 1, (sub==subN) ? INVERS : 0 ) ;
+  if(sub==subN) CHECK_INCDEC_H_MODELVAR( event, g_model.startChannel, 0, 16 ) ;
+  if((y+=FH)>7*FH) return ;
+} subN += 1 ;
 
 if(s_pgOfs<subN) {
     if(g_model.protocol == PROTO_PPM || g_model.protocol == PROTO_PPM16)
@@ -3177,6 +3189,31 @@ if(s_pgOfs<subN) {
     if(sub==subN) CHECK_INCDEC_H_MODELVAR(event,g_model.pulsePol,0,1);
     if((y+=FH)>7*FH) return;
 }subN++;
+
+if(s_pgOfs<subN)
+{
+  lcd_puts_Pleft( y, PSTR("PPM2 StartChan"));
+	if ( g_model.startPPM2channel == 0 )
+	{
+		lcd_putsAtt( 15*FW, y, "Follow", (sub==subN) ? INVERS : 0 ) ;
+	}
+	else
+	{
+		lcd_outdezAtt(  17*FW, y, g_model.startPPM2channel, (sub==subN) ? INVERS : 0 ) ;
+	}
+  if(sub==subN) CHECK_INCDEC_H_MODELVAR( event, g_model.startPPM2channel, 0, 17 ) ;
+  if((y+=FH)>7*FH) return ;
+} subN += 1 ;
+
+
+if(s_pgOfs<subN)
+{
+	lcd_puts_Pleft( y, PSTR("PPM2 Channels"));
+	lcd_putsAttIdx( 15*FW , y, Str_PpmChannels,(g_model.ppm2NCH+2), (sub==subN) ? INVERS : 0 ) ;
+  if(sub==subN)	CHECK_INCDEC_H_MODELVAR( event, g_model.ppm2NCH, -2, 4 ) ;
+  if((y+=FH)>7*FH) return ;
+} subN += 1 ;
+
 
 if(s_pgOfs<subN) {
     uint8_t b ;
