@@ -12,6 +12,7 @@ description here
 ******************************************
 CHANGELOG: 07-Feb-2013  MPB
 Allow protocol channel choice
+r158 - start channel on DSM and PXX
 
 ******************************************
 CHANGELOG: 06-Feb-2013  MPB

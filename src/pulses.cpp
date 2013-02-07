@@ -321,7 +321,7 @@ void setupPulsesDsm2(uint8_t chns)
   dsmDat[1]=g_eeGeneral.currModel+1;  //DSM2 Header second byte for model match
   for(uint8_t i=0; i<chns; i++)
   {
-		uint16_t pulse = limit(0, ((g_chans512[i]*13)>>5)+512,1023);
+		uint16_t pulse = limit(0, ((g_chans512[g_model.startChannel+i]*13)>>5)+512,1023);
     dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
     dsmDat[3+2*i] = pulse & 0xff;
   }
@@ -638,7 +638,7 @@ void setupPulsesPXX()
     putPcmByte( pxxFlag ) ;     // First byte of flags
     putPcmByte( 0 ) ;     // Second byte of flags
     pxxFlag = 0;          // reset flag after send
-    for ( i = 0 ; i < 8 ; i += 2 )		// First 8 channels only
+		for ( i = g_model.startChannel ; i < g_model.startChannel+8 ; i += 2 )		// First 8 channels only
     {																	// Next 8 channels would have 2048 added
         chan = g_chans512[i] *3 / 4 + 2250 ;
         chan_1 = g_chans512[i+1] *3 / 4 + 2250 ;
