@@ -955,18 +955,18 @@ void main_loop(void* pdata)
 	
 void actionUsb()
 {
+#if !defined(SIMU)
 	lcd_clear() ;
 	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
 	lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
 	lcd_putcAtt( 72, 24, 'B', DBLSIZE ) ;
 	refreshDisplay() ;
 
-#ifndef SIMU
 	// This might be replaced by a software reset
 	// Any interrupts that have been enabled must be disabled here
 	// BEFORE calling sam_boot()
 	SysTick->CTRL = 0 ;				// Turn off systick
-#endif
+
 	stop_rotary_encoder() ;
 	endPdcUsartReceive() ;		// Terminate any serial reception
 	end_bt_tx_interrupt() ;
@@ -986,12 +986,14 @@ void actionUsb()
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
 	disable_main_ppm() ;
 	disable_ppm2() ;
+
 //	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
 //	NVIC_DisableIRQ(PWM_IRQn) ;
 	disable_ssc() ;
 	UART_Stop() ;
 	Bt_UART_Stop() ;
 	sam_boot() ;
+#endif
 }
 
 static inline uint16_t getTmr2MHz()
