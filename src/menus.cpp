@@ -1448,7 +1448,7 @@ extern uint8_t frskyRSSItype[2] ;
 
 void menuProcTelemetry2(uint8_t event)
 {
-  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 15, {0, 1, 1, 1, 0});
+  MENU("TELEMETRY2", menuTabModel, e_Telemetry2, 16, {0, 1, 1, 1, 0});
 
 	uint8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
@@ -1564,6 +1564,11 @@ void menuProcTelemetry2(uint8_t event)
   	lcd_puts_Pleft( FH, PSTR("BT Telemetry") );
   	menu_lcd_onoff( PARAM_OFS, FH, g_model.bt_telemetry, sub==subN ) ;
   	if(sub==subN) CHECK_INCDEC_H_MODELVAR(event, g_model.bt_telemetry, 0, 1);
+		subN += 1 ;
+  	lcd_puts_Pleft( 2*FH, PSTR("FrSky Com Port") );
+    uint8_t attr = (sub == subN) ? INVERS : 0 ;
+  	lcd_putcAtt( 16*FW, 2*FH, g_model.frskyComPort + '1', attr ) ;
+		if (attr) CHECK_INCDEC_H_MODELVAR( event, g_model.frskyComPort, 0, 1 ) ;
 	}
 }
 
@@ -5431,11 +5436,14 @@ void menuProc0(uint8_t event)
                 	lcd_outdezAtt(5 * FW, 1*FH, x0, LEFT) ;
 								}
                 lcd_puts_Pleft( 6*FH, Str_RXeq);
-                lcd_outdezAtt(3 * FW - 2, 5*FH, frskyTelemetry[2].value, DBLSIZE|LEFT);
+                lcd_puts_P(11 * FW - 2, 6*FH, Str_TXeq );
+                if (frskyStreaming)
+								{
+                	lcd_outdezAtt(3 * FW - 2, 5*FH, frskyTelemetry[2].value, DBLSIZE|LEFT);
+								}
                 lcd_outdezAtt(4 * FW, 7*FH, frskyTelemetry[2].min, 0);
                 lcd_outdezAtt(6 * FW, 7*FH, frskyTelemetry[2].max, LEFT);
-                lcd_puts_P(11 * FW - 2, 6*FH, Str_TXeq );
-                lcd_outdezAtt(14 * FW - 4, 5*FH, frskyTelemetry[3].value, DBLSIZE|LEFT);
+                lcd_outdezAtt(14 * FW - 4, 5*FH, FrskyHubData[FR_TXRSI_COPY], DBLSIZE|LEFT);
                 lcd_outdezAtt(15 * FW - 2, 7*FH, frskyTelemetry[3].min, 0);
                 lcd_outdezAtt(17 * FW - 2, 7*FH, frskyTelemetry[3].max, LEFT);
             }
@@ -5484,9 +5492,9 @@ void menuProc0(uint8_t event)
                     putsTelemValue( 14*FW-2, 5*FH, frskyTelemetry[1].value, 1,  blink|DBLSIZE|LEFT, 1 ) ;
                 }
                 lcd_puts_Pleft( 7*FH, Str_RXeq );
-                lcd_outdezAtt(3 * FW, 7*FH, frskyTelemetry[2].value, LEFT);
+                lcd_outdezAtt(3 * FW, 7*FH, FrskyHubData[FR_RXRSI_COPY], LEFT);
                 lcd_puts_P(8 * FW, 7*FH, Str_TXeq );
-                lcd_outdezAtt(11 * FW, 7*FH, frskyTelemetry[3].value, LEFT);
+                lcd_outdezAtt(11 * FW, 7*FH, FrskyHubData[FR_TXRSI_COPY], LEFT);
             }
             else if ( tview == 0x30 )
             {
@@ -5586,9 +5594,9 @@ void menuProc0(uint8_t event)
                 y0 = 7*FH;
                 //lcd_puts_P(2*FW-3, y0, PSTR("RSSI:"));
                 lcd_puts_P(4*FW-3, y0, Str_RXeq );
-                lcd_outdezAtt(7*FW-3, y0, frskyTelemetry[2].value, LEFT);
+                lcd_outdezAtt(7*FW-3, y0, FrskyHubData[FR_RXRSI_COPY], LEFT);
                 lcd_puts_P(13*FW-3, y0, Str_TXeq );
-                lcd_outdezAtt(16*FW-3, y0, frskyTelemetry[3].value, LEFT);
+                lcd_outdezAtt(16*FW-3, y0, FrskyHubData[FR_TXRSI_COPY], LEFT);
             }
         }
 //        else {

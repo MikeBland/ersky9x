@@ -11,6 +11,12 @@ description here
 
 ******************************************
 CHANGELOG: 07-Feb-2013  MPB
+r159 - Limit last channel to 24
+Add option for telemetry com port
+Telemetry tweaks on loss of telemetry
+
+******************************************
+CHANGELOG: 07-Feb-2013  MPB
 Allow protocol channel choice
 r158 - start channel on DSM and PXX
 

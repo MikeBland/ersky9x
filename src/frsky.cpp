@@ -699,8 +699,19 @@ void check_frsky()
 {
   // Used to detect presence of valid FrSky telemetry packets inside the
   // last FRSKY_TIMEOUT10ms 10ms intervals
-	
-	rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
+
+	if ( g_model.frskyComPort == 0 )
+	{
+		rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
+	}
+	else
+	{
+		uint16_t rxchar ;
+		while ( ( rxchar = rxuart() ) != 0xFFFF )
+		{
+			frsky_receive_byte( rxchar ) ;
+		}
+	}
 	
 	if (frskyStreaming > 0)
 	{
@@ -716,32 +727,37 @@ void check_frsky()
     FRSKY10mspoll() ;
   }
 
-	for( uint8_t i = 0 ; i < 2 ; i += 1 )
+  if (frskyStreaming)
 	{
-  	if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
-  	{
-  	  // value * ratio / 100 gives 10ths of amps
-  	  // add this every 10 ms, when over 3600, we have 1 mAh
-  	  // so subtract 3600 and add 1 to mAh total
-  	  // alternatively, add up the raw value, and use 3600 * 100 / ratio for 1mAh
+		for( uint8_t i = 0 ; i < 2 ; i += 1 )
+		{
+  		if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
+  		{
+  		  // value * ratio / 100 gives 10ths of amps
+  		  // add this every 10 ms, when over 3600, we have 1 mAh
+  		  // so subtract 3600 and add 1 to mAh total
+  		  // alternatively, add up the raw value, and use 3600 * 100 / ratio for 1mAh
 			
-			if ( (  Frsky_current[i].Amp_hour_prescale += frskyTelemetry[i].value ) >  Frsky_current[i].Amp_hour_boundary )
-			{
-				Frsky_current[i].Amp_hour_prescale -=  Frsky_current[i].Amp_hour_boundary ;
-				FrskyHubData[FR_A1_MAH+i] += 1 ;
-			}
-  	}	
+				if ( (  Frsky_current[i].Amp_hour_prescale += frskyTelemetry[i].value ) >  Frsky_current[i].Amp_hour_boundary )
+				{
+					Frsky_current[i].Amp_hour_prescale -=  Frsky_current[i].Amp_hour_boundary ;
+					FrskyHubData[FR_A1_MAH+i] += 1 ;
+				}
+  		}	
+		}
 	}
 
 	// FrSky Current sensor (in amps)
 	// add this every 10 ms, when over 360, we have 1 mAh
 	// 
-	if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
+  if (frskyUsrStreaming)
 	{
-		Frsky_Amp_hour_prescale -= 3600 ;
-		FrskyHubData[FR_AMP_MAH] += 1 ;
+		if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
+		{
+			Frsky_Amp_hour_prescale -= 3600 ;
+			FrskyHubData[FR_AMP_MAH] += 1 ;
+		}
 	}
-
 
 	// See if time for alarm checking
 //	if (--FrskyAlarmTimer == 0 )

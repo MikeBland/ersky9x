@@ -415,6 +415,10 @@ void setupPulsesPPM()			// Don't enable interrupts through here
   uint16_t *ptr ;
   ptr = Pulses ;
   uint32_t p=8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+	if ( p > NUM_SKYCHNOUT )
+	{
+		p = NUM_SKYCHNOUT ;	// Don't run off the end		
+	}
     
 	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	
@@ -473,6 +477,10 @@ void setupPulsesPPM2()
 		p -= 1 ;
 	}
 	uint32_t q = 8+g_model.ppm2NCH*2 + p ;
+	if ( q > NUM_SKYCHNOUT )
+	{
+		q = NUM_SKYCHNOUT ;	// Don't run off the end		
+	}
 
 	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	

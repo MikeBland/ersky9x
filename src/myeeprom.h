@@ -439,7 +439,8 @@ PACK(typedef struct te_ModelData {
 	uint8_t   xnumBlades:2;					// RPM scaling, now elsewhere as uint8_t
 	uint8_t   extendedTrims:1;			// Only applies to phases
   uint8_t   thrExpo:1;            // Enable Throttle Expo
-	uint8_t   spare11:3;
+	uint8_t   frskyComPort:1;
+	uint8_t   spare11:2;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;

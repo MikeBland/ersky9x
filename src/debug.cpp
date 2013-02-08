@@ -197,6 +197,12 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
+		
+		while ( g_model.frskyComPort )		// Leave the port alone!
+		{
+			CoTickDelay(50) ;					// 100mS for now
+		}
+		
 #if PCBSKY		
 		if ( SoundCheck )
 		{
