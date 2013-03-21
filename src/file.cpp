@@ -60,7 +60,7 @@ extern PROGMEM s9xsplash[] ;
 
 
 
-// Logic for storing to EERPOM/loading from EEPROM
+// Logic for storing to EEPROM/loading from EEPROM
 // If main needs to wait for the eeprom, call mainsequence without actioning menus
 // General configuration
 // 'main' set flag STORE_GENERAL
@@ -604,12 +604,16 @@ void ee32LoadModel(uint8_t id)
           uint8_t idx = char2idx(g_model.name[i]);
           g_model.name[i] = idx2char(idx);
       }
-      
+
 			g_model.version = MDSKYVERS ; //update mdvers
 
 			if ( g_model.numBlades == 0 )
 			{
 				g_model.numBlades = g_model.xnumBlades + 2 ;				
+			}
+			if ( g_model.protocol == PROTO_PPM16 )			// PPM16 ?
+			{
+				g_model.protocol = PROTO_PPM ;
 			}
 
 #ifdef FRSKY

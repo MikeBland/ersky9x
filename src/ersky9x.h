@@ -132,7 +132,7 @@ enum EnumKeys {
 };
 
 // c17-c24 added for timer mode A display
-#define CURV_STR "---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
+#define CURV_STR "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 #define CURVE_BASE 7
 
 #define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 TimeOff"
@@ -330,9 +330,9 @@ extern uint8_t Ee_lock ;
 #define PROTO_PPM        0
 #define PROTO_PXX        1
 #define PROTO_DSM2       2
-#define PROTO_PPM16			 3
-#define PROT_MAX         3
-#define PROT_STR "PPM   PXX   DSM2  PPM16 "
+#define PROT_MAX         2
+#define PROTO_PPM16			 3		// No longer needed
+#define PROT_STR "PPM   PXX   DSM2  "
 #define PROT_STR_LEN     6
 #define DSM2_STR "LP4/LP5  DSM2only DSM2/DSMX"
 #define DSM2_STR_LEN   9
@@ -376,7 +376,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const char Str_telemItems[] ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 21
+#define NUM_TELEM_ITEMS 32
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
@@ -559,8 +559,10 @@ extern uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2
 #endif
 uint8_t telemItemValid( uint8_t index ) ;
 
+extern int16_t get_telemetry_value( int8_t channel ) ;
+
 extern void putVoiceQueue( uint16_t value ) ;
-void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index ) ;
+void voice_numeric( int16_t value, uint8_t num_decimals, uint8_t units_index ) ;
 extern void voice_telem_item( int8_t index ) ;
 extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
 extern int16_t m_to_ft( int16_t metres ) ;

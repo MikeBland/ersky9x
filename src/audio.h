@@ -227,9 +227,12 @@ extern void voice_task(void* pdata) ;
 #define V_ALERT					23
 #define V_FEET					24
 #define V_FOOT					25
+#define V_MINUS					26
 
 #define	V_HELLO					28
-
+#define V_LIMIT					29
+#define V_RPM						30
+#define V_FBATTLOW			31
 #define V_POINT					35
 #define V_VOLTS					36
 #define V_VOLT					37

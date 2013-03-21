@@ -177,7 +177,6 @@ extern "C" void PWM_IRQHandler (void)
 		switch ( Current_protocol )		// Use the current, don't switch until set_up_pulses
 		{
       case PROTO_PPM:
-      case PROTO_PPM16 :
 				pwmptr->PWM_CH_NUM[3].PWM_CPDRUPD = Pulses[Pulses_index++] ;	// Period in half uS
 				if ( Pulses[Pulses_index] == 0 )
 				{
@@ -354,9 +353,6 @@ void setupPulses()
       case PROTO_DSM2:
 				disable_ssc() ;
       break;
-      case PROTO_PPM16 :
-				disable_main_ppm() ;
-      break ;
     }
 		
     Current_protocol = g_model.protocol ;
@@ -373,9 +369,6 @@ void setupPulses()
 				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
 				init_ssc() ;
       break;
-      case PROTO_PPM16 :
-				init_main_ppm( 3000, 1 ) ;		// Initial period 1.5 mS, output on
-      break ;
     }
   }
 
@@ -393,10 +386,6 @@ void setupPulses()
 //      sei() ;							// Interrupts allowed here
       setupPulsesDsm2(6); 
     break;
-  	case PROTO_PPM16 :
-      setupPulsesPPM();		// Don't enable interrupts through here
-//      // PPM16 pulses are set up automatically within the interrupts
-//    break ;
   }
 }
 
@@ -559,7 +548,7 @@ void crc( uint8_t data )
 {
     //	uint8_t i ;
 
-    PcmCrc=(PcmCrc>>8)^(CRCTable[(PcmCrc^data) & 0xFF]);
+    PcmCrc =(PcmCrc<<8) ^(CRCTable[((PcmCrc>>8)^data)&0xFF]);
 }
 
 
@@ -663,8 +652,8 @@ void setupPulsesPXX()
         putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
     }
     chan = PcmCrc ;		        // get the crc
-    putPcmByte( chan ) ; 			// Checksum lo
     putPcmByte( chan >> 8 ) ; // Checksum hi
+    putPcmByte( chan ) ; 			// Checksum lo
     putPcmHead(  ) ;      // sync byte
     putPcmFlush() ;
 }

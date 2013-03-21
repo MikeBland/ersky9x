@@ -78,13 +78,16 @@ const uint8_t Fr_indices[] =
 	FR_ACCX,
 	FR_ACCY,
 	FR_ACCZ,
-	HUBDATALENGTH-1,
+	FR_VSPD,
 	FR_CURRENT,
 	FR_V_AMP | 0x80,
 	FR_V_AMPd,
 	HUBDATALENGTH-1,
 	HUBDATALENGTH-1
 } ;
+
+uint8_t AltitudeDecimals ;
+int16_t WholeAltitude ;
 
 uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
 uint8_t frskyTxBuffer[19];   // Ditto for transmit buffer
@@ -149,6 +152,21 @@ void evalVario(int16_t altitude_bp, uint16_t altitude_ap)
 
 void store_hub_data( uint8_t index, uint16_t value )
 {
+	if ( index == FR_ALT_BARO )
+	{
+		value *= 10 ;
+		if ( AltitudeDecimals )
+		{
+			WholeAltitude = value ;
+			index = FR_TRASH ;
+		}
+	}
+	if ( index == FR_ALT_BAROd )
+	{
+		AltitudeDecimals = 1 ;
+		FrskyHubData[FR_ALT_BARO] = WholeAltitude + ( (WholeAltitude > 0) ? value : -value ) ;
+	}
+	
 	if ( index < HUBDATALENGTH )
 	{
     if ( !g_model.FrSkyGpsAlt )         
@@ -163,7 +181,7 @@ void store_hub_data( uint8_t index, uint16_t value )
 			}
       if ( index == FR_GPS_ALT )
       {
-         FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] ;      // Copy Gps Alt instead
+         FrskyHubData[FR_ALT_BARO] = FrskyHubData[FR_GPS_ALT] * 10 ;      // Copy Gps Alt instead
          index = FR_ALT_BARO ;         // For max and min
       }
 		}
@@ -209,6 +227,10 @@ void store_hub_data( uint8_t index, uint16_t value )
 
 			x = FrskyHubData[FR_RPM] ;
 			x *= 60 ;
+			if ( g_model.numBlades == 0 )
+			{
+				g_model.numBlades = 1 ;
+			}
 			FrskyHubData[FR_RPM] = x / g_model.numBlades ;
 		}
 		if ( index == FR_V_AMPd )
@@ -256,6 +278,10 @@ void frsky_proc_user_byte( uint8_t byte )
 						{
 							byte -= 17 ;		// Move voltage-amp sensors							
 						}
+						if ( byte == 48 )
+						{
+							byte = FR_VSPD ;		// Move Vario							
+						}
 					  Frsky_user_id	= Fr_indices[byte] ;
 						Frsky_user_state = 2 ;
 					}
@@ -283,7 +309,7 @@ void frsky_proc_user_byte( uint8_t byte )
 		{
 			int16_t value ;
 			value = ( byte << 8 ) + Frsky_user_lobyte ;
-			store_hub_data( FR_ALT_BARO, value ) ;	 // Store altitude info
+			store_hub_data( FR_ALT_BARO, value * 10 ) ;	 // Store altitude info
 #if defined(VARIO)
 			evalVario( value, 0 ) ;
 #endif
@@ -358,9 +384,9 @@ void processFrskyPacket(uint8_t *packet)
 			while ( j < i )
 			{
 				frsky_proc_user_byte( packet[j] ) ;
-        frskyUsrStreaming = FRSKY_TIMEOUT10ms*3; // reset counter only if valid frsky packets are being detected
 				j += 1 ;
 			}
+      frskyUsrStreaming = FRSKY_TIMEOUT10ms*3; // reset counter only if valid frsky packets are being detected
     }	
     break;
   }

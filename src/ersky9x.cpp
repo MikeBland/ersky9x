@@ -910,7 +910,7 @@ void main_loop(void* pdata)
 			}
 
   		uint16_t tgtime = get_tmr10ms() ;
-	  	while( (get_tmr10ms() - tgtime ) < 100 ) //100 - 1 second for test
+	  	while( (get_tmr10ms() - tgtime ) < 50 ) // 50 - Half second
   		{
 				if ( check_soft_power() )
 				{
@@ -1103,6 +1103,7 @@ void mainSequence( uint32_t no_menu )
           limit = 122 ;	//m
         }
 				altitude = FrskyHubData[FR_ALT_BARO] + AltOffset ;
+				altitude /= 10 ;									
 				if (g_model.FrSkyUsrProto == 0)  // Hub
 				{
       		if ( g_model.FrSkyImperial )
@@ -1358,6 +1359,10 @@ void mainSequence( uint32_t no_menu )
 					if ( x > 8 )
 					{
 						x += 1 ;
+					}
+					if ( x < -8 )
+					{
+						x -= 1 ;
 					}
 	        if (getSwitch( x, 0, 0) == 0 )
 				  {
@@ -1711,6 +1716,10 @@ void perMain( uint32_t no_menu )
 			else if ( g_model.gvars[i].gvsource <= 12 )	// Pot
 			{
 				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
+			}
+			else if ( g_model.gvars[i].gvsource <= 28 )	// Pot
+			{
+				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
 			}
 		}
 	}
@@ -2083,6 +2092,10 @@ static uint8_t checkTrim(uint8_t event)
   {
     //LH_DWN LH_UP LV_DWN LV_UP RV_DWN RV_UP RH_DWN RH_UP
     uint8_t idx = k/2;
+		if ( g_eeGeneral.crosstrim )
+		{
+			idx = 3 - idx ;			
+		}
 		uint32_t phaseNo = getTrimFlightPhase( CurrentPhase, idx ) ;
     int16_t tm = getTrimValue( phaseNo, idx ) ;
     int8_t  v = (s==0) ? (abs(tm)/4)+1 : s;
@@ -2101,7 +2114,7 @@ static uint8_t checkTrim(uint8_t event)
 		else if(x>-125 && x<125)
 		{
 			setTrimValue( phaseNo, idx, x ) ;
-      STORE_MODELVARS_TRIM;
+//      STORE_MODELVARS_TRIM;
       //if(event & _MSK_KEY_REPT) warble = true;
 			if(x <= 125 && x >= -125)
 			{
@@ -2117,7 +2130,7 @@ static uint8_t checkTrim(uint8_t event)
     else
     {
 			setTrimValue( phaseNo, idx, (x>0) ? 125 : -125 ) ;
-      STORE_MODELVARS_TRIM;
+//      STORE_MODELVARS_TRIM;
 			if(x <= 125 && x >= -125){
 				if(g_eeGeneral.speakerMode == 0){
 					audioDefevent(AU_TRIM_MOVE);
@@ -2138,7 +2151,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 	if ( att & MIX_SOURCE )
 	{
 #if GVARS
-		chanLimit += 6 ;
+		chanLimit += MAX_GVARS + 1 ;
 #else
 		chanLimit += 1 ;
 #endif
@@ -2151,7 +2164,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 //    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
   else if(idx<=chanLimit)
 #if GVARS
-    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 ")+4*(idx-5),4,att);
+    lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 ")+4*(idx-5),4,att);
 #else
     lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS")+4*(idx-5),4,att);
 #endif
@@ -2201,7 +2214,7 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 		else
 		{
   		tm -= TMR_VAROFS ;
-  		lcd_putsnAtt(  x, y, PSTR( CURV_STR ) + 21 + 3*tm, 3, attr ) ;		// Cheat to get chan# text
+  		lcd_putsnAtt(  x, y, PSTR( CURV_STR )+1 + 21 + 3*tm, 3, attr ) ;		// Cheat to get chan# text
 			if ( tm < 9 )
 			{
 				x -= FW ;		
@@ -2234,36 +2247,15 @@ const char *get_switches_string()
 
 inline int16_t getValue(uint8_t i)
 {
-	int8_t j ;
-	int16_t offset = 0 ;
-
   if(i<PPM_BASE) return calibratedStick[i];//-512..512
   else if(i<PPM_BASE+4) return (g_ppmIns[i-PPM_BASE] - g_eeGeneral.trainer.calib[i-PPM_BASE])*2;
   else if(i<CHOUT_BASE) return g_ppmIns[i-PPM_BASE]*2;
   else if(i<CHOUT_BASE+NUM_SKYCHNOUT) return ex_chans[i-CHOUT_BASE];
-#ifdef FRSKY
   else if(i<CHOUT_BASE+NUM_SKYCHNOUT+NUM_TELEM_ITEMS)
 	{
-		j = TelemIndex[i-CHOUT_BASE-NUM_SKYCHNOUT] ;
-		if ( j >= 0 )
-		{
-      if ( j == FR_ALT_BARO )
-			{
-        offset = AltOffset ;
-			}
-			return FrskyHubData[j] + offset ;
-		}
-		else if ( j == -3 )		// Battery
-		{
-			return g_vbat100mV ;
-		}
-		else
-		{
-			return s_timer[j+2].s_timerVal ;
-		}
+		return get_telemetry_value( i-CHOUT_BASE-NUM_CHNOUT ) ;
 	}
-#endif
-  else return 0;
+  return 0 ;
 }
 
 

@@ -10,6 +10,28 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Mar-2013  MPB
+Add support for FrSky new Vario (not commercially available)
+Fix MINUS for voice numbers
+Add two extra GVARS
+Allow channel outputs as GVAR sources
+Add differential mix option
+Add !curve option in mix
+Replace curve/differential on mixer summary display
+Add display of all 24 channels on main screen
+Extend custom switches display on main screen
+Add Cross Trims option
+
+******************************************
+CHANGELOG: 06-Mar-2013  MPB
+Add vertical speed
+Handle negative voice values
+Remove PPM16 - PPM2 now available
+Allow Gvars as voice sources
+Custom switches, allow ! (not) in and switch
+Ensure good volume for inactivity alarm.
+
+******************************************
 CHANGELOG: 07-Feb-2013  MPB
 r159 - Limit last channel to 24
 Add option for telemetry com port

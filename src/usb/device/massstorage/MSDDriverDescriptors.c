@@ -57,9 +57,25 @@
 /// Vendor ID for the Mass Storage device driver.
 #define MSDDriverDescriptors_VENDORID       0x03EB
 /// Product ID for the Mass Storage device driver.
+#ifdef HID
+#define HIDMSDDDriverDescriptors_PRODUCTID       0x6135
+#else
 #define MSDDriverDescriptors_PRODUCTID      0x6129
+#endif
 /// Device release number for the Mass Storage device driver.
 #define MSDDriverDescriptors_RELEASE        0x0100
+
+#ifdef HID
+/** Address of the HID interrupt IN endpoint. */
+#define HIDD_Descriptors_INTERRUPTIN                1
+/** Address of the HID interrupt OUT endpoint. */
+#define HIDD_Descriptors_INTERRUPTOUT               2
+/** Address of the Mass Storage bulk-out endpoint. */
+#define MSDD_Descriptors_BULKOUT                    4
+/** Address of the Mass Storage bulk-in endpoint. */
+#define MSDD_Descriptors_BULKIN                     5
+#endif
+
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -76,14 +92,11 @@
 //------------------------------------------------------------------------------
 /// List of configuration descriptors used by a Mass Storage device driver.
 //------------------------------------------------------------------------------
+#ifndef HID
 typedef struct {
 
     /// Standard configuration descriptor.
     USBConfigurationDescriptor configuration;
-#if defined(CHIP_USB_OTGHS)
-    // OTG descriptor
-    USBOtgDescriptor otgDescriptor;
-#endif
     /// Mass storage interface descriptor.
     USBInterfaceDescriptor interface;
     /// Bulk-out endpoint descriptor.
@@ -92,11 +105,36 @@ typedef struct {
     USBEndpointDescriptor bulkIn;
 
 } __attribute__ ((packed)) MSDConfigurationDescriptors;
+#endif
 
 //------------------------------------------------------------------------------
 //         Local variables
 //------------------------------------------------------------------------------
 
+#ifdef HID
+/** Standard USB device descriptor for the composite device driver */
+static const USBDeviceDescriptor deviceDescriptor =
+{
+
+    sizeof(USBDeviceDescriptor),
+    USBGenericDescriptor_DEVICE,
+    USBDeviceDescriptor_USB2_00,
+    0x00,
+    0x00,
+    0x00,
+    CHIP_USB_ENDPOINTS_MAXPACKETSIZE(0),
+    HIDMSDDDriverDescriptors_VENDORID,
+    HIDMSDDDriverDescriptors_PRODUCTID,
+    HIDMSDDDriverDescriptors_RELEASE,
+//    0, /* No string descriptor for manufacturer */
+//    1, /* Index of product string descriptor is #1 */
+//    0, /* No string descriptor for serial number */
+    1, // Manufacturer string descriptor index.
+    2, // Product string descriptor index.
+    3, // Serial number string descriptor index.
+    1 /* Device has 1 possible configuration */
+};
+#else
 /// Mass storage driver device descriptor.
 static const USBDeviceDescriptor deviceDescriptor = {
 
@@ -115,23 +153,110 @@ static const USBDeviceDescriptor deviceDescriptor = {
     3, // Serial number string descriptor index.
     1  // Device has one possible configuration.
 };
-
-#if defined(CHIP_USB_UDPHS) || defined(CHIP_USB_OTGHS)
-/// Device qualifier descriptor.
-static const USBDeviceQualifierDescriptor qualifierDescriptor = {
-
-    sizeof(USBDeviceQualifierDescriptor),
-    USBGenericDescriptor_DEVICEQUALIFIER,
-    USBDeviceDescriptor_USB2_00,
-    MSDeviceDescriptor_CLASS,            
-    MSDeviceDescriptor_SUBCLASS,                           
-    MSDeviceDescriptor_PROTOCOL,                           
-    CHIP_USB_ENDPOINTS_MAXPACKETSIZE(0),    
-    1, // Device has one possible configuration.
-    0x00
-};
 #endif
 
+#ifdef HID
+/** USB FS configuration descriptors for the composite device driver */
+static const HidMsdDriverConfigurationDescriptors configurationDescriptorsFS =
+{
+
+    /* Standard configuration descriptor */
+    {
+        sizeof(USBConfigurationDescriptor),
+        USBGenericDescriptor_CONFIGURATION,
+        sizeof(HidMsdDriverConfigurationDescriptors),
+        HIDMSDDriverDescriptors_NUMINTERFACE,
+        1, /* This is configuration #1 */
+        0, /* No string descriptor for this configuration */
+        BOARD_USB_BMATTRIBUTES,
+        USBConfigurationDescriptor_POWER(100)
+    },
+
+    /* Interface descriptor */
+    {
+        sizeof(USBInterfaceDescriptor),
+        USBGenericDescriptor_INTERFACE,
+        HIDMSDDriverDescriptors_HID_INTERFACE,
+        0, /* This is alternate setting #0 */
+        2, /* Two endpoints used */
+        HIDInterfaceDescriptor_CLASS,
+        HIDInterfaceDescriptor_SUBCLASS_NONE,
+        HIDInterfaceDescriptor_PROTOCOL_NONE,
+        0  /* No associated string descriptor */
+    },
+    /* HID descriptor */
+    {
+        sizeof(HIDDescriptor1),
+        HIDGenericDescriptor_HID,
+        HIDDescriptor_HID1_11,
+        0, /* Device is not localized, no country code */
+        1, /* One HID-specific descriptor (apart from this one) */
+        HIDGenericDescriptor_REPORT,
+        HIDDKeyboard_REPORTDESCRIPTORSIZE
+    },
+    /* Interrupt IN endpoint descriptor */
+    {
+        sizeof(USBEndpointDescriptor),
+        USBGenericDescriptor_ENDPOINT,
+        USBEndpointDescriptor_ADDRESS(
+            USBEndpointDescriptor_IN,
+            HIDD_Descriptors_INTERRUPTIN),
+        USBEndpointDescriptor_INTERRUPT,
+        sizeof(HIDDKeyboardInputReport),
+        HIDDKeyboardDescriptors_INTERRUPTIN_POLLING_FS
+    },
+    /* Interrupt OUT endpoint descriptor */
+    {
+        sizeof(USBEndpointDescriptor),
+        USBGenericDescriptor_ENDPOINT,
+        USBEndpointDescriptor_ADDRESS(
+            USBEndpointDescriptor_OUT,
+            HIDD_Descriptors_INTERRUPTOUT),
+        USBEndpointDescriptor_INTERRUPT,
+        sizeof(HIDDKeyboardOutputReport),
+        HIDDKeyboardDescriptors_INTERRUPTIN_POLLING_FS
+    },
+
+    /* Mass Storage interface descriptor. */
+    {
+        sizeof(USBInterfaceDescriptor),
+        USBGenericDescriptor_INTERFACE,
+        HIDMSDDriverDescriptors_MSD_INTERFACE,
+        0, /* This is alternate setting #0. */
+        2, /* Interface uses two endpoints. */
+        MSInterfaceDescriptor_CLASS,            
+        MSInterfaceDescriptor_SCSI,                 
+        MSInterfaceDescriptor_BULKONLY,            
+        0 /* No string descriptor for interface. */
+    },
+    /* Bulk-OUT endpoint descriptor */
+    {
+        sizeof(USBEndpointDescriptor), 
+        USBGenericDescriptor_ENDPOINT,
+        USBEndpointDescriptor_ADDRESS(
+            USBEndpointDescriptor_OUT,
+            MSDD_Descriptors_BULKOUT),	//MSDDriverDescriptors_BULKOUT
+        USBEndpointDescriptor_BULK,
+        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDD_Descriptors_BULKOUT),//MSDDriverDescriptors_BULKOUT
+            USBEndpointDescriptor_MAXBULKSIZE_FS),
+        0 /* No string descriptor for endpoint. */
+    },
+    /* Bulk-IN endpoint descriptor */
+    {
+        sizeof(USBEndpointDescriptor),
+        USBGenericDescriptor_ENDPOINT,
+        USBEndpointDescriptor_ADDRESS(
+            USBEndpointDescriptor_IN,
+            MSDD_Descriptors_BULKIN),	//MSDDriverDescriptors_BULKIN
+        USBEndpointDescriptor_BULK,
+        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDD_Descriptors_BULKIN),//MSDDriverDescriptors_BULKIN
+            USBEndpointDescriptor_MAXBULKSIZE_FS),
+        0 /* No string descriptor for endpoint. */
+    }
+
+};
+
+#else
 /// Full-speed configuration descriptor.
 static const MSDConfigurationDescriptors configurationDescriptorsFS = {
 
@@ -146,14 +271,6 @@ static const MSDConfigurationDescriptors configurationDescriptorsFS = {
         BOARD_USB_BMATTRIBUTES,
         USBConfigurationDescriptor_POWER(100)
     },
-#if defined(CHIP_USB_OTGHS)
-    // OTG descriptor
-    {
-        sizeof(USBOtgDescriptor),
-        USBGenericDescriptor_OTG,
-        USBOTGDescriptor_HNP_SRP
-    },
-#endif
     // Mass Storage interface descriptor.
     {
         sizeof(USBInterfaceDescriptor),
@@ -189,187 +306,6 @@ static const MSDConfigurationDescriptors configurationDescriptorsFS = {
         MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKIN),
             USBEndpointDescriptor_MAXBULKSIZE_FS),
         0 // Must be 0 for full-speed Bulk endpoints.
-    }
-};
-
-#if defined(CHIP_USB_UDPHS) || defined(CHIP_USB_OTGHS)
-/// Full-speed other speed configuration descriptor.
-static const MSDConfigurationDescriptors otherSpeedDescriptorsFS = {
-
-    // Standard configuration descriptor.
-    {
-        sizeof(USBConfigurationDescriptor),
-        USBGenericDescriptor_OTHERSPEEDCONFIGURATION,          
-        sizeof(MSDConfigurationDescriptors),
-        1, // Configuration has one interface.
-        1, // This is configuration #1.
-        0, // No string descriptor for configuration.
-        BOARD_USB_BMATTRIBUTES,
-        USBConfigurationDescriptor_POWER(100)
-    },
-#if defined(CHIP_USB_OTGHS)
-    // OTG descriptor
-    {
-        sizeof(USBOtgDescriptor),
-        USBGenericDescriptor_OTG,
-        USBOTGDescriptor_HNP_SRP
-    },
-#endif
-    // Mass Storage interface descriptor.
-    {
-        sizeof(USBInterfaceDescriptor),
-        USBGenericDescriptor_INTERFACE,
-        0, // This is interface #0.
-        0, // This is alternate setting #0.
-        2, // Interface uses two endpoints.
-        MSInterfaceDescriptor_CLASS,            
-        MSInterfaceDescriptor_SCSI,                 
-        MSInterfaceDescriptor_BULKONLY,            
-        0 // No string descriptor for interface.
-    },
-    // Bulk-OUT endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor), 
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_OUT,
-            MSDDriverDescriptors_BULKOUT),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKOUT),
-            USBEndpointDescriptor_MAXBULKSIZE_HS),
-        0 // No string descriptor for endpoint.
-    },
-    // Bulk-IN endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor),
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_IN,
-            MSDDriverDescriptors_BULKIN),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKIN),
-            USBEndpointDescriptor_MAXBULKSIZE_HS),
-        0 // No string descriptor for endpoint.
-    }
-};
-
-/// High-speed configuration descriptor.
-static const MSDConfigurationDescriptors configurationDescriptorsHS = {
-
-    // Standard configuration descriptor.
-    {
-        sizeof(USBConfigurationDescriptor),
-        USBGenericDescriptor_CONFIGURATION,          
-        sizeof(MSDConfigurationDescriptors),
-        1, // Configuration has one interface.
-        1, // This is configuration #1.
-        0, // No string descriptor for configuration.
-        BOARD_USB_BMATTRIBUTES,
-        USBConfigurationDescriptor_POWER(100)
-    },
-#if defined(CHIP_USB_OTGHS)
-    // OTG descriptor
-    {
-        sizeof(USBOtgDescriptor),
-        USBGenericDescriptor_OTG,
-        USBOTGDescriptor_HNP_SRP
-    },
-#endif
-    // Mass Storage interface descriptor.
-    {
-        sizeof(USBInterfaceDescriptor),
-        USBGenericDescriptor_INTERFACE,
-        0, // This is interface #0.
-        0, // This is alternate setting #0.
-        2, // Interface uses two endpoints.
-        MSInterfaceDescriptor_CLASS,            
-        MSInterfaceDescriptor_SCSI,                 
-        MSInterfaceDescriptor_BULKONLY,            
-        0 // No string descriptor for interface.
-    },
-    // Bulk-OUT endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor), 
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_OUT,
-            MSDDriverDescriptors_BULKOUT),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKOUT),
-            USBEndpointDescriptor_MAXBULKSIZE_HS),
-        0 // No string descriptor for endpoint.
-    },
-    // Bulk-IN endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor),
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_IN,
-            MSDDriverDescriptors_BULKIN),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKIN),
-            USBEndpointDescriptor_MAXBULKSIZE_HS),
-        0 // No string descriptor for endpoint.
-    }
-};
-
-/// High-speed other speed configuration descriptor.
-static const MSDConfigurationDescriptors otherSpeedDescriptorsHS = {
-
-    // Standard configuration descriptor.
-    {
-        sizeof(USBConfigurationDescriptor),
-        USBGenericDescriptor_OTHERSPEEDCONFIGURATION,          
-        sizeof(MSDConfigurationDescriptors),
-        1, // Configuration has one interface.
-        1, // This is configuration #1.
-        0, // No string descriptor for configuration.
-        BOARD_USB_BMATTRIBUTES,
-        USBConfigurationDescriptor_POWER(100)
-    },
-#if defined(CHIP_USB_OTGHS)
-    // OTG descriptor
-    {
-        sizeof(USBOtgDescriptor),
-        USBGenericDescriptor_OTG,
-        USBOTGDescriptor_HNP_SRP
-    },
-#endif
-    // Mass Storage interface descriptor.
-    {
-        sizeof(USBInterfaceDescriptor),
-        USBGenericDescriptor_INTERFACE,
-        0, // This is interface #0.
-        0, // This is alternate setting #0.
-        2, // Interface uses two endpoints.
-        MSInterfaceDescriptor_CLASS,            
-        MSInterfaceDescriptor_SCSI,                 
-        MSInterfaceDescriptor_BULKONLY,            
-        0 // No string descriptor for interface.
-    },
-    // Bulk-OUT endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor), 
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_OUT,
-            MSDDriverDescriptors_BULKOUT),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKOUT),
-            USBEndpointDescriptor_MAXBULKSIZE_FS),
-        0 // No string descriptor for endpoint.
-    },
-    // Bulk-IN endpoint descriptor
-    {
-        sizeof(USBEndpointDescriptor),
-        USBGenericDescriptor_ENDPOINT,
-        USBEndpointDescriptor_ADDRESS(
-            USBEndpointDescriptor_IN,
-            MSDDriverDescriptors_BULKIN),
-        USBEndpointDescriptor_BULK,
-        MIN(CHIP_USB_ENDPOINTS_MAXPACKETSIZE(MSDDriverDescriptors_BULKIN),
-            USBEndpointDescriptor_MAXBULKSIZE_FS),
-        0 // No string descriptor for endpoint.
     }
 };
 #endif
@@ -447,21 +383,12 @@ const USBDDriverDescriptors msdDriverDescriptors = {
 
     &deviceDescriptor,
     (USBConfigurationDescriptor *) &configurationDescriptorsFS,
-#if defined(CHIP_USB_UDPHS) || defined(CHIP_USB_OTGHS)
-    &qualifierDescriptor,
-    (USBConfigurationDescriptor *) &otherSpeedDescriptorsFS,
-    &deviceDescriptor,
-    (USBConfigurationDescriptor *) &configurationDescriptorsHS,
-    &qualifierDescriptor,
-    (USBConfigurationDescriptor *) &otherSpeedDescriptorsHS,
-#else
     0, // No full-speed device qualifier descriptor
     0, // No full-speed other speed configuration
     0, // No high-speed device descriptor
     0, // No high-speed configuration descriptor
     0, // No high-speed device qualifier descriptor
     0, // No high-speed other speed configuration descriptor
-#endif
     stringDescriptors,
     4 // Four string descriptors in array
 };

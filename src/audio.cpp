@@ -367,7 +367,7 @@ void audioVoiceDefevent( uint8_t e, uint8_t v)
 
 
 // Announce a value using voice
-void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
+void voice_numeric( int16_t value, uint8_t num_decimals, uint8_t units_index )
 {
 	uint8_t decimals = 0 ;
 	div_t qr ;
@@ -376,6 +376,11 @@ void voice_numeric( uint16_t value, uint8_t num_decimals, uint8_t units_index )
 	if ( units_index > 127 )
 	{
 		putVoiceQueue( units_index ) ;
+	}
+	if ( value < 0 )
+	{
+		value = - value ;
+		putVoiceQueue( V_MINUS ) ;
 	}
 
 	if ( num_decimals )

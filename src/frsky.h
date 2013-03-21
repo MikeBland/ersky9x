@@ -60,8 +60,10 @@
 #define FR_AMP_MAH		36
 #define FR_CELLS_TOT	37
 #define FR_VOLTS			38
+#define FR_VSPD				39
+#define FR_TRASH			40	// Used for invalid id
 
-#define HUBDATALENGTH 39
+#define HUBDATALENGTH 41
 #define HUBMINMAXLEN	9
 #define HUBOFFSETLEN	7			// Items with an offset field
 
@@ -196,6 +198,8 @@ extern void put_frsky_q( uint8_t index, uint16_t value ) ;
 extern void process_frsky_q( void ) ;
 
 extern Frsky_current_info Frsky_current[2] ;
+
+extern uint8_t AltitudeDecimals ;
 
 // Global Fr-Sky telemetry data variables
 extern uint8_t frskyStreaming; // >0 (true) == data is streaming in. 0 = nodata detected for some time

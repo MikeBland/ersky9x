@@ -72,7 +72,7 @@
 #define GENERAL_OWNER_NAME_LEN 10
 #define MODEL_NAME_LEN         10
 
-#define MAX_GVARS 5
+#define MAX_GVARS 7
 
 #define MAX_PHASES		6
 
@@ -146,6 +146,8 @@ PACK(typedef struct t_EEGeneral {
 	int8_t		current_calib ;
 	uint8_t		bt_baudrate ;
 	uint8_t		rotaryDivisor ;
+	uint8_t   crosstrim:1;
+	uint8_t   spare9:7;
 }) EEGeneral;
 
 
@@ -344,7 +346,7 @@ PACK(typedef struct te_MixData {
   uint8_t srcRaw;            //
   int8_t  weight;
   int8_t  swtch;
-  uint8_t curve;             //0=symmetrisch 1=no neg 2=no pos
+  int8_t curve;             //0=symmetrisch 1=no neg 2=no pos
   uint8_t delayUp;
   uint8_t delayDown;
   uint8_t speedUp;         // Servogeschwindigkeit aus Tabelle (10ms Cycle)
@@ -353,7 +355,7 @@ PACK(typedef struct te_MixData {
   uint8_t mltpx:3;           // multiplex method 0=+ 1=* 2=replace
   uint8_t mixWarn:2;         // mixer warning
   uint8_t enableFmTrim:1;
-  uint8_t mixres:1;
+  uint8_t differential:1 ;
   int8_t  sOffset;
   uint8_t  res[4];
 }) SKYMixData;
@@ -366,7 +368,7 @@ PACK(typedef struct te_CSwData { // Custom Switches data
 	uint8_t res ;
 }) SKYCSwData;
 
-PACK(typedef struct te_SafetySwData { // Custom Switches data
+PACK(typedef struct te_SafetySwData { // Safety Switches data
 	union opt
 	{
 		struct ss
