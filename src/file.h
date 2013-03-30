@@ -33,6 +33,7 @@ extern bool ee32ModelExists(uint8_t id) ;
 extern void ee32_process( void ) ;
 extern bool ee32CopyModel( uint8_t dst, uint8_t src ) ;
 extern void ee32SwapModels( uint8_t id1, uint8_t id2 ) ;
+extern uint32_t ee32_read_512( uint32_t sector, uint8_t *buffer ) ;
 
 
 struct t_file_entry

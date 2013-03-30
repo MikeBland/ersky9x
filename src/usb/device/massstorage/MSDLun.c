@@ -36,6 +36,9 @@
 #include "debug.h"
 #include <usb/device/core/USBD.h>
 
+#include "usb/device/massstorage/MSDDriver.h"
+
+
 //------------------------------------------------------------------------------
 //         Constants
 //------------------------------------------------------------------------------
@@ -75,7 +78,7 @@ static SBCInquiryData inquiryData = {
     0x0,                            // Unused features
     0,                              // Task management model not supported
     0x0,                            // ???
-    {'A','T','M','E','L',' ',' ',' '},
+    {'E','R','S','K','Y','9','X',' '},
     {'M','a','s','s',' ',
      'S','t','o','r','a','g','e',' ',
      'M','S','D'},
@@ -324,7 +327,6 @@ unsigned char LUN_Read(MSDLun        *lun,
 
     // Check that the data is not too big
     if ((length + blockAddress) * lun->blockSize > lun->size) {
-
         TRACE_WARNING("LUN_Read: Area: (%d + %d)*%d > %d\n\r",
                       (int)length, (int)blockAddress, (int)lun->blockSize, (int)lun->size);
         status = USBD_STATUS_ABORTED;

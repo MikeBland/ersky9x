@@ -153,6 +153,43 @@ static unsigned char MEDSdcard_Read(Media         *media,
     return MED_STATUS_SUCCESS;
 }
 
+static unsigned char Eeprom_Read(Media         *media,
+                                    unsigned int   address,
+                                    void          *data,
+                                    unsigned int   length,
+                                    MediaCallback callback,
+                                    void          *argument)
+{
+    if (media->state != MED_STATE_READY) {
+
+        TRACE_INFO("Media busy\n\r");
+        return MED_STATUS_BUSY;
+    }
+    // Check that the data to read is not too big
+    if ((length + address) > media->size) {
+
+        TRACE_WARNING("Eeprom_Read: Data too big: %d, %d\n\r",
+                      (int)length, (int)address);
+        return MED_STATUS_ERROR;
+    }
+    
+    // Enter Busy state
+		media->state = MED_STATE_BUSY;
+
+    disk_read (1, data, address, length);
+
+    // Leave the Busy state
+    media->state = MED_STATE_READY;
+
+    // Invoke callback
+    if (callback != 0) {
+
+        callback(argument, MED_STATUS_SUCCESS, 0, 0);
+    }
+
+    return MED_STATUS_SUCCESS;
+	
+}
 //------------------------------------------------------------------------------
 //! \brief  Writes data on a SDRAM media
 //! \param  media    Pointer to a Media instance
@@ -207,6 +244,46 @@ static unsigned char MEDSdcard_Write(Media         *media,
     return MED_STATUS_SUCCESS;
 }
 
+static unsigned char Eeprom_Write(Media         *media,
+                                    unsigned int   address,
+                                    void          *data,
+                                    unsigned int   length,
+                                    MediaCallback callback,
+                                    void          *argument)
+{
+
+  TRACE_DEBUG("Eeprom_Write(address=%d length=%d)\n\r", address, length);
+
+    // Check that the media if ready
+    if (media->state != MED_STATE_READY) {
+
+        TRACE_WARNING("Eeprom_Write: Media is busy\n\r");
+        return MED_STATUS_BUSY;
+    }
+
+    // Check that the data to write is not too big
+    if ((length + address) > media->size) {
+
+        TRACE_WARNING("Eeprom_Write: Data too big\n\r");
+        return MED_STATUS_ERROR;
+    }
+
+    // Put the media in Busy state
+    media->state = MED_STATE_BUSY;
+
+    disk_write(1, data, address, length);
+
+    // Leave the Busy state
+    media->state = MED_STATE_READY;
+
+    // Invoke the callback if it exists
+    if (callback != 0) {
+
+        callback(argument, MED_STATUS_SUCCESS, 0, 0);
+    }
+
+    return MED_STATUS_SUCCESS;
+}
 
 //------------------------------------------------------------------------------
 /// Initializes a Media instance and the associated physical interface
@@ -297,6 +374,37 @@ unsigned char MEDSdcard_Initialize(Media *media, unsigned char mciID)
     media->transfer.argument = 0;
 
     return 1;
+}
+
+unsigned char EEPROM_Initialize(Media *media, unsigned char mciID)
+{
+    media->write = Eeprom_Write;
+    media->read = Eeprom_Read;
+    media->lock = 0;
+    media->unlock = 0;
+    media->handler = 0;
+    media->flush = 0;
+
+    media->blockSize = 512 ;
+    media->baseAddress = 0;
+
+    media->size = 1027 ;
+
+    media->mappedRD  = 0;
+    media->mappedWR  = 0;
+    media->protected = 0; // TODO BSS CardIsProtected(mciID);
+    media->removable = 1;
+
+    media->state = MED_STATE_READY;
+
+    media->transfer.data = 0;
+    media->transfer.address = 0;
+    media->transfer.length = 0;
+    media->transfer.callback = 0;
+    media->transfer.argument = 0;
+
+    return 1;
+	
 }
 
 #if 0

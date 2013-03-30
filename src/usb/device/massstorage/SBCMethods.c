@@ -93,6 +93,7 @@ static const SBCModeParameterHeader6 modeParameterHeader6 = {
 //      Internal functions
 //------------------------------------------------------------------------------
 
+
 //------------------------------------------------------------------------------
 //! \brief  Check if the LUN is ready.
 //! \param  lun          Pointer to the LUN affected by the command

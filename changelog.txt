@@ -10,6 +10,12 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 30-Mar-2013  MPB
+Fix v<ofs bug
+Add centre beep filtering
+Add EEPROM read mapping to mass storage disk
+
+******************************************
 CHANGELOG: 21-Mar-2013  MPB
 Add support for FrSky new Vario (not commercially available)
 Fix MINUS for voice numbers

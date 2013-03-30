@@ -565,9 +565,6 @@ void sd_poll_10mS()
 													SpeedAllowed = j ;
 												}
                         i = sd_cmd7() ;         // Select Card
-//                      txmit( '+' ) ;
-//                      p8hex( i ) ;
-//                      crlf() ;
                         Card_state = SD_ST_TRAN ;
 												Sd_retries = 5 ;
                 break ;
@@ -585,9 +582,6 @@ void sd_poll_10mS()
                         Card_SCR[1] = Sd_128_resp[1] ;
                         Card_state = SD_ST_DATA ;
                         i = sd_acmd6() ;                // Set bus width to 4 bits, and speed to 9 MHz
-//                      txmit( '-' ) ;
-//                      p8hex( i ) ;
-//                      crlf() ;
                         // Should check the card can do this ****
                 break ;
         }
@@ -820,6 +814,9 @@ Now decide what the card can do!
 #define LDIR_Chksum                     13
 #define LDIR_FstClusLO          26
 
+
+#include "Fat12.cpp"
+
 /*-----------------------------------------------------------------------*/
 /* Initialize Disk Drive                                                 */
 /*-----------------------------------------------------------------------*/
@@ -828,6 +825,7 @@ DSTATUS disk_initialize (
                          BYTE drv               /* Physical drive nmuber (0) */
                          )
 {
+  if (drv==1) return RES_OK ;             /* EEPROM */
   if (drv) return STA_NOINIT;             /* Supports only single drive */
   if ( sd_card_ready() == 0 ) return RES_NOTRDY;
   return RES_OK;
@@ -885,10 +883,10 @@ DSTATUS disk_initialize (
 /* Get Disk Status                                                       */
 /*-----------------------------------------------------------------------*/
 
-DSTATUS disk_status (
-                                         BYTE drv               /* Physical drive number (0) */
-                                         )
+DSTATUS disk_status ( BYTE drv /* Physical drive number (0) */ )
 {
+	
+  if (drv==1) return RES_OK ;             /* EEPROM */
         if (drv) return STA_NOINIT;             /* Supports only single drive */
         if ( sd_card_ready() == 0 ) return RES_NOTRDY;
         return RES_OK;
@@ -906,24 +904,49 @@ DRESULT disk_read (
                                    )
 {
         uint32_t result ;
-        if (drv || !count) return RES_PARERR;
+  if ( !count) return RES_PARERR ;
 
-        if ( sd_card_ready() == 0 ) return RES_NOTRDY;
+  if (drv==1)             /* EEPROM */
+	{
+		
+    do
+		{
+			result = fat12Read( buff, sector ) ;
+      if (result)
+			{
+	      sector += 1 ;
+        buff += 512 ;
+        count -= 1 ;
+			}
+      else
+			{
+        count = 1 ;             // Flag error
+        break ;
+      }
+    } while ( count ) ;
+	}
 
-        do {
-          result = sd_read_block( sector, ( uint32_t *)buff ) ;
-          if (result) {
-            sector += 1 ;
-            buff += 512 ;
-            count -= 1 ;
-          }
-          else {
-            count = 1 ;             // Flag error
-            break ;
-          }
-        } while ( count ) ;
 
-        return count ? RES_ERROR : RES_OK;
+  else
+	{
+		if (drv ) return RES_PARERR;
+
+		if ( sd_card_ready() == 0 ) return RES_NOTRDY;
+
+    do {
+      result = sd_read_block( sector, ( uint32_t *)buff ) ;
+      if (result) {
+        sector += 1 ;
+        buff += 512 ;
+        count -= 1 ;
+      }
+      else {
+        count = 1 ;             // Flag error
+        break ;
+      }
+    } while ( count ) ;
+	}
+  return count ? RES_ERROR : RES_OK;
 }
 
 
@@ -940,26 +963,34 @@ DRESULT disk_write (
 {
         uint32_t result ;
 
-        if (drv || !count) return RES_PARERR;
+  if ( !count) return RES_PARERR ;
 
-        if ( sd_card_ready() == 0 ) return RES_NOTRDY;
+  if (drv==1)             /* EEPROM */
+	{
+		count = fat12Write( buff, sector, count ) ;
+	}
+  else
+	{
+		if (drv ) return RES_PARERR;
 
-        // TODO if (Stat & STA_PROTECT) return RES_WRPRT;
+    if ( sd_card_ready() == 0 ) return RES_NOTRDY;
 
-        do {
-          result = sd_write_block( sector, ( uint32_t *)buff ) ;
-          if (result) {
-            sector += 1 ;
-            buff += 512 ;
-            count -= 1 ;
-          }
-          else {
-            count = 1 ;             // Flag error
-            break ;
-          }
-        } while ( count ) ;
+    // TODO if (Stat & STA_PROTECT) return RES_WRPRT;
 
-        return count ? RES_ERROR : RES_OK;
+    do {
+      result = sd_write_block( sector, ( uint32_t *)buff ) ;
+      if (result) {
+        sector += 1 ;
+        buff += 512 ;
+        count -= 1 ;
+      }
+      else {
+        count = 1 ;             // Flag error
+        break ;
+      }
+    } while ( count ) ;
+	}
+  return count ? RES_ERROR : RES_OK;
 }
 
 
@@ -978,6 +1009,33 @@ DRESULT disk_ioctl (
         BYTE *csd = (BYTE*)&Card_CSD[0];
         BYTE n; // csd[16], *ptr = buff;
         WORD csize;
+
+        res = RES_ERROR;
+        if (drv==1)
+				{
+          switch (ctrl)
+					{
+            case CTRL_SYNC :                /* Make sure that no pending write process. Do not remove this or written sector might not left updated. */
+                               /* BSS if (select()) {
+                                        deselect(); */
+              res = RES_OK;
+                               // }
+            break ;
+
+            case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
+               *(DWORD*)buff = (DWORD)28 ;
+               res = RES_OK;
+             break;
+
+             case GET_SECTOR_SIZE :  /* Get R/W sector size (WORD) */
+               *(WORD*)buff = 512;
+               res = RES_OK;
+             break;
+
+					}
+        	return res ;
+				}
+
 
         if (drv) return RES_PARERR;
 

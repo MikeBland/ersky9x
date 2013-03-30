@@ -657,6 +657,27 @@ void init_eeprom()
 	Eeprom32_process_state = E32_IDLE ;
 }
 
+// For virtual USB diskio
+uint32_t ee32_read_512( uint32_t sector, uint8_t *buffer )
+{
+	// Wait for EEPROM to be idle
+	if ( General_timer )
+	{
+		General_timer = 1 ;		// Make these happen soon
+	}
+	if ( Model_timer )
+	{
+		Model_timer = 1 ;
+	}
+	while( ee32_check_finished() == 0 )
+	{
+		// null body
+	}
+	read32_eeprom_data( sector * 512, buffer, 512, 0 ) ;
+	return 1 ;		// OK
+}
+
+
 uint32_t ee32_check_finished()
 {
 	if ( ( Eeprom32_process_state != E32_IDLE )

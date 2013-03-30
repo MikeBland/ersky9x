@@ -71,16 +71,74 @@ static void ConfigureUsbClock(void)
 }
 
 /** Maximum number of LUNs which can be defined. */
-#define MAX_LUNS            1
+#define MAX_LUNS            2
 
 /** Media index for different disks */
 #define DRV_SDMMC           0    /** SD card */
+#define DRV_EEPROM          1    /** EEPROM */
 
 Media medias[MAX_LUNS];
+
 
 /*----------------------------------------------------------------------------
  *        Local variables
  *----------------------------------------------------------------------------*/
+
+#ifdef HID
+    
+uint8_t  hid_iBuffer[64] ;
+uint8_t  hid_oBuffer[64] ;
+
+static void hid_transfer()
+{
+    uint32_t dwCnt=0 ;
+    uint32_t dwLen ;
+
+    dwLen = HIDDTransferDriver_Read( hid_iBuffer, 64 ) ;
+    if ( dwLen )
+    {
+//       printf( "Data In(%u):", (unsigned int)dwLen ) ;
+//       _ShowBuffer( iBuffer, dwLen ) ;
+
+//            bmLEDs = iBuffer[0] ;
+//            update = 1 ;
+    }
+
+    dwLen = HIDDTransferDriver_ReadReport( iBuffer, 64 ) ;
+    if ( dwLen )
+    {
+//        printf( "Report In(%u):", (unsigned int)dwLen ) ;
+//        _ShowBuffer( iBuffer, dwLen ) ;
+
+//        bmLEDs = iBuffer[0] ;
+//        update = 1 ;
+    }
+
+    oBuffer[0] = 0x80 ;
+    if ( PIO_Get( &pinsButtons[PUSHBUTTON_BP1]) == 0 )
+    {
+        oBuffer[0] |= 0x01 ;
+    }
+    if ( PIO_Get( &pinsButtons[PUSHBUTTON_BP2] ) == 0 )
+    {
+        oBuffer[0] |= 0x02 ;
+    }
+
+    sprintf( (char*)&oBuffer[5], ":%04x:%05u!", (unsigned int)dwCnt, (unsigned int)dwCnt ) ;
+    oBuffer[1] = (uint8_t)(dwCnt) ;
+    oBuffer[2] = (uint8_t)(dwCnt >> 8) ;
+    oBuffer[3] = (uint8_t)(dwCnt >> 16) ;
+    oBuffer[4] = (uint8_t)(dwCnt >> 24) ;
+    if ( USBD_STATUS_SUCCESS == HIDDTransferDriver_Write( oBuffer, 64, 0, 0 ) )
+    {
+        dwCnt ++ ;
+    }
+}
+
+#endif
+
+
+
 
 /** Device LUNs. */
 MSDLun luns[MAX_LUNS];
@@ -96,6 +154,9 @@ static void MSDCallbacks_Data( unsigned char flowDirection, unsigned int dataLen
 #endif
 }
 
+extern "C" unsigned char EEPROM_Initialize(Media *media, unsigned char mciID) ;
+extern uint32_t sd_card_ready( void ) ;
+
 void usbMassStorage()
 {
   static bool initialized = false ;
@@ -110,12 +171,19 @@ void usbMassStorage()
       ConfigureUsbClock();
       /* Initialize LUN */
       MEDSdcard_Initialize(&(medias[DRV_SDMMC]), 0);
-      LUN_Init(&(luns[DRV_SDMMC]), &(medias[DRV_SDMMC]),
+      EEPROM_Initialize(&(medias[DRV_EEPROM]), 0);
+      LUN_Init(&(luns[DRV_SDMMC]), sd_card_ready() ? &(medias[DRV_SDMMC]) : 0 ,
           msdBuffer, MSD_BUFFER_SIZE,
           0, 0, 0, 0,
           MSDCallbacks_Data);
-      /* BOT driver initialization */
-      MSDDriver_Initialize(luns, 1);
+      
+			LUN_Init(&(luns[DRV_EEPROM]), &(medias[DRV_EEPROM]),
+          msdBuffer, MSD_BUFFER_SIZE,
+          0, 0, 0, 0,
+          MSDCallbacks_Data);
+      
+			/* BOT driver initialization */
+      MSDDriver_Initialize( luns, 2 ) ;
       // VBus_Configure();
       USBD_Connect();
       initialized = true;
@@ -137,7 +205,10 @@ void usbMassStorage()
     	/* Mass storage state machine */
     	for (uint8_t i=0; i<50; i++)
 			{
-    	  MSDDriver_StateMachine() ;
+#ifdef HID
+				hid_transfer() ;
+#endif
+				MSDDriver_StateMachine() ;
 			}
 		}
   }

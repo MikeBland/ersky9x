@@ -507,6 +507,7 @@ int main( void )
 	init_trainer_ppm() ;
 
 	init_trainer_capture() ;
+//	stop_trainer_ppm() ;
 
 	disp_256( TIM1_BASE, 6 ) ;
 	crlf() ;
@@ -751,8 +752,13 @@ void main_loop(void* pdata)
 			lcd_outhex4( 120, 24, g_ppmIns[3] ) ;
 			lcd_outhex4( 120, 32, g_ppmIns[4] ) ;
 			lcd_outhex4( 120, 40, g_ppmIns[5] ) ;
-			lcd_outhex4( 120, 48, g_ppmIns[6] ) ;
-			lcd_outhex4( 120, 56, g_ppmIns[7] ) ;
+
+extern uint16_t lastCapt ;
+extern uint16_t lastVal ;
+			lcd_outhex4( 120, 48, lastVal ) ;
+			lcd_outhex4( 120, 56, lastCapt ) ;
+
+
 
  		  lcd_puts_P(170, 0, "GPIO IN" ) ;
  		  lcd_putc(160,  8, 'A' ) ;

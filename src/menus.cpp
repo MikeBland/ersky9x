@@ -5899,8 +5899,20 @@ void perOut(int16_t *chanOut, uint8_t att)
 							}
 						}
             calibratedStick[i] = v; //for show in expo
-            if(!(v/16)) anaCenter |= 1<<(CONVERT_MODE((i+1))-1);
 
+						// Filter beep centre
+						{
+							int8_t t = v/16 ;
+							uint8_t mask = 1<<(CONVERT_MODE((i+1))-1) ;
+							if ( t < 0 )
+							{
+								t = -t ;		//abs(t)
+							}
+							if ( t <= 1 )
+							{
+            		anaCenter |= ( t == 0 ) ? mask : bpanaCenter & mask ;
+							}
+						}
 
             if(i<4) { //only do this for sticks
                 //===========Trainer mode================

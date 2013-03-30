@@ -2253,7 +2253,7 @@ inline int16_t getValue(uint8_t i)
   else if(i<CHOUT_BASE+NUM_SKYCHNOUT) return ex_chans[i-CHOUT_BASE];
   else if(i<CHOUT_BASE+NUM_SKYCHNOUT+NUM_TELEM_ITEMS)
 	{
-		return get_telemetry_value( i-CHOUT_BASE-NUM_CHNOUT ) ;
+		return get_telemetry_value( i-CHOUT_BASE-NUM_SKYCHNOUT ) ;
 	}
   return 0 ;
 }
