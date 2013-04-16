@@ -119,7 +119,7 @@ PACK(typedef struct t_EEGeneral {
   uint8_t   flashBeep:1;
   uint8_t   disableSplashScreen:1;
   uint8_t   disablePotScroll:1;
-  uint8_t   spare3:1;
+  uint8_t   stickScroll:1 ;
   uint8_t   frskyinternalalarm:1;
   uint8_t   filterInput;
   uint8_t   lightAutoOff;
@@ -130,7 +130,8 @@ PACK(typedef struct t_EEGeneral {
   uint8_t	FRSkyRed:4;  //mike please check these are correct
   uint8_t   hideNameOnSplash:1;
   uint8_t   optrexDisplay:1;
-  uint8_t   spare:2;
+  uint8_t   unexpectedShutdown:1;
+  uint8_t   spare:1;
   uint8_t   speakerPitch;
   uint8_t	hapticStrength;
   uint8_t	speakerMode;

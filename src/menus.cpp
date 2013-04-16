@@ -674,6 +674,7 @@ void menuProcDiagAna(uint8_t event) ;
 void menuProcDiagKeys(uint8_t event) ;
 void menuProcDiagCalib(uint8_t event) ;
 void menuProcSDstat(uint8_t event) ;
+void menuProcBoot(uint8_t event) ;
 void menuProcTrainer(uint8_t event) ;
 void menuProcDiagVers(uint8_t event) ;
 void menuProcModel(uint8_t event) ;
@@ -787,6 +788,7 @@ enum EnumTabDiag
   e_Ana,
   e_Calib
   ,e_Setup3
+  ,e_Boot
 };
 
 MenuFuncP menuTabDiag[] =
@@ -800,7 +802,8 @@ MenuFuncP menuTabDiag[] =
   menuProcDiagKeys,
   menuProcDiagAna,
   menuProcDiagCalib,
-	menuProcSDstat
+	menuProcSDstat,
+	menuProcBoot
 };
 
 // Rotary Encoder states
@@ -1666,8 +1669,8 @@ void menuProcGlobals(uint8_t event)
 //				break ;
 
 				case 0 :
-					lcd_putsAttIdx( 12*FW, y, PSTR("\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 P3"), g_model.gvars[i].gvsource, attr ) ;
-	  			if(active) CHECK_INCDEC_H_MODELVAR( event, g_model.gvars[i].gvsource, 0, 12 ) ;
+					lcd_putsAttIdx( 12*FW, y, PSTR("\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 P3c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c31c22c23c24"), g_model.gvars[i].gvsource, attr ) ;
+	  			if(active) CHECK_INCDEC_H_MODELVAR( event, g_model.gvars[i].gvsource, 0, 36 ) ;
 				break ;
 
 				case 1 :
@@ -2773,6 +2776,7 @@ void menuProcExpoOne(uint8_t event)
     SUBMENU("EXPO/DR", 4, {0});
 
 static uint8_t stkVal;
+	StickScrollAllowed = 0 ;
 putsChnRaw(8*FW,0,s_expoChan+1,0);
 int8_t  sub    = mstate2.m_posVert;
 
@@ -2881,6 +2885,10 @@ void menuProcExpoAll(uint8_t event)
 static uint8_t stkVal[4];
 int8_t  sub    = mstate2.m_posVert - 1;
 int8_t  subHor = mstate2.m_posHorz;
+	if(mstate2.m_posVert)
+	{
+		StickScrollAllowed = 0 ;
+	}
 
 switch(event)
 {
@@ -3781,6 +3789,7 @@ void menuProcDiagCalib(uint8_t event)
 	  case 2:
       //MOVE STICKS/POTS
       //[MENU]
+			StickScrollAllowed = 0 ;
       lcd_putsnAtt(2*FW, 2*FH, PSTR(" MOVE STICKS/POTS "), 18, sub>0 ? INVERS : 0);
       lcd_putsnAtt(2*FW, 3*FH, menuWhenDone, 18, sub>0 ? BLINK : 0);
 
@@ -3819,6 +3828,7 @@ void menuProcDiagAna(uint8_t event)
 #endif
 
   int8_t  sub    = mstate2.m_posVert ;
+	StickScrollAllowed = 0 ;
   for(i=0; i<8; i++)
   {
     uint8_t y=i*FH;
@@ -4507,8 +4517,13 @@ void menuProcSetup(uint8_t event)
     {
         uint8_t b ;
         b = 1-g_eeGeneral.disablePotScroll ;
-        g_eeGeneral.disablePotScroll = 1-onoffMenuItem( b, y, PSTR("PotScroll"), sub, subN, event ) ;
-        if((y+=FH)>7*FH) return;
+				b |= g_eeGeneral.stickScroll << 1 ;
+        lcd_puts_Pleft( y,PSTR("Scrolling"));
+        lcd_putsAttIdx(PARAM_OFS, y, PSTR("\005NONE POT  STICKBOTH "),b,(sub==subN ? INVERS:0));
+        if(sub==subN) CHECK_INCDEC_H_GENVAR(event, b, 0, 3 ) ;
+				g_eeGeneral.stickScroll = b >> 1 ;
+				g_eeGeneral.disablePotScroll = 1 - ( b & 1 ) ;
+				if((y+=FH)>7*FH) return;
     }subN++;
 
 //frsky alert mappings
@@ -5233,6 +5248,8 @@ void menuProc0(uint8_t event)
   uint8_t tview = g_eeGeneral.view & 0x30 ;
 //    static uint8_t displayCount = 0;
 	
+	StickScrollAllowed = 0 ;
+
 	switch(event)
 	{
     case  EVT_KEY_LONG(KEY_MENU):// go to last menu
@@ -6419,6 +6436,25 @@ uint8_t evalOffset(int8_t sub, uint8_t max)
 		return (s_pgOfs = t_pgOfs) ;
 }
 
+void menuProcBoot(uint8_t event)
+{
+  MENU("BOOT REASON", menuTabDiag, e_Boot, 1, {0/*, 0*/});
+
+	if ( ( ResetReason & RSTC_SR_RSTTYP ) == (2 << 8) )	// Watchdog
+	{
+		lcd_puts_Pleft( 2*FH, "\006WATCHDOG" ) ;
+	}
+	else if ( unexpectedShutdown )
+	{
+		lcd_puts_Pleft( 2*FH, "\005UNEXPECTED" ) ;
+		lcd_puts_Pleft( 3*FH, "\006SHUTDOWN" ) ;
+	}
+	else
+	{
+		lcd_puts_Pleft( 2*FH, "\006POWER ON" ) ;
+	}
+  lcd_outdez( 0, 5*FH, ( ResetReason >> 8 ) & 7 ) ;
+}
 
 
 

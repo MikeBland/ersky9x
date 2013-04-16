@@ -50,7 +50,7 @@
 #define STK_P1   5
 #define STK_P2   6
 #define STK_P3   7
-#define NUM_TEMPLATES    8  // DIM(n_Templates)
+#define NUM_TEMPLATES    9  // DIM(n_Templates)
 #define NUM_TEMPLATE_MIX 8
 #define TEMPLATE_NLEN    15
 

@@ -365,6 +365,7 @@ template<class t> inline t limit(t mi, t x, t ma){ return min(max(mi,x),ma); }
 
 #define sysFLAG_OLD_EEPROM (0x01)
 extern uint8_t sysFlags;
+extern uint8_t StickScrollAllowed ;
 
 const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.";
 #define NUMCHARS (sizeof(s_charTab)-1)
@@ -607,6 +608,8 @@ enum PowerState
   e_power_off
 } ;
 
+extern uint16_t ResetReason ;
+extern uint8_t unexpectedShutdown ;
 
 
 #endif

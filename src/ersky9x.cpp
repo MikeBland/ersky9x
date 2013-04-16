@@ -98,6 +98,8 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 
 t_time Time ;
 
+uint8_t unexpectedShutdown = 0;
+
 //#define TRUE	1
 //#define FALSE	0
 
@@ -482,7 +484,7 @@ int main(void)
 		
 	init_eeprom() ;	
 	
-	if ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) )	// Not watchdog
+	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) && !unexpectedShutdown )	// Not watchdog
 	{
 		pioptr = PIOC ;
 		if ( pioptr->PIO_PDSR & 0x02000000 )
@@ -496,6 +498,10 @@ int main(void)
 	}
 		 
 	eeReadAll() ;
+	if ( g_eeGeneral.unexpectedShutdown )
+	{
+		unexpectedShutdown = 1 ;
+	}
 
 #ifdef PCBSKY
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
@@ -535,7 +541,7 @@ int main(void)
 			audioVoiceDefevent( AU_TADA, V_HELLO ) ;
     }
   }
-	if ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) )	// Not watchdog
+	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) || unexpectedShutdown )	// Not watchdog
 	{
 		doSplash() ;
   	getADC_single();
@@ -557,6 +563,11 @@ int main(void)
 
 	heartbeat_running = 1 ;
 
+  if (!g_eeGeneral.unexpectedShutdown)
+	{
+    g_eeGeneral.unexpectedShutdown = 1;
+    STORE_GENERALVARS ;
+  }
 
 #ifndef SIMU
 
@@ -902,12 +913,13 @@ void main_loop(void* pdata)
 			// Wait for OK to turn off
 			// Currently wait 1 sec, needs to check eeprom finished
 
+  		g_eeGeneral.unexpectedShutdown = 0;
 			MAh_used += Current_used/22/36 ;
 			if ( g_eeGeneral.mAh_used != MAh_used )
 			{
 				g_eeGeneral.mAh_used = MAh_used ;
-  	    STORE_GENERALVARS ;
 			}
+      STORE_GENERALVARS ;		// To make sure we write "unexpectedShutdown"
 
   		uint16_t tgtime = get_tmr10ms() ;
 	  	while( (get_tmr10ms() - tgtime ) < 50 ) // 50 - Half second
@@ -1621,6 +1633,7 @@ int8_t *TrimPtr[4] =
   &g_model.trim[3]
 } ;
 
+uint8_t StickScrollAllowed ;
 
 void perMain( uint32_t no_menu )
 {
@@ -1694,6 +1707,75 @@ void perMain( uint32_t no_menu )
 			Rotary_diff = 0 ;
 		}
 	}
+	
+	if ( g_eeGeneral.stickScroll && StickScrollAllowed )
+	{
+		const static uint8_t rate[8] = { 0, 75, 40, 25, 10, 5, 2, 1 } ;
+		static uint8_t repeater ;
+		uint8_t direction ;
+		int8_t value ;
+		
+		if ( repeater < 128 )
+		{
+			repeater += 1 ;
+		}
+		value = calibratedStick[2] / 128 ;
+		direction = value > 0 ? 1 : 0 ;
+		if ( value < 0 )
+		{
+			value = -value ;			// (abs)
+		}
+		if ( value > 7 )
+		{
+			value = 7 ;			
+		}
+		value = rate[value] ;
+		if ( value )
+		{
+			if ( repeater > value )
+			{
+				repeater = 0 ;
+				if ( direction )
+				{
+					putEvent(EVT_KEY_FIRST(KEY_UP));
+				}
+				else
+				{
+					putEvent(EVT_KEY_FIRST(KEY_DOWN));
+				}
+			}
+		}
+		else
+		{
+			value = calibratedStick[3] / 128 ;
+			direction = value > 0 ? 1 : 0 ;
+			if ( value < 0 )
+			{
+				value = -value ;			// (abs)
+			}
+			if ( value > 7 )
+			{
+				value = 7 ;			
+			}
+			value = rate[value] ;
+			if ( value )
+			{
+				if ( repeater > value )
+				{
+					repeater = 0 ;
+					if ( direction )
+					{
+						putEvent(EVT_KEY_FIRST(KEY_RIGHT));
+					}
+					else
+					{
+						putEvent(EVT_KEY_FIRST(KEY_LEFT));
+					}
+				}
+			}
+		}
+	}
+	StickScrollAllowed = 1 ;
 
 #if GVARS
 	for( uint8_t i = 0 ; i < MAX_GVARS ; i += 1 )
@@ -1717,7 +1799,7 @@ void perMain( uint32_t no_menu )
 			{
 				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
 			}
-			else if ( g_model.gvars[i].gvsource <= 28 )	// Pot
+			else if ( g_model.gvars[i].gvsource <= 36 )	// Chans
 			{
 				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
 			}

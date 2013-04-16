@@ -51,8 +51,9 @@ static const char string_5[] = "Elevon\\Delta";
 static const char string_6[] = "Heli Setup";
 static const char string_7[] = "Gyro Setup";
 static const char string_8[] = "Servo Test";
+static const char string_9[] = "Range Test";
 
-const char *n_Templates[8] = {
+const char *n_Templates[NUM_TEMPLATES] = {
     string_1,
     string_2,
     string_3,
@@ -60,7 +61,8 @@ const char *n_Templates[8] = {
     string_5,
     string_6,
     string_7,
-    string_8
+    string_8,
+    string_9
 };
 
 SKYMixData* setDest(uint8_t dch)
@@ -100,6 +102,7 @@ void setSwitch(uint8_t idx, uint8_t func, int8_t v1, int8_t v2)
     g_model.customSw[idx-1].func = func;
     g_model.customSw[idx-1].v1   = v1;
     g_model.customSw[idx-1].v2   = v2;
+    g_model.customSw[idx-1].andsw = 0;
 }
 
 uint8_t convert_mode_helper(uint8_t x)
@@ -227,7 +230,7 @@ void applyTemplate(uint8_t idx)
     //Servo Test
     if(idx==j++)
     {
-        md=setDest(15); md->srcRaw=CH(16);   md->weight= 100; md->speedUp = 8; md->speedDown = 8;
+        md=setDest(15); md->srcRaw=CH(16);   md->weight= 100; md->speedUp = 80; md->speedDown = 80;
         md=setDest(16); md->srcRaw=MIX_FULL; md->weight= 110; md->swtch=DSW_SW1;
         md=setDest(16); md->srcRaw=MIX_MAX;  md->weight=-110; md->swtch=DSW_SW2; md->mltpx=MLTPX_REP;
         md=setDest(16); md->srcRaw=MIX_MAX;  md->weight= 110; md->swtch=DSW_SW3; md->mltpx=MLTPX_REP;
@@ -237,7 +240,12 @@ void applyTemplate(uint8_t idx)
         setSwitch(3,CS_VNEG,CH(15),  -105);
     }
 
-
+    // Range Test
+    if(idx==j++)
+    {
+        md=setDest(24); md->srcRaw=MIX_FULL; md->weight= 100; md->swtch=DSW_SW1; md->speedUp = 40; md->speedDown = 40;
+        setSwitch(1,CS_TIME,4,4);
+    }
 
     STORE_MODELVARS;
 //    eeWaitComplete() ;

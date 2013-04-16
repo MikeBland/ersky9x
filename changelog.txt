@@ -10,6 +10,12 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 16-Apr-2013  MPB
+Extra template
+Reboot protection and reporting
+Stick Scrolling
+
+******************************************
 CHANGELOG: 30-Mar-2013  MPB
 Fix v<ofs bug
 Add centre beep filtering
