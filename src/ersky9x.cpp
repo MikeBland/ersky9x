@@ -415,7 +415,7 @@ int main(void)
 	// Debug variable
 //	uint32_t both_on ;
 
-	ResetReason = RSTC->RSTC_MR ;
+	ResetReason = RSTC->RSTC_SR ;
 
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
@@ -922,7 +922,7 @@ void main_loop(void* pdata)
       STORE_GENERALVARS ;		// To make sure we write "unexpectedShutdown"
 
   		uint16_t tgtime = get_tmr10ms() ;
-	  	while( (get_tmr10ms() - tgtime ) < 50 ) // 50 - Half second
+	  	while( (uint16_t)(get_tmr10ms() - tgtime ) < 50 ) // 50 - Half second
   		{
 				if ( check_soft_power() )
 				{
@@ -944,6 +944,7 @@ void main_loop(void* pdata)
 //			if ( check_soft_power() == 0 )
 //			{
 				lcd_clear() ;
+				lcd_putsn_P( 6*FW, 3*FH, "POWER OFF", 13 ) ;
 				refreshDisplay() ;
 			  lcdSetRefVolt(0);
 				soft_power_off() ;		// Only turn power off if necessary
@@ -1632,6 +1633,32 @@ int8_t *TrimPtr[4] =
   &g_model.trim[2],
   &g_model.trim[3]
 } ;
+		
+const static uint8_t rate[8] = { 0, 75, 40, 25, 10, 5, 2, 1 } ;
+
+uint32_t calcStickScroll( uint32_t index )
+{
+	uint32_t direction ;
+	int32_t value ;
+
+	if ( ( g_eeGeneral.stickMode & 1 ) == 0 )
+	{
+		index ^= 3 ;
+	}
+	
+	value = calibratedStick[index] / 128 ;
+	direction = value > 0 ? 0x80 : 0 ;
+	if ( value < 0 )
+	{
+		value = -value ;			// (abs)
+	}
+	if ( value > 7 )
+	{
+		value = 7 ;			
+	}
+	value = rate[(uint8_t)value] ;
+	return value | direction ;
+}
 
 uint8_t StickScrollAllowed ;
 
@@ -1647,16 +1674,6 @@ void perMain( uint32_t no_menu )
 	heartbeat |= HEART_TIMER10ms;
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
-
-  uint16_t a = 0;
-  uint16_t b = 0;
-  if(g_LightOffCounter) g_LightOffCounter--;
-  if(evt) a = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
-  if(stickMoved) b = g_eeGeneral.lightOnStickMove*500;
-  if(a>g_LightOffCounter) g_LightOffCounter = a;
-   if(b>g_LightOffCounter) g_LightOffCounter = b;
-
-	check_backlight() ;
 
   static int16_t p1valprev;
   p1valdiff = (p1val-calibratedStick[6])/32;
@@ -1686,6 +1703,16 @@ void perMain( uint32_t no_menu )
 		LastRotaryValue = Rotary_count ;
 	}
 
+  uint16_t a = 0;
+  uint16_t b = 0;
+  if(g_LightOffCounter) g_LightOffCounter--;
+  if( evt | Rotary_diff ) a = g_eeGeneral.lightAutoOff*500; // on keypress turn the light on 5*100
+  if(stickMoved) b = g_eeGeneral.lightOnStickMove*500;
+  if(a>g_LightOffCounter) g_LightOffCounter = a;
+   if(b>g_LightOffCounter) g_LightOffCounter = b;
+
+	check_backlight() ;
+
 	if ( g_menuStack[g_menuStackPtr] == menuProc0)
 	{
 		if ( Rotary_diff )
@@ -1710,26 +1737,17 @@ void perMain( uint32_t no_menu )
 	
 	if ( g_eeGeneral.stickScroll && StickScrollAllowed )
 	{
-		const static uint8_t rate[8] = { 0, 75, 40, 25, 10, 5, 2, 1 } ;
 		static uint8_t repeater ;
-		uint8_t direction ;
-		int8_t value ;
+		uint32_t direction ;
+		int32_t value ;
 		
 		if ( repeater < 128 )
 		{
 			repeater += 1 ;
 		}
-		value = calibratedStick[2] / 128 ;
-		direction = value > 0 ? 1 : 0 ;
-		if ( value < 0 )
-		{
-			value = -value ;			// (abs)
-		}
-		if ( value > 7 )
-		{
-			value = 7 ;			
-		}
-		value = rate[value] ;
+		value = calcStickScroll( 2 ) ;
+		direction = value & 0x80 ;
+		value &= 0x7F ;
 		if ( value )
 		{
 			if ( repeater > value )
@@ -1747,17 +1765,9 @@ void perMain( uint32_t no_menu )
 		}
 		else
 		{
-			value = calibratedStick[3] / 128 ;
-			direction = value > 0 ? 1 : 0 ;
-			if ( value < 0 )
-			{
-				value = -value ;			// (abs)
-			}
-			if ( value > 7 )
-			{
-				value = 7 ;			
-			}
-			value = rate[value] ;
+			value = calcStickScroll( 3 ) ;
+			direction = value & 0x80 ;
+			value &= 0x7F ;
 			if ( value )
 			{
 				if ( repeater > value )

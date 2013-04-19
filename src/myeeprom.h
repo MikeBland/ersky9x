@@ -353,7 +353,8 @@ PACK(typedef struct te_MixData {
   uint8_t speedUp;         // Servogeschwindigkeit aus Tabelle (10ms Cycle)
   uint8_t speedDown;       // 0 nichts
   uint8_t carryTrim:1;
-  uint8_t mltpx:3;           // multiplex method 0=+ 1=* 2=replace
+  uint8_t mltpx:2;           // multiplex method 0=+ 1=* 2=replace
+  uint8_t lateOffset:1;      // Add offset later
   uint8_t mixWarn:2;         // mixer warning
   uint8_t enableFmTrim:1;
   uint8_t differential:1 ;
