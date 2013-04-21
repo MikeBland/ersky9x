@@ -436,7 +436,7 @@ int main(void)
 	if ( ( pioptr->PIO_PDSR & 0x02000000 ) == 0 )
 	{
 		// USB not the power source
-		WDT->WDT_MR = 0x3FFF217F ;				// Enable watchdog 1.5 Secs
+		WDT->WDT_MR = 0x3FFF207F ;				// Enable watchdog 0.5 Secs
 	}
 
 #ifdef REVB	
@@ -541,7 +541,7 @@ int main(void)
 			audioVoiceDefevent( AU_TADA, V_HELLO ) ;
     }
   }
-	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) || unexpectedShutdown )	// Not watchdog
+	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) && !unexpectedShutdown )	// Not watchdog
 	{
 		doSplash() ;
   	getADC_single();
@@ -1665,8 +1665,10 @@ uint8_t StickScrollAllowed ;
 void perMain( uint32_t no_menu )
 {
   static uint16_t lastTMR;
-  tick10ms = (get_tmr10ms() != lastTMR);
-  lastTMR = get_tmr10ms();
+	uint16_t t10ms ;
+	t10ms = get_tmr10ms() ;
+  tick10ms = ((uint16_t)(t10ms - lastTMR)) != 0 ;
+  lastTMR = t10ms ;
 
   perOut(g_chans512, 0);
   if(!tick10ms) return ; //make sure the rest happen only every 10ms.
@@ -2539,7 +2541,7 @@ int8_t getMovedSwitch()
     }
   }
 
-  if (get_tmr10ms() - s_last_time > 10)
+  if ( (uint16_t)(get_tmr10ms() - s_last_time) > 10)
     result = 0;
 
   s_last_time = get_tmr10ms();

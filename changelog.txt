@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Apr-2013  MPB
+Timer comparison changes
+Reboot processing fixed.
+
+******************************************
 CHANGELOG: 19-Apr-2013  MPB
 Reboot report improvement
 Stick Scrolling/encoder improvements

@@ -4916,7 +4916,7 @@ void trace()   // called in perOut - once envery 0.01sec
 //    static uint8_t test = 1;
   s_cnt++;
   s_sum+=val;
-  if(( get_tmr10ms()-s_time)<1000) //10 sec
+  if((uint16_t)( get_tmr10ms()-s_time)<1000) //10 sec
       //		uint16_t time10ms ;
       //		time10ms = get_tmr10ms() ;
       //    if(( time10ms-s_time)<1000) //10 sec
