@@ -306,7 +306,7 @@ ifeq ($(STAMP), 1)
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
  endif
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
-	@cat stamp-ersky9x.h
+#	@cat stamp-ersky9x.h
 endif
 
 $(OBJDIR)/%.o : %.cpp

@@ -223,7 +223,7 @@ void killEvents(uint8_t event)
 
 volatile uint16_t g_tmr10ms;
 volatile uint8_t  g_blinkTmr10ms;
-
+extern uint8_t StickScrollTimer ;
 
 void per10ms()
 {
@@ -236,8 +236,13 @@ void per10ms()
   uint8_t    in = ~read_keys() ;
   for( i=1; i<7; i++)
   {
+		uint8_t value = in & (1<<i) ;
+		if ( value )
+		{
+			StickScrollTimer = STICK_SCROLL_TIMEOUT ;
+		}
     //INP_B_KEY_MEN 1  .. INP_B_KEY_LFT 6
-    keys[enuk].input(in & (1<<i),(EnumKeys)enuk);
+    keys[enuk].input(value,(EnumKeys)enuk);
     ++enuk;
   }
 //  static const uint8_t crossTrim[]={
@@ -263,7 +268,12 @@ void per10ms()
 
 #ifdef PCBSKY
 #if !defined(SIMU)
-	keys[enuk].input( ~PIOB->PIO_PDSR & 0x40,(EnumKeys)enuk); // Rotary Enc. Switch
+	uint8_t value = ~PIOB->PIO_PDSR & 0x40 ;
+	keys[enuk].input( value,(EnumKeys)enuk); // Rotary Enc. Switch
+	if ( value )
+	{
+		StickScrollTimer = STICK_SCROLL_TIMEOUT ;
+	}
 #endif
 
 #endif

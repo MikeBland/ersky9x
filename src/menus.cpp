@@ -1983,6 +1983,10 @@ for(uint8_t i=0; i<7; i++){
 			{
 				as += 1 ;				
 			}
+			if ( as > 9+NUM_SKYCSW )
+			{
+				as = 9 ;			// Tag TRN on the end, keep EEPROM values
+			}
 			putsDrSwitches( 18*FW-3, y, as,(subSub==3 ? attr : 0)|CONDENSED) ;
 		}
 
@@ -2043,7 +2047,7 @@ for(uint8_t i=0; i<7; i++){
             }
             break;
         case 3:
-          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, -(8+NUM_SKYCSW), 8+NUM_SKYCSW ) ;
+          CHECK_INCDEC_H_MODELVAR( event, cs.andsw, -(9+NUM_SKYCSW), 9+NUM_SKYCSW ) ;
 				break;
         }
 }
@@ -2099,7 +2103,7 @@ uint8_t MixPopup ;
 
 void menuProcMixOne(uint8_t event)
 {
-    SIMPLE_SUBMENU_NOTITLE(14);
+    SIMPLE_SUBMENU_NOTITLE(15);
     uint8_t x = TITLEP(s_currMixInsMode ? PSTR("INSERT MIX ") : PSTR("EDIT MIX "));
 
     SKYMixData *md2 = &g_model.mixData[s_currMixIdx] ;
@@ -4853,13 +4857,13 @@ void timer(int16_t throttle_val)
 								if(g_eeGeneral.flashBeep && (s_timer[0].s_timerVal==30 || s_timer[0].s_timerVal==20 || s_timer[0].s_timerVal==10 || s_timer[0].s_timerVal<=3))
                     g_LightOffCounter = FLASH_DURATION;
             }
-            if(g_eeGeneral.minuteBeep && (((g_model.timer[0].tmrDir ? g_model.timer[0].tmrVal-s_timer[0].s_timerVal : s_timer[0].s_timerVal)%60)==0)) //short beep every minute
+						div_t mins ;
+						mins = div( g_model.timer[0].tmrDir ? g_model.timer[0].tmrVal-s_timer[0].s_timerVal : s_timer[0].s_timerVal, 60 ) ;
+            if(g_eeGeneral.minuteBeep && ((mins.rem)==0)) //short beep every minute
             {
 								if ( g_eeGeneral.speakerMode & 2 )
 								{
-									uint8_t mins ;
-									mins = s_timer[0].s_timerVal/60 ;
-									if ( mins ) {voice_numeric( mins, 0, V_MINUTES ) ;}
+									if ( mins.quot ) {voice_numeric( mins.quot, 0, V_MINUTES ) ;}
 								}
 								else
 								{
@@ -4976,7 +4980,22 @@ struct t_i2cTime
 
 void dispMonth( uint8_t x, uint8_t y, uint32_t month, uint8_t attr)
 {
-  lcd_putsAttIdx( x, y, PSTR("\003JanFebMarAprMayJunJulAugSepOctNovDec"),month-1, attr ) ;
+	if ( month > 12 )
+	{
+		month = 0 ;		
+	}
+  lcd_putsAttIdx( x, y, PSTR("\003XxxJanFebMarAprMayJunJulAugSepOctNovDec"),month, attr ) ;
+}
+
+void disp_datetime( uint8_t y )
+{
+	lcd_puts_Pleft( y, PSTR("  -   -     :  :"));
+	lcd_outdezNAtt( 18*FW-2, y, Time.second, LEADING0, 2 ) ;
+	lcd_outdezNAtt( 15*FW-1, y, Time.minute, LEADING0, 2 ) ;
+	lcd_outdezNAtt( 12*FW,   y, Time.hour, LEADING0, 2 ) ;
+	lcd_outdezNAtt( 2*FW,    y, Time.date, LEADING0, 2 ) ;
+	lcd_outdezNAtt( 10*FW,   y, Time.year, LEADING0, 4 ) ;
+	dispMonth( 3*FW, y, Time.month, 0 ) ;
 }
 
 t_time EntryTime ;
@@ -5021,18 +5040,16 @@ void menuProcDate(uint8_t event)
       killEvents(event);
     break;
 	}		 
-#ifdef REVB    
-		lcd_puts_Pleft( 1*FH, PSTR("  -   -     :  :"));
-		lcd_outdezNAtt( 18*FW-2, 1*FH, Time.second, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 15*FW-1, 1*FH, Time.minute, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 12*FW,   1*FH, Time.hour, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 2*FW,    1*FH, Time.date, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 10*FW,   1*FH, Time.year, LEADING0, 4 ) ;
-		dispMonth( 3*FW, 1*FH, Time.month, 0 ) ;
+#ifdef REVB
+		disp_datetime( 1*FH ) ;
 
 //    lcd_outhex4( 17*FW+4, 6*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
 extern uint8_t Co_proc_status[] ;
 		lcd_outdezAtt( 21*FW, 7*FH, (uint8_t)Co_proc_status[8], 0 ) ;
+		
+    lcd_putc( 18*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x40 ? '1' : '0' ) ;
+    lcd_putc( 19*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x08 ? '1' : '0' ) ;
+    lcd_putc( 20*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x02 ? '1' : '0' ) ;
 
     int8_t  sub    = mstate2.m_posVert;
 
@@ -5111,6 +5128,10 @@ void menuProcBattery(uint8_t event)
     	killEvents(event) ;
     break;
   }
+
+		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
+		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;
+
 #ifdef REVB    
 		Current_sum += anaIn(NUMBER_ANALOG-1) ;
 		if ( ++Current_count > 49 )
@@ -5120,9 +5141,6 @@ void menuProcBattery(uint8_t event)
 			Current_count = 0 ;
 		}
   
-		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
-		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;		// Add 0.3V for the diode
-
 		current_scale = 488 + g_eeGeneral.current_calib ;
 		lcd_puts_Pleft( 3*FH, PSTR("Current\016Max"));
 	  lcd_outdezAtt( 13*FW, 3*FH, Current*current_scale/8192 ,0 ) ;
@@ -5138,22 +5156,11 @@ void menuProcBattery(uint8_t event)
 //    lcd_outhex4( 15*FW-3, 1*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
 //extern uint8_t Co_proc_status[] ;
 // Rotary encoder test/debug
-extern volatile int32_t Rotary_position ;
-extern volatile int32_t Rotary_count ;
-    lcd_outhex4( 15*FW-3, 0*FH, ( Rotary_count << 8 ) | Rotary_position ) ;
+//extern volatile int32_t Rotary_position ;
+//extern volatile int32_t Rotary_count ;
+//    lcd_outhex4( 15*FW-3, 0*FH, ( Rotary_count << 8 ) | Rotary_position ) ;
 
-		lcd_puts_Pleft( 5*FH, PSTR("  -   -     :  :"));
-		lcd_outdezNAtt( 18*FW-2, 5*FH, Time.second, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 15*FW-1, 5*FH, Time.minute, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 12*FW, 5*FH, Time.hour, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 2*FW, 5*FH, Time.date, LEADING0, 2 ) ;
-		lcd_outdezNAtt( 10*FW, 5*FH, Time.year, LEADING0, 4 ) ;
-		dispMonth( 3*FW, 5*FH, Time.month, 0 ) ;
-
-#else
-		lcd_puts_Pleft( 2*FH, PSTR("Battery"));
-		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;
-
+		disp_datetime( 5*FH ) ;
 #endif
 }
 

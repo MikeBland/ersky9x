@@ -10,6 +10,16 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 28-Apr-2013  MPB
+Add TRN to AND switches
+Fix voice timer minute bug
+Fix Co-processor reboot bug
+Version 06 of TinyApp available
+Alarm if Co-processor out of date
+Stick scrolling times out if not used
+Fix SLOW UP missing bug
+
+******************************************
 CHANGELOG: 21-Apr-2013  MPB
 Timer comparison changes
 Reboot processing fixed.

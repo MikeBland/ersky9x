@@ -546,6 +546,8 @@ void    popMenu(bool uppermost=false);
 #define NO_TRAINER 0x01
 #define NO_INPUT   0x02
 
+// Timeout, in seconds, stick scroll remains active
+#define STICK_SCROLL_TIMEOUT		5
 
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
 extern int8_t getMovedSwitch( void ) ;

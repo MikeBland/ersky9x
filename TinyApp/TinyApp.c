@@ -20,7 +20,7 @@
 #define NOINLINE __attribute__ ((noinline))
 
 // Version number, sent in first byte of response
-#define VERSION				 0x05
+#define VERSION				 0x06
 
 /*****************************************************************************/
 // USI_TWI write states.
@@ -397,6 +397,21 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 			set_clock( 5 ) ;		// Slow to 0.25MHz
 		}
 		wdt_reset() ;
+		if ( I2Crunning )
+		{
+			if ( (uint8_t)( TCNT0 - I2CstartTime ) > 12 ) // 50mS
+			{
+				// Timeout I2C bus, force release of lines.
+				USI_TWI_SLAVE_Init() ;			
+			}
+			else
+			{
+				if ( ( TIFR0 & 1 ) == 0 )
+				{
+					continue ;		// Handle I2C as priority unless clock update is needed
+				}
+			}
+		}
 
 		if ( TIFR0 & 1 )
 		{
@@ -484,14 +499,6 @@ static void USI_TWI_SLAVE_ReadAndProcessPacket ()
 		else
 		{
 			checkPowerSave() ;
-		}
-		if ( I2Crunning )
-		{
-			if ( ( TCNT0 - I2CstartTime ) > 12 ) // 50mS
-			{
-				// Timeout I2C bus, force release of lines.
-				USI_TWI_SLAVE_Init() ;			
-			}
 		}
   } // while
 //  Disable_WatchDogTimer(); // After Reset the WDT state does not change

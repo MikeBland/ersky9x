@@ -236,11 +236,15 @@ uint8_t sysFlags = 0 ;
 
 int16_t g_ppmIns[8];
 uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
+uint8_t Main_running ;
+uint8_t CoProcAlerted ;
 
 
 EEGeneral  g_eeGeneral;
 ModelData  g_oldmodel;
 SKYModelData  g_model;
+
+const char *AlertMessage ;
 
 const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
                                 1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
@@ -587,6 +591,8 @@ int main(void)
 
 #endif 
 	init_rotary_encoder() ;
+
+	Main_running = 1 ;
 
 	CoStartOS();
 
@@ -1015,12 +1021,34 @@ static inline uint16_t getTmr2MHz()
 }
 
 uint32_t OneSecTimer ;
+uint8_t StickScrollAllowed ;
+uint8_t StickScrollTimer ;
 
 #ifdef FRSKY
 extern int16_t AltOffset ;
 #endif
 
 //uint16_t Debug_analog[8] ;
+#define	ALERT_TYPE	0
+#define MESS_TYPE		1
+
+static void almess( const char * s, uint8_t type )
+{
+	const char *h ;
+  lcd_clear();
+  lcd_puts_Pleft(4*FW,s);
+	if ( type == ALERT_TYPE)
+	{
+    lcd_puts_P(64-6*FW,7*FH,"press any Key");
+		h = "ALERT" ;
+	}
+	else
+	{
+		h = "MESSAGE" ;
+	}
+  lcd_putsAtt(64-5*FW,0*FH, h,DBLSIZE);
+  refreshDisplay();
+}
 
 void mainSequence( uint32_t no_menu )
 {
@@ -1077,6 +1105,10 @@ void mainSequence( uint32_t no_menu )
 //			txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 			Current_used += Current_accumulator / 100 ;			// milliAmpSeconds (but scaled)
 			Current_accumulator = 0 ;
+			if ( StickScrollTimer )
+			{
+				StickScrollTimer -= 1 ;				
+			}
 		}
 #ifndef SIMU
 		sd_poll_10mS() ;
@@ -1086,6 +1118,21 @@ void mainSequence( uint32_t no_menu )
 		if ( ++coProTimer > 24 )
 		{
 			coProTimer -= 25 ;
+			
+			if ( CoProcAlerted == 0 )
+			{
+				if ( Coproc_valid == 1 )
+				{
+					if ( (Coproc_read & 0x80) == 0 )
+					{
+						if ( Coproc_read < 6 )
+						{
+        			alert( "Update Co-Processor" ) ;
+						}
+						CoProcAlerted = 1 ;
+					}
+				}
+			}
 			read_coprocessor() ;
 		}
 	}
@@ -1365,7 +1412,7 @@ void mainSequence( uint32_t no_menu )
 				{
 					CsTimer[i] -= 1 ;
 				}
-				if ( cs.andsw )
+				if ( cs.andsw )	// Code repeated later, could be a function
 				{
 					int8_t x ;
 					x = cs.andsw ;
@@ -1376,6 +1423,14 @@ void mainSequence( uint32_t no_menu )
 					if ( x < -8 )
 					{
 						x -= 1 ;
+					}
+					if ( x > 9+NUM_SKYCSW )
+					{
+						x = 9 ;			// Tag TRN on the end, keep EEPROM values
+					}
+					if ( x < -(9+NUM_SKYCSW) )
+					{
+						x = -9 ;			// Tag TRN on the end, keep EEPROM values
 					}
 	        if (getSwitch( x, 0, 0) == 0 )
 				  {
@@ -1634,6 +1689,7 @@ int8_t *TrimPtr[4] =
   &g_model.trim[3]
 } ;
 		
+
 const static uint8_t rate[8] = { 0, 75, 40, 25, 10, 5, 2, 1 } ;
 
 uint32_t calcStickScroll( uint32_t index )
@@ -1657,10 +1713,13 @@ uint32_t calcStickScroll( uint32_t index )
 		value = 7 ;			
 	}
 	value = rate[(uint8_t)value] ;
+	if ( value )
+	{
+		StickScrollTimer = STICK_SCROLL_TIMEOUT ;		// Seconds
+	}
 	return value | direction ;
 }
 
-uint8_t StickScrollAllowed ;
 
 void perMain( uint32_t no_menu )
 {
@@ -1739,35 +1798,17 @@ void perMain( uint32_t no_menu )
 	
 	if ( g_eeGeneral.stickScroll && StickScrollAllowed )
 	{
-		static uint8_t repeater ;
-		uint32_t direction ;
-		int32_t value ;
+	 	if ( StickScrollTimer )
+		{
+			static uint8_t repeater ;
+			uint32_t direction ;
+			int32_t value ;
 		
-		if ( repeater < 128 )
-		{
-			repeater += 1 ;
-		}
-		value = calcStickScroll( 2 ) ;
-		direction = value & 0x80 ;
-		value &= 0x7F ;
-		if ( value )
-		{
-			if ( repeater > value )
+			if ( repeater < 128 )
 			{
-				repeater = 0 ;
-				if ( direction )
-				{
-					putEvent(EVT_KEY_FIRST(KEY_UP));
-				}
-				else
-				{
-					putEvent(EVT_KEY_FIRST(KEY_DOWN));
-				}
+				repeater += 1 ;
 			}
-		}
-		else
-		{
-			value = calcStickScroll( 3 ) ;
+			value = calcStickScroll( 2 ) ;
 			direction = value & 0x80 ;
 			value &= 0x7F ;
 			if ( value )
@@ -1777,16 +1818,41 @@ void perMain( uint32_t no_menu )
 					repeater = 0 ;
 					if ( direction )
 					{
-						putEvent(EVT_KEY_FIRST(KEY_RIGHT));
+						putEvent(EVT_KEY_FIRST(KEY_UP));
 					}
 					else
 					{
-						putEvent(EVT_KEY_FIRST(KEY_LEFT));
+						putEvent(EVT_KEY_FIRST(KEY_DOWN));
+					}
+				}
+			}
+			else
+			{
+				value = calcStickScroll( 3 ) ;
+				direction = value & 0x80 ;
+				value &= 0x7F ;
+				if ( value )
+				{
+					if ( repeater > value )
+					{
+						repeater = 0 ;
+						if ( direction )
+						{
+							putEvent(EVT_KEY_FIRST(KEY_RIGHT));
+						}
+						else
+						{
+							putEvent(EVT_KEY_FIRST(KEY_LEFT));
+						}
 					}
 				}
 			}
 		}
 	}
+	else
+	{
+		StickScrollTimer = 0 ;		// Seconds
+	}	
 	StickScrollAllowed = 1 ;
 
 #if GVARS
@@ -1828,8 +1894,19 @@ void perMain( uint32_t no_menu )
 	if ( no_menu == 0 )
 	{
     lcd_clear();
-    g_menuStack[g_menuStackPtr](evt);
-    refreshDisplay();
+		if ( AlertMessage )
+		{
+			almess( AlertMessage, ALERT_TYPE ) ;
+   	  if(keyDown())
+			{
+				AlertMessage = 0 ;
+			}
+		}
+		else
+		{
+    	g_menuStack[g_menuStackPtr](evt);
+    	refreshDisplay();
+		}
 	}
 
 
@@ -2500,6 +2577,18 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 			{
 				x += 1 ;
 			}
+			if ( x < -8 )
+			{
+				x -= 1 ;
+			}
+			if ( x > 9+NUM_SKYCSW )
+			{
+				x = 9 ;			// Tag TRN on the end, keep EEPROM values
+			}
+			if ( x < -(9+NUM_SKYCSW) )
+			{
+				x = -9 ;			// Tag TRN on the end, keep EEPROM values
+			}
       ret_value = getSwitch( x, 0, level+1) ;
 		}
 	}
@@ -2593,12 +2682,15 @@ void alertMessages( const char * s, const char * t )
 
 void alert(const char * s, bool defaults)
 {
-  lcd_clear();
-  lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
-  lcd_puts_P(0,4*FH,s);
-  lcd_puts_P(64-6*FW,7*FH,PSTR("press any Key"));
-  refreshDisplay();
-  lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
+	if ( Main_running )
+	{
+		AlertMessage = s ;
+		return ;
+	}
+  
+	almess( s, ALERT_TYPE ) ;
+  
+	lcdSetRefVolt(defaults ? 0x22 : g_eeGeneral.contrast);
 
   audioVoiceDefevent(AU_ERROR, V_ERROR);
   clearKeyEvents();
@@ -2624,10 +2716,7 @@ void alert(const char * s, bool defaults)
 
 void message(const char * s)
 {
-  lcd_clear();
-  lcd_putsAtt(64-5*FW,0*FH,PSTR("MESSAGE"),DBLSIZE);
-  lcd_puts_P(0,4*FW,s);
-  refreshDisplay();
+	almess( s, MESS_TYPE ) ;
 //  lcdSetRefVolt(g_eeGeneral.contrast);
 }
 

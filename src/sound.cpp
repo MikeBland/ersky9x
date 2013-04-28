@@ -70,6 +70,12 @@ extern uint32_t Master_frequency ;
 
 volatile uint8_t Buzzer_count ;
 
+uint32_t CoProcTimer ;
+uint32_t Debug_I2C_event ;
+//uint32_t Debug_I2C_restart ;
+//uint32_t Debug_I2C_index ;
+//uint32_t Debug_I2C_value[8] ;
+
 
 struct t_sound_globals Sound_g ;
 
@@ -392,6 +398,15 @@ void sound_5ms()
 {
 	register Dacc *dacptr ;
 
+	if ( CoProcTimer )
+	{
+		if ( --CoProcTimer == 0 )
+		{
+//			Debug_I2C_restart += 1 ;
+			init_twi() ;
+		}
+	}
+
 	dacptr = DACC ;
 	if ( Sound_g.Tone_ms_timer > 0 )
 	{
@@ -567,13 +582,16 @@ void init_twi()
 	register uint32_t timing ;
   
 	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
-	
+
+	TWI0->TWI_CR = TWI_CR_SWRST ;				// Reset in case we are restarting
+	 
 	/* Configure PIO */
 	pioptr = PIOA ;
   pioptr->PIO_ABCDSR[0] &= ~0x00000018 ;	// Peripheral A
   pioptr->PIO_ABCDSR[1] &= ~0x00000018 ;	// Peripheral A
   pioptr->PIO_PDR = 0x00000018 ;					// Assign to peripheral
 	
+//	timing = Master_frequency * 8 / 2000000 ;		// 4uS high and low (125 kHz)
 	timing = Master_frequency * 5 / 2000000 ;		// 2.5uS high and low (200 kHz)
 	timing += 15 - 4 ;
 	timing /= 16 ;
@@ -615,6 +633,7 @@ static uint8_t TwiOperation ;
 #define TWI_COPROC_APPGO  4
 #define TWI_WAIT_STOP		  5
 #define TWI_WRITE_COPROC	6
+#define TWI_WAIT_COMP		  7
 
 // Commands to the coprocessor bootloader/application
 #define TWI_CMD_PAGEUPDATE        	0x01	// TWI Command to program a flash page
@@ -668,6 +687,12 @@ void i2c_check_for_request()
 		{
 			(void) TWI0->TWI_RHR ;
 		}
+
+		if ( ( TWI0->TWI_SR & TWI_SR_TXCOMP ) == 0 )
+		{
+			Debug_I2C_event += 1 ;
+		}
+
 		TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start transfers
 		TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
 		TWI0->TWI_IER = TWI_IER_RXBUFF | TWI_IER_TXCOMP ;
@@ -702,6 +727,11 @@ void i2c_check_for_request()
 		TWI0->TWI_THR = TWI_CMD_WRITE_DATA ;	// Send write command
 		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
 		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+	}
+	if ( TwiOperation != TWI_NONE )
+	{
+		// operation started
+		CoProcTimer = 10 ;		// Start 50mS timeout
 	}
 }
 
@@ -786,9 +816,11 @@ void appgo_coprocessor()
 #ifndef SIMU
 extern "C" void TWI0_IRQHandler()
 {
+	uint32_t status ;
+	status = TWI0->TWI_SR ;		// Read only once, some bits cleared on read
 	if ( TwiOperation == TWI_READ_VOL )
 	{
-		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+		if ( status & TWI_SR_RXRDY )
 		{
 			*Twi_read_address = TWI0->TWI_RHR ;		// Read data
 		}
@@ -796,7 +828,7 @@ extern "C" void TWI0_IRQHandler()
 
 	if ( TwiOperation == TWI_READ_COPROC )
 	{
-		if ( TWI0->TWI_SR & TWI_SR_RXBUFF )
+		if ( status & TWI_SR_RXBUFF )
 		{
 			TWI0->TWI_IDR = TWI_IDR_RXBUFF ;
 			TwiOperation = TWI_WAIT_STOP ;
@@ -806,7 +838,21 @@ extern "C" void TWI0_IRQHandler()
 		}
 		else
 		{
-			Coproc_valid = -1 ;			
+			// must be TXCOMP, prob. NAK in data
+			// Check if from the bootloader?
+			if ( TWI0->TWI_RCR < COPROC_RX_BUXSIZE - 1 )
+			{
+				// We got at least 1 byte
+				if ( Co_proc_status[0] & 0x80 )			// Bootloader
+				{
+					CoProc_appgo_pending = 1 ;	// Action application
+				}
+			}
+			else
+			{
+				Coproc_valid = -1 ;			
+				TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			}
 		}
 	}		
 			
@@ -831,7 +877,7 @@ extern "C" void TWI0_IRQHandler()
 			p->year = Co_proc_status[6] + ( Co_proc_status[7] << 8 ) ;
 		}
 		TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
-		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+		if ( status & TWI_SR_RXRDY )
 		{
 			(void) TWI0->TWI_RHR ;			// Discard any rubbish data
 		}
@@ -844,7 +890,7 @@ extern "C" void TWI0_IRQHandler()
 
 	if ( TwiOperation == TWI_WRITE_COPROC )
 	{
-		if ( TWI0->TWI_SR & TWI_SR_TXBUFE )
+		if ( status & TWI_SR_TXBUFE )
 		{
 			TWI0->TWI_IDR = TWI_IDR_TXBUFE ;
 			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
@@ -854,11 +900,31 @@ extern "C" void TWI0_IRQHandler()
 		}
 	}
 	 
-	TWI0->TWI_IDR = TWI_IDR_TXCOMP | TWI_IDR_TXBUFE | TWI_PTCR_TXTDIS ;
-	if ( TWI0->TWI_SR & TWI_SR_NACK )
+	if ( status & TWI_SR_NACK )
 	{
+		Debug_I2C_event += 0x100 ;
+		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 	}
-	TwiOperation = TWI_NONE ;	
+
+	if ( status & TWI_SR_RXBUFF )
+	{
+		if ( TWI0->TWI_IMR & TWI_IMR_RXBUFF )
+		{
+			Debug_I2C_event += 0x1000000 ;
+		}
+	}
+
+	TWI0->TWI_IDR = TWI_IDR_TXCOMP | TWI_IDR_TXBUFE | TWI_IDR_RXBUFF ;
+	TWI0->TWI_PTCR = TWI_PTCR_TXTDIS | TWI_PTCR_RXTDIS ;	// Stop transfers
+	if ( ( status & TWI_SR_TXCOMP ) == 0 )
+	{
+		TWI0->TWI_IER = TWI_IER_TXCOMP ;
+		TwiOperation = TWI_WAIT_COMP ;
+		return ;
+	}
+
+	TwiOperation = TWI_NONE ;
+	CoProcTimer = 0 ;		// Cancel timeout
 	i2c_check_for_request() ;
 	
 }
