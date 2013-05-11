@@ -35,11 +35,18 @@
 #ifndef sound_h
 #define sound_h
 
+ #ifndef REVX
 extern void write_coprocessor( uint8_t *ptr, uint32_t count ) ;
 extern void read_coprocessor( void ) ;
-
 extern uint8_t Coproc_read ;
 extern int8_t Coproc_valid ;
+#endif
+
+ #ifdef REVX
+extern void writeRTC( uint8_t *ptr, uint32_t count ) ;
+extern void readRTC( void ) ;
+#endif
+
 
 /* make sure the defines below always go in numeric order */
 //#define AUDIO_TADA (0)

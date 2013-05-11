@@ -260,6 +260,7 @@ extern void voice_task(void* pdata) ;
 #define	V_METRES				56
 #define	V_METRE					57
 #define	V_NOTELEM				58
+#define	V_WATTS					59
 
 
 #define V_HUNDRED			 100

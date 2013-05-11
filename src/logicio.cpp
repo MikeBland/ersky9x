@@ -387,7 +387,11 @@ uint32_t read_trims()
 	trima = PIOA->PIO_PDSR ;
 // TRIM_LH_DOWN    PA7 (PA23)
 #ifdef REVB
+ #ifndef REVX
 	if ( ( trima & 0x00800000 ) == 0 )
+ #else
+	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
+ #endif
 #else
 	if ( ( trima & 0x0080 ) == 0 )
 #endif
@@ -407,7 +411,11 @@ uint32_t read_trims()
 
 // TRIM_RV_UP    PA30 (PA1)
 #ifdef REVB
+ #ifndef REVX
 	if ( ( trima & 0x00000002 ) == 0 )
+ #else
+	if ( ( PIOC->PIO_PDSR & 0x00000400 ) == 0 )
+ #endif
 #else
 	if ( ( trima & 0x40000000 ) == 0 )
 #endif
@@ -426,7 +434,11 @@ uint32_t read_trims()
 	}
 
 // TRIM_LH_UP PB4
+#ifndef REVX
 	if ( ( PIOB->PIO_PDSR & 0x10 ) == 0 )
+#else
+	if ( ( trima & 0x00800000 ) == 0 )
+#endif
 	{
 		trims |= 2 ;
 	}
@@ -439,7 +451,11 @@ uint32_t read_trims()
 	}
 
 // TRIM_RV_DOWN   PC10
+#ifndef REVX
 	if ( ( trima & 0x00000400 ) == 0 )
+#else
+	if ( ( PIOA->PIO_PDSR & 0x00000002 ) == 0 )
+#endif
 	{
 		trims |= 0x10 ;
 	}

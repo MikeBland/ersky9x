@@ -1119,6 +1119,7 @@ void mainSequence( uint32_t no_menu )
 		{
 			coProTimer -= 25 ;
 			
+#ifndef REVX
 			if ( CoProcAlerted == 0 )
 			{
 				if ( Coproc_valid == 1 )
@@ -1134,6 +1135,9 @@ void mainSequence( uint32_t no_menu )
 				}
 			}
 			read_coprocessor() ;
+#else
+			readRTC() ;			
+#endif
 		}
 	}
 #endif
@@ -2052,6 +2056,7 @@ void interrupt5ms()
 	if ( ++pre_scale >= 2 )
 	{
 		Tenms |= 1 ;			// 10 mS has passed
+ #ifndef REVX
 		if ( Buzzer_count )
 		{
 			if ( --Buzzer_count == 0 )
@@ -2059,6 +2064,7 @@ void interrupt5ms()
 				buzzer_off() ;			
 			}
 		}
+ #endif
 //		Timer2_count += 1 ;
 		pre_scale = 0 ;
   	per10ms();

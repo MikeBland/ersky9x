@@ -484,6 +484,8 @@ PACK(typedef struct te_ModelData {
 	uint8_t		startChannel ;			// for main output 0 = ch1
 	uint8_t		startPPM2channel ;	// for PPM2 output 0 follow
   int8_t		ppm2NCH ;
+//	uint8_t   curentSource ;
+//	uint8_t   altSource ;
 }) SKYModelData;
 
 

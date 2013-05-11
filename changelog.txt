@@ -10,6 +10,12 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 11-May-2013  MPB
+Fix WSHH bugs
+Add Watts for FAS-40/100
+Insta-trim ignore small stick offsets
+
+******************************************
 CHANGELOG: 28-Apr-2013  MPB
 Add TRN to AND switches
 Fix voice timer minute bug

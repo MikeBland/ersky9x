@@ -61,6 +61,8 @@ const char Str_Sounds[] = STR_SOUNDS ;
 const char Str_PpmChannels[] = STR_PPMCHANNELS ;
 
 
+#define FR_WATT		-11
+
 #define V_GVAR1		-10
 #define V_GVAR2		-9
 #define V_GVAR3		-8
@@ -108,7 +110,7 @@ const char Str_PpmChannels[] = STR_PPMCHANNELS ;
 
 
 // TSSI set to zero on no telemetry data
-const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7" ;
+const char Str_telemItems[] = "\004A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7Fwat" ;
 const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 															FR_RXRSI_COPY, FR_TXRSI_COPY,
 															TIMER1, TIMER2,
@@ -117,11 +119,11 @@ const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 														  FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,
 															BATTERY, FR_CURRENT, FR_AMP_MAH, FR_CELLS_TOT, FR_VOLTS,
 															FR_ACCX, FR_ACCY,	FR_ACCZ, FR_VSPD, V_GVAR1, V_GVAR2,
-															V_GVAR3, V_GVAR4, V_GVAR5, V_GVAR6, V_GVAR7 } ;
+															V_GVAR3, V_GVAR4, V_GVAR5, V_GVAR6, V_GVAR7, FR_WATT } ;
 
 // TXRSSI is always considered valid as it is forced to zero on loss of telemetry
 // Values are 0 - always valid, 1 - need telemetry, 2 - need hub
-const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0  } ;
+const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2  } ;
 
 
 int16_t m_to_ft( int16_t metres )
@@ -285,6 +287,11 @@ void voice_telem_item( int8_t index )
 				value = c_to_f(value) ;
 			}
 		break ;
+
+		case FR_WATT :
+			unit = V_WATTS ;
+		break ;
+
 #endif
 
 	}
@@ -353,6 +360,9 @@ int16_t convertTelemConstant( int8_t channel, int8_t value)
 		case FR_VOLTS :
       result *= 2;
 		break ;
+    case FR_WATT:
+      result *= 8 ;
+    break;
   }
   return result;
 }
@@ -366,6 +376,10 @@ int16_t get_telemetry_value( int8_t channel )
 	}
 	
 	channel = pgm_read_byte( &TelemIndex[channel] ) ;
+  if ( channel == FR_WATT )
+	{
+		return FrskyHubData[FR_VOLTS] * FrskyHubData[FR_CURRENT] / 100 ;
+	}	 
 	if ( channel < -3 )	// A GVAR
 	{
 		return g_model.gvars[channel-V_GVAR1].gvar ;
@@ -464,19 +478,17 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
     break;
     
 		case FR_ALT_BARO:
-      unit = 'm' ;
-			if (g_model.FrSkyUsrProto == 1)  // WS How High
-			{
-      	if ( g_model.FrSkyImperial )
-        	unit = 'f' ;
-				x -= FW ;
-				break ;
-			}
-//			if ( AltitudeDecimals )
-//			{
-//			}
     case FR_GPS_ALT:
       unit = 'm' ;
+			if ( g_model.FrSkyImperial )
+			{
+				if (g_model.FrSkyUsrProto == 0)  // Not WS How High
+				{
+        	// m to ft *105/32
+        	val = m_to_ft( val ) ;
+				}
+        unit = 'f' ;
+			}
 			if ( val < 1000 )
 			{
 				att |= PREC1 ;
@@ -485,12 +497,6 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			{
 				val /= 10 ;
 			}
-			if ( g_model.FrSkyImperial )
-      {
-        // m to ft *105/32
-        val = val * 3 + ( val >> 2 ) + (val >> 5) ;
-        unit = 'f' ;
-      }
     break;
 
 		case FR_CURRENT :
@@ -3973,8 +3979,10 @@ void menuProcDiagVers(uint8_t event)
     lcd_puts_Pleft( 5*FH,stamp3 );
     lcd_puts_Pleft( 6*FH,stamp5 );
 		
+#ifndef REVX
 		lcd_puts_Pleft( 7*FH, PSTR("Co Proc"));
     lcd_outhex4( 10*FW-3, 7*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+#endif
 }
 
 
@@ -4167,7 +4175,7 @@ void menuProcSetup2(uint8_t event)
   lcd_outhex4( 8*FW+3, 1*FH, File_system[0].block_no ) ;
   lcd_outhex4( 12*FW+3, 1*FH, File_system[0].sequence_no ) ;
   lcd_outhex4( 16*FW+3, 1*FH, File_system[0].size ) ;
-	for ( i = 1 ; i < 7 ; i += 1 )
+	for ( i = 1 ; i < 5 ; i += 1 )
 	{
 		lcd_puts_Pleft( (i+1)*FH, PSTR("Model"));
 		lcd_putc( 5*FW, (i+1)*FH, j/10 + '0' ) ;
@@ -4177,6 +4185,17 @@ void menuProcSetup2(uint8_t event)
   	lcd_outhex4( 16*FW+3, (i+1)*FH, File_system[j].size ) ;
 		j += 1 ;
 	}
+
+#ifdef REVX
+	// RTC debug
+	extern uint8_t RtcConfig[] ;
+	extern uint8_t Rtc_status[] ;
+	for ( i = 0 ; i < 8 ; i += 1 )
+	{
+  	lcd_outhex2( i*2*FW, 6*FH, RtcConfig[i] ) ;
+  	lcd_outhex2( i*2*FW, 7*FH, Rtc_status[i] ) ;
+	}
+#endif
 }
 
 // From Bertrand, allow trainer inputs without using mixers.
@@ -4592,7 +4611,7 @@ void menuProcSetup(uint8_t event)
         b = 1-g_eeGeneral.disablePotScroll ;
 				b |= g_eeGeneral.stickScroll << 1 ;
         lcd_puts_Pleft( y,PSTR("Scrolling"));
-        lcd_putsAttIdx(PARAM_OFS, y, PSTR("\005NONE POT  STICKBOTH "),b,(sub==subN ? INVERS:0));
+        lcd_putsAttIdx(PARAM_OFS-1, y, PSTR("\005NONE POT  STICKBOTH "),b,(sub==subN ? INVERS:0));
         if(sub==subN) CHECK_INCDEC_H_GENVAR(event, b, 0, 3 ) ;
 				g_eeGeneral.stickScroll = b >> 1 ;
 				g_eeGeneral.disablePotScroll = 1 - ( b & 1 ) ;
@@ -5024,6 +5043,11 @@ void menuProcDate(uint8_t event)
 				p->date   = Time.date ;
 				p->month  = Time.month ;
 				p->year   = Time.year ;
+				if ( p->year < 2000 )
+				{
+					p->year = 2000 + ( p->year % 100 ) ;
+					
+				}
 			}
     break;
 		
@@ -5036,21 +5060,27 @@ void menuProcDate(uint8_t event)
 			TimeToSet.Time[4] = EntryTime.month ;
 			TimeToSet.Time[5] = (uint8_t) EntryTime.year ;
 			TimeToSet.Time[6] = EntryTime.year >> 8 ;
+#ifdef REVX
+			writeRTC( (uint8_t *) &TimeToSet.Time[0], 8 ) ;
+#else
 			write_coprocessor( (uint8_t *) &TimeToSet, 8 ) ;
+#endif
       killEvents(event);
+			s_editMode = 0 ;
     break;
 	}		 
 #ifdef REVB
 		disp_datetime( 1*FH ) ;
 
 //    lcd_outhex4( 17*FW+4, 6*FH, (Coproc_valid << 8 ) + Coproc_read ) ;
+#ifndef REVX
 extern uint8_t Co_proc_status[] ;
-		lcd_outdezAtt( 21*FW, 7*FH, (uint8_t)Co_proc_status[8], 0 ) ;
+		lcd_outdezAtt( 21*FW, 7*FH, (uint8_t)Co_proc_status[8], 0 ) ;		// Co-Proc temperature
 		
     lcd_putc( 18*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x40 ? '1' : '0' ) ;
     lcd_putc( 19*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x08 ? '1' : '0' ) ;
     lcd_putc( 20*FW, 6*FH, (uint8_t)Co_proc_status[9] & 0x02 ? '1' : '0' ) ;
-
+#endif
     int8_t  sub    = mstate2.m_posVert;
 
 		for (uint8_t subN=1; subN<7; subN++)
@@ -5084,7 +5114,11 @@ extern uint8_t Co_proc_status[] ;
 			  	if(sub==subN)  EntryTime.month = checkIncDec( event,  EntryTime.month, 1, 12, 0 ) ;
 				break ;
 				case 6 :
+#ifndef REVX
 			  	lcd_puts_Pleft( 7*FH, PSTR("Year\013Temp.") );
+#else			  	
+					lcd_puts_Pleft( 7*FH, PSTR("Year") );
+#endif
 					lcd_outdezNAtt( 9*FW-2, 7*FH, EntryTime.year, LEADING0|attr, 4 ) ;
 			  	if(sub==subN)  EntryTime.year = checkIncDec16( event,  EntryTime.year, 0, 2999, 0 ) ;
 				break ;
@@ -6062,6 +6096,21 @@ void perOut(int16_t *chanOut, uint8_t att)
                 trimA[i] = (vv==2*RESX) ? getTrimValue( CurrentPhase, i )*2 : (int16_t)vv*2; //    if throttle trim -> trim low end
             }
             anas[i] = v; //set values for mixer
+			    	if(att&NO_INPUT)
+						{ //zero input for setStickCenter()
+		      	  if ( i < 4 )
+							{
+    	    	    if(!IS_THROTTLE(i))
+								{
+									if ( ( v > (RESX/100 ) ) || ( v < -(RESX/100) ) )
+									{
+          	      	anas[i]  = 0;
+									}
+          	      trimA[i] = 0;
+      	  	    }
+        				anas[i+PPM_BASE] = 0;
+        			}
+    				}
         }
 
         //===========BEEP CENTER================
@@ -6155,15 +6204,6 @@ void perOut(int16_t *chanOut, uint8_t att)
 
     memset(chans,0,sizeof(chans));        // All outputs to 0
 
-    if(att&NO_INPUT) { //zero input for setStickCenter()
-        for(uint8_t i=0;i<4;i++) {
-            if(!IS_THROTTLE(i)) {
-                anas[i]  = 0;
-                trimA[i] = 0;
-            }
-        }
-        for(uint8_t i=0;i<4;i++) anas[i+PPM_BASE] = 0;
-    }
 
     uint8_t mixWarning = 0;
     //========== MIXER LOOP ===============

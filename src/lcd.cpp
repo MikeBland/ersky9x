@@ -307,6 +307,20 @@ void lcd_outhex4(uint8_t x,uint8_t y,uint16_t val)
   }
 }
 
+void lcd_outhex2(uint8_t x,uint8_t y,uint8_t val)
+{
+  register int i ;
+  x+=FWNUM*4;
+  for(i=0; i<2; i++)
+  {
+    x-=FWNUM;
+    char c = val & 0xf;
+    c = c>9 ? c+'A'-10 : c+'0';
+    lcd_putcAtt(x,y,c,c>='A'?CONDENSED:0);
+    val>>=4;
+  }
+}
+
 
 void lcd_outdez( uint8_t x, uint8_t y, int16_t val )
 {

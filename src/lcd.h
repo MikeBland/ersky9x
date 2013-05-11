@@ -67,6 +67,7 @@ extern void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_
 extern void lcd_putsnAtt(uint8_t x,uint8_t y,const char * s,uint8_t len,uint8_t mode) ;
 extern void lcd_putsn_P(uint8_t x,uint8_t y,const char * s,uint8_t len) ;
 extern void lcd_outhex4(uint8_t x,uint8_t y,uint16_t val) ;
+extern void lcd_outhex2(uint8_t x,uint8_t y,uint8_t val) ;
 extern void lcd_img( uint8_t i_x, uint8_t i_y, const unsigned char *imgdat, uint8_t idx, uint8_t mode ) ;
 extern uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode ) ;
 extern void lcd_puts_Pleft( uint8_t y, const char *s ) ;

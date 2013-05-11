@@ -175,12 +175,16 @@ void start_sound()
 #ifdef REVB
 void buzzer_on()
 {
+ #ifndef REVX
 	PIOA->PIO_SODR = 0x02000000L ;	// Set bit A25 ON
+ #endif
 }
 
 void buzzer_off()
 {
+ #ifndef REVX
 	PIOA->PIO_CODR = 0x02000000L ;	// Set bit A25 ON
+ #endif
 }
 #else
 void buzzer_on()
@@ -196,8 +200,10 @@ void buzzer_off()
 
 void buzzer_sound( uint8_t time )
 {
+ #ifndef REVX
 	buzzer_on() ;
 	Buzzer_count = time ;
+ #endif
 }
 
 
@@ -606,12 +612,21 @@ void init_twi()
 
 static int8_t Volume_required ;
 static uint8_t Volume_read_pending ;
+ #ifndef REVX
 static uint8_t CoProc_read_pending ;
 static uint8_t CoProc_write_pending ;
 static uint8_t CoProc_appgo_pending ;
+#endif
+
+#ifdef REVX
+static uint8_t Rtc_read_pending ;
+static uint8_t Rtc_write_pending ;
+#endif
+
 uint8_t Volume_read ;
 uint8_t Coproc_read ;
 int8_t Coproc_valid ;
+int8_t Rtc_valid ;
 //static uint8_t Twi_mode ;
 static uint8_t *Twi_read_address ;
 //static uint8_t TwiDevice ;
@@ -629,11 +644,16 @@ static uint8_t TwiOperation ;
 #define TWI_NONE		    	0
 #define TWI_READ_VOL    	1
 #define TWI_WRITE_VOL     2
+ #ifndef REVX
 #define TWI_READ_COPROC   3
 #define TWI_COPROC_APPGO  4
 #define TWI_WAIT_STOP		  5
 #define TWI_WRITE_COPROC	6
+#endif
 #define TWI_WAIT_COMP		  7
+#define TWI_READ_RTC		  8
+#define TWI_WRITE_RTC		  9
+#define TWI_WAIT_RTCSTOP	10
 
 // Commands to the coprocessor bootloader/application
 #define TWI_CMD_PAGEUPDATE        	0x01	// TWI Command to program a flash page
@@ -648,11 +668,41 @@ static const uint8_t Volume_scale[NUM_VOL_LEVELS] =
 	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
 } ;
 
+ #ifndef REVX
 #define COPROC_RX_BUXSIZE		22
+#endif
+#define RTC_RX_BUXSIZE			10
+#define RTC_SIZE						7
+ 
+ #ifndef REVX
 uint8_t Co_proc_status[COPROC_RX_BUXSIZE] ;
 uint8_t *Co_proc_write_ptr ;
 uint32_t Co_proc_write_count ;
+#endif
 
+#ifdef REVX
+uint8_t Rtc_status[RTC_RX_BUXSIZE] ;
+uint8_t *Rtc_write_ptr ;
+uint32_t Rtc_write_count ;
+uint8_t RtcConfig[8] ;		// For initial config and writing to RTC
+// 0x80, 0, 0, 0x08, 0, 0, 0, 0x80
+#endif
+
+
+#ifdef REVX
+static uint32_t fromBCD( uint8_t bcd_value )
+{
+	return ( ( ( bcd_value & 0xF0 ) * 10 ) >> 4 ) + ( bcd_value & 0x0F ) ;
+}
+
+static uint32_t toBCD( uint32_t value )
+{
+	div_t qr ;
+	qr = div( value, 10 ) ;
+	return ( qr.quot << 4 ) + qr.rem ;
+}
+
+#endif
 
 // This is called from an interrupt routine, or
 // interrupts must be disabled while it is called
@@ -673,6 +723,7 @@ void i2c_check_for_request()
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
 		TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 	}
+#ifndef REVX
 	else if ( CoProc_read_pending )
 	{
 		Coproc_valid = 0 ;
@@ -697,6 +748,7 @@ void i2c_check_for_request()
 		TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
 		TWI0->TWI_IER = TWI_IER_RXBUFF | TWI_IER_TXCOMP ;
 	}
+#endif
 	else if ( Volume_read_pending )
 	{
 		Volume_read_pending = 0 ;
@@ -706,6 +758,7 @@ void i2c_check_for_request()
 		TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
 		TWI0->TWI_IER = TWI_IER_TXCOMP ;
 	}
+ #ifndef REVX
 	else if ( CoProc_appgo_pending )
 	{
 		CoProc_appgo_pending = 0 ;
@@ -728,6 +781,48 @@ void i2c_check_for_request()
 		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
 		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
 	}
+ #endif
+ #ifdef REVX
+	else if ( Rtc_read_pending )
+	{
+		Rtc_valid = 0 ;
+		Rtc_read_pending = 0 ;
+		TWI0->TWI_MMR = 0x006F1100 ;		// Device 6F and master is reading, 1 byte addr
+		TWI0->TWI_IADR = 0 ;
+		TwiOperation = TWI_READ_RTC ;
+#ifndef SIMU
+		TWI0->TWI_RPR = (uint32_t)&Rtc_status[0] ;
+#endif
+		TWI0->TWI_RCR = RTC_SIZE - 1 ;
+		if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+		{
+			(void) TWI0->TWI_RHR ;
+		}
+
+		if ( ( TWI0->TWI_SR & TWI_SR_TXCOMP ) == 0 )
+		{
+			Debug_I2C_event += 1 ;
+		}
+
+		TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start transfers
+		TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
+		TWI0->TWI_IER = TWI_IER_RXBUFF | TWI_IER_TXCOMP ;
+	}
+	else if ( Rtc_write_pending )
+	{
+		Rtc_write_pending = 0 ;
+		TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
+		TWI0->TWI_IADR = 0 ;
+		TwiOperation = TWI_WRITE_RTC ;
+#ifndef SIMU
+		TWI0->TWI_TPR = (uint32_t)Rtc_write_ptr+1 ;
+#endif
+		TWI0->TWI_TCR = Rtc_write_count-1 ;
+		TWI0->TWI_THR = *Rtc_write_ptr ;	// First byte
+		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
+		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+	}
+ #endif // REVX
 	if ( TwiOperation != TWI_NONE )
 	{
 		// operation started
@@ -758,6 +853,7 @@ void read_volume()
 	__enable_irq() ;
 }
 
+#ifndef REVX
 void read_coprocessor()
 {
 	CoProc_read_pending = 1 ;
@@ -765,7 +861,41 @@ void read_coprocessor()
 	i2c_check_for_request() ;
 	__enable_irq() ;
 }	
+#endif
 
+#ifdef REVX
+void writeRTC( uint8_t *ptr, uint32_t count )
+{
+	uint32_t year ;
+	RtcConfig[0] = 0x80 | toBCD( *ptr++ ) ;
+	RtcConfig[1] = toBCD( *ptr++ ) ;
+	RtcConfig[2] = toBCD( *ptr++ ) ;
+	RtcConfig[3] = 0x08 ;
+	RtcConfig[4] = toBCD( *ptr++ ) ;
+	RtcConfig[5] = toBCD( *ptr++ ) ;
+	year = *ptr++ ;
+	year |= *ptr << 8 ;
+	RtcConfig[6] = toBCD( year - 2000 ) ;
+	RtcConfig[7] = 0x80 ;
+	Rtc_write_ptr = RtcConfig ;
+	Rtc_write_count = 8 ;
+	Rtc_write_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
+
+void readRTC()
+{
+	Rtc_read_pending = 1 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
+#endif
+
+
+#ifndef REVX
 void write_coprocessor( uint8_t *ptr, uint32_t count )
 {
 	Co_proc_write_ptr = ptr ;
@@ -783,6 +913,7 @@ void appgo_coprocessor()
 	i2c_check_for_request() ;
 	__enable_irq() ;
 }	
+#endif
 
 //
 //
@@ -826,6 +957,7 @@ extern "C" void TWI0_IRQHandler()
 		}
 	}
 
+#ifndef REVX
 	if ( TwiOperation == TWI_READ_COPROC )
 	{
 		if ( status & TWI_SR_RXBUFF )
@@ -855,7 +987,32 @@ extern "C" void TWI0_IRQHandler()
 			}
 		}
 	}		
-			
+#endif
+
+#ifdef REVX
+	if ( TwiOperation == TWI_READ_RTC )
+	{
+		if ( status & TWI_SR_RXBUFF )
+		{
+			TWI0->TWI_IDR = TWI_IDR_RXBUFF ;
+			TwiOperation = TWI_WAIT_RTCSTOP ;
+			TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			TWI0->TWI_RCR = 1 ;						// Last byte
+			return ;
+		}
+		else
+		{
+			// must be TXCOMP, prob. NAK in data
+			if ( TWI0->TWI_RCR > 0 )
+			{
+				Rtc_valid = -1 ;			
+				TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			}
+		}
+	}		
+#endif
+			 
+#ifndef REVX
 	if ( TwiOperation == TWI_WAIT_STOP )
 	{
 		Coproc_valid = 1 ;
@@ -882,12 +1039,36 @@ extern "C" void TWI0_IRQHandler()
 			(void) TWI0->TWI_RHR ;			// Discard any rubbish data
 		}
 	}
+#endif
+
+#ifdef REVX
+	if ( TwiOperation == TWI_WAIT_RTCSTOP )
+	{
+		Rtc_valid = 1 ;
+		// Set the date and time
+		t_time *p = &Time ;
+
+		p->second = fromBCD( Rtc_status[0] & 0x7F ) ;
+		p->minute = fromBCD( Rtc_status[1] & 0x7F ) ;
+		p->hour = fromBCD( Rtc_status[2] & 0x3F ) ;
+		p->date = fromBCD( Rtc_status[4] & 0x3F ) ;
+		p->month = fromBCD( Rtc_status[5] & 0x1F ) ;
+		p->year = fromBCD( Rtc_status[6] ) + 2000 ;
+		
+		TWI0->TWI_PTCR = TWI_PTCR_RXTDIS ;	// Stop transfers
+		if ( status & TWI_SR_RXRDY )
+		{
+			(void) TWI0->TWI_RHR ;			// Discard any rubbish data
+		}
+	}
+#endif
 
 //	if ( TwiOperation == TWI_WRITE_VOL )
 //	{
 		
 //	}
 
+#ifndef REVX
 	if ( TwiOperation == TWI_WRITE_COPROC )
 	{
 		if ( status & TWI_SR_TXBUFE )
@@ -899,6 +1080,7 @@ extern "C" void TWI0_IRQHandler()
 			return ;
 		}
 	}
+#endif
 	 
 	if ( status & TWI_SR_NACK )
 	{

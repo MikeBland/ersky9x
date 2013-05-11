@@ -260,10 +260,15 @@ ifeq ($(REVB), 1)
  EXT_MOD=REVB
 endif
 
+# If REVX board
+ifeq ($(REVX), 1)
+ CPPDEFS += -DREVX
+ EXT_MOD=REVB-X
+endif
+
 # If Flight Phases
 ifeq ($(PHASES), 1)
  CPPDEFS += -DPHASES
- EXT_MOD=REVB
 endif
 
 CPPDEFS += -DFRSKY
