@@ -35,11 +35,6 @@
 #include "font_dblsize.lbm"
 #define font_10x16_x20_x7f (font_dblsize+3)
 
-
-#define TRUE	1
-#define FALSE	0
-
-
 // Local data
 uint8_t Lcd_lastPos ;
 uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
@@ -112,7 +107,7 @@ void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mo
 	uint32_t x ;
 
   q += idx * sze1 ;
-  uint8_t inv  = (mode & INVERS) ? TRUE : (mode & BLINK ? BLINK_ON_PHASE : FALSE ) ;
+  bool inv  = (mode & INVERS) ? true : (mode & BLINK ? BLINK_ON_PHASE : false ) ;
   for( yb = 0; yb < hb; yb++)
 	{
     register uint8_t   *p = &DisplayBuf[ (i_y / 8 + yb) * DISPLAY_W + i_x ];
@@ -160,7 +155,7 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 	}
 	x += FW ;
   register uint8_t    *q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5] ;
-  register uint32_t   inv = (mode & INVERS) ? TRUE : (mode & BLINK ? BLINK_ON_PHASE : FALSE);
+  register bool   inv = (mode & INVERS) ? true : (mode & BLINK ? BLINK_ON_PHASE : false);
   if(mode&DBLSIZE)
   {
 		if ( (c!=0x2E)) x+=FW; //check for decimal point
