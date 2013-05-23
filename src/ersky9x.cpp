@@ -197,19 +197,17 @@ static void init_soft_power( void ) ;
 uint32_t check_soft_power( void ) ;
 void soft_power_off( void ) ;
 
-#if !defined(SIMU)
-static void init_rotary_encoder( void ) ;
+#if defined(SIMU)
+  #define init_rotary_encoder()
+  #define stop_rotary_encoder()
+#else
+  static void init_rotary_encoder( void ) ;
+  static void stop_rotary_encoder( void ) ;
 #endif
-static void stop_rotary_encoder( void ) ;
-
-
-
 
 /*=========================================================================*/
 /*  DEFINE: Definition of all local Data                                   */
 /*=========================================================================*/
-
-
 
 uint32_t Master_frequency ;
 //uint16_t Adc_data[32] ;

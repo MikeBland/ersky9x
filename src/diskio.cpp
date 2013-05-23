@@ -814,8 +814,9 @@ Now decide what the card can do!
 #define LDIR_Chksum                     13
 #define LDIR_FstClusLO          26
 
-
+#if !defined(SIMU)
 #include "Fat12.cpp"
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Initialize Disk Drive                                                 */
@@ -891,6 +892,8 @@ DSTATUS disk_status ( BYTE drv /* Physical drive number (0) */ )
         if ( sd_card_ready() == 0 ) return RES_NOTRDY;
         return RES_OK;
 }
+
+#if !defined(SIMU)
 
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                                        */
@@ -993,7 +996,7 @@ DRESULT disk_write (
   return count ? RES_ERROR : RES_OK;
 }
 
-
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
