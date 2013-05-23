@@ -2005,7 +2005,6 @@ static void init_rotary_encoder()
 	NVIC_EnableIRQ(PIOC_IRQn) ;
 	LastRotaryValue = Rotary_count ;
 }
-#endif
 
 static void stop_rotary_encoder()
 {
@@ -2043,7 +2042,7 @@ extern "C" void PIOC_IRQHandler()
 //		Rotary_position ^= 0x40 ;
 //	}
 }
-
+#endif
 
 void interrupt5ms()
 {
