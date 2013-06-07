@@ -624,9 +624,16 @@ uint8_t LcdInputs ;
 
 #ifdef PCBSKY
 
+const static uint8_t Lcdinit[] =
+{
+	0xe2, 0xae, 0xa1, 0xA6, 0xA4, 0xA2, 0xC0, 0x2F, 0x25, 0x81, 0x22, 0xAF
+} ;	
+
+
 void lcd_init()
 {
 	register Pio *pioptr ;
+	uint32_t i ;
   // /home/thus/txt/datasheets/lcd/KS0713.pdf
   // ~/txt/flieger/ST7565RV17.pdf  from http://www.glyn.de/content.asp?wdid=132&sid=
 
@@ -643,8 +650,13 @@ void lcd_init()
 //	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x0C0030FFL ;		// Enable bits 27,26,13,12,7-0
+#ifndef REVX
 	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
 	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
+#else 
+	pioptr->PIO_CODR = LCD_E | LCD_RnW | LCD_CS1 ;
+	pioptr->PIO_SODR = LCD_RES ;
+#endif 
 	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,13,12,7-0 output
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
 #else 
@@ -668,18 +680,22 @@ void lcd_init()
 	{
 		// Wait
 	}
-  lcdSendCtl(0xe2); //Initialize the internal functions
-  lcdSendCtl(0xae); //DON = 0: display OFF
-	lcdSendCtl(0xa1); //ADC = 1: reverse direction(SEG132->SEG1)
-  lcdSendCtl(0xA6); //REV = 0: non-reverse display
-  lcdSendCtl(0xA4); //EON = 0: normal display. non-entire
-  lcdSendCtl(0xA2); // Select LCD bias=0
-  lcdSendCtl(0xC0); //SHL = 0: normal direction (COM1->COM64)
-  lcdSendCtl(0x2F); //Control power circuit operation VC=VR=VF=1
-  lcdSendCtl(0x25); //Select int resistance ratio R2 R1 R0 =5
-  lcdSendCtl(0x81); //Set reference voltage Mode
-  lcdSendCtl(0x22); // 24 SV5 SV4 SV3 SV2 SV1 SV0 = 0x18
-  lcdSendCtl(0xAF); //DON = 1: display ON
+	for ( i = 0 ; i < 12 ; i += 1 )
+	{
+	  lcdSendCtl( Lcdinit[i] ) ;
+	}
+//  lcdSendCtl(0xe2); //Initialize the internal functions
+//  lcdSendCtl(0xae); //DON = 0: display OFF
+//	lcdSendCtl(0xa1); //ADC = 1: reverse direction(SEG132->SEG1)
+//  lcdSendCtl(0xA6); //REV = 0: non-reverse display
+//  lcdSendCtl(0xA4); //EON = 0: normal display. non-entire
+//  lcdSendCtl(0xA2); // Select LCD bias=0
+//  lcdSendCtl(0xC0); //SHL = 0: normal direction (COM1->COM64)
+//  lcdSendCtl(0x2F); //Control power circuit operation VC=VR=VF=1
+//  lcdSendCtl(0x25); //Select int resistance ratio R2 R1 R0 =5
+//  lcdSendCtl(0x81); //Set reference voltage Mode
+//  lcdSendCtl(0x22); // 24 SV5 SV4 SV3 SV2 SV1 SV0 = 0x18
+//  lcdSendCtl(0xAF); //DON = 1: display ON
  // g_eeGeneral.contrast = 0x22;
 
 #ifdef REVB
@@ -739,7 +755,9 @@ void lcdSendCtl(uint8_t val)
 	pioptr = PIOC ;
 	pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
 	PIOA->PIO_CODR = LCD_A0 ;
+#ifndef REVX
 	pioptr->PIO_CODR = LCD_RnW ;		// Write
+#endif
 	pioptr->PIO_ODSR = val ;
 #else
 	pioptr = PIOC ;
@@ -810,8 +828,10 @@ void refreshDisplay()
     
 		pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
 		PIOA->PIO_SODR = LCD_A0 ;			// Data
+#ifndef REVX
 		pioptr->PIO_CODR = LCD_RnW ;		// Write
-		
+#endif
+		 
 #ifdef REVB
 		x =	*p ;
 #else 

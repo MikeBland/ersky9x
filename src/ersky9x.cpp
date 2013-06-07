@@ -262,10 +262,10 @@ audioQueue  audio;
 
 uint8_t AlarmTimer = 100 ;		// Units of 10 mS
 uint8_t AlarmCheckFlag = 0 ;
-uint8_t CsCheckFlag = 0 ;
+//uint8_t CsCheckFlag = 0 ;
 uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
-int8_t  CsTimer[NUM_SKYCSW] ;
+int16_t  CsTimer[NUM_SKYCSW] ;
 
 const char modi12x3[]=
   "RUD ELE THR AIL "
@@ -1385,62 +1385,88 @@ void mainSequence( uint32_t no_menu )
 				Vs_state[i] = curent_state ;
 			}
 		}
-		VoiceCheckFlag = 0 ;
-	}
-	if ( CsCheckFlag )		// Custom Switch Timers
-	{
-		CsCheckFlag = 0 ;
-		uint8_t i ;
-		
-		for ( i = 0 ; i < NUM_SKYCSW ; i += 1 )
-		{
-    	SKYCSwData &cs = g_model.customSw[i];
-    	uint8_t cstate = CS_STATE(cs.func);
 
-    	if(cstate == CS_TIMER)
+		{
+			uint8_t i ;
+		
+			for ( i = 0 ; i < NUM_SKYCSW ; i += 1 )
 			{
-				if ( CsTimer[i] == 0 )
+  	  	SKYCSwData &cs = g_model.customSw[i];
+  	  	uint8_t cstate = CS_STATE(cs.func);
+
+  	  	if(cstate == CS_TIMER)
 				{
-					CsTimer[i] = -cs.v1-1 ;
-				}
-				else if ( CsTimer[i] < 0 )
-				{
-					if ( ++CsTimer[i] == 0 )
+					int16_t y ;
+					y = CsTimer[i] ;
+					if ( y == 0 )
 					{
-						CsTimer[i] = cs.v2 ;
+						int8_t z ;
+						z = cs.v1 ;
+						if ( z >= 0 )
+						{
+							z = -z-1 ;
+							y = z * 10 ;					
+						}
+						else
+						{
+							y = z ;
+						}
 					}
-				}
-				else  // if ( CsTimer[i] > 0 )
-				{
-					CsTimer[i] -= 1 ;
-				}
-				if ( cs.andsw )	// Code repeated later, could be a function
-				{
-					int8_t x ;
-					x = cs.andsw ;
-					if ( x > 8 )
+					else if ( y < 0 )
 					{
-						x += 1 ;
+						if ( ++y == 0 )
+						{
+							int8_t z ;
+							z = cs.v2 ;
+							if ( z >= 0 )
+							{
+								z += 1 ;
+								y = z * 10 - 1 ;
+							}
+							else
+							{
+								y = -z-1 ;
+							}
+						}
 					}
-					if ( x < -8 )
+					else  // if ( CsTimer[i] > 0 )
 					{
-						x -= 1 ;
+						y -= 1 ;
 					}
-					if ( x > 9+NUM_SKYCSW )
+
+					if ( cs.andsw )	// Code repeated later, could be a function
 					{
-						x = 9 ;			// Tag TRN on the end, keep EEPROM values
+						int8_t x ;
+						x = cs.andsw ;
+						if ( x > 8 )
+						{
+							x += 1 ;
+						}
+						if ( x < -8 )
+						{
+							x -= 1 ;
+						}
+						if ( x > 9+NUM_SKYCSW )
+						{
+							x = 9 ;			// Tag TRN on the end, keep EEPROM values
+						}
+						if ( x < -(9+NUM_SKYCSW) )
+						{
+							x = -9 ;			// Tag TRN on the end, keep EEPROM values
+						}
+		        if (getSwitch( x, 0, 0) == 0 )
+					  {
+							y = -1 ;
+						}	
 					}
-					if ( x < -(9+NUM_SKYCSW) )
-					{
-						x = -9 ;			// Tag TRN on the end, keep EEPROM values
-					}
-	        if (getSwitch( x, 0, 0) == 0 )
-				  {
-						CsTimer[i] = -1 ;
-					}	
+					CsTimer[i] = y ;
 				}
 			}
 		}
+
+
+
+		VoiceCheckFlag = 0 ;
 	}
 }
 
@@ -2069,7 +2095,7 @@ void interrupt5ms()
 		{
 			AlarmTimer = 100 ;		// Restart timer
 			AlarmCheckFlag += 1 ;	// Flag time to check alarms
-			CsCheckFlag = 1 ;
+//			CsCheckFlag = 1 ;
 		}
 		if (--VoiceTimer == 0 )
 		{
@@ -2967,6 +2993,23 @@ int8_t REG(int8_t x, int8_t min, int8_t max)
   return result;
 }
 #endif
+
+uint8_t IS_EXPO_THROTTLE( uint8_t x )
+{
+	if ( g_model.thrExpo )
+	{
+		return IS_THROTTLE( x ) ;
+	}
+	return 0 ;
+}
+
+uint8_t IS_THROTTLE( uint8_t x )
+{
+	uint8_t y ;
+	y = g_eeGeneral.stickMode&1 ;
+	y = 2 - y ;
+	return (((y) == x) && (x<4)) ;
+}
 
 /*** EOF ***/
 

@@ -275,6 +275,7 @@ enum EnumKeys {
 #define DR_WEIGHT 1
 #define DR_RIGHT  0
 #define DR_LEFT   1
+#define DR_BOTH   2
 #define DR_DRSW1  99
 #define DR_DRSW2  98
 
@@ -305,7 +306,8 @@ enum EnumKeys {
 #define THRCHK_DEADBAND 16
 #define SPLASH_TIMEOUT  (4*100)  //400 msec - 4 seconds
 
-#define IS_THROTTLE(x)  (((2-(g_eeGeneral.stickMode&1)) == x) && (x<4))
+uint8_t IS_THROTTLE( uint8_t x ) ;
+uint8_t IS_EXPO_THROTTLE( uint8_t x ) ;
 
 extern uint8_t Ee_lock ;
 
@@ -377,7 +379,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const char Str_telemItems[] ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 32
+#define NUM_TELEM_ITEMS 33
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
