@@ -107,6 +107,7 @@ enum EnumKeys {
 
 #ifdef PCBX9D
   SW_SA0,
+  SW_SA1,
   SW_SA2,
   SW_SB0,
   SW_SB1,
@@ -121,7 +122,6 @@ enum EnumKeys {
   SW_SE1,
   SW_SE2,
   SW_SF0,
-  SW_SF1,
   SW_SF2,
   SW_SG0,
   SW_SG1,
@@ -614,6 +614,15 @@ enum PowerState
 
 extern uint16_t ResetReason ;
 extern uint8_t unexpectedShutdown ;
+
+#ifdef PCBX9D
+#include "x9d/stm32f2xx.h"
+#include "x9d\rtc.h"
+#include "x9d\stm32f2xx_rtc.h"
+void rtcSetTime(struct gtm * t) ;
+void rtc_gettime(struct gtm * t) ;
+void rtcInit( void ) ;
+#endif
 
 
 #endif

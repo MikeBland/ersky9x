@@ -22,7 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef PCBSKY
 #include "AT91SAM3S4.h"
+#endif
 #include "ersky9x.h"
 #include "myeeprom.h"
 #include "lcd.h"

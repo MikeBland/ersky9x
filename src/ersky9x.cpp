@@ -1468,6 +1468,80 @@ void mainSequence( uint32_t no_menu )
 
 		VoiceCheckFlag = 0 ;
 	}
+
+		// Vario
+	  {
+
+extern FunctionData Function[] ;
+				
+			static uint8_t varioRepeatRate = 0 ;
+			
+			if ( ( Function[0].func == 1 ) || ( Function[0].func == 2 ) ) // Vario enabled
+			{
+				if ( getSwitch( Function[0].swtch, 0, 0 ) )
+				{
+					uint8_t new_rate = 0 ;
+					if ( varioRepeatRate )
+					{
+						varioRepeatRate -= 1 ;
+					}
+					if ( varioRepeatRate == 0 )
+					{
+						int16_t vspd ;
+						if ( Function[0].func == 1 )
+						{
+							vspd = FrskyHubData[FR_VSPD] ;
+							if ( Function[0].param[0] > 1 )
+							{
+								vspd /= Function[0].param[0] ;							
+							}
+						}
+						else // Function[0].func == 2
+						{
+							vspd = FrskyHubData[FR_A2_COPY] - 128 ;
+							if ( ( vspd < 3 ) && ( vspd > -3 ) )
+							{
+								vspd = 0 ;							
+							}
+							vspd *= Function[0].param[0] ;
+						}
+						if ( vspd )
+						{
+							{
+								if ( vspd < 0 )
+								{
+									vspd = -vspd ;
+          		    audio.event( AU_VARIO_DOWN ) ;
+								}
+								else
+								{
+          		    audio.event( AU_VARIO_UP ) ;
+								}
+								if ( vspd < 75 )
+								{
+									new_rate = 8 ;
+								}
+								else if ( vspd < 125 )
+								{
+									new_rate = 6 ;
+								}
+								else if ( vspd < 175 )
+								{
+									new_rate = 4 ;
+								}
+								else
+								{
+									new_rate = 2 ;
+								}
+							}
+						}
+						varioRepeatRate = new_rate ;
+					}
+				}
+			}
+		}	
+
+
 }
 
 uint32_t check_power_or_usb()

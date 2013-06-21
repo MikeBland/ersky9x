@@ -25,7 +25,8 @@
 #define PIN_TRIM4_UP                    GPIO_Pin_6      //PE.06
 #define PIN_TRIM4_DN                    GPIO_Pin_5      //PE.05
 
-// Switchs
+// Switches
+#if defined(REV3)
 #define	PIN_SW_A_L		        GPIO_Pin_14	//PE.14
 #define	PIN_SW_B_H		        GPIO_Pin_3	//PB.03
 #define	PIN_SW_B_L		        GPIO_Pin_4	//PB.04
@@ -40,7 +41,22 @@
 #define	PIN_SW_G_H		        GPIO_Pin_9	//PE.09
 #define	PIN_SW_G_L		        GPIO_Pin_8	//PE.08
 #define	PIN_SW_H_L		        GPIO_Pin_13	//PE.13
-
+#else
+#define	PIN_SW_A_L		        GPIO_Pin_0	//PE.00
+#define	PIN_SW_A_H		        GPIO_Pin_5	//PB.05
+#define	PIN_SW_B_L		        GPIO_Pin_2	//PE.02
+#define	PIN_SW_B_H		        GPIO_Pin_1	//PE.01
+#define	PIN_SW_C_L		        GPIO_Pin_5	//PA.05
+#define	PIN_SW_C_H		        GPIO_Pin_15	//PE.15
+#define	PIN_SW_D_L		        GPIO_Pin_1	//PB.01
+#define	PIN_SW_D_H		        GPIO_Pin_7	//PE.07
+#define	PIN_SW_E_L		        GPIO_Pin_4	//PB.04
+#define	PIN_SW_E_H		        GPIO_Pin_3	//PB.03
+#define	PIN_SW_F			        GPIO_Pin_14	//PE.14
+#define	PIN_SW_G_L		        GPIO_Pin_8	//PE.08
+#define	PIN_SW_G_H		        GPIO_Pin_9	//PE.09
+#define	PIN_SW_H			        GPIO_Pin_13	//PE.13
+#endif
 // ADC
 #define PIN_STK_J1                      GPIO_Pin_0  //PA.00              
 #define PIN_STK_J2                      GPIO_Pin_1  //PA.01
@@ -165,6 +181,11 @@
 #define CODEC_USE_INT
 //#define CODEC_USE_DMA 
 #define AudioFreq                       I2S_AudioFreq_44k 
+
+
+
+
+
 
 // EEPROM and CAT5137
 //#define EE_M24C08                       /* Support the device: M24C08. */

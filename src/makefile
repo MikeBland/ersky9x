@@ -138,6 +138,8 @@ ifeq ($(PCB), X9D)
 SRC  = x9d/system_stm32f2xx.c \
        x9d/stm32f2xx_gpio.c \
        x9d/stm32f2xx_spi.c \
+       x9d/stm32f2xx_rtc.c \
+       x9d/stm32f2xx_pwr.c \
        coos.c \
        x9d/stm32f2xx_rcc.c
 
@@ -151,6 +153,7 @@ CPPSRC = x9d.cpp \
          x9d/power.cpp \
          x9d/watchdog.cpp \
        	x9d/i2c_ee.cpp \
+         x9d/rtc_driver.cpp \
          timers.cpp \
          logicio.cpp \
          analog.cpp \

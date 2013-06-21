@@ -10,6 +10,14 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Jun-2013  MPB
+Add FAS current offset
+Add vario tones
+Add function switch to enable vario
+Flash saving
+Add Auto limits adjust option on sub-trim
+
+******************************************
 CHANGELOG: 07-Jun-2013  MPB
 Change curve editing
 Higher resolution switch timers

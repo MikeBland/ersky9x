@@ -77,6 +77,8 @@
 #define AU_MIX_WARNING_1 (30)
 #define AU_MIX_WARNING_2 (31)
 #define AU_MIX_WARNING_3 (32)
+#define AU_VARIO_UP (33)
+#define AU_VARIO_DOWN (34)
 
 #define BEEP_QUIET (0)
 #define BEEP_NOKEYS (1)

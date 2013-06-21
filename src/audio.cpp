@@ -333,6 +333,15 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		        playASAP(60, 20, 3, 2, 0, 1);
 		        playASAP(80, 20, 3, 2, 1, -1);
 		      break;
+				
+				case AU_VARIO_UP :
+		      playNow(BEEP_DEFAULT_FREQ + 60, 10, 0, 0, 0, 1 ) ;
+		    break ;
+		    
+				case AU_VARIO_DOWN :
+		      playNow(BEEP_DEFAULT_FREQ - 20, 10, 0, 0, 0, -1 ) ;
+		    break ;
+		    
 		    default:
 		      break;
 	  }

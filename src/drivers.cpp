@@ -279,10 +279,14 @@ void per10ms()
   for( i=1; i<7; i++)
   {
 		uint8_t value = in & (1<<i) ;
+#ifdef PCBSKY
+#if !defined(SIMU)
 		if ( value )
 		{
 			StickScrollTimer = STICK_SCROLL_TIMEOUT ;
 		}
+#endif
+#endif
     //INP_B_KEY_MEN 1  .. INP_B_KEY_LFT 6
     keys[enuk].input(value,(EnumKeys)enuk);
     ++enuk;

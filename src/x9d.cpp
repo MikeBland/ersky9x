@@ -41,6 +41,9 @@ OS_TID VoiceTask;
 OS_STK voice_stk[VOICE_STACK_SIZE] ;
 #endif
 
+//gtime_t g_rtcTime ;
+
+void init_i2s1( void ) ;
 
 //Temporary
 
@@ -526,6 +529,8 @@ int main( void )
 
 	I2C_EE_Init() ;
 
+	rtcInit() ;
+
 	CoInitOS();
 	
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
@@ -539,7 +544,7 @@ int main( void )
 	while(1);
 }
 
-const char Switches_Str[] = "SA0SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF1SF2SG0SG1SG2SH0SH2" ;
+const char Switches_Str[] = "SA0SA1SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF2SG0SG1SG2SH0SH2" ;
 
 extern uint32_t test_sound( void ) ;
 extern void stop_sound( void ) ;
@@ -575,6 +580,16 @@ void main_loop(void* pdata)
 			CoTickDelay(1) ;
 		}
 		wdt_reset() ;
+
+		SPI1->DR = 0xA055 ;		// Test pattern
+		for ( i = 0 ; i < 10000 ; i += 1 )
+		{
+			if ( SPI1->SR & 0x0002 )
+			{
+				break ;				
+			}
+		}
+		SPI1->DR = 0xA055 ;		// Test pattern
 
 		if ( xxx == 0  )
 		{
@@ -753,10 +768,10 @@ void main_loop(void* pdata)
 			lcd_outhex4( 120, 32, g_ppmIns[4] ) ;
 			lcd_outhex4( 120, 40, g_ppmIns[5] ) ;
 
-extern uint16_t lastCapt ;
-extern uint16_t lastVal ;
-			lcd_outhex4( 120, 48, lastVal ) ;
-			lcd_outhex4( 120, 56, lastCapt ) ;
+//extern uint16_t lastCapt ;
+//extern uint16_t lastVal ;
+//			lcd_outhex4( 120, 48, lastVal ) ;
+//			lcd_outhex4( 120, 56, lastCapt ) ;
 
 
 
@@ -1116,7 +1131,35 @@ bool Last_switch[NUM_SKYCSW] ;
 //}
 
 
+// **** SPI1 does not seem to support I2S *** !!!
 
+// Code to init SPI1 in I2S mode for DSM2 serial
+//void init_i2s1()
+//{
+//  uint32_t i ;
+////	RCC->PLLI2SCFGR = (PLLI2SN << 6) | (PLLI2SR << 28);
+//	RCC->PLLI2SCFGR = ( 192<< 6) | ( 6 << 28) ;	// I2S clock 32MHz
+//	RCC->CR |= 1 << 26 ;			// Enable
+
+//	// Should wait for bit 27 to be set!
+//	for ( i = 0 ; i < 50000 ; i += 1 )
+//	{
+//		if ( RCC->CR & (1 << 27) )			// Ready
+//		{
+//			break ;
+//		}
+//	}
+//	RCC->CFGR &= ~(uint32_t)RCC_CFGR_I2SSRC ;
+//	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+//	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN ;			// Enable SPI1 clock
+//	// PA7 assigned to SPI1
+//	configure_pins( 0x0080, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_5 ) ;
+//	SPI1->CR1 = 0 ;
+////	SPI1->I2SCFGR = 0 ;
+//	SPI1->I2SCFGR = 0x0A10 ;
+//	SPI1->I2SPR = 64 ;		// Clock divider
+//	SPI1->I2SCFGR |= 0x0400 ;		// Enable
+//}
 
 
 

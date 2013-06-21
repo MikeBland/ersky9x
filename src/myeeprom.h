@@ -411,13 +411,13 @@ PACK(typedef struct te_swVoice {
   uint8_t vres ;
 }) voiceSwData ;
 
-PACK(typedef struct t_FuncSwData { // Function Switches data
-  int8_t  swtch; //input
-  uint8_t func;
-  char param[6];
-  uint8_t delay;
-  uint8_t spare;
-}) FuncSwData;
+PACK(typedef struct t_FunctionData { // Function data
+  int8_t  swtch ; //input
+  uint8_t func ;
+  uint8_t param[6] ;
+  uint8_t spare1 ;
+  uint8_t spare2 ;
+}) FunctionData;
 
 PACK(typedef struct t_gvar {
 	int8_t gvar ;
@@ -477,13 +477,15 @@ PACK(typedef struct te_ModelData {
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
 	uint8_t		customDisplayIndex[6] ;
-  FuncSwData   funcSw[NUM_FSW];
+  FunctionData   functionData[NUM_FSW];
 	PhaseData phaseData[MAX_PHASES] ;
 	GvarData	gvars[MAX_GVARS] ;
 	uint8_t   numBlades ;					// RPM scaling
 	uint8_t		startChannel ;			// for main output 0 = ch1
 	uint8_t		startPPM2channel ;	// for PPM2 output 0 follow
   int8_t		ppm2NCH ;
+	uint8_t 	sub_trim_limit ;
+	uint8_t 	FASoffset ;			// 0.0 to 1.5
 //	uint8_t   curentSource ;
 //	uint8_t   altSource ;
 }) SKYModelData;

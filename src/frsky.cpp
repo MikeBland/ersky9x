@@ -55,8 +55,9 @@ const uint8_t Fr_indices[] =
 	FR_FUEL,
 	FR_TEMP2,
 	FR_CELL_V,
+	HUBDATALENGTH-1,HUBDATALENGTH-1,
 	FR_GPS_ALTd,
-	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
+	HUBDATALENGTH-1,HUBDATALENGTH-1,
 	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
 	FR_ALT_BARO | 0x80,
 	FR_GPS_SPEED | 0x80,
@@ -201,6 +202,10 @@ void store_hub_data( uint8_t index, uint16_t value )
 		}
 #endif
 
+		if ( index == FR_CURRENT )			// FAS current
+		{
+			FrskyHubData[index] -= g_model.FASoffset ;			
+		}
 
 		if ( index < HUBMINMAXLEN )
 		{
@@ -326,7 +331,7 @@ void frsky_proc_user_byte( uint8_t byte )
 	}
 }
 
-void frskyPushValue(uint8_t & i, uint8_t value);
+static void frskyPushValue(uint8_t & i, uint8_t value);
 
 /*
    Called from somewhere in the main loop or a low prioirty interrupt
@@ -659,7 +664,7 @@ void FRSKY_Init(void)
 	startPdcUsartReceive() ;
 }
 
-void frskyPushValue(uint8_t & i, uint8_t value)
+static void frskyPushValue(uint8_t & i, uint8_t value)
 {
 	uint8_t j ;
 	j = 0 ;
