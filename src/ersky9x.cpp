@@ -1469,78 +1469,77 @@ void mainSequence( uint32_t no_menu )
 		VoiceCheckFlag = 0 ;
 	}
 
-		// Vario
-	  {
+	// Vario
+	{
 
-extern FunctionData Function[] ;
+extern VarioData VarioSetup ;
 				
-			static uint8_t varioRepeatRate = 0 ;
+		static uint8_t varioRepeatRate = 0 ;
 			
-			if ( ( Function[0].func == 1 ) || ( Function[0].func == 2 ) ) // Vario enabled
+		if ( VarioSetup.varioSource ) // Vario enabled
+		{
+			if ( getSwitch( VarioSetup.swtch, 0, 0 ) )
 			{
-				if ( getSwitch( Function[0].swtch, 0, 0 ) )
+				uint8_t new_rate = 0 ;
+				if ( varioRepeatRate )
 				{
-					uint8_t new_rate = 0 ;
-					if ( varioRepeatRate )
+					varioRepeatRate -= 1 ;
+				}
+				if ( varioRepeatRate == 0 )
+				{
+					int16_t vspd ;
+					if ( VarioSetup.varioSource == 1 )
 					{
-						varioRepeatRate -= 1 ;
+						vspd = FrskyHubData[FR_VSPD] ;
+						if ( VarioSetup.param > 1 )
+						{
+							vspd /= VarioSetup.param ;							
+						}
 					}
-					if ( varioRepeatRate == 0 )
+					else // VarioSetup.varioSource == 2
 					{
-						int16_t vspd ;
-						if ( Function[0].func == 1 )
+						vspd = FrskyHubData[FR_A2_COPY] - 128 ;
+						if ( ( vspd < 3 ) && ( vspd > -3 ) )
 						{
-							vspd = FrskyHubData[FR_VSPD] ;
-							if ( Function[0].param[0] > 1 )
-							{
-								vspd /= Function[0].param[0] ;							
-							}
+							vspd = 0 ;							
 						}
-						else // Function[0].func == 2
-						{
-							vspd = FrskyHubData[FR_A2_COPY] - 128 ;
-							if ( ( vspd < 3 ) && ( vspd > -3 ) )
-							{
-								vspd = 0 ;							
-							}
-							vspd *= Function[0].param[0] ;
-						}
-						if ( vspd )
-						{
-							{
-								if ( vspd < 0 )
-								{
-									vspd = -vspd ;
-          		    audio.event( AU_VARIO_DOWN ) ;
-								}
-								else
-								{
-          		    audio.event( AU_VARIO_UP ) ;
-								}
-								if ( vspd < 75 )
-								{
-									new_rate = 8 ;
-								}
-								else if ( vspd < 125 )
-								{
-									new_rate = 6 ;
-								}
-								else if ( vspd < 175 )
-								{
-									new_rate = 4 ;
-								}
-								else
-								{
-									new_rate = 2 ;
-								}
-							}
-						}
-						varioRepeatRate = new_rate ;
+						vspd *= VarioSetup.param ;
 					}
+					if ( vspd )
+					{
+						{
+							if ( vspd < 0 )
+							{
+								vspd = -vspd ;
+          		  audio.event( AU_VARIO_DOWN ) ;
+							}
+							else
+							{
+          		  audio.event( AU_VARIO_UP ) ;
+							}
+							if ( vspd < 75 )
+							{
+								new_rate = 8 ;
+							}
+							else if ( vspd < 125 )
+							{
+								new_rate = 6 ;
+							}
+							else if ( vspd < 175 )
+							{
+								new_rate = 4 ;
+							}
+							else
+							{
+								new_rate = 2 ;
+							}
+						}
+					}
+					varioRepeatRate = new_rate ;
 				}
 			}
-		}	
-
+		}
+	}	
 
 }
 
@@ -2443,7 +2442,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
     lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS")+4*(idx-5),4,att);
 #endif
 	else
-  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_SKYXCHNRAW-1),att);
+  	lcd_putsAttIdx(x,y,Str_telemItems,(idx-NUM_SKYXCHNRAW),att);
 }
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)

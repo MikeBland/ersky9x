@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 22-Jun-2013  MPB
+Move vario config to TELEMETRY2
+
+******************************************
 CHANGELOG: 21-Jun-2013  MPB
 Add FAS current offset
 Add vario tones

@@ -419,6 +419,13 @@ PACK(typedef struct t_FunctionData { // Function data
   uint8_t spare2 ;
 }) FunctionData;
 
+PACK(typedef struct t_Vario
+{
+  uint8_t varioSource ;
+  int8_t  swtch ;
+  uint8_t param ;
+}) VarioData ;	
+
 PACK(typedef struct t_gvar {
 	int8_t gvar ;
 	uint8_t gvsource ;
