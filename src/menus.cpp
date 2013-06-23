@@ -1712,7 +1712,7 @@ void menuProcTelemetry2(uint8_t event)
 
    		if (j == 0)
 			{
-				lcd_puts_Pleft( 2*FH, PSTR("Vario: Source") ) ;
+				lcd_puts_Pleft( y, PSTR("Vario: Source") ) ;
 				lcd_putsAttIdx( 15*FW, y, PSTR("\004----vspdA2  "), VarioSetup.varioSource, attr ) ;
    		  if(attr)
 				{

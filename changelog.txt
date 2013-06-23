@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 23-Jun-2013  MPB
+Fix vario edit display bug
+
+******************************************
 CHANGELOG: 22-Jun-2013  MPB
 Move vario config to TELEMETRY2
 
