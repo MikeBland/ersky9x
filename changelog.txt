@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 03-Jul-2013  MPB
+Model select popup
+GVARS on voice
+
+******************************************
 CHANGELOG: 23-Jun-2013  MPB
 Fix vario edit display bug
 

@@ -612,6 +612,13 @@ const char stamp5[] = " MOD: " MOD_VERS;
 #endif
 
 #if GVARS
+
+void dispGvar( uint8_t x, uint8_t y, uint8_t gvar, uint8_t attr )
+{
+	lcd_putsAtt( x, y, PSTR("GV"), attr ) ;
+	lcd_putcAtt( x+2*FW, y, gvar+'0', attr ) ;
+}
+
 int8_t gvarMenuItem(uint8_t x, uint8_t y, int8_t value, int8_t min, int8_t max, uint8_t attr, uint8_t event )
 {
   bool invers = attr&(INVERS|BLINK);
@@ -622,8 +629,7 @@ int8_t gvarMenuItem(uint8_t x, uint8_t y, int8_t value, int8_t min, int8_t max, 
   }
   if (value >= 126 || value <= -126)
 	{
-		lcd_putsAtt( x-3*FW, y, PSTR("GV"), attr ) ;
-		lcd_putcAtt( x-FW, y, (uint8_t)value - 125+'0', attr ) ;
+		dispGvar( x-3*FW, y, (uint8_t)value - 125, attr ) ;
     if (invers) value = checkIncDec16( event, (uint8_t)value, 126, 130, EE_MODEL);
   }
   else
@@ -1989,9 +1995,16 @@ void menuProcSafetySwitches(uint8_t event)
 						}
 						else
 						{
-							max = 250 ;
-							sd->opt.vs.vval = limit( (uint8_t)0, sd->opt.vs.vval, max) ;
+							// Allow 251-255 to represent GVAR1-GVAR5
+							max = 255 ;
+							if ( sd->opt.vs.vval <= 250 )
+							{
 	  					lcd_outdezAtt( 17*FW, y, sd->opt.vs.vval, attr) ;
+							}	
+							else
+							{
+								dispGvar( 14*FW, y, sd->opt.vs.vval-248, attr ) ;
+							}
 						}
     			  if(active)
 						{
@@ -2547,8 +2560,10 @@ bool reachMixerCountLimit()
 
 uint8_t mixToDelete;
 
-void yesNoMenuExit()
+void yesNoMenuExit( const char * s )
 {
+  
+	lcd_puts_Pleft(1*FH, s ) ;	
   lcd_puts_Pleft( 5*FH,PSTR("\003YES\013NO"));
   lcd_puts_Pleft( 6*FH,PSTR("\003[MENU]\013[EXIT]"));
 }
@@ -2557,23 +2572,23 @@ void yesNoMenuExit()
 void menuDeleteMix(uint8_t event)
 //void menuDeleteModel(uint8_t event)
 {
-    switch(event){
+  switch(event)
+	{
     case EVT_ENTRY:
         audioDefevent(AU_WARNING1);
-        break;
-    case EVT_KEY_FIRST(KEY_MENU):
+    break;
+    
+		case EVT_KEY_FIRST(KEY_MENU):
         deleteMix(mixToDelete);
-//        genMixTab();
-
         //fallthrough
     case EVT_KEY_FIRST(KEY_EXIT):
         killEvents(event);
         popMenu(true);
         pushMenu(menuProcMix);
-        break;
-    }
-    lcd_puts_Pleft(1*FH, PSTR("DELETE MIX?"));
-		yesNoMenuExit() ;
+    break;
+  }
+//  lcd_puts_Pleft(1*FH, PSTR("DELETE MIX?"));
+	yesNoMenuExit( PSTR("DELETE MIX?") ) ;
 
 }
 
@@ -2641,23 +2656,42 @@ uint8_t popupProcess( uint8_t event, uint8_t max )
 	return POPUP_NONE ;
 }
 
-#define MIXPOPUP	0
-#define MODELPOPUP 1
+//#define MIXPOPUP	0
+//#define MODELPOPUP 1
 
-void popupDisplay( uint8_t model )
+const unsigned char MixPopList[] = "\005EDIT\0INSERT\0COPY\0MOVE\0DELETE" ;
+
+//void popupDisplay( uint8_t model )
+//{
+//  lcd_puts_Pleft(1*FH, model == MIXPOPUP ? PSTR("\003 EDIT   ") : PSTR("\003 SELECT ") );
+//  lcd_puts_Pleft(2*FH, model == MIXPOPUP ? PSTR("\003 INSERT ") : PSTR("\003 EDIT   ") );
+//  lcd_puts_Pleft(3*FH, PSTR("\003 COPY   "));
+//  lcd_puts_Pleft(4*FH, PSTR("\003 MOVE   "));
+//  lcd_puts_Pleft(5*FH, PSTR("\003 DELETE "));
+//	lcd_rect( 3*FW, 1*FH-1, 8*FW, 5*FH+2 ) ;
+//}
+
+// *list Byte 0 = num entries
+void popupDisplay( const unsigned char *list )
 {
-  lcd_puts_Pleft(1*FH, MODELPOPUP ? PSTR("\003 EDIT   ") : PSTR("\003 SELECT ") );
-  lcd_puts_Pleft(2*FH, MODELPOPUP ? PSTR("\003 INSERT ") : PSTR("\003 EDIT   ") );
-  lcd_puts_Pleft(3*FH, PSTR("\003 COPY   "));
-  lcd_puts_Pleft(4*FH, PSTR("\003 MOVE   "));
-  lcd_puts_Pleft(5*FH, PSTR("\003 DELETE "));
-	lcd_rect( 3*FW, 1*FH-1, 8*FW, 5*FH+2 ) ;
-}
+	uint8_t entries = *list * FH ;
+	uint8_t y ;
 
+	for ( y = FH ; y <= entries ; y += FH )
+	{
+		lcd_puts_Pleft( y, PSTR("\003        ") ) ;
+		lcd_puts_P( 4*FW, y, (const char *)(list+=1) ) ;
+		while ( *list )
+		{
+			list += 1 ;			
+		}		
+	}
+	lcd_rect( 3*FW, 1*FH-1, 8*FW, y+2-FH ) ;
+}
 
 void mixpopup( uint8_t event )
 {
-	popupDisplay( MIXPOPUP ) ;
+	popupDisplay( MixPopList ) ;
 	
 	uint8_t popaction = popupProcess( event, 4 ) ;
 	uint8_t popidx = PopupIdx ;
@@ -2960,7 +2994,7 @@ void editExpoVals(uint8_t event, uint8_t edit, uint8_t x, uint8_t y, uint8_t whi
 		int8_t *ptr ;			// volatile forces compiler to produce 'better' code
 		ExpoData *eptr ;
 
-		doedit = (edit && (p1valdiff ) ) ;
+		doedit = (edit || (p1valdiff ) ) ;
 
 		eptr = &g_model.expoData[s_expoChan] ;
     
@@ -3139,13 +3173,11 @@ int8_t DupSub ;
 
 void menuDeleteDupModel(uint8_t event)
 {
-    lcd_puts_Pleft(1*FH,DupIfNonzero ? PSTR("DUPLICATE MODEL") : PSTR("DELETE MODEL"));
     lcd_putsnAtt(1,2*FH, (char *)ModelNames[DupSub],sizeof(g_model.name),/*BSS*/0);
     lcd_putc(sizeof(g_model.name)*FW+FW,2*FH,'?');
-    lcd_puts_P(3*FW,5*FH,PSTR("YES     NO"));
-    lcd_puts_P(3*FW,6*FH,PSTR("[MENU]  [EXIT]"));
+		yesNoMenuExit( DupIfNonzero ? PSTR("DUPLICATE MODEL") : PSTR("DELETE MODEL") ) ;
 
-    uint8_t i;
+//    uint8_t i;
     switch(event){
     case EVT_ENTRY:
         audioDefevent(AU_WARNING1);
@@ -3163,25 +3195,26 @@ void menuDeleteDupModel(uint8_t event)
         }
         else
         {
-						ee32_delete_model( g_eeGeneral.currModel ) ;
-            i = g_eeGeneral.currModel;//loop to find next available model
-            while ( ! ee32ModelExists( i ) )
-						{
-							i--;
-              if(i>MAX_MODELS) i=MAX_MODELS-1;
-              if(i==g_eeGeneral.currModel)
-							{
-              	i=0;
-                break;
-              }
-            }
-            g_eeGeneral.currModel = i;
-            STORE_GENERALVARS;
-						ee32WaitLoadModel(g_eeGeneral.currModel) ;
-						putVoiceQueue( g_model.modelVoice + 260 ) ;
-//            eeWaitComplete() ;
-//            eeLoadModel(g_eeGeneral.currModel); //load default values
-            resetTimer();
+						ee32_delete_model( DupSub-1 ) ;
+            
+//						i = g_eeGeneral.currModel;//loop to find next available model
+//            while ( ! ee32ModelExists( i ) )
+//						{
+//							i--;
+//              if(i>MAX_MODELS) i=MAX_MODELS-1;
+//              if(i==g_eeGeneral.currModel)
+//							{
+//              	i=0;
+//                break;
+//              }
+//            }
+//            g_eeGeneral.currModel = i;
+//            STORE_GENERALVARS;
+//						ee32WaitLoadModel(g_eeGeneral.currModel) ;
+//						putVoiceQueue( g_model.modelVoice + 260 ) ;
+////            eeWaitComplete() ;
+////            eeLoadModel(g_eeGeneral.currModel); //load default values
+//            resetTimer();
         }
         killEvents(event);
         popMenu(true);
@@ -3197,7 +3230,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 25, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 24, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
@@ -3505,20 +3538,20 @@ if(s_pgOfs<subN) {
     if(sub==subN) { attr = INVERS | PREC1 ; CHECK_INCDEC_H_MODELVAR( event, g_model.sub_trim_limit, 0, 100 ) ; }
     lcd_outdezAtt(  21*FW, y, g_model.sub_trim_limit, attr ) ;
 		if((y+=FH)>7*FH) return;
-}subN++;
+}//subN++;
 
-if(s_pgOfs<subN) {
-    lcd_putsAtt(0*FW, y, PSTR("DELETE MODEL   [MENU]"),s_noHi ? 0 : (sub==subN?INVERS:0));
-    if(sub==subN && event==EVT_KEY_LONG(KEY_MENU)){
-        s_editMode = false;
-        s_noHi = NO_HI_LEN;
-        killEvents(event);
-        DupIfNonzero = 0 ;
-				DupSub = g_eeGeneral.currModel+1 ;
-        pushMenu(menuDeleteDupModel);
-    }
-    if((y+=FH)>7*FH) return;
-}subN++;
+//if(s_pgOfs<subN) {
+//    lcd_putsAtt(0*FW, y, PSTR("DELETE MODEL   [MENU]"),s_noHi ? 0 : (sub==subN?INVERS:0));
+//    if(sub==subN && event==EVT_KEY_LONG(KEY_MENU)){
+//        s_editMode = false;
+//        s_noHi = NO_HI_LEN;
+//        killEvents(event);
+//        DupIfNonzero = 0 ;
+//				DupSub = g_eeGeneral.currModel+1 ;
+//        pushMenu(menuDeleteDupModel);
+//    }
+//    if((y+=FH)>7*FH) return;
+//}subN++;
 }
 
 
@@ -3557,8 +3590,9 @@ void menuPhaseOne(uint8_t event)
 		{
       case 0 : // switch
 				lcd_puts_Pleft( y, "Switch" ) ;
-       	putsDrSwitches( 8*FW, y, phase->swtch ,attr ) ;
-	  			if( attr ) CHECK_INCDEC_H_MODELVAR( event, phase->swtch, -MAX_SKYDRSWITCH, MAX_SKYDRSWITCH ) ;
+				phase->swtch = edit_dr_switch( 8*FW, y, phase->swtch, attr, attr, event ) ;
+//       	putsDrSwitches( 8*FW, y, phase->swtch ,attr ) ;
+//	  			if( attr ) CHECK_INCDEC_H_MODELVAR( event, phase->swtch, -MAX_SKYDRSWITCH, MAX_SKYDRSWITCH ) ;
 			break;
 
       case 1 : // trims
@@ -3583,17 +3617,6 @@ void menuPhaseOne(uint8_t event)
         }
       break;
 	  }
-//		{
-//			int16_t v ;
-//			v = getTrimValue( s_currIdx + 1, 0 ) ;
-//	    lcd_outdez( 5*FW, 6*FH, v ) ;
-//			v = getTrimValue( s_currIdx + 1, 1 ) ;
-//	    lcd_outdez( 10*FW, 6*FH, v ) ;
-//			v = getTrimValue( s_currIdx + 1, 2 ) ;
-//	    lcd_outdez( 15*FW, 6*FH, v ) ;
-//			v = getTrimValue( s_currIdx + 1, 3 ) ;
-//	    lcd_outdez( 20*FW, 6*FH, v ) ;
-//		}
 	}
 }
 
@@ -3606,7 +3629,7 @@ void menuModelPhases(uint8_t event)
 	uint32_t i ;
   uint8_t attr ;
   
-	SIMPLE_MENU("MODES", menuTabModel, e_Phases, 7 ) ;
+	SIMPLE_MENU("MODES", menuTabModel, e_Phases, 5 ) ;
 	
 	uint8_t  sub    = mstate2.m_posVert ;
 //	evalOffset(sub, 6) ;
@@ -3614,7 +3637,7 @@ void menuModelPhases(uint8_t event)
   switch (event)
 	{
     case EVT_KEY_FIRST(KEY_MENU) :
-			if ( sub > 0 && sub <= MAX_PHASES )
+			if ( sub > 0 ) //&& sub <= MAX_MODES )
 			{
         s_currIdx = sub - 1 ;
         pushMenu(menuPhaseOne) ;
@@ -3622,22 +3645,28 @@ void menuModelPhases(uint8_t event)
 		break;
   }
     
-	lcd_puts_Pleft( FH, "FM0\017RETA" ) ;
+	lcd_puts_Pleft( FH, " FM0\017RETA" ) ;
 
   for ( i=1 ; i<=MAX_PHASES ; i += 1 )
 	{
     uint8_t y=(i+1)*FH ;
 		PhaseData *p = &g_model.phaseData[i-1] ;
     attr = (i == sub) ? INVERS : 0 ;
-    lcd_puts_Pleft( y, "FM" ) ;
-    lcd_putc( 2*FW, y, '0'+i ) ;
+    lcd_puts_Pleft( y, " FM" ) ;
+    lcd_putc( 3*FW, y, '0'+i ) ;
     putsDrSwitches( 7*FW, y, p->swtch, attr ) ;
     for ( uint8_t t = 0 ; t < NUM_STICKS ; t += 1 )
 		{
 			putsTrimMode( (15+t)*FW, y, i, t, attr ) ;
 		}
-		 
 	}	 
+	i = getFlightPhase() + 1 ;
+	lcd_rect( 0, i*FH-1, 4*FW+2, 9 ) ;
+	// Cosmetic tidy up due to inverse of top line
+	if ( i == 1 )
+	{
+    lcd_hline( 0, FH-1, 4*FW+2 );
+	}
 }
 
 
@@ -3698,44 +3727,59 @@ subN++;
 }
 #endif
 
+uint8_t ModelPopup ;
+const unsigned char ModelPopList[] = "\004SELECT\0COPY\0MOVE\0DELETE" ;
+
 void menuProcModelSelect(uint8_t event)
 {
   static MState2 mstate2;
   TITLE("MODELSEL");
 
-  if(!s_editMode)
-  {
-		if ( Rotary_diff > 0 )
-		{
-  		  scrollLR = -1;
-		}
-		else if ( Rotary_diff < 0 )
-		{
-  		  scrollLR = 1;
-		}
-		Rotary_diff = 0 ;
-    if(scrollLR<0)
-    {
-      uint8_t cc = -scrollLR;
-     if(cc>(DIM(menuTabModel)-1)) cc = DIM(menuTabModel)-1;
-
-     chainMenu((MenuFuncP)pgm_read_adr(&menuTabModel[cc]));
-
-      scrollLR = 0;
-    }
-		else if(scrollLR)
-    {
-      uint8_t cc = -scrollLR;
-			if(cc>(DIM(menuTabModel)-1)) cc = DIM(menuTabModel)-1;
-
-			chainMenu((MenuFuncP)pgm_read_adr(&menuTabModel[cc]));
-
-      scrollLR = 0;
-    }
-  }
-
   int8_t subOld  = mstate2.m_posVert;
-  mstate2.check_submenu_simple(event,MAX_MODELS-1) ;
+	
+	if ( !ModelPopup )
+	{
+		RotaryState = ROTARY_MENU_UD ;
+  	mstate2.check_submenu_simple(event,MAX_MODELS-1) ;
+
+//  	if(!s_editMode)
+//  	{
+//			if ( Rotary_diff > 0 )
+//			{
+//  			  scrollLR = -1;
+//			}
+//			else if ( Rotary_diff < 0 )
+//			{
+//  			  scrollLR = 1;
+//			}
+//			Rotary_diff = 0 ;
+    
+//			if(g_eeGeneral.currModel != mstate2.m_posVert)
+//			{
+//  			scrollLR = 0 ;
+//			}
+
+//  	  if(scrollLR<0)
+//  	  {
+//  	    uint8_t cc = -scrollLR;
+//  	   if(cc>(DIM(menuTabModel)-1)) cc = DIM(menuTabModel)-1;
+
+//  	   chainMenu((MenuFuncP)pgm_read_adr(&menuTabModel[cc]));
+
+//  	    scrollLR = 0;
+//  	  }
+//			else if(scrollLR)
+//  	  {
+//  	    uint8_t cc = -scrollLR;
+//				if(cc>(DIM(menuTabModel)-1)) cc = DIM(menuTabModel)-1;
+
+//				chainMenu((MenuFuncP)pgm_read_adr(&menuTabModel[cc]));
+
+//  	    scrollLR = 0;
+//  	  }
+//  	}
+	}
+
 
 //  lcd_puts_P(     9*FW, 0, PSTR("free"));
 //  lcd_outdezAtt(  17*FW, 0, EeFsGetFree(),0);
@@ -3749,123 +3793,15 @@ void menuProcModelSelect(uint8_t event)
       sel_editMode = false ;
       DupIfNonzero = 0 ;
   }
-
-  switch(event)
-  {
-  //case  EVT_KEY_FIRST(KEY_MENU):
-  case  EVT_KEY_FIRST(KEY_EXIT):
-      if(sel_editMode){
-          sel_editMode = false;
-          audioDefevent(AU_MENUS);
-          killEvents(event);
-					ee32WaitLoadModel(g_eeGeneral.currModel = mstate2.m_posVert) ;
-					putVoiceQueue( g_model.modelVoice + 260 ) ;
-//          eeWaitComplete();    // Wait to load model if writing something
-//          eeLoadModel(g_eeGeneral.currModel = mstate2.m_posVert);
-          resetTimer();
-          STORE_GENERALVARS;
-//          eeWaitComplete();
-//          STORE_MODELVARS;
-//          eeWaitComplete();
-          break;
-      }
-      //fallthrough
-  case  EVT_KEY_FIRST(KEY_LEFT):
-  case  EVT_KEY_FIRST(KEY_RIGHT):
-      if(g_eeGeneral.currModel != mstate2.m_posVert)
-      {
-          killEvents(event);
-          g_eeGeneral.currModel = mstate2.m_posVert;
-          ee32WaitLoadModel(g_eeGeneral.currModel); //load default values
-					putVoiceQueue( g_model.modelVoice + 260 ) ;
-//          eeWaitComplete();    // Wait to load model if writing something
-//          eeLoadModel(g_eeGeneral.currModel);
-          resetTimer();
-          STORE_GENERALVARS;
-//          eeWaitComplete();
-          audioDefevent(AU_WARNING2);
-      }
-#ifndef NO_TEMPLATES
-#if GVARS
-      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcGlobals);//{killEvents(event);popMenu(true);}
-#else
-      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcTemplates);//{killEvents(event);popMenu(true);}
-#endif
-//#elif defined(FRSKY)
-//      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcTelemetry);//{killEvents(event);popMenu(true);}
-#else
-#if GVARS
-      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcGlobals);//{killEvents(event);popMenu(true);}
-#else
-      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcSafetySwitches);//{killEvents(event);popMenu(true);}
-#endif
-#endif
-      if(event==EVT_KEY_FIRST(KEY_RIGHT)) chainMenu(menuProcModel);
-      //      if(event==EVT_KEY_FIRST(KEY_EXIT))  chainMenu(menuProcModelSelect);
-      break;
-  case  EVT_KEY_FIRST(KEY_MENU):
-      if(sel_editMode)
-			{
-      	sel_editMode = false ;
-			}
-			else
-			{
-      	sel_editMode = true ;
-			}	 
-      s_editMode = 0 ;
-      audioDefevent(AU_MENUS);
-      break;
-  case  EVT_KEY_LONG(KEY_EXIT):  // make sure exit long exits to main
-      popMenu(true);
-      break;
-  case  EVT_KEY_LONG(KEY_MENU):
-      if(sel_editMode){
-
-          DupIfNonzero = 1 ;
-          DupSub = sub + 1 ;
-          pushMenu(menuDeleteDupModel);//menuProcExpoAll);
-
-          //        message(PSTR("Duplicating model"));
-          //        if(eeDuplicateModel(sub)) {
-          //          audioDefevent(AU_MENUS);
-          //          sel_editMode = false;
-          //        }
-          //        else audioDefevent(AU_WARNING1);
-      }
-      break;
-
-  case EVT_ENTRY:
-      sel_editMode = false;
-
-      mstate2.m_posVert = g_eeGeneral.currModel;
-      break;
-  }
-  if(sel_editMode && subOld!=sub)
-	{
-		ee32SwapModels( subOld+1, sub+1 ) ;
-
-		if ( sub == g_eeGeneral.currModel )
-		{
-			g_eeGeneral.currModel = subOld ;
-      STORE_GENERALVARS ;     //eeWriteGeneral();
-		}
-		else if ( subOld == g_eeGeneral.currModel )
-		{
-			g_eeGeneral.currModel = sub ;
-      STORE_GENERALVARS ;     //eeWriteGeneral();
-		}
-  }
-
-  if(sub-s_pgOfs < 1)        s_pgOfs = max(0,sub-1);
+  
+	if(sub-s_pgOfs < 1)        s_pgOfs = max(0,sub-1);
   else if(sub-s_pgOfs >4 )  s_pgOfs = min(MAX_MODELS-6,sub-4);
   for(uint8_t i=0; i<6; i++)
 	{
     uint8_t y=(i+2)*FH;
     uint8_t k=i+s_pgOfs;
     lcd_outdezNAtt(  3*FW, y, k+1, ((sub==k) ? INVERS : 0) + LEADING0,2);
-//    static char buf[sizeof(g_model.name)+5];
     if(k==g_eeGeneral.currModel) lcd_putc(1,  y,'*');
-//    eeLoadModelName(k,buf,sizeof(buf));
     lcd_putsn_P(  4*FW, y, (char *)ModelNames[k+1],sizeof(g_model.name) ) ;
 		if ( (sub==k) && (sel_editMode ) )
 		{
@@ -3874,6 +3810,183 @@ void menuProcModelSelect(uint8_t event)
 //    lcd_putsnAtt(  4*FW, y, (char *)buf,sizeof(buf),/*BSS|*/((sub==k) ? (sel_editMode ? INVERS : 0 ) : 0));
   }
 
+	if ( ModelPopup )
+	{
+		popupDisplay( ModelPopList ) ;
+		
+		uint8_t popaction = popupProcess( event, 3 ) ;
+		uint8_t popidx = PopupIdx ;
+		lcd_char_inverse( 4*FW, (popidx+1)*FH, 6*FW, 0 ) ;
+		
+  	if ( popaction == POPUP_SELECT )
+		{
+//			if ( popidx == 1 )	// edit
+//			{
+//				chainMenu(menuProcModel) ;
+//			}
+			if ( popidx == 0 )	// select
+			{
+        g_eeGeneral.currModel = mstate2.m_posVert;
+        ee32WaitLoadModel(g_eeGeneral.currModel); //load default values
+				putVoiceQueue( g_model.modelVoice + 260 ) ;
+        resetTimer();
+        STORE_GENERALVARS;
+				if ( ModelPopup == 2 ) chainMenu(menuProcModel) ;
+			}
+			else if ( popidx == 3 )		// Delete
+			{
+//        s_editMode = false;
+//        s_noHi = NO_HI_LEN;
+  	    if(g_eeGeneral.currModel != mstate2.m_posVert)
+				{ // Don't allow current model to be deleted
+        	killEvents(event);
+        	DupIfNonzero = 0 ;
+					DupSub = sub + 1 ;
+        	pushMenu(menuDeleteDupModel);
+				}
+			}
+			else if( popidx == 1 )	// copy
+			{
+				{
+ 	        DupIfNonzero = 1 ;
+ 	        DupSub = sub + 1 ;
+ 	        pushMenu(menuDeleteDupModel);//menuProcExpoAll);
+				}
+			}
+			else // Move
+			{
+ 	    	sel_editMode = true ;
+			}
+			ModelPopup = 0 ;
+		}
+		else if ( popaction == POPUP_EXIT )
+		{
+			killEvents( event ) ;
+			ModelPopup = 0 ;
+		}
+//		s_moveMixIdx = s_currMixIdx ;
+	}
+	else
+	{
+  	switch(event)
+  	{
+  	//case  EVT_KEY_FIRST(KEY_MENU):
+	  	case  EVT_KEY_FIRST(KEY_EXIT):
+  	    if(sel_editMode)
+				{
+ 	        sel_editMode = false;
+//  	        audioDefevent(AU_MENUS);
+//  	        killEvents(event);
+//						ee32WaitLoadModel(g_eeGeneral.currModel = mstate2.m_posVert) ;
+//						putVoiceQueue( g_model.modelVoice + 260 ) ;
+	//          eeWaitComplete();    // Wait to load model if writing something
+	//          eeLoadModel(g_eeGeneral.currModel = mstate2.m_posVert);
+//  	        resetTimer();
+//  	        STORE_GENERALVARS;
+	//          eeWaitComplete();
+	//          STORE_MODELVARS;
+	//          eeWaitComplete();
+//  	        break;
+  	    }
+      break ;
+
+	  	case  EVT_KEY_FIRST(KEY_LEFT):
+  		case  EVT_KEY_FIRST(KEY_RIGHT):
+  	    if(g_eeGeneral.currModel != mstate2.m_posVert)
+  	    {
+					PopupIdx = 0 ;
+					ModelPopup = 2 ;
+//  	        killEvents(event);
+	//          g_eeGeneral.currModel = mstate2.m_posVert;
+	//          ee32WaitLoadModel(g_eeGeneral.currModel); //load default values
+	//					putVoiceQueue( g_model.modelVoice + 260 ) ;
+	////          eeWaitComplete();    // Wait to load model if writing something
+	////          eeLoadModel(g_eeGeneral.currModel);
+	//          resetTimer();
+	//          STORE_GENERALVARS;
+	////          eeWaitComplete();
+//  	        audioDefevent(AU_WARNING2);
+  	    }
+				else
+				{
+					RotaryState = ROTARY_MENU_LR ;
+	#ifndef NO_TEMPLATES
+	#if GVARS
+		      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcGlobals);//{killEvents(event);popMenu(true);}
+	#else
+  		    if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcTemplates);//{killEvents(event);popMenu(true);}
+	#endif
+	//#elif defined(FRSKY)
+	//      if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcTelemetry);//{killEvents(event);popMenu(true);}
+	#else
+	#if GVARS
+  	  	  if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcGlobals);//{killEvents(event);popMenu(true);}
+	#else
+  	    	if(event==EVT_KEY_FIRST(KEY_LEFT))  chainMenu(menuProcSafetySwitches);//{killEvents(event);popMenu(true);}
+	#endif
+	#endif
+		      if(event==EVT_KEY_FIRST(KEY_RIGHT)) chainMenu(menuProcModel);
+  	    //      if(event==EVT_KEY_FIRST(KEY_EXIT))  chainMenu(menuProcModelSelect);
+				}
+ 	    break;
+  		
+			case  EVT_KEY_FIRST(KEY_MENU) :
+			case  EVT_KEY_FIRST(BTN_RE) :
+				if(sel_editMode)
+				{
+  	    	sel_editMode = false ;
+				}
+				else
+				{
+					PopupIdx = 0 ;
+					ModelPopup = 1 ;
+				}	 
+  	    s_editMode = 0 ;
+//  	    audioDefevent(AU_MENUS);
+  	  break;
+  	
+			case  EVT_KEY_LONG(KEY_EXIT):  // make sure exit long exits to main
+  	    popMenu(true);
+      break;
+//  	case  EVT_KEY_LONG(KEY_MENU):
+//  	    if(sel_editMode){
+
+//  	        DupIfNonzero = 1 ;
+//  	        DupSub = sub + 1 ;
+//  	        pushMenu(menuDeleteDupModel);//menuProcExpoAll);
+
+//  	        //        message(PSTR("Duplicating model"));
+//  	        //        if(eeDuplicateModel(sub)) {
+//  	        //          audioDefevent(AU_MENUS);
+//  	        //          sel_editMode = false;
+//  	        //        }
+//  	        //        else audioDefevent(AU_WARNING1);
+//  	    }
+//  	    break;
+
+  		case EVT_ENTRY:
+  	    sel_editMode = false;
+				ModelPopup = 0 ;
+  	    mstate2.m_posVert = g_eeGeneral.currModel ;
+    	break;
+  	}
+	}
+
+  if(sel_editMode && subOld!=sub)
+	{
+		ee32SwapModels( subOld+1, sub+1 ) ;
+
+		if ( sub == g_eeGeneral.currModel )
+		{
+			g_eeGeneral.currModel = subOld ;
+  	  STORE_GENERALVARS ;     //eeWriteGeneral();
+		}
+		else if ( subOld == g_eeGeneral.currModel )
+		{
+			g_eeGeneral.currModel = sub ;
+  	  STORE_GENERALVARS ;     //eeWriteGeneral();
+		}
+  }
 }
 
 

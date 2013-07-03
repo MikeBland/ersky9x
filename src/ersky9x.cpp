@@ -1332,9 +1332,19 @@ void mainSequence( uint32_t no_menu )
 		{
 			uint8_t curent_state ;
 			uint8_t mode ;
+			uint8_t value ;
     	SKYSafetySwData *sd = &g_model.safetySw[i];
 			
 			mode = sd->opt.vs.vmode ;
+			value = sd->opt.vs.vval ;
+			if ( mode <= 5 )
+			{
+				if ( value > 250 )
+				{
+					value = g_model.gvars[value-248].gvar ; //Gvars 3-7
+				}
+			}
+			
 			if ( sd->opt.vs.vswtch )		// Configured
 			{
 				curent_state = getSwitch( sd->opt.vs.vswtch, 0 ) ;
