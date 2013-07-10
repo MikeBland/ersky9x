@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 10-Jul-2013  MPB
+Fix FrSky user packet count
+
+******************************************
 CHANGELOG: 08-Jul-2013  MPB
 Vario parameters stored in EEPROM
 Rotary LONG exits popup

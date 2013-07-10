@@ -392,7 +392,7 @@ void processFrskyPacket(uint8_t *packet)
     case USRPKT: // User Data packet
     {
 			uint8_t i, j ;
-			i = packet[1] + 3 ;  // User bytes end
+			i = ( packet[1] & 0x07) + 3 ;  // User bytes end
 			j = 3 ;              // Index to user bytes
 			while ( j < i )
 			{
