@@ -652,13 +652,13 @@ void lcd_init()
 //	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
 	pioptr = PIOC ;
 	pioptr->PIO_PER = 0x0C0030FFL ;		// Enable bits 27,26,13,12,7-0
-#ifndef REVX
-	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
-	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
-#else 
+//#ifndef REVX
+//	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
+//	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
+//#else 
 	pioptr->PIO_CODR = LCD_E | LCD_RnW | LCD_CS1 ;
 	pioptr->PIO_SODR = LCD_RES ;
-#endif 
+//#endif 
 	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,13,12,7-0 output
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
 #else 
@@ -757,9 +757,9 @@ void lcdSendCtl(uint8_t val)
 	pioptr = PIOC ;
 	pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
 	PIOA->PIO_CODR = LCD_A0 ;
-#ifndef REVX
+//#ifndef REVX
 	pioptr->PIO_CODR = LCD_RnW ;		// Write
-#endif
+//#endif
 	pioptr->PIO_ODSR = val ;
 #else
 	pioptr = PIOC ;
@@ -782,7 +782,9 @@ void lcdSendCtl(uint8_t val)
 #else
 	pioptr->PIO_SODR = LCD_A0 ;			// Data
 #endif	
-	pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
+//#ifndef REVX
+//	pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
+//#endif	
 }
 
 #ifdef SIMU
@@ -830,9 +832,9 @@ void refreshDisplay()
     
 		pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
 		PIOA->PIO_SODR = LCD_A0 ;			// Data
-#ifndef REVX
+//#ifndef REVX
 		pioptr->PIO_CODR = LCD_RnW ;		// Write
-#endif
+//#endif
 		 
 #ifdef REVB
 		x =	*p ;
@@ -867,7 +869,9 @@ void refreshDisplay()
 //			}
 			pioptr->PIO_CODR = ebit ;			// End E pulse
     }
-		pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
+//#ifndef REVX
+//		pioptr->PIO_SODR = LCD_CS1 ;		// Deselect LCD
+//#endif 
   }
 	pioptr->PIO_ODSR = 0xFF ;					// Drive lines high
 #ifdef REVB

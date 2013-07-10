@@ -756,7 +756,7 @@ extern int16_t p1valdiff;
 #include "sticks.lbm"
 
 enum EnumTabModel {
-    e_ModelSelect,
+//    e_ModelSelect,
     e_Model,
 #ifndef NO_HELI
     e_Heli,
@@ -781,7 +781,7 @@ enum EnumTabModel {
 };
 
 MenuFuncP menuTabModel[] = {
-    menuProcModelSelect,
+//    menuProcModelSelect,
     menuProcModel,
     #ifndef NO_HELI
     menuProcHeli,
@@ -2622,8 +2622,8 @@ uint8_t popupProcess( uint8_t event, uint8_t max )
   
 	switch(event)
 	{
-    case EVT_KEY_FIRST(KEY_MENU) :
-    case EVT_KEY_FIRST(BTN_RE):
+    case EVT_KEY_BREAK(KEY_MENU) :
+    case EVT_KEY_BREAK(BTN_RE):
 		return POPUP_SELECT ;
     
 		case EVT_KEY_FIRST(KEY_UP) :
@@ -2635,6 +2635,7 @@ uint8_t popupProcess( uint8_t event, uint8_t max )
 		break ;
     
 		case EVT_KEY_FIRST(KEY_EXIT) :
+		case EVT_KEY_LONG(BTN_RE) :
 		return POPUP_EXIT ;
 	}
 
@@ -2656,42 +2657,29 @@ uint8_t popupProcess( uint8_t event, uint8_t max )
 	return POPUP_NONE ;
 }
 
-//#define MIXPOPUP	0
-//#define MODELPOPUP 1
+const unsigned char MixPopList[] = "EDIT\0INSERT\0COPY\0MOVE\0DELETE" ;
 
-const unsigned char MixPopList[] = "\005EDIT\0INSERT\0COPY\0MOVE\0DELETE" ;
-
-//void popupDisplay( uint8_t model )
-//{
-//  lcd_puts_Pleft(1*FH, model == MIXPOPUP ? PSTR("\003 EDIT   ") : PSTR("\003 SELECT ") );
-//  lcd_puts_Pleft(2*FH, model == MIXPOPUP ? PSTR("\003 INSERT ") : PSTR("\003 EDIT   ") );
-//  lcd_puts_Pleft(3*FH, PSTR("\003 COPY   "));
-//  lcd_puts_Pleft(4*FH, PSTR("\003 MOVE   "));
-//  lcd_puts_Pleft(5*FH, PSTR("\003 DELETE "));
-//	lcd_rect( 3*FW, 1*FH-1, 8*FW, 5*FH+2 ) ;
-//}
-
-// *list Byte 0 = num entries
-void popupDisplay( const unsigned char *list )
+void popupDisplay( const unsigned char *list, uint8_t entries )
 {
-	uint8_t entries = *list * FH ;
+	entries *= FH ;
 	uint8_t y ;
 
 	for ( y = FH ; y <= entries ; y += FH )
 	{
 		lcd_puts_Pleft( y, PSTR("\003        ") ) ;
-		lcd_puts_P( 4*FW, y, (const char *)(list+=1) ) ;
+		lcd_puts_P( 4*FW, y, (const char *)(list) ) ;
 		while ( *list )
 		{
 			list += 1 ;			
 		}		
+		list += 1 ;			
 	}
 	lcd_rect( 3*FW, 1*FH-1, 8*FW, y+2-FH ) ;
 }
 
 void mixpopup( uint8_t event )
 {
-	popupDisplay( MixPopList ) ;
+	popupDisplay( MixPopList, 5 ) ;
 	
 	uint8_t popaction = popupProcess( event, 4 ) ;
 	uint8_t popidx = PopupIdx ;
@@ -3728,7 +3716,7 @@ subN++;
 #endif
 
 uint8_t ModelPopup ;
-const unsigned char ModelPopList[] = "\004SELECT\0COPY\0MOVE\0DELETE" ;
+const unsigned char ModelPopList[] = "SELECT\0COPY\0MOVE\0DELETE" ;
 
 void menuProcModelSelect(uint8_t event)
 {
@@ -3784,7 +3772,7 @@ void menuProcModelSelect(uint8_t event)
 //  lcd_puts_P(     9*FW, 0, PSTR("free"));
 //  lcd_outdezAtt(  17*FW, 0, EeFsGetFree(),0);
 
-  DisplayScreenIndex(e_ModelSelect, DIM(menuTabModel), INVERS);
+//  DisplayScreenIndex(e_ModelSelect, DIM(menuTabModel), INVERS);
 
   int8_t  sub    = mstate2.m_posVert;
   static uint8_t sel_editMode;
@@ -3812,9 +3800,10 @@ void menuProcModelSelect(uint8_t event)
 
 	if ( ModelPopup )
 	{
-		popupDisplay( ModelPopList ) ;
+		uint8_t count = (g_eeGeneral.currModel == mstate2.m_posVert) ? 3 : 4 ; 
+		popupDisplay( ModelPopList, count ) ;
 		
-		uint8_t popaction = popupProcess( event, 3 ) ;
+		uint8_t popaction = popupProcess( event, count - 1 ) ;
 		uint8_t popidx = PopupIdx ;
 		lcd_char_inverse( 4*FW, (popidx+1)*FH, 6*FW, 0 ) ;
 		
@@ -3837,13 +3826,13 @@ void menuProcModelSelect(uint8_t event)
 			{
 //        s_editMode = false;
 //        s_noHi = NO_HI_LEN;
-  	    if(g_eeGeneral.currModel != mstate2.m_posVert)
-				{ // Don't allow current model to be deleted
-        	killEvents(event);
-        	DupIfNonzero = 0 ;
-					DupSub = sub + 1 ;
-        	pushMenu(menuDeleteDupModel);
-				}
+//  	    if(g_eeGeneral.currModel != mstate2.m_posVert)
+//				{ // Don't allow current model to be deleted, now not selectable!
+       	killEvents(event);
+       	DupIfNonzero = 0 ;
+				DupSub = sub + 1 ;
+       	pushMenu(menuDeleteDupModel);
+//				}
 			}
 			else if( popidx == 1 )	// copy
 			{
@@ -3894,6 +3883,7 @@ void menuProcModelSelect(uint8_t event)
   		case  EVT_KEY_FIRST(KEY_RIGHT):
   	    if(g_eeGeneral.currModel != mstate2.m_posVert)
   	    {
+          killEvents(event);
 					PopupIdx = 0 ;
 					ModelPopup = 2 ;
 //  	        killEvents(event);
@@ -3938,6 +3928,7 @@ void menuProcModelSelect(uint8_t event)
 				}
 				else
 				{
+          killEvents(event);
 					PopupIdx = 0 ;
 					ModelPopup = 1 ;
 				}	 
@@ -4900,11 +4891,27 @@ void menuProcSetup(uint8_t event)
         if(y<7*FH) {for(uint8_t i=0; i<4; i++) lcd_img((6+4*i)*FW, y, sticks,i,0); }
         if((y+=FH)>7*FH) return;
 
-        lcd_putcAtt( 3*FW, y, '1'+g_eeGeneral.stickMode,sub==subN?INVERS:0);
+  			uint8_t attr = 0 ;
+        if(sub==subN)
+				{
+					attr = INVERS ;
+					if ( s_editMode )
+					{
+				 		attr = BLINK ;
+  			 		uint8_t mode = g_eeGeneral.stickMode ;
+						
+						CHECK_INCDEC_H_GENVAR(event, mode,0,3);
+						if ( mode != g_eeGeneral.stickMode )
+						{
+							g_eeGeneral.stickScroll = 0 ;
+							g_eeGeneral.stickMode = mode ;							
+						}
+					}
+				}
+        lcd_putcAtt( 3*FW, y, '1'+g_eeGeneral.stickMode,attr);
         for(uint8_t i=0; i<4; i++) putsChnRaw( (6+4*i)*FW, y,i+1,0);//sub==3?INVERS:0);
-
-        if(sub==subN) CHECK_INCDEC_H_GENVAR(event,g_eeGeneral.stickMode,0,3);
-        if((y+=FH)>7*FH) return;
+        
+				if((y+=FH)>7*FH) return;
     }subN++;
 
 

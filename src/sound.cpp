@@ -621,6 +621,7 @@ static uint8_t CoProc_appgo_pending ;
 #ifdef REVX
 static uint8_t Rtc_read_pending ;
 static uint8_t Rtc_write_pending ;
+static uint8_t MFPsetting = 0 ;
 #endif
 
 uint8_t Volume_read ;
@@ -654,6 +655,7 @@ static uint8_t TwiOperation ;
 #define TWI_READ_RTC		  8
 #define TWI_WRITE_RTC		  9
 #define TWI_WAIT_RTCSTOP	10
+#define TWI_WRITE_MFP     11
 
 // Commands to the coprocessor bootloader/application
 #define TWI_CMD_PAGEUPDATE        	0x01	// TWI Command to program a flash page
@@ -810,17 +812,30 @@ void i2c_check_for_request()
 	}
 	else if ( Rtc_write_pending )
 	{
-		Rtc_write_pending = 0 ;
-		TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
-		TWI0->TWI_IADR = 0 ;
-		TwiOperation = TWI_WRITE_RTC ;
+		if ( Rtc_write_pending == 2 )			// Just update MFP
+		{
+			Rtc_write_pending = 0 ;
+			TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
+			TWI0->TWI_IADR = 7 ;
+			TwiOperation = TWI_WRITE_MFP ;
+			TWI0->TWI_THR = MFPsetting ;		// Send data
+			TWI0->TWI_IER = TWI_IER_TXCOMP ;
+			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+		}
+		else
+		{
+			Rtc_write_pending = 0 ;
+			TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
+			TWI0->TWI_IADR = 0 ;
+			TwiOperation = TWI_WRITE_RTC ;
 #ifndef SIMU
-		TWI0->TWI_TPR = (uint32_t)Rtc_write_ptr+1 ;
+			TWI0->TWI_TPR = (uint32_t)Rtc_write_ptr+1 ;
 #endif
-		TWI0->TWI_TCR = Rtc_write_count-1 ;
-		TWI0->TWI_THR = *Rtc_write_ptr ;	// First byte
-		TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
-		TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+			TWI0->TWI_TCR = Rtc_write_count-1 ;
+			TWI0->TWI_THR = *Rtc_write_ptr ;	// First byte
+			TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
+			TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+		}
 	}
  #endif // REVX
 	if ( TwiOperation != TWI_NONE )
@@ -864,6 +879,30 @@ void read_coprocessor()
 #endif
 
 #ifdef REVX
+
+
+void writeMFP()
+{
+	Rtc_write_pending = 2 ;
+	__disable_irq() ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
+
+void setMFP()
+{
+	MFPsetting = 0x80 ;
+	writeMFP() ;
+}
+
+void clearMFP()
+{
+	MFPsetting = 0 ;
+	writeMFP() ;
+}
+
+
+
 void writeRTC( uint8_t *ptr, uint32_t count )
 {
 	uint32_t year ;
@@ -876,7 +915,7 @@ void writeRTC( uint8_t *ptr, uint32_t count )
 	year = *ptr++ ;
 	year |= *ptr << 8 ;
 	RtcConfig[6] = toBCD( year - 2000 ) ;
-	RtcConfig[7] = 0x80 ;
+	RtcConfig[7] = MFPsetting ;
 	Rtc_write_ptr = RtcConfig ;
 	Rtc_write_count = 8 ;
 	Rtc_write_pending = 1 ;

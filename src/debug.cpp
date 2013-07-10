@@ -216,7 +216,6 @@ void handle_serial(void* pdata)
 		while ( ( rxchar = rxuart() ) == 0xFFFF )
 		{
 			CoTickDelay(5) ;					// 10mS for now
-
 		}
 		// Got a char, what to do with it?
 

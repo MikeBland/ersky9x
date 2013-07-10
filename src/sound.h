@@ -45,6 +45,8 @@ extern int8_t Coproc_valid ;
  #ifdef REVX
 extern void writeRTC( uint8_t *ptr, uint32_t count ) ;
 extern void readRTC( void ) ;
+extern void setMFP( void ) ;
+extern void clearMFP( void ) ;
 #endif
 
 
