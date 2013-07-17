@@ -1421,16 +1421,42 @@ for(uint8_t i=0; i<7; i++){
 		{
         uint8_t attr = ((sub==k && subSub==j) ? (s_editMode ? BLINK : INVERS) : 0);
 				uint8_t active = (attr && (s_editMode || p1valdiff)) ;
+				if ( active )
+				{
+					StickScrollAllowed = 0 ;		// Block while editing
+				}
+				int16_t value ;
+				int16_t t = 0 ;
+				if ( g_model.sub_trim_limit )
+				{
+					if ( ( t = ld->offset ) )
+					{
+						if ( t > g_model.sub_trim_limit )
+						{
+							t = g_model.sub_trim_limit ;
+						}
+						else if ( t < -g_model.sub_trim_limit )
+						{
+							t = -g_model.sub_trim_limit ;
+						}
+					}
+				}
+				value = t / 10 ;
         switch(j)
         {
         case 0:
-            lcd_outdezAtt(  8*FW, y,  ld->offset, attr|PREC1);
+            lcd_outdezAtt(  7*FW+3, y,  ld->offset, attr|PREC1);
             if(active) {
                 ld->offset = checkIncDec16(event, ld->offset, -1000, 1000, EE_MODEL);
             }
             break;
         case 1:
-            lcd_outdezAtt(  12*FW, y, (int8_t)(ld->min-100),   attr);
+					value += (int8_t)(ld->min-100) ;
+					if ( value < -125 )
+					{
+						value = -125 ;						
+					}
+          lcd_outdezAtt(  12*FW, y, value,   attr);
             if(active) {
                 ld->min -=  100;
 		            CHECK_INCDEC_H_MODELVAR( event, ld->min, -limit,25);
@@ -1438,7 +1464,16 @@ for(uint8_t i=0; i<7; i++){
             }
             break;
         case 2:
-            lcd_outdezAtt( 17*FW, y, (int8_t)(ld->max+100),    attr);
+					value += (int8_t)(ld->max+100) ;
+					if ( value > 125 )
+					{
+						value = 125 ;						
+					}
+          lcd_outdezAtt( 17*FW, y, value,    attr);
+					if ( t )
+					{
+						lcd_rect( 9*FW-4, y-1, 56, 9 ) ;
+					}
             if(active) {
                 ld->max +=  100;
                 CHECK_INCDEC_H_MODELVAR( event, ld->max, -25,limit);
@@ -1446,7 +1481,8 @@ for(uint8_t i=0; i<7; i++){
             }
             break;
         case 3:
-            lcd_putsnAtt(   18*FW, y, PSTR("---INV")+ld->revert*3,3,attr);
+						menu_lcd_HYPHINV( 18*FW, y, ld->revert, attr ) ;
+//            lcd_putsnAtt(   18*FW, y, PSTR("---INV")+ld->revert*3,3,attr);
             if(active) {
                 CHECK_INCDEC_H_MODELVAR(event, ld->revert, 0, 1);
             }
@@ -3218,7 +3254,7 @@ void menuDeleteDupModel(uint8_t event)
 
 void menuProcModel(uint8_t event)
 {
-  MENU("SETUP", menuTabModel, e_Model, 24, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0,0/*repeated...*/});
+  MENU("SETUP", menuTabModel, e_Model, 25, {0,sizeof(g_model.name)-1,0,1,0,0,0,1,0,0,0,0,0,0,0,6,2,0,0/*repeated...*/});
 
 	int8_t  sub    = mstate2.m_posVert;
 	uint8_t subSub = mstate2.m_posHorz;
@@ -3555,7 +3591,8 @@ void putsTrimMode( uint8_t x, uint8_t y, uint8_t phase, uint8_t idx, uint8_t att
   }
   else
 	{
-  	lcd_putsAttIdx( x, y, "\001RETA", idx, att ) ;
+  	lcd_putsAttIdx( x, y, "\001RETA", *(modn12x3+g_eeGeneral.stickMode*4+idx)-1, att ) ;
+//  	lcd_putsAttIdx( x, y, "\001RETA", idx, att ) ;
   }
 }
 
@@ -3633,7 +3670,13 @@ void menuModelPhases(uint8_t event)
 		break;
   }
     
-	lcd_puts_Pleft( FH, " FM0\017RETA" ) ;
+	lcd_puts_Pleft( 1*FH, PSTR(" FM0") ) ;
+  {
+    for ( i = 1 ; i <= 4 ; i += 1 )
+    {
+  		lcd_putsAttIdx( (14+i)*FW, 1*FH, "\001RETA", *(modn12x3+g_eeGeneral.stickMode*4+(i-1))-1, 0 ) ;
+    }
+  }
 
   for ( i=1 ; i<=MAX_PHASES ; i += 1 )
 	{

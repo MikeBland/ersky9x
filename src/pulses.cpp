@@ -435,9 +435,12 @@ void setupPulsesPPM()			// Don't enable interrupts through here
  	}
 	//    *ptr=q;       //reverse these two assignments
 	//    *(ptr+1)=rest;
+	if ( rest<9000 )
+	{
+		rest = 9000 ;
+	}
  	*ptr = rest;
  	*(ptr+1) = 0;
-	
 }
 
 
@@ -497,6 +500,10 @@ void setupPulsesPPM2()
  	}
 	//    *ptr=q;       //reverse these two assignments
 	//    *(ptr+1)=rest;
+	if ( rest<9000 )
+	{
+		rest = 9000 ;
+	}
  	*ptr = rest;
  	*(ptr+1) = 0;
 	

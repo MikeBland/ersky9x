@@ -10,6 +10,12 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 17-Jul-2013  MPB
+Display changed limits when AutoLimits is enabled
+Fix flight Mode labels
+Protect PPM sync pulse length
+
+******************************************
 CHANGELOG: 10-Jul-2013  MPB
 Fix FrSky user packet count
 
