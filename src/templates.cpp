@@ -68,13 +68,15 @@ const char *n_Templates[NUM_TEMPLATES] = {
 SKYMixData* setDest(uint8_t dch)
 {
     uint8_t i = 0;
-    while ((g_model.mixData[i].destCh<=dch) && (g_model.mixData[i].destCh) && (i<MAX_SKYMIXERS)) i++;
+    SKYMixData *md = &g_model.mixData[0];
+
+    while ((md->destCh<=dch) && (md->destCh) && (g_model.mixData[i].destCh) && (i<MAX_SKYMIXERS)) i++;
     if(i==MAX_SKYMIXERS) return &g_model.mixData[0];
 
-    memmove(&g_model.mixData[i+1],&g_model.mixData[i],
-            (MAX_SKYMIXERS-(i+1))*sizeof(MixData) );
-    memset(&g_model.mixData[i],0,sizeof(MixData));
-    g_model.mixData[i].destCh = dch;
+    memmove(md+1, md, (MAX_SKYMIXERS-(i+1))*sizeof(MixData) );
+    memset( md, 0, sizeof(MixData) ) ;
+    md->destCh = dch;
+		md->weight = 100 ;
     return &g_model.mixData[i];
 }
 
@@ -89,20 +91,21 @@ void clearCurves()
     memset(g_model.curves9,0,sizeof(g_model.curves9)); //clear all curves
 }
 
-void setCurve(uint8_t c, int8_t ar[])
+static void setCurve(uint8_t c, int8_t ar[])
 {
-    if(c<MAX_CURVE5) //5 pt curve
+//    if(c<MAX_CURVE5) //5 pt curve
         for(uint8_t i=0; i<5; i++) g_model.curves5[c][i] = ar[i];
-    else  //9 pt curve
-        for(uint8_t i=0; i<9; i++) g_model.curves9[c-MAX_CURVE5][i] = ar[i];
+//    else  //9 pt curve
+//        for(uint8_t i=0; i<9; i++) g_model.curves9[c-MAX_CURVE5][i] = ar[i];
 }
 
 void setSwitch(uint8_t idx, uint8_t func, int8_t v1, int8_t v2)
 {
-    g_model.customSw[idx-1].func = func;
-    g_model.customSw[idx-1].v1   = v1;
-    g_model.customSw[idx-1].v2   = v2;
-    g_model.customSw[idx-1].andsw = 0;
+  SKYCSwData *cs = &g_model.customSw[idx-1] ;
+  cs->func = func ;
+  cs->andsw = 0 ;
+  cs->v1   = v1 ;
+  cs->v2   = v2 ;
 }
 
 uint8_t convert_mode_helper(uint8_t x)
@@ -134,10 +137,10 @@ void applyTemplate(uint8_t idx)
     if(idx==j++) 
     {
         clearMixes();
-        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD);  md->weight=100;
-        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);  md->weight=100;
-        md=setDest(ICC(STK_THR));  md->srcRaw=CM(STK_THR);  md->weight=100;
-        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_AIL);  md->weight=100;
+        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD);
+        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);
+        md=setDest(ICC(STK_THR));  md->srcRaw=CM(STK_THR);
+        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_AIL);
     }
 
     //T-Cut
@@ -150,9 +153,9 @@ void applyTemplate(uint8_t idx)
     if(idx==j++)
     {
         md=setDest(ICC(STK_THR));  md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWC;  md->mltpx=MLTPX_REP;
-        md=setDest(14);            md->srcRaw=CH(14);   md->weight= 100;
+        md=setDest(14);            md->srcRaw=CH(14);
         md=setDest(14);            md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWB;  md->mltpx=MLTPX_REP;
-        md=setDest(14);            md->srcRaw=MIX_MAX;  md->weight= 100;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
+        md=setDest(14);            md->srcRaw=MIX_MAX;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
 
         setSwitch(0xB,CS_VNEG, CM(STK_THR), -99);
         setSwitch(0xC,CS_VPOS, CH(14), 0);
@@ -162,9 +165,9 @@ void applyTemplate(uint8_t idx)
     if(idx==j++) 
     {
         clearMixes();
-        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD);  md->weight= 100;
+        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD);
         md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_ELE);  md->weight=-100;
-        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_RUD);  md->weight= 100;
+        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_RUD);
         md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);  md->weight= 100;
     }
 
@@ -172,9 +175,9 @@ void applyTemplate(uint8_t idx)
     if(idx==j++)
     {
         clearMixes();
-        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);  md->weight= 100;
-        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_AIL);  md->weight= 100;
-        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_ELE);  md->weight= 100;
+        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);
+        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_AIL);
+        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_ELE);
         md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_AIL);  md->weight=-100;
     }
 
@@ -187,17 +190,17 @@ void applyTemplate(uint8_t idx)
 
         //Set up Mixes
         //3 cyclic channels
-        md=setDest(1);  md->srcRaw=MIX_CYC1;  md->weight= 100;
-        md=setDest(2);  md->srcRaw=MIX_CYC2;  md->weight= 100;
-        md=setDest(3);  md->srcRaw=MIX_CYC3;  md->weight= 100;
+        md=setDest(1);  md->srcRaw=MIX_CYC1;
+        md=setDest(2);  md->srcRaw=MIX_CYC2;
+        md=setDest(3);  md->srcRaw=MIX_CYC3;
 
         //rudder
-        md=setDest(4);  md->srcRaw=CM(STK_RUD); md->weight=100;
+        md=setDest(4);  md->srcRaw=CM(STK_RUD);
 
         //Throttle
-        md=setDest(5);  md->srcRaw=CM(STK_THR);  md->weight= 100; md->swtch= DSW_ID0; md->curve=CV(1); md->carryTrim=TRIM_OFF;
-        md=setDest(5);  md->srcRaw=CM(STK_THR);  md->weight= 100; md->swtch= DSW_ID1; md->curve=CV(2); md->carryTrim=TRIM_OFF;
-        md=setDest(5);  md->srcRaw=CM(STK_THR);  md->weight= 100; md->swtch= DSW_ID2; md->curve=CV(3); md->carryTrim=TRIM_OFF;
+        md=setDest(5);  md->srcRaw=CM(STK_THR); md->swtch= DSW_ID0; md->curve=CV(1); md->carryTrim=TRIM_OFF;
+        md=setDest(5);  md->srcRaw=CM(STK_THR); md->swtch= DSW_ID1; md->curve=CV(2); md->carryTrim=TRIM_OFF;
+        md=setDest(5);  md->srcRaw=CM(STK_THR); md->swtch= DSW_ID2; md->curve=CV(3); md->carryTrim=TRIM_OFF;
         md=setDest(5);  md->srcRaw=MIX_MAX;      md->weight=-100; md->swtch= DSW_THR; md->mltpx=MLTPX_REP;
 
         //gyro gain
@@ -243,7 +246,7 @@ void applyTemplate(uint8_t idx)
     // Range Test
     if(idx==j++)
     {
-        md=setDest(24); md->srcRaw=MIX_FULL; md->weight= 100; md->swtch=DSW_SW1; md->speedUp = 40; md->speedDown = 40;
+        md=setDest(24); md->srcRaw=MIX_FULL; md->swtch=DSW_SW1; md->speedUp = 40; md->speedDown = 40;
         setSwitch(1,CS_TIME,4,4);
     }
 

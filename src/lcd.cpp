@@ -30,12 +30,34 @@
 #include "lcd.h"
 #include "drivers.h"
 #include "logicio.h"
+#include "language.h"
+
+//const pm_uchar font_5x7[] PROGMEM = {
+//#include "fonts/std/font_05x07.lbm"
+//#if defined(TRANSLATIONS_DE)
+//#include "fonts/std/font_de_05x07.lbm"
+//#elif defined(TRANSLATIONS_CZ)
+//#include "fonts/std/font_cz_05x07.lbm"
+//#elif defined(TRANSLATIONS_ES)
+//#include "fonts/std/font_es_05x07.lbm"
+//#elif defined(TRANSLATIONS_FR)
+//#include "fonts/std/font_fr_05x07.lbm"
+//#elif defined(TRANSLATIONS_IT)
+//#include "fonts/std/font_it_05x07.lbm"
+//#elif defined(TRANSLATIONS_PT)
+//#include "fonts/std/font_pt_05x07.lbm"
+//#elif defined(TRANSLATIONS_SE)
+//#include "fonts/std/font_se_05x07.lbm"
+//#endif
+//};
+
+
 
 #include "font.lbm"
-#define font_5x8_x20_x7f (font+3)
+#define font_5x8_x20_x7f (font)
 
 #include "font_dblsize.lbm"
-#define font_10x16_x20_x7f (font_dblsize+3)
+#define font_10x16_x20_x7f (font_dblsize)
 
 // Local data
 uint8_t Lcd_lastPos ;
@@ -43,6 +65,7 @@ uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
 #define DISPLAY_END (DisplayBuf+sizeof(DisplayBuf))
 
 
+#ifdef PCBSKY
 // Lookup table for prototype board
 #ifdef REVB
 #else
@@ -65,6 +88,7 @@ const uint8_t Lcd_lookup[] =
 0x0E,0x0F,0x8E,0x8F,0x4E,0x4F,0xCE,0xCF,0x2E,0x2F,0xAE,0xAF,0x6E,0x6F,0xEE,0xEF,
 0x1E,0x1F,0x9E,0x9F,0x5E,0x5F,0xDE,0xDF,0x3E,0x3F,0xBE,0xBF,0x7E,0x7F,0xFE,0xFF
 } ;
+#endif 
 #endif 
 
 

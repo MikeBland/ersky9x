@@ -55,6 +55,9 @@ extern const char stamp3[] ;
 extern const char stamp4[] ;
 extern const char stamp5[] ;
 
+extern const char Str_OFF[] ;
+extern const char Str_ON[] ;
+
 #define CPU_INT		int32_t
 #define CPU_UINT	uint32_t
 
@@ -132,10 +135,10 @@ enum EnumKeys {
 };
 
 // c17-c24 added for timer mode A display
-#define CURV_STR "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
+//#define CURV_STR "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 #define CURVE_BASE 7
 
-#define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 TimeOff"
+//#define CSWITCH_STR  "----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 TimeOff"
 #define CSW_LEN_FUNC 7
 
 
@@ -194,7 +197,7 @@ enum EnumKeys {
 #define SWP_IL4 (SWP_ID1B | SWP_ID2B)
 #define SWP_IL5 (SWP_ID0B | SWP_ID1B | SWP_ID2B)
 
-#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
+//#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
 #define NUM_CSW  12 //number of custom switches
 #define NUM_SKYCSW  24 //number of custom switches
 #define CSW_INDEX	9	// Index of first custom switch
@@ -250,7 +253,7 @@ enum EnumKeys {
 
 #define NUM_STICKS	4
 
-#define SWASH_TYPE_STR   "---   ""120   ""120X  ""140   ""90    "
+//#define SWASH_TYPE_STR   "---   ""120   ""120X  ""140   ""90    "
 
 #define SWASH_TYPE_120   1
 #define SWASH_TYPE_120X  2
@@ -441,6 +444,33 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define NO_MENU		1
 #define MENUS			0
 
+extern uint16_t evalChkSum( void ) ;
+
+struct t_calib
+{
+	int16_t midVals[7];
+	int16_t loVals[7];
+	int16_t hiVals[7];
+	uint8_t idxState;
+} ;
+
+union t_xmem
+{
+//	struct MixTab s_mixTab[MAX_MIXERS+NUM_XCHNOUT+1] ;	
+	struct t_calib Cal_data ;
+#ifndef CPUARM
+	char buf[sizeof(g_model.name)+5];
+#endif
+//#if defined(CPUM128)
+//  uint8_t file_buffer[256];
+//#else
+//  uint8_t file_buffer[128];
+//#endif
+} ;
+
+extern union t_xmem Xmem ;
+
+
 typedef void (*MenuFuncP)(uint8_t event);
 
 typedef struct
@@ -571,6 +601,8 @@ void voice_numeric( int16_t value, uint8_t num_decimals, uint8_t units_index ) ;
 extern void voice_telem_item( int8_t index ) ;
 extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
 extern int16_t m_to_ft( int16_t metres ) ;
+
+uint8_t getCurrentSwitchStates( void ) ;
 
 extern uint32_t check_soft_power( void ) ;
 extern uint32_t getFlightPhase( void ) ; 

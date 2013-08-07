@@ -791,11 +791,26 @@ void check_frsky()
 	// 
   if (frskyUsrStreaming)
 	{
-		if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
+		int16_t ah_temp ;
+		ah_temp = FrskyHubData[FR_CURRENT] ;
+		if ( ah_temp < 0 )
 		{
-			Frsky_Amp_hour_prescale -= 3600 ;
-			FrskyHubData[FR_AMP_MAH] += 1 ;
+			ah_temp = 0 ;			
 		}
+		ah_temp += Frsky_Amp_hour_prescale ;
+		if ( ah_temp > 3600 )
+		{
+			ah_temp -= 3600 ;
+			int16_t *ptr_hub = &FrskyHubData[FR_AMP_MAH] ;
+//			FORCE_INDIRECT(ptr_hub) ;
+			*ptr_hub += 1 ;
+		}
+		Frsky_Amp_hour_prescale = ah_temp ;
+//		if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
+//		{
+//			Frsky_Amp_hour_prescale -= 3600 ;
+//			FrskyHubData[FR_AMP_MAH] += 1 ;
+//		}
 	}
 
 	// See if time for alarm checking

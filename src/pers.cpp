@@ -24,16 +24,29 @@
 #include "myeeprom.h"
 #include "file.h"
 #include "debug.h"
+#include "language.h"
 
 #ifdef FRSKY
 #include "frsky.h"
 #endif
 
+uint16_t evalChkSum()
+{
+  uint16_t sum=0;
+	uint16_t *p ;
+	p = ( uint16_t *)g_eeGeneral.calibMid ;
+  for (int i=0; i<12;i++)
+	{
+    sum += *p++ ;
+	}
+  return sum;
+}
+
 void generalDefault()
 {
   memset(&g_eeGeneral,0,sizeof(g_eeGeneral));
   g_eeGeneral.myVers   =  MDVERS;
-  g_eeGeneral.currModel=  0;
+//  g_eeGeneral.currModel=  0;
   g_eeGeneral.contrast = 30;
   g_eeGeneral.vBatWarn = 65;
   g_eeGeneral.stickMode=  1;
@@ -45,16 +58,14 @@ void generalDefault()
     g_eeGeneral.calibSpanNeg[i] = 0x300;
     g_eeGeneral.calibSpanPos[i] = 0x300;
   }
-  strncpy_P(g_eeGeneral.ownerName,PSTR("ME        "), 10);
-  int16_t sum=0;
-  for(int i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
-  g_eeGeneral.chkSum = sum;
+  strncpy_P(g_eeGeneral.ownerName,PSTR(STR_ME), 10);
+  g_eeGeneral.chkSum = evalChkSum() ;
 }
 
 void modelDefault(uint8_t id)
 {
   memset(&g_model, 0, sizeof(ModelData));
-  strncpy_P(g_model.name,PSTR("MODEL     "), 10 );
+  strncpy_P(g_model.name,PSTR(STR_MODEL), 10 );
   g_model.name[5]='0'+(id+1)/10;
   g_model.name[6]='0'+(id+1)%10;
 //  g_model.mdVers = MDVERS;
@@ -91,9 +102,9 @@ void eeReadAll()
   {
 //	txmit('b') ;
 		
-    alert((char const *)"Bad EEprom Data", true);
+    alert((char const *)STR_BAD_EEPROM, true);
     g_eeGeneral.contrast = 25 ;
-    message(PSTR("EEPROM Formatting"));
+    message(PSTR(STR_EE_FORMAT));
     generalDefault();
 
     modelDefault(0);

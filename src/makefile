@@ -128,6 +128,13 @@ ifeq ($(SAM3S2), 1)
 UDEFS = -Dat91sam3s2
 endif
 
+ifeq ($(LANG), FR)
+ CPPDEFS += -DLANG_FR
+else
+ ifeq ($(LANG), DE)
+  CPPDEFS += -DLANG_DE
+ endif
+endif
 
 # Define ASM defines here
 UADEFS = 
@@ -154,6 +161,7 @@ CPPSRC = x9d.cpp \
          x9d/watchdog.cpp \
        	x9d/i2c_ee.cpp \
          x9d/rtc_driver.cpp \
+         x9d/eeprom_rlc.cpp \
          timers.cpp \
          logicio.cpp \
          analog.cpp \
@@ -251,11 +259,11 @@ CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverb
 CPPFLAGS += $(CPPDEFS)
 CPFLAGS += $(CPPDEFS)
 
-ifeq ($(STAMP), 1)
+#   ifeq ($(STAMP), 1)
 AVER = ${shell sh -c "grep \"SUB_VERS\" stamp-ersky9x.h | egrep -o \"[[:digit:]]*\""}
 VER = $(shell echo $$(( $(AVER) + 1 )))
 CPPDEFS += -DSTAMP
-endif
+#   endif
 
 # If REVB board
 ifeq ($(REVB), 1)
@@ -275,6 +283,7 @@ ifeq ($(PHASES), 1)
 endif
 
 CPPDEFS += -DFRSKY
+CPPDEFS += -DCPUARM
 
 # If serial Debug required
 ifeq ($(DEBUG), 1)

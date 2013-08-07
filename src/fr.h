@@ -45,7 +45,6 @@
 *
 ****************************************************************************/
 
-
 #define STR_ON             "ON "
 #define STR_OFF            "OFF"
 
@@ -53,16 +52,12 @@
 #define STR_TXEQ		       "Tx="
 #define STR_RXEQ		       "Rx="
 #define STR_TRE012AG	     "TRE012AG"
-
-// STR_YELORGRED indexed 3 char each
 #define STR_YELORGRED	     "\003---YelOrgRed"
 #define STR_A_EQ		       "A ="
 #define STR_SOUNDS	       "\006Warn1 ""Warn2 ""Cheap ""Ring  ""SciFi ""Robot ""Chirp ""Tada  ""Crickt""Siren ""AlmClk""Ratata""Tick  ""Haptc1""Haptc2""Haptc3"
 #define STR_SWITCH_WARN	   "Switch Warning"
-// STR_TIMER exactly 5 chars long
 #define STR_TIMER          "Timer"
 
-// STR_PPMCHANNELS indexed 4 char each
 #define STR_PPMCHANNELS	   "\0044CH 6CH 8CH 10CH12CH14CH16CH"
 
 #define STR_MAH_ALARM      "mAh Alarm"
@@ -172,9 +167,9 @@
 #define STR_2TRIM          "\002Trim"
 #define STR_15DIFF         "\015Diff"
 #define STR_Curve          "Curve"
+#define STR_2SWITCH        "\002Switch"
 #define STR_2WARNING       "\002Warning"
 #define STR_2MULTIPLEX     "\002Multpx"
-// STR_ADD_MULT_REP indexed 8 chars each
 #define STR_ADD_MULT_REP   "\010Add     MultiplyReplace "
 #define STR_2DELAY_DOWN    "\002Delay Down"
 #define STR_2DELAY_UP      "\002Delay Up"
@@ -374,5 +369,6 @@
 #define STR_STICK_RV_GAIN  "Stick RV Gain"
 #define STR_STICK_RH_GAIN  "Stick RH Gain"
 #define STR_NO_SINK_TONES  "No Sink Tones"
+
 
 

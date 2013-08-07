@@ -474,7 +474,7 @@ int main( void )
 
 	lcd_init();
 	
-	GPIO_SetBits(GPIOB, GPIO_Pin_BL);
+//	GPIO_SetBits(GPIOB, GPIO_Pin_BL);
 
 	lcd_clear();
   lcd_img(42, 0, &splashdata[4], 0, 0);
@@ -787,6 +787,43 @@ void main_loop(void* pdata)
  		  lcd_putc(160,  40, 'E' ) ;
 			lcd_outhex4( 170, 40, GPIOE->IDR ) ;
 
+			lcd_outhex4( 0, 56, TIM10->CNT ) ;
+			lcd_outhex4( 25, 56, TIM10->ARR ) ;
+			lcd_outhex4( 50, 56, TIM10->PSC ) ;
+			lcd_outhex4( 75, 56, TIM10->CCR1 ) ;
+
+
+extern void backlight_set( uint16_t brightness ) ;
+extern void backlight_on() ;
+extern void backlight_off() ;
+			static uint16_t bright = 50 ;
+ 		  bool t=keyState((EnumKeys)(KEY_UP));// up
+			if ( t )
+			{
+				if ( bright < 100 )
+				{
+					bright += 1 ;
+					backlight_set( bright ) ;
+				}
+			}
+ 		  t=keyState((EnumKeys)(KEY_DOWN));// down
+			if ( t )
+			{
+				if ( bright )
+				{
+					bright -= 1 ;
+					backlight_set( bright ) ;
+				}
+			}
+
+			if ( keyState((EnumKeys)(KEY_RIGHT)) )
+			{
+				backlight_on() ;
+			}
+			if ( keyState((EnumKeys)(KEY_LEFT)) )
+			{
+				backlight_off() ;
+			}
 
 
 		}

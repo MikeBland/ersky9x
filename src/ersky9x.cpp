@@ -56,6 +56,7 @@
 #include "timers.h"
 #include "logicio.h"
 #include "pulses.h"
+#include "language.h"
 #ifdef FRSKY
 #include "frsky.h"
 #endif
@@ -267,6 +268,10 @@ uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
 int16_t  CsTimer[NUM_SKYCSW] ;
 
+const char Str_OFF[] = STR_OFF ;
+const char Str_ON[] = STR_ON ;
+
+
 const char modi12x3[]=
   "RUD ELE THR AIL "
   "RUD THR ELE AIL "
@@ -392,18 +397,17 @@ void clearKeyEvents()
 void setBtBaudrate( uint32_t index )
 {
 	uint32_t brate ;
-	switch ( index )
+	if ( index == 1 )
 	{
-		default :
-		case 0 :
-			brate = 115200 ;
-		break ;
-		case 1 :
-			brate = 9600 ;
-		break ;
-		case 2 :
-			brate = 19200 ;
-		break ;
+		brate = 9600 ;
+	}
+	else if ( index == 2 )
+	{
+		brate = 19200 ;
+	}
+	else
+	{
+		brate = 115200 ;
 	}
 	UART3_Configure( brate, Master_frequency ) ;		// Testing
 }
@@ -1482,13 +1486,11 @@ void mainSequence( uint32_t no_menu )
 	// Vario
 	{
 
-extern VarioData VarioSetup ;
-				
 		static uint8_t varioRepeatRate = 0 ;
 			
-		if ( VarioSetup.varioSource ) // Vario enabled
+		if ( g_model.varioData.varioSource ) // Vario enabled
 		{
-			if ( getSwitch( VarioSetup.swtch, 0, 0 ) )
+			if ( getSwitch( g_model.varioData.swtch, 0, 0 ) )
 			{
 				uint8_t new_rate = 0 ;
 				if ( varioRepeatRate )
@@ -1498,12 +1500,12 @@ extern VarioData VarioSetup ;
 				if ( varioRepeatRate == 0 )
 				{
 					int16_t vspd ;
-					if ( VarioSetup.varioSource == 1 )
+						if ( g_model.varioData.varioSource == 1 )
 					{
 						vspd = FrskyHubData[FR_VSPD] ;
-						if ( VarioSetup.param > 1 )
+						if ( g_model.varioData.param > 1 )
 						{
-							vspd /= VarioSetup.param ;							
+							vspd /= g_model.varioData.param ;
 						}
 					}
 					else // VarioSetup.varioSource == 2
@@ -1513,7 +1515,7 @@ extern VarioData VarioSetup ;
 						{
 							vspd = 0 ;							
 						}
-						vspd *= VarioSetup.param ;
+						vspd *= g_model.varioData.param ;
 					}
 					if ( vspd )
 					{
@@ -1521,7 +1523,10 @@ extern VarioData VarioSetup ;
 							if ( vspd < 0 )
 							{
 								vspd = -vspd ;
-          		  audio.event( AU_VARIO_DOWN ) ;
+								if (g_model.varioData.sinkTonesOff == 0)
+								{
+         		    	audio.event( AU_VARIO_DOWN ) ;
+								}
 							}
 							else
 							{
@@ -1688,7 +1693,7 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
 {
   int16_t newval = val;
   uint8_t kpl=KEY_RIGHT, kmi=KEY_LEFT, kother = -1;
-	uint8_t skipPause = 0 ;
+//	uint8_t skipPause = 0 ;
 
   if(event & _MSK_KEY_DBL){
     uint8_t hlp=kpl;
@@ -1719,7 +1724,7 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
       s_editMode = false;
       newval=!val;
       killEvents(event);
-			skipPause = 1 ;
+//			skipPause = 1 ;
 			if ( event==EVT_KEY_BREAK(BTN_RE) )
 			{
 				RotaryState = ROTARY_MENU_UD ;
@@ -1731,7 +1736,7 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
     uint8_t swtch = getMovedSwitch();
     if (swtch)
 		{
-      newval = (val == swtch ? -swtch : swtch);
+      newval = swtch ;
     }
   }
 
@@ -1756,10 +1761,10 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   }
   if(newval != val) {
     if(newval==0) {
-			if ( !skipPause )
-			{
+//			if ( !skipPause )
+//			{
      	  pauseEvents(event);
-			}
+//			}
   
 		if (newval>val){
 			audioDefevent(AU_KEYPAD_UP);
@@ -2050,7 +2055,7 @@ void perMain( uint32_t no_menu )
 								// Also add on 0.3V for voltage drop across input diode
 
         static uint8_t s_batCheck;
-        s_batCheck+=32;
+        s_batCheck+=16;
         if(s_batCheck==0)
 				{
 					if( (g_vbat100mV<g_eeGeneral.vBatWarn) && (g_vbat100mV>49) )
@@ -2441,7 +2446,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 		att &= ~MIX_SOURCE ;		
 	}
   if(idx==0)
-    lcd_putsnAtt(x,y,PSTR("----"),4,att);
+    lcd_putsAtt(x,y,PSTR("----"),att);
   else if(idx<=4)
     lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
 //    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
@@ -2522,7 +2527,7 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 
 const char *get_switches_string()
 {
-  return PSTR(SWITCHES_STR)	;
+  return PSTR(SWITCHES_STR)+1	;
 }	
 
 
@@ -2709,43 +2714,61 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
 }
 
+static uint8_t switches_states = 0 ;
 
 int8_t getMovedSwitch()
 {
-  static uint8_t switches_states = 0;
-  static uint16_t s_last_time = 0;
-
+	uint8_t skipping = 0 ;
   int8_t result = 0;
+  
+	static uint16_t s_last_time = 0;
 
-  for (uint8_t i=MAX_PSWITCH; i>0; i--) {
-    bool prev;
-    uint8_t mask = 0;
-    if (i <= 3) {
-      mask = (1<<(i-1));
-      prev = (switches_states & mask);
-    }
-    else if (i <= 6) {
-      prev = ((switches_states & 0x18) == ((i-3) << 3));
-    }
-    else {
-      mask = (1<<(i-2));
-      prev = (switches_states & mask);
-    }
-    bool next = getSwitch(i, 0, 0) ;
-    if (prev != next) {
-      if (i!=MAX_PSWITCH || next==true)
-	      result = i;
-      if (mask)
-        switches_states ^= mask;
-      else
-        switches_states = (switches_states & 0xE7) | ((i-3) << 3);
-    }
+	uint16_t time = get_tmr10ms() ;
+  if ( (uint16_t)(time - s_last_time) > 10)
+	{
+		skipping = 1 ;
+		switches_states = 0 ;
+	}
+  s_last_time = time ;
+
+  uint8_t mask = 0x80 ;
+  for (uint8_t i=MAX_PSWITCH-1; i>0; i--)
+	{
+  	bool next = getSwitch(i, 0, 0) ;
+
+		if ( skipping )
+		{
+			if ( next )
+			{
+				switches_states |= mask ;
+			}
+		}
+		else
+		{
+			uint8_t value = next ? mask : 0 ;
+			if ( ( switches_states ^ value ) & mask )
+			{ // State changed
+				switches_states ^= mask ;
+        result = next ? i : -i ;
+				if ( ( result <= -4 ) && ( result >= -6 ) )
+				{
+					result = 0 ;
+				}
+				break ;
+			}
+		}
+		mask >>= 1 ;
   }
+	if ( result == 0 )
+	{
+		if ( getSwitch( 9, 0, 0) )
+		{
+			result = 9 ;
+		}
+	}
 
-  if ( (uint16_t)(get_tmr10ms() - s_last_time) > 10)
-    result = 0;
-
-  s_last_time = get_tmr10ms();
+  if ( skipping )
+    result = 0 ;
 
   return result;
 }
@@ -2893,6 +2916,18 @@ void putWarnSwitch( uint8_t x, const char * s )
   lcd_putsnAtt( x, 2*FH, s, 3, 0) ;
 }
 
+uint8_t getCurrentSwitchStates()
+{
+  uint8_t i = 0 ;
+  for( uint8_t j=0; j<8; j++ )
+  {
+    bool t=keyState( (EnumKeys)(SW_BASE_DIAG+7-j) ) ;
+		i <<= 1 ;
+    i |= t ;
+  }
+	return i ;
+}
+
 static void checkSwitches()
 {
   if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
@@ -2910,14 +2945,7 @@ static void checkSwitches()
 	
 	while (1)
   {
-    uint32_t i = 0;
-		for(uint32_t j=0; j<8; j++)
-    {
-        bool t=keyState((EnumKeys)(SW_BASE_DIAG+7-j));
-				i <<= 1 ;
-        i |= (uint32_t)t;  // (!) casted to avoid a warning
-    }
-//        alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
+    uint32_t i = getCurrentSwitchStates() ;
 
         //show the difference between i and switch?
         //show just the offending switches.
