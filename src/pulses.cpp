@@ -555,19 +555,19 @@ void crc( uint8_t data )
 {
     //	uint8_t i ;
 
-    PcmCrc =(PcmCrc<<8) ^(CRCTable[((PcmCrc>>8)^data)&0xFF]);
+  PcmCrc =(PcmCrc<<8) ^(CRCTable[((PcmCrc>>8)^data)&0xFF]);
 }
 
 
 // 8uS/bit 01 = 0, 001 = 1
 void putPcmPart( uint8_t value )
 {
-	put_serial_bit( 0 ) ; 
+	put_serial_bit( 1 ) ; 
 	if ( value )
 	{
-		put_serial_bit( 0 ) ;
+		put_serial_bit( 1 ) ;
 	}
-	put_serial_bit( 1 ) ;
+	put_serial_bit( 0 ) ;
 }
 
 
@@ -624,6 +624,21 @@ void putPcmHead()
     putPcmPart( 0 ) ;
 }
 
+uint16_t scaleForPXX( uint8_t i )
+{
+	int16_t value ;
+
+#ifdef REVX
+  value = g_chans512[i] *3 / 4 + 2250 ;
+	return value ;
+#else 
+	value = g_chans512[i] *3 / 4 + 1024 ;	
+	return limit( (int16_t)1, value, (int16_t)2046 ) ;
+#endif
+}
+
+
+
 //void setUpPulsesPCM()
 void setupPulsesPXX()
 {
@@ -637,27 +652,45 @@ void setupPulsesPXX()
 	  Pulses2MHzptr = Bit_pulses ;
     PcmCrc = 0 ;
     PcmOnesCount = 0 ;
+    putPcmPart( 0 ) ;
+    putPcmPart( 0 ) ;
+    putPcmPart( 0 ) ;
+    putPcmPart( 0 ) ;
     putPcmHead(  ) ;  // sync byte
     putPcmByte( g_model.ppmNCH ) ;     // putPcmByte( g_model.rxnum ) ;  //
-    putPcmByte( pxxFlag ) ;     // First byte of flags
+    
+#ifdef REVX
+		putPcmByte( pxxFlag ) ;     // First byte of flags
+#else
+  	uint8_t flag1;
+  	if (pxxFlag & PXX_SEND_RXNUM)
+		{
+  	  flag1 = (g_model.sub_protocol<< 6) | (g_model.country << 1) | pxxFlag ;
+  	}
+  	else
+		{
+  	  flag1 = (g_model.sub_protocol << 6) | pxxFlag ;
+		}	
+		 putPcmByte( flag1 ) ;     // First byte of flags
+#endif
     putPcmByte( 0 ) ;     // Second byte of flags
+#ifdef REVX
     pxxFlag = 0;          // reset flag after send
-		for ( i = g_model.startChannel ; i < g_model.startChannel+8 ; i += 2 )		// First 8 channels only
+#endif
+		uint8_t startChan = g_model.startChannel ;
+    for ( i = 0 ; i < 4 ; i += 1 )		// First 8 channels only
     {																	// Next 8 channels would have 2048 added
-        chan = g_chans512[i] *3 / 4 + 2250 ;
-        chan_1 = g_chans512[i+1] *3 / 4 + 2250 ;
-//        if ( chan > 2047 )
-//        {
-//            chan = 2047 ;
-//        }
-//        if ( chan_1 > 2047 )
-//        {
-//            chan_1 = 2047 ;
-//        }
-        putPcmByte( chan ) ; // Low byte of channel
-        putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
-        putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
+      chan = scaleForPXX( startChan ) ;
+      putPcmByte( chan ) ; // Low byte of channel
+			startChan += 1 ;
+      chan_1 = scaleForPXX( startChan ) ;
+			startChan += 1 ;
+			putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
+      putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
     }
+#ifndef REVX
+		putPcmByte( 0 ) ;
+#endif
     chan = PcmCrc ;		        // get the crc
     putPcmByte( chan >> 8 ) ; // Checksum hi
     putPcmByte( chan ) ; 			// Checksum lo

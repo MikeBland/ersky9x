@@ -638,9 +638,9 @@ void lcd_clear()
 #else 
 #define LCD_A0    0x00008000L
 #endif 
-#define LCD_RnW   0x00002000L
+#define LCD_RnW   0x00002000L		// bit 13
 #define LCD_E     0x00001000L
-#define LCD_CS1   0x04000000L
+#define LCD_CS1   0x04000000L		// bit 26
 #define LCD_RES   0x08000000L
 
 
@@ -675,15 +675,26 @@ void lcd_init()
 //	pioptr->PIO_CODR = LCD_A0 ;
 //	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
 	pioptr = PIOC ;
-	pioptr->PIO_PER = 0x0C0030FFL ;		// Enable bits 27,26,13,12,7-0
+	
+#ifdef REVX
+	pioptr->PIO_PER = PIO_PC27 | PIO_PC12 | 0xFF ;		// Enable bits 27,26,13,12,7-0
+#else
+	pioptr->PIO_PER = PIO_PC27 | PIO_PC26 | PIO_PC13 | PIO_PC12 | 0xFF ;		// Enable bits 27,26,13,12,7-0
+#endif
+
 //#ifndef REVX
 //	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
 //	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
 //#else 
+#ifdef REVX
+	pioptr->PIO_CODR = LCD_E ;
+	pioptr->PIO_CODR = LCD_RnW | LCD_CS1 ;	// No longer needed, used elsewhere
+#else
 	pioptr->PIO_CODR = LCD_E | LCD_RnW | LCD_CS1 ;
+#endif 
 	pioptr->PIO_SODR = LCD_RES ;
 //#endif 
-	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,13,12,7-0 output
+	pioptr->PIO_OER = PIO_PC27 | PIO_PC26 | PIO_PC13 | PIO_PC12 | 0xFF ;		// Set bits 27,26,13,12,7-0 output
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
 #else 
 	pioptr = PIOC ;
@@ -779,11 +790,13 @@ void lcdSendCtl(uint8_t val)
 	
 #ifdef REVB
 	pioptr = PIOC ;
+#ifndef REVX
 	pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
+#endif 
 	PIOA->PIO_CODR = LCD_A0 ;
-//#ifndef REVX
+#ifndef REVX
 	pioptr->PIO_CODR = LCD_RnW ;		// Write
-//#endif
+#endif
 	pioptr->PIO_ODSR = val ;
 #else
 	pioptr = PIOC ;
@@ -854,11 +867,14 @@ void refreshDisplay()
     lcdSendCtl(0x10); //column addr 0
     lcdSendCtl( y | 0xB0); //page addr y
     
+#ifndef REVX
 		pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
+#endif
+
 		PIOA->PIO_SODR = LCD_A0 ;			// Data
-//#ifndef REVX
+#ifndef REVX
 		pioptr->PIO_CODR = LCD_RnW ;		// Write
-//#endif
+#endif
 		 
 #ifdef REVB
 		x =	*p ;

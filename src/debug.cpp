@@ -559,7 +559,7 @@ extern void initWatchdog( void ) ;
 			volume = I2C_read_volume() ;
 			if ( volume < 127 )
 			{
-				I2C_set_volume( ++volume ) ;				
+				I2C_setVolume( ++volume ) ;				
 			}
 		}
 
@@ -570,7 +570,7 @@ extern void initWatchdog( void ) ;
 			volume = I2C_read_volume() ;
 			if ( volume > 0 )
 			{
-				I2C_set_volume( --volume ) ;				
+				I2C_setVolume( --volume ) ;				
 			}
 		}
 #endif
@@ -736,53 +736,53 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 #endif
 
 #if PCBSKY
-		if ( rxchar == 'f' )
-		{
-			uint32_t i ;
-			for ( i = 0 ; i < 21 ; i += 1 )
-			{
-				crlf() ;
-				p8hex( File_system[i].block_no ) ;
-				txmit( ' ' ) ;
-				p8hex( File_system[i].sequence_no ) ;
-				txmit( ' ' ) ;
-				p4hex( File_system[i].size ) ;
-				txmit( ' ' ) ;
-				p4hex( File_system[i].flags ) ;
-				txmit( ' ' ) ;
-				p2hex( ModelNames[i][0] ) ;
-				p2hex( ModelNames[i][1] ) ;
-				p2hex( ModelNames[i][2] ) ;
-				p2hex( ModelNames[i][3] ) ;
-			}
-		}
+//		if ( rxchar == 'f' )
+//		{
+//			uint32_t i ;
+//			for ( i = 0 ; i < 21 ; i += 1 )
+//			{
+//				crlf() ;
+//				p8hex( File_system[i].block_no ) ;
+//				txmit( ' ' ) ;
+//				p8hex( File_system[i].sequence_no ) ;
+//				txmit( ' ' ) ;
+//				p4hex( File_system[i].size ) ;
+//				txmit( ' ' ) ;
+//				p4hex( File_system[i].flags ) ;
+//				txmit( ' ' ) ;
+//				p2hex( ModelNames[i][0] ) ;
+//				p2hex( ModelNames[i][1] ) ;
+//				p2hex( ModelNames[i][2] ) ;
+//				p2hex( ModelNames[i][3] ) ;
+//			}
+//		}
 
-		if ( rxchar == 'H' )
-		{
-			txmit( 'H' ) ;
-			hapticOn( 40 ) ;
-		}
+//		if ( rxchar == 'H' )
+//		{
+//			txmit( 'H' ) ;
+//			hapticOn( 40 ) ;
+//		}
 
-		if ( rxchar == 'I' )
-		{
-			txmit( 'I' ) ;
-			hapticOff() ;
-		}
+//		if ( rxchar == 'I' )
+//		{
+//			txmit( 'I' ) ;
+//			hapticOff() ;
+//		}
 
-	extern void read_volume( void ) ;
-	extern uint8_t Volume_read ;
+//	extern void read_volume( void ) ;
+//	extern uint8_t Volume_read ;
 //	extern void read_coprocessor( void ) ;
 //	extern uint8_t Coproc_read ;
 //	extern int8_t Coproc_valid ;
 	
-		if ( rxchar == 'W' )
-		{
-			read_volume() ;
-			txmit( 'W' ) ;
-			txmit( '-' ) ;
-			p2hex( Volume_read ) ;
-			crlf() ;
-		}
+//		if ( rxchar == 'W' )
+//		{
+//			read_volume() ;
+//			txmit( 'W' ) ;
+//			txmit( '-' ) ;
+//			p2hex( Volume_read ) ;
+//			crlf() ;
+//		}
 
 //		if ( rxchar == 'Q' )
 //		{
@@ -994,40 +994,40 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 			crlf() ;
 		}	
 	
-		if ( rxchar == 'U' )
-		{
-			uint32_t xfer ;
-//			uint32_t done = 0 ;
+//		if ( rxchar == 'U' )
+//		{
+//			uint32_t xfer ;
+////			uint32_t done = 0 ;
 
-			txmit( 'U' ) ;
-			crlf() ;
-			for(;;)
-			{
-				xfer = 0 ;
-				if ( ( rxchar = rxuart() ) != 0xFFFF )
-				{
-					if ( rxchar == 27 )		// ESCAPE
-					{
-						break ;						
-					}
-					txmitBt( rxchar ) ;
-					xfer = 1 ;
-				}
-				if ( ( rxchar = rxBtuart() ) != 0xFFFF )
-				{
-					if ( rxchar == 27 )		// ESCAPE
-					{
-						break ;						
-					}
-					txmit( rxchar ) ;
-					xfer = 1 ;
-				}
-				if ( xfer == 0 )
-				{
-					CoTickDelay(1) ;					// 2mS
-				}				 
-	    }
-	  }
+//			txmit( 'U' ) ;
+//			crlf() ;
+//			for(;;)
+//			{
+//				xfer = 0 ;
+//				if ( ( rxchar = rxuart() ) != 0xFFFF )
+//				{
+//					if ( rxchar == 27 )		// ESCAPE
+//					{
+//						break ;						
+//					}
+//					txmitBt( rxchar ) ;
+//					xfer = 1 ;
+//				}
+//				if ( ( rxchar = rxBtuart() ) != 0xFFFF )
+//				{
+//					if ( rxchar == 27 )		// ESCAPE
+//					{
+//						break ;						
+//					}
+//					txmit( rxchar ) ;
+//					xfer = 1 ;
+//				}
+//				if ( xfer == 0 )
+//				{
+//					CoTickDelay(1) ;					// 2mS
+//				}				 
+//	    }
+//	  }
 	
 	//	if ( rxchar == 'F' )
 	//	{
@@ -1109,81 +1109,81 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 	//		crlf() ;
 	//	}
 
-		if ( rxchar == '+' )
-		if ( rxchar == '-' )
-		{
-			register uint32_t x ;
+//		if ( rxchar == '+' )
+//		if ( rxchar == '-' )
+//		{
+//			register uint32_t x ;
 		
-			x = PWM->PWM_CH_NUM[0].PWM_CDTY ;				// Duty (current)
-			if ( x < 100 )
-			{
-				x += 1 ;
-				PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
-				g_eeGeneral.bright = x ;
-			}
-		}
+//			x = PWM->PWM_CH_NUM[0].PWM_CDTY ;				// Duty (current)
+//			if ( x < 100 )
+//			{
+//				x += 1 ;
+//				PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
+//				g_eeGeneral.bright = x ;
+//			}
+//		}
 
-		if ( rxchar == '+' )
-		{
-			register uint32_t x ;
+//		if ( rxchar == '+' )
+//		{
+//			register uint32_t x ;
 		
-			x = PWM->PWM_CH_NUM[0].PWM_CDTY ;				// Duty (current)
-			if ( x > 0 )
-			{
-				x -= 1 ;
-				PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
-				g_eeGeneral.bright = x ;
-			}
-		}
+//			x = PWM->PWM_CH_NUM[0].PWM_CDTY ;				// Duty (current)
+//			if ( x > 0 )
+//			{
+//				x -= 1 ;
+//				PWM->PWM_CH_NUM[0].PWM_CDTYUPD = x ;	// Duty update
+//				g_eeGeneral.bright = x ;
+//			}
+//		}
 
-		if ( rxchar == '/' )
-		{
-			if ( g_eeGeneral.volume > 0 )
-			{
-				set_volume( --g_eeGeneral.volume ) ;
-			}
-		}
+//		if ( rxchar == '/' )
+//		{
+//			if ( g_eeGeneral.volume > 0 )
+//			{
+//				setVolume( --g_eeGeneral.volume ) ;
+//			}
+//		}
 
-		if ( rxchar == '*' )
-		{
-			if ( g_eeGeneral.volume < NUM_VOL_LEVELS )
-			{
-				set_volume( ++ g_eeGeneral.volume ) ;
-			}
-		}
+//		if ( rxchar == '*' )
+//		{
+//			if ( g_eeGeneral.volume < NUM_VOL_LEVELS )
+//			{
+//				setVolume( ++ g_eeGeneral.volume ) ;
+//			}
+//		}
 
-		if ( rxchar == '(' )
-		{
-			set_frequency( 500 ) ;
-		}
+//		if ( rxchar == '(' )
+//		{
+//			set_frequency( 500 ) ;
+//		}
 	
-		if ( rxchar == '=' )
-		{
-			set_frequency( 1000 ) ;
-		}
+//		if ( rxchar == '=' )
+//		{
+//			set_frequency( 1000 ) ;
+//		}
 	
-		if ( rxchar == ')' )
-		{
-			set_frequency( 3000 ) ;
-		}
+//		if ( rxchar == ')' )
+//		{
+//			set_frequency( 3000 ) ;
+//		}
 	
-		if ( rxchar == ' ' )
-		{
-			playTone( 1000, 50 ) ;
-	//		tone_start( 50 ) ;
-		}
+//		if ( rxchar == ' ' )
+//		{
+//			playTone( 1000, 50 ) ;
+//	//		tone_start( 50 ) ;
+//		}
 
-		if ( rxchar == '!' )
-		{
-			playTone( 1000, 20000 ) ;
-	//		tone_start( 0 ) ;
-		}
+//		if ( rxchar == '!' )
+//		{
+//			playTone( 1000, 20000 ) ;
+//	//		tone_start( 0 ) ;
+//		}
 
-		if ( rxchar == '.' )
-		{
-			playTone( 0, 0 ) ;
-	//		tone_stop() ;
-		}
+//		if ( rxchar == '.' )
+//		{
+//			playTone( 0, 0 ) ;
+//	//		tone_stop() ;
+//		}
 
 #endif
 

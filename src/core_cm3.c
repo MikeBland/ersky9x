@@ -68,6 +68,9 @@ uint32_t __REV(uint32_t value) ;
 
 void revert_osc( void ) ;
 void sam_boot( void ) ;
+#ifdef REVX
+void sam_bootx( void ) ;
+#endif
 
 
 /* ###################  Compiler specific Intrinsics  ########################### */
@@ -816,6 +819,25 @@ void sam_boot()
   __ASM("orr		r0, r3");
   __ASM("bx r0");
 }
+
+#ifdef REVX
+void sam_bootx()
+{
+  __ASM(" mov.w	r1, #8388608");
+  __ASM(" movw	r0, #60680");
+  __ASM(" movt	r0, #57344");
+  __ASM(" str	r1, [r0, #0]");		// Set the VTOR
+	 
+  __ASM("mov.w	r3, #0");
+  __ASM("movt		r3, #128");
+  __ASM("ldr	r0, [r3, #0]");
+  __ASM("msr msp, r0");
+  __ASM("ldr	r0, [r3, #4]");
+  __ASM("mov.w	r3, #1");
+  __ASM("orr		r0, r3");
+  __ASM("bx r0");
+}
+#endif
 
 
 

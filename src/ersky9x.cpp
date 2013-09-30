@@ -144,7 +144,9 @@ volatile int32_t Rotary_count ;
 int32_t LastRotaryValue ;
 int32_t Rotary_diff ;
 uint8_t Vs_state[NUM_SKYCHNOUT] ;
+uint8_t CurrentVolume ;
 int8_t RotaryControl ;
+uint8_t ppmInValid = 0 ;
 
 
 #ifdef PCBSKY
@@ -156,7 +158,6 @@ void mainSequence( uint32_t no_menu ) ;
 void doSplash( void ) ;
 void perMain( uint32_t no_menu ) ;
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
-void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( char *string ) ;
 uint16_t rxuart( void ) ;
@@ -268,16 +269,51 @@ uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
 int16_t  CsTimer[NUM_SKYCSW] ;
 
+const char Str_Switches[] = SWITCHES_STR ;
+
 const char Str_OFF[] = STR_OFF ;
 const char Str_ON[] = STR_ON ;
 
 
+
+#ifdef FIX_MODE
+const char modi12x3[]= "\004RUD ELE THR AIL " ;
+const char stickScramble[]= {
+    0, 1, 2, 3,
+    0, 2, 1, 3,
+    3, 1, 2, 0,
+    3, 2, 1, 0 };
+
+//const char modeFix[] =
+//{
+//    1, 2, 3, 4,		// mode 1
+//    1, 3, 2, 4,		// mode 2
+//    4, 2, 3, 1,		// mode 3
+//    4, 3, 2, 1		// mode 4
+//} ;
+
+#else
+
 const char modi12x3[]=
-  "RUD ELE THR AIL "
-  "RUD THR ELE AIL "
-  "AIL ELE THR RUD "
-  "AIL THR ELE RUD ";
+  "RUD ELE THR AIL " ;
+//  "RUD THR ELE AIL "
+//  "AIL ELE THR RUD "
+//  "AIL THR ELE RUD ";
 // Now indexed using modn12x3
+
+const char modn12x3[]= {
+    1, 2, 3, 4,
+    1, 3, 2, 4,
+    4, 2, 3, 1,
+    4, 3, 2, 1 };
+#endif
+
+#ifdef FIX_MODE
+uint8_t modeFixValue( uint8_t value )
+{
+	return stickScramble[g_eeGeneral.stickMode*4+value]+1 ;
+}
+#endif
 
 MenuFuncP g_menuStack[5];
 
@@ -444,6 +480,18 @@ int main(void)
 		// USB not the power source
 		WDT->WDT_MR = 0x3FFF207F ;				// Enable watchdog 0.5 Secs
 	}
+#ifdef REVX
+	if ( pioptr->PIO_PDSR & 0x02000000 )
+	{
+		lcd_init() ;
+		lcd_clear() ;
+		lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
+		lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
+		lcd_putcAtt( 72, 24, 'B', DBLSIZE ) ;
+		refreshDisplay() ;
+		sam_boot() ;
+	}
+#endif
 
 #ifdef REVB	
 #else	
@@ -467,7 +515,6 @@ int main(void)
 	PMC->PMC_PCK[2] = 2 ;										// PCK2 is PLLA
 
 	UART_Configure( 9600, Master_frequency ) ;
-	UART2_Configure( 9600, Master_frequency ) ;		// Testing
 
 	init5msTimer() ;
 	
@@ -516,13 +563,13 @@ int main(void)
 #endif
 
 #ifdef FRSKY
-  FRSKY_Init();
+  FRSKY_Init( 0 );
 #endif
 
   checkQuickSelect();
 	 
   lcdSetRefVolt(g_eeGeneral.contrast) ;
-	set_volume( g_eeGeneral.volume ) ;
+	setVolume( g_eeGeneral.volume ) ;
 	PWM->PWM_CH_NUM[0].PWM_CDTYUPD = g_eeGeneral.bright ;
 	MAh_used = g_eeGeneral.mAh_used ;
 
@@ -1523,7 +1570,7 @@ void mainSequence( uint32_t no_menu )
 							if ( vspd < 0 )
 							{
 								vspd = -vspd ;
-								if (g_model.varioData.sinkTonesOff == 0)
+								if (g_model.varioData.sinkTones )
 								{
          		    	audio.event( AU_VARIO_DOWN ) ;
 								}
@@ -1548,6 +1595,14 @@ void mainSequence( uint32_t no_menu )
 							{
 								new_rate = 2 ;
 							}
+						}
+					}
+					else
+					{
+						if (g_model.varioData.sinkTones == 0 )
+						{
+							new_rate = 20 ;
+        		  audio.event( AU_VARIO_UP ) ;
 						}
 					}
 					varioRepeatRate = new_rate ;
@@ -1686,8 +1741,7 @@ extern uint8_t DisplayBuf[] ;
 
 //global helper vars
 bool    checkIncDec_Ret;
-int16_t p1val;
-int16_t p1valdiff;
+struct t_p1 P1values ;
 
 int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
 {
@@ -1741,7 +1795,7 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   }
 
   //change values based on P1
-  newval -= p1valdiff ;
+  newval -= P1values.p1valdiff;
 	if ( RotaryState == ROTARY_VALUE )
 	{
 		newval += Rotary_diff ;
@@ -1806,7 +1860,7 @@ int8_t *TrimPtr[4] =
 } ;
 		
 
-const static uint8_t rate[8] = { 0, 75, 40, 25, 10, 5, 2, 1 } ;
+const static uint8_t rate[8] = { 0, 0, 100, 40, 16, 7, 3, 1 } ;
 
 uint32_t calcStickScroll( uint32_t index )
 {
@@ -1818,7 +1872,12 @@ uint32_t calcStickScroll( uint32_t index )
 		index ^= 3 ;
 	}
 	
+#ifdef FIX_MODE
+	value = phyStick[index] ;
+	value /= 8 ;
+#else
 	value = calibratedStick[index] / 128 ;
+#endif
 	direction = value > 0 ? 0x80 : 0 ;
 	if ( value < 0 )
 	{
@@ -1848,21 +1907,34 @@ void perMain( uint32_t no_menu )
   perOut(g_chans512, 0);
   if(!tick10ms) return ; //make sure the rest happen only every 10ms.
 
+	if ( ppmInValid )
+	{
+		ppmInValid -= 1 ;
+	}
+
 	heartbeat |= HEART_TIMER10ms;
   uint8_t evt=getEvent();
   evt = checkTrim(evt);
 
-  static int16_t p1valprev;
-  p1valdiff = (p1val-calibratedStick[6])/32;
-  if(p1valdiff) {
-    p1valdiff = (p1valprev-calibratedStick[6])/2;
-    p1val = calibratedStick[6];
+	int16_t p1d ;
+
+	struct t_p1 *ptrp1 ;
+	ptrp1 = &P1values ;
+//	FORCE_INDIRECT(ptrp1) ;
+	
+	int16_t c6 = calibratedStick[6] ;
+  p1d = ( ptrp1->p1val-c6 )/32;
+  if(p1d)
+	{
+    p1d = (ptrp1->p1valprev-c6)/2;
+    ptrp1->p1val = c6 ;
   }
-  p1valprev = calibratedStick[6];
+  ptrp1->p1valprev = c6 ;
   if ( g_eeGeneral.disablePotScroll )
   {
-    p1valdiff = 0 ;			
+    p1d = 0 ;
 	}
+	ptrp1->p1valdiff = p1d ;
 
 	if ( g_eeGeneral.rotaryDivisor == 1)
 	{
@@ -1889,6 +1961,9 @@ void perMain( uint32_t no_menu )
    if(b>g_LightOffCounter) g_LightOffCounter = b;
 
 	check_backlight() ;
+// Handle volume
+	uint8_t requiredVolume ;
+	requiredVolume = g_eeGeneral.volume ;
 
 	if ( g_menuStack[g_menuStackPtr] == menuProc0)
 	{
@@ -1910,6 +1985,27 @@ void perMain( uint32_t no_menu )
 			}
 			Rotary_diff = 0 ;
 		}
+			
+		if ( g_model.anaVolume )	// Only check if on main screen
+		{
+			uint8_t x ;
+			uint16_t divisor ;
+			if ( g_model.anaVolume < 4 )
+			{
+				x = calibratedStick[g_model.anaVolume+3] + 1024 ;
+				divisor = 2048 ;
+			}
+			else
+			{
+				x = g_model.gvars[g_model.anaVolume].gvar + 125 ;
+				divisor = 250 ;
+			}
+			requiredVolume = x * (NUM_VOL_LEVELS-1) / divisor ;
+		}
+	}
+	if ( requiredVolume != CurrentVolume )
+	{
+		setVolume( requiredVolume ) ;
 	}
 	
 	if ( g_eeGeneral.stickScroll && StickScrollAllowed )
@@ -1977,26 +2073,41 @@ void perMain( uint32_t no_menu )
 		// ToDo, test for trim inputs here
 		if ( g_model.gvars[i].gvsource )
 		{
-			if ( g_model.gvars[i].gvsource <= 4 )
+			int16_t value ;
+			uint8_t src = g_model.gvars[i].gvsource ;
+			if ( src <= 4 )
 			{
-				g_model.gvars[i].gvar = *TrimPtr[ convert_mode_helper(g_model.gvars[i].gvsource) - 1 ] ;
+#ifdef FIX_MODE
+				value = getTrimValue( CurrentPhase, src - 1 ) ;
+#else
+				value = getTrimValue( CurrentPhase, convert_mode_helper(src) - 1 ) ;
+#endif
+//				g_model.gvars[i].gvar = *TrimPtr[ convert_mode_helper(g_model.gvars[i].gvsource) - 1 ] ;
 			}
-			else if ( g_model.gvars[i].gvsource == 5 )	// REN
+			else if ( src == 5 )	// REN
 			{
-				g_model.gvars[i].gvar = RotaryControl ;
+				value = RotaryControl ;
 			}
-			else if ( g_model.gvars[i].gvsource <= 9 )	// Stick
+			else if ( src <= 9 )	// Stick
 			{
-				g_model.gvars[i].gvar = limit( -125, calibratedStick[ convert_mode_helper(g_model.gvars[i].gvsource-5) - 1 ] / 8, 125 ) ;
+#ifdef FIX_MODE
+				value = calibratedStick[ src-5 - 1 ] / 8 ;
+#else
+				value = calibratedStick[ convert_mode_helper( src-5) - 1 ] / 8 ;
+#endif
+//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ convert_mode_helper(g_model.gvars[i].gvsource-5) - 1 ] / 8, 125 ) ;
 			}
-			else if ( g_model.gvars[i].gvsource <= 12 )	// Pot
+			else if ( src <= 12 )	// Pot
 			{
-				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
+				value = calibratedStick[ ( src-6)] / 8 ;
+//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
 			}
-			else if ( g_model.gvars[i].gvsource <= 36 )	// Chans
+			else // if ( src <= 36 )	// Chans
 			{
-				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
+				value = ex_chans[src-13] / 10 ;
+//				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
 			}
+			g_model.gvars[i].gvar = limit( (int16_t)-125, value, (int16_t)125 ) ;
 		}
 	}
 #endif
@@ -2009,17 +2120,27 @@ void perMain( uint32_t no_menu )
 
 	if ( no_menu == 0 )
 	{
+		static uint8_t alertKey ;
     lcd_clear();
 		if ( AlertMessage )
 		{
 			almess( AlertMessage, ALERT_TYPE ) ;
-   	  if(keyDown())
+			uint8_t key = keyDown() ;
+			if ( alertKey )
 			{
-				AlertMessage = 0 ;
+				if( key == 0 )
+				{
+					AlertMessage = 0 ;
+				}
+			}
+			else if ( key )
+			{
+				alertKey = 1 ;
 			}
 		}
 		else
 		{
+			alertKey = 0 ;
     	g_menuStack[g_menuStackPtr](evt);
     	refreshDisplay();
 		}
@@ -2374,12 +2495,28 @@ static uint8_t checkTrim(uint8_t event)
   int8_t  k = (event & EVT_KEY_MASK) - TRM_BASE;
   int8_t  s = g_model.trimInc;
   
-	if (s>1) s = 1 << (s-1);  // 1=>1  2=>2  3=>4  4=>8
+//    if (s>1) s = 1 << (s-1);  // 1=>1  2=>2  3=>4  4=>8
+		if ( s == 4 )
+		{
+			s = 8 ;			  // 1=>1  2=>2  3=>4  4=>8
+		}
+		else
+		{
+			if ( s == 3 )
+			{
+				s = 4 ;			  // 1=>1  2=>2  3=>4  4=>8
+			}
+		}
 
   if((k>=0) && (k<8))// && (event & _MSK_KEY_REPT))
   {
     //LH_DWN LH_UP LV_DWN LV_UP RV_DWN RV_UP RH_DWN RH_UP
     uint8_t idx = k/2;
+		
+// SORT idx for stickmode if FIX_MODE on
+#ifdef FIX_MODE
+				idx = stickScramble[g_eeGeneral.stickMode*4+idx] ;
+#endif
 		if ( g_eeGeneral.crosstrim )
 		{
 			idx = 3 - idx ;			
@@ -2387,8 +2524,12 @@ static uint8_t checkTrim(uint8_t event)
 		uint32_t phaseNo = getTrimFlightPhase( CurrentPhase, idx ) ;
     int16_t tm = getTrimValue( phaseNo, idx ) ;
     int8_t  v = (s==0) ? (abs(tm)/4)+1 : s;
-    bool thrChan = ((2-(g_eeGeneral.stickMode&1)) == idx);
-    bool thro = (thrChan && (g_model.thrTrim));
+#ifdef FIX_MODE
+    bool thrChan = (1 == idx) ;
+#else
+		bool thrChan = ((2-(g_eeGeneral.stickMode&1)) == idx);
+#endif
+		bool thro = (thrChan && (g_model.thrTrim));
     if(thro) v = 4; // if throttle trim and trim trottle then step=4
     if(thrChan && g_eeGeneral.throttleReversed) v = -v;  // throttle reversed = trim reversed
     int16_t x = (k&1) ? tm + v : tm - v;   // positive = k&1
@@ -2448,8 +2589,11 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
   if(idx==0)
     lcd_putsAtt(x,y,PSTR("----"),att);
   else if(idx<=4)
-    lcd_putsnAtt(x,y,modi12x3+g_eeGeneral.stickMode*16+4*(idx-1),4,att);
-//    lcd_putsnAtt(x,y,modi12x3[(modn12x3[g_eeGeneral.stickMode*4]+(idx-1))-1)*4],4,att);
+#ifdef FIX_MODE
+        lcd_putsAttIdx(x,y,modi12x3,(idx-1),att) ;
+#else
+    lcd_putsnAtt(x,y,&modi12x3[(modn12x3[g_eeGeneral.stickMode*4+(idx-1)]-1)*4],4,att) ;
+#endif
   else if(idx<=chanLimit)
 #if GVARS
     lcd_putsnAtt(x,y,PSTR("P1  P2  P3  HALFFULLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 ")+4*(idx-5),4,att);
@@ -2469,7 +2613,6 @@ void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
 
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 {
-	const char *pstr ;
   switch(idx1){
     case  0:            lcd_putsAtt(x+FW,y,PSTR("---"),att);return;
     case  MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR("ON "),att);return;
@@ -2479,14 +2622,15 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 	{
   	lcd_putcAtt(x,y, '!',att);
 	}
-	pstr = get_switches_string()+3*(abs(idx1)-1) ;
-  lcd_putsnAtt(x+FW,y,pstr,3,att);
-	if ( att & CONDENSED )
+	int8_t z ;
+	z = idx1 ;
+	if ( z < 0 )
 	{
-		pstr += 2 ;
-		att &= ~CONDENSED ;
-  	lcd_putcAtt(x+3*FW-1, y,*pstr,att);
+		z = -idx1 ;			
 	}
+	z -= 1 ;
+//		z *= 3 ;
+  lcd_putsAttIdx(x+FW,y,Str_Switches,z,att) ;
 }
 
 //Type 1-trigA, 2-trigB, 0 best for display
@@ -2808,10 +2952,7 @@ void alertMessages( const char * s, const char * t )
   lcd_puts_P(0,4*FH,s);
   lcd_puts_P(0,5*FH,t);
   lcd_puts_P(0,6*FH,  PSTR("Press any key to skip") ) ;
-  refreshDisplay();
 //  lcdSetRefVolt(g_eeGeneral.contrast);
-
-  clearKeyEvents();
 }
 
 
@@ -2838,6 +2979,7 @@ void alert(const char * s, bool defaults)
 
     if(keyDown())
     {
+	    clearKeyEvents();
       return;  //wait for key release
     }
     wdt_reset();
@@ -2885,6 +3027,8 @@ void checkTHR()
 
   // first - display warning
   alertMessages( PSTR("Throttle not idle"), PSTR("Reset throttle") ) ;
+  refreshDisplay();
+  clearKeyEvents();
   
 	//loop until throttle stick is low
   while (1)
@@ -2911,9 +3055,9 @@ void checkTHR()
 
 
 
-void putWarnSwitch( uint8_t x, const char * s )
+void putWarnSwitch( uint8_t x, uint8_t idx )
 {
-  lcd_putsnAtt( x, 2*FH, s, 3, 0) ;
+  lcd_putsAttIdx( x, 2*FH, Str_Switches, idx, 0) ;
 }
 
 uint8_t getCurrentSwitchStates()
@@ -2930,57 +3074,67 @@ uint8_t getCurrentSwitchStates()
 
 static void checkSwitches()
 {
-  if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
+	uint8_t warningStates ;
+	
+	warningStates = g_eeGeneral.switchWarningStates ;
+  
+	if(g_eeGeneral.disableSwitchWarning) return; // if warning is on
 
-  // first - display warning
-  alertMessages( PSTR("Switches Warning"), PSTR("Please Reset Switches") ) ;
-  uint8_t x = g_eeGeneral.switchWarningStates & SWP_IL5;
+  uint8_t x = warningStates & SWP_IL5;
   if(x==SWP_IL1 || x==SWP_IL2 || x==SWP_IL3 || x==SWP_IL4 || x==SWP_IL5) //illegal states for ID0/1/2
   {
-      g_eeGeneral.switchWarningStates &= ~SWP_IL5; // turn all off, make sure only one is on
-      g_eeGeneral.switchWarningStates |=  SWP_ID0B;
+      warningStates &= ~SWP_IL5; // turn all off, make sure only one is on
+      warningStates |=  SWP_ID0B;
+			g_eeGeneral.switchWarningStates = warningStates ;
   }
 	
+	uint8_t first = 1 ;
 	//loop until all switches are reset
-	
 	while (1)
   {
-    uint32_t i = getCurrentSwitchStates() ;
+    uint8_t i = getCurrentSwitchStates() ;
 
         //show the difference between i and switch?
         //show just the offending switches.
         //first row - THR, GEA, AIL, ELE, ID0/1/2
-        uint32_t x = i ^ g_eeGeneral.switchWarningStates;
+        uint8_t x = i ^ warningStates ;
 
-        lcd_putsnAtt(0*FW, 2*FH, PSTR("                      "), 22, 0);
+		    alertMessages( Str_Switch_warn, PSTR(STR_RESET_SWITCHES) ) ;
+
+//        lcd_putsnAtt(0*FW, 2*FH, PSTR("                      "), 22, 0);
 
         if(x & SWP_THRB)
-            putWarnSwitch(2 + 0*FW, get_switches_string() );
+            putWarnSwitch(2 + 0*FW, 0 );
         if(x & SWP_RUDB)
-            putWarnSwitch(2 + 3*FW + FW/2, get_switches_string()+3 );
+            putWarnSwitch(2 + 3*FW + FW/2, 1 );
         if(x & SWP_ELEB)
-            putWarnSwitch(2 + 7*FW, get_switches_string()+6 );
+            putWarnSwitch(2 + 7*FW, 2 );
 
         if(x & SWP_IL5)
         {
             if(i & SWP_ID0B)
-                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+9 );
+                putWarnSwitch(2 + 10*FW + FW/2, 3 );
             if(i & SWP_ID1B)
-                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+12 );
+                putWarnSwitch(2 + 10*FW + FW/2, 4 );
             if(i & SWP_ID2B)
-                putWarnSwitch(2 + 10*FW + FW/2, get_switches_string()+15 );
+                putWarnSwitch(2 + 10*FW + FW/2, 5 );
         }
 
         if(x & SWP_AILB)
-            putWarnSwitch(2 + 14*FW, get_switches_string()+18 );
+            putWarnSwitch(2 + 14*FW, 6 );
         if(x & SWP_GEAB)
-            putWarnSwitch(2 + 17*FW + FW/2, get_switches_string()+21 );
+            putWarnSwitch(2 + 17*FW + FW/2, 7 );
 
 
         refreshDisplay();
 
+				if ( first )
+				{
+    			clearKeyEvents();
+					first = 0 ;
+				}
 
-    if( (i==g_eeGeneral.switchWarningStates) || (keyDown())) // check state against settings
+    if( (i==warningStates) || (keyDown())) // check state against settings
     {
         return;  //wait for key release
     }
@@ -3116,10 +3270,14 @@ uint8_t IS_EXPO_THROTTLE( uint8_t x )
 
 uint8_t IS_THROTTLE( uint8_t x )
 {
+#ifdef FIX_MODE
+	return x == 2 ;
+#else
 	uint8_t y ;
 	y = g_eeGeneral.stickMode&1 ;
 	y = 2 - y ;
 	return (((y) == x) && (x<4)) ;
+#endif
 }
 
 /*** EOF ***/

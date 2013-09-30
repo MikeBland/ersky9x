@@ -47,6 +47,7 @@
 #include "myeeprom.h"
 #include "drivers.h"
 #include "audio.h"
+#include "logicio.h"
 
 
 void start_sound( void ) ;
@@ -61,12 +62,13 @@ void end_sound( void ) ;
 void tone_start( register uint32_t time ) ;
 void tone_stop( void ) ;
 void init_twi( void ) ;
-void set_volume( register uint8_t volume ) ;
+void setVolume( register uint8_t volume ) ;
 extern "C" void TWI0_IRQHandler (void) ;
 void audioDefevent( uint8_t e ) ;
 
 
 extern uint32_t Master_frequency ;
+extern uint8_t CurrentVolume ;
 
 volatile uint8_t Buzzer_count ;
 
@@ -169,6 +171,10 @@ void start_sound()
 	pioptr->PIO_CODR = 0x00010000L ;	// Set bit A16 OFF
 	pioptr->PIO_PER = 0x00010000L ;		// Enable bit A16 (Stock buzzer)
 	pioptr->PIO_OER = 0x00010000L ;		// Set bit A16 as output
+#endif
+#ifdef REVX	
+	configure_pins( PIO_PC26, PIN_ENABLE | PIN_LOW | PIN_OUTPUT | PIN_PORTC | PIN_NO_PULLUP ) ;
+	audioOn() ;
 #endif
 }
 
@@ -399,6 +405,19 @@ void end_sound()
   PMC->PMC_PCER0 &= ~0x40000000L ;		// Disable peripheral clock to DAC
 }
 
+#ifdef REVX
+void audioOn( void )
+{
+	PIOC->PIO_CODR = PIO_PC26 ;
+}
+
+void audioOff( void )
+{
+	PIOC->PIO_SODR = PIO_PC26 ;
+}
+#endif
+
+
 // Called every 5mS from interrupt routine
 void sound_5ms()
 {
@@ -423,6 +442,7 @@ void sound_5ms()
 	{
 		if ( Sound_g.VoiceRequest )
 		{
+			// audioOn() ;
 			dacptr->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
 			Sound_g.Sound_time = 0 ;						// Remove any pending tone requests
 			if ( dacptr->DACC_ISR & DACC_ISR_TXBUFE )	// All sent
@@ -453,6 +473,7 @@ void sound_5ms()
 				
 		if ( Sound_g.Sound_time )
 		{
+			// audioOn() ;
 			Sound_g.Tone_ms_timer = ( Sound_g.Sound_time + 4 ) / 5 ;
 			if ( Sound_g.Next_freq )		// 0 => silence for time
 			{
@@ -476,7 +497,8 @@ void sound_5ms()
 		else
 		{
 			dacptr->DACC_IDR = DACC_IDR_ENDTX ;	// Disable interrupt
-			Sound_g.Tone_timer = 0 ;	
+			Sound_g.Tone_timer = 0 ;
+			// audioOff() ;
 		}
 	}
 	else if ( ( Sound_g.Tone_ms_timer & 1 ) == 0 )		// Every 10 mS
@@ -607,7 +629,7 @@ void init_twi()
 	TWI0->TWI_CR = TWI_CR_MSEN | TWI_CR_SVDIS ;		// Master mode enable
 	TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
 	NVIC_EnableIRQ(TWI0_IRQn) ;
-	set_volume( 2 ) ;
+	setVolume( 2 ) ;
 }
 
 static int8_t Volume_required ;
@@ -622,6 +644,7 @@ static uint8_t CoProc_appgo_pending ;
 static uint8_t Rtc_read_pending ;
 static uint8_t Rtc_write_pending ;
 static uint8_t MFPsetting = 0 ;
+uint8_t CALsetting = 0 ;
 #endif
 
 uint8_t Volume_read ;
@@ -812,19 +835,28 @@ void i2c_check_for_request()
 	}
 	else if ( Rtc_write_pending )
 	{
-		if ( Rtc_write_pending == 2 )			// Just update MFP
+		if ( Rtc_write_pending & (2|4) )
 		{
-			Rtc_write_pending = 0 ;
 			TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
-			TWI0->TWI_IADR = 7 ;
 			TwiOperation = TWI_WRITE_MFP ;
-			TWI0->TWI_THR = MFPsetting ;		// Send data
+			if ( Rtc_write_pending & 2 )
+			{
+				TWI0->TWI_IADR = 7 ;
+				TWI0->TWI_THR = MFPsetting ;	// Send data
+				Rtc_write_pending &= ~2 ;
+			}
+			else
+			{
+				TWI0->TWI_IADR = 8 ;
+				TWI0->TWI_THR = CALsetting ;	// Send data
+				Rtc_write_pending &= ~4 ;
+			}
 			TWI0->TWI_IER = TWI_IER_TXCOMP ;
 			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
 		}
 		else
 		{
-			Rtc_write_pending = 0 ;
+			Rtc_write_pending &= ~1 ;
 			TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
 			TWI0->TWI_IADR = 0 ;
 			TwiOperation = TWI_WRITE_RTC ;
@@ -845,10 +877,11 @@ void i2c_check_for_request()
 	}
 }
 
-void set_volume( register uint8_t volume )
+void setVolume( register uint8_t volume )
 {
 //	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
 	
+	CurrentVolume = volume ;
 	if ( volume >= NUM_VOL_LEVELS )
 	{
 		volume = NUM_VOL_LEVELS - 1 ;		
@@ -883,8 +916,8 @@ void read_coprocessor()
 
 void writeMFP()
 {
-	Rtc_write_pending = 2 ;
 	__disable_irq() ;
+	Rtc_write_pending |= 2 ;
 	i2c_check_for_request() ;
 	__enable_irq() ;
 }
@@ -901,6 +934,14 @@ void clearMFP()
 	writeMFP() ;
 }
 
+void setRtcCAL( uint8_t value )
+{
+	CALsetting = value ;
+	__disable_irq() ;
+	Rtc_write_pending |= 4 ;
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
 
 
 void writeRTC( uint8_t *ptr, uint32_t count )
@@ -918,8 +959,8 @@ void writeRTC( uint8_t *ptr, uint32_t count )
 	RtcConfig[7] = MFPsetting ;
 	Rtc_write_ptr = RtcConfig ;
 	Rtc_write_count = 8 ;
-	Rtc_write_pending = 1 ;
 	__disable_irq() ;
+	Rtc_write_pending |= 1 ;
 	i2c_check_for_request() ;
 	__enable_irq() ;
 }
@@ -956,7 +997,7 @@ void appgo_coprocessor()
 
 //
 //
-//void set_volume( register uint8_t volume )
+//void setVolume( register uint8_t volume )
 //{
 ////	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
 	

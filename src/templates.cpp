@@ -70,7 +70,8 @@ SKYMixData* setDest(uint8_t dch)
     uint8_t i = 0;
     SKYMixData *md = &g_model.mixData[0];
 
-    while ((md->destCh<=dch) && (md->destCh) && (g_model.mixData[i].destCh) && (i<MAX_SKYMIXERS)) i++;
+    while ((md->destCh<=dch) && (md->destCh) && (i<MAX_SKYMIXERS)) i++, md++;
+//    while ((md->destCh<=dch) && (md->destCh) && /*(g_model.mixData[i].destCh) &&*/ (i<MAX_SKYMIXERS)) i++;
     if(i==MAX_SKYMIXERS) return &g_model.mixData[0];
 
     memmove(md+1, md, (MAX_SKYMIXERS-(i+1))*sizeof(MixData) );
@@ -108,10 +109,12 @@ void setSwitch(uint8_t idx, uint8_t func, int8_t v1, int8_t v2)
   cs->v2   = v2 ;
 }
 
+#ifndef FIX_MODE
 uint8_t convert_mode_helper(uint8_t x)
 {
     return modn12x3[ g_eeGeneral.stickMode*4 + (x) - 1] ;
 }
+#endif
 
 void applyTemplate(uint8_t idx)
 {

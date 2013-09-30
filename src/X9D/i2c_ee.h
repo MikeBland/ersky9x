@@ -43,7 +43,7 @@ void I2C_EE_PageWrite(uint8_t* pBuffer, uint16_t WriteAddr, uint8_t NumByteToWri
 void I2C_EE_BufferWrite(uint8_t* pBuffer, uint16_t WriteAddr, uint16_t NumByteToWrite);
 void I2C_EE_BufferRead(uint8_t* pBuffer, uint16_t ReadAddr, uint16_t NumByteToRead);
 void I2C_EE_WaitEepromStandbyState(void);
-void I2C_set_volume( register uint8_t volume ) ;
+void I2C_setVolume( register uint8_t volume ) ;
 uint8_t I2C_read_volume( void ) ;
 
 #endif /* __I2C_EE_H */

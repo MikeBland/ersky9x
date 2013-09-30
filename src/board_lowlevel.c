@@ -208,6 +208,31 @@ void revert_osc()
 
 }
 
+
+#ifdef REVX
+extern void sam_bootx( void ) ;
+static void lowLevelUsbCheck( void )
+{
+  PMC->PMC_PCER0 = (1<<ID_PIOC)	;	// Enable clock to PIOC
+	PIOC->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
+
+	uint32_t i ;
+	for ( i = 0 ; i < 50 ; i += 1 )
+	{
+		__asm("nop") ;
+	}
+
+	for ( i = 0 ; i < 10 ; i += 1 )
+	{
+		if ( PIOC->PIO_PDSR & 0x02000000 )
+		{
+  		PMC->PMC_PCDR0 = (1<<ID_PIOC)	;	// Disable clock to PIOC
+			sam_bootx() ;
+		}
+	} 
+}
+#endif
+
 /*----------------------------------------------------------------------------
  *        Exported functions
  *----------------------------------------------------------------------------*/
@@ -220,6 +245,9 @@ void revert_osc()
 /*----------------------------------------------------------------------------*/
 uint32_t SystemInit (void)
 {
+#ifdef REVX
+	lowLevelUsbCheck() ;
+#endif
     /** Set 2 cycle (1 WS) for Embedded Flash Access */
 		// Max clock is 38 MHz (1.8V VVDCORE)
    EFC->EEFC_FMR = (1 << 8) ;
@@ -227,3 +255,5 @@ uint32_t SystemInit (void)
    /** Configure PMC */
   return BOARD_ConfigurePmc();
 }
+
+

@@ -47,6 +47,7 @@ extern void writeRTC( uint8_t *ptr, uint32_t count ) ;
 extern void readRTC( void ) ;
 extern void setMFP( void ) ;
 extern void clearMFP( void ) ;
+extern void setRtcCAL( uint8_t value ) ;
 #endif
 
 
@@ -93,7 +94,7 @@ extern uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency
 extern void tone_start( register uint32_t time ) ;
 extern void tone_stop( void ) ;
 extern void init_twi( void ) ;
-extern void set_volume( register uint8_t volume ) ;
+extern void setVolume( register uint8_t volume ) ;
 extern "C" void TWI0_IRQHandler( void ) ;
 extern void audioDefevent( uint8_t e ) ;
 extern void hapticOff(void) ;
@@ -102,6 +103,14 @@ void startVoice( uint32_t count ) ;			// count of filled in buffers
 void appendVoice( uint32_t index ) ;		// index of next buffer
 extern void wavU8Convert( uint8_t *src, uint16_t *dest , uint32_t count ) ;
 extern void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count ) ;
+
+#ifdef REVX
+extern void audioOn( void ) ;
+extern void audioOff( void ) ;
+#else
+#define	audioOn()
+#define	audioOff()
+#endif
 
 struct t_sound_globals
 {

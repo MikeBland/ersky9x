@@ -38,7 +38,7 @@
 #define MDVERS_e119 10
 #define MDVERS      11
 
-#define MDSKYVERS   1
+#define MDSKYVERS   2
 
 #define	NUM_VOICE		8
 
@@ -149,6 +149,7 @@ PACK(typedef struct t_EEGeneral {
 	uint8_t		rotaryDivisor ;
 	uint8_t   crosstrim:1;
 	uint8_t   spare9:7;
+	int8_t   rtcCal ;
 }) EEGeneral;
 
 
@@ -423,7 +424,7 @@ PACK(typedef struct t_Vario
 {
   uint8_t varioSource ;
   int8_t  swtch ;
-  uint8_t sinkTonesOff:1 ;
+  uint8_t sinkTones:1 ;
   uint8_t spare:1 ;
   uint8_t param:6 ;
 }) VarioData ;	
@@ -438,15 +439,17 @@ PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
   uint8_t   modelVoice ;		// Index to model name voice (261+value)
   uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
-  uint8_t   sparex:1;				// was tmrDir, now use tmrVal>0 => count down
+  uint8_t   telemetryRxInvert:1 ;	// was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
-  uint8_t   spare22:1 ;  			// Start timer2 using throttle
+  uint8_t   DsmTelemetry:1 ;	// Another user telemetry protocol
   uint8_t   FrSkyUsrProto:1 ; // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
   uint8_t   FrSkyGpsAlt:1 ;		// Use Gps Altitude as main altitude reading
   uint8_t   FrSkyImperial:1 ; // Convert FrSky values to imperial units
   uint8_t   FrSkyAltAlarm:2;
-	uint8_t		version ;
-  uint8_t   protocol;
+	uint8_t 	modelVersion ;
+  uint8_t   protocol:4 ;
+  uint8_t   country:2 ;
+  uint8_t   sub_protocol:2 ;
   int8_t    ppmNCH;
   uint8_t   thrTrim:1;            // Enable Throttle Trim
 	uint8_t   xnumBlades:2;					// RPM scaling, now elsewhere as uint8_t
@@ -496,6 +499,8 @@ PACK(typedef struct te_ModelData {
 	uint8_t 	sub_trim_limit ;
 	uint8_t 	FASoffset ;			// 0.0 to 1.5
 	VarioData varioData ;
+	uint8_t		anaVolume ;	// analog volume control
+	int8_t pxxFailsafe[16] ;
 //	uint8_t   curentSource ;
 //	uint8_t   altSource ;
 }) SKYModelData;

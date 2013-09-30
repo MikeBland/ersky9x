@@ -68,7 +68,7 @@ void modelDefault(uint8_t id)
   strncpy_P(g_model.name,PSTR(STR_MODEL), 10 );
   g_model.name[5]='0'+(id+1)/10;
   g_model.name[6]='0'+(id+1)%10;
-//  g_model.mdVers = MDVERS;
+	g_model.modelVersion = MDSKYVERS;
 
   applyTemplate(0); //default 4 channel template
 }

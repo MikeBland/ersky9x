@@ -57,7 +57,11 @@
 #define TRIM_ON  0
 #define TRIM_OFF 1
 
+#ifdef FIX_MODE
+#define CM(x)	(x)
+#else
 #define CM(x) (CONVERT_MODE(x))  //good for SRC
+#endif
 #define CH(x) (CHOUT_BASE+(x))
 #define CV(x) (CURVE_BASE+(x)-1)
 #define CC(x) (CHANNEL_ORDER(x)) //need to invert this to work with dest

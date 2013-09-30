@@ -97,7 +97,7 @@ But in Dynamic Task Scheduling model(1),task resources will be recovered.
 If in Static Task Scheduling model(0),mutex module can not be used, as this model don't
 support to change task priority while CoOS running. 
 */
-#define CFG_TASK_SCHEDULE_EN     (0)
+#define CFG_TASK_SCHEDULE_EN     (1)
 
 
 /*---------------------- Task Management Config -----------------------------*/

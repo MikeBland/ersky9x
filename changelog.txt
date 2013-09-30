@@ -10,6 +10,23 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 30-Sep-2013  MPB
+Pot/GVAR for volume control
+Add mutex support in OS
+Some code saving to match er9x code
+Fix FrSky buffer overflow bug
+Encoder editing of owner name
+Fix mode page editing of modes 6 and 7
+Remove memory check warning option
+Volume control
+PXX support for XJT
+SPort support for XJT
+Improve Stick Mode operation
+Vario Sink Tones option reversed
+Auto update mix sources when loading old eeprom model
+Disable trainer if no trainer ppm input
+
+******************************************
 CHANGELOG: 05-Aug-2013  MPB
 Language variant support
 Vario setup in EEPROM

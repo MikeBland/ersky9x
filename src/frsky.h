@@ -63,6 +63,8 @@
 #define FR_VSPD				39
 #define FR_TRASH			40	// Used for invalid id
 
+#define FR_SPORT_ALT	0xFF
+
 #define HUBDATALENGTH 41
 #define HUBMINMAXLEN	9
 #define HUBOFFSETLEN	7			// Items with an offset field
@@ -146,6 +148,77 @@ DataID Meaning       Unit   Range   Note
   
  */
 
+// FrSky new DATA IDs for SPORT (2 bytes)
+// Receiver specific
+#define RSSI_ID            0xf101
+#define ADC1_ID            0xf102
+#define ADC2_ID            0xf103
+#define BATT_ID            0xf104
+#define SWR_ID             0xf105
+
+// Sensors
+#define ALT_FIRST_ID       0x0100
+#define ALT_LAST_ID        0x010f
+#define ALT_ID_8					0x10
+#define VARIO_FIRST_ID     0x0110
+#define VARIO_LAST_ID      0x011f
+#define VARIO_ID_8				0x11
+#define CURR_FIRST_ID      0x0200
+#define CURR_LAST_ID       0x020f
+#define CURR_ID_8					0x20
+#define VFAS_FIRST_ID      0x0210
+#define VFAS_LAST_ID       0x021f
+#define VFAS_ID_8					0x21
+#define CELLS_FIRST_ID     0x0300
+#define CELLS_LAST_ID      0x030f
+#define CELLS_ID_8				0x30
+#define T1_FIRST_ID        0x0400
+#define T1_LAST_ID         0x040f
+#define T1_ID_8						0x40
+#define T2_FIRST_ID        0x0410
+#define T2_LAST_ID         0x041f
+#define T2_ID_8						0x41
+#define RPM_FIRST_ID       0x0500
+#define RPM_LAST_ID        0x050f
+#define RPM_ID_8					0x50
+#define FUEL_FIRST_ID      0x0600
+#define FUEL_LAST_ID       0x060f
+#define FUEL_ID_8					0x60
+#define ACCX_FIRST_ID      0x0700
+#define ACCX_LAST_ID       0x070f
+#define ACCX_ID_8					0x70
+#define ACCY_FIRST_ID      0x0710
+#define ACCY_LAST_ID       0x071f
+#define ACCY_ID_8					0x71
+#define ACCZ_FIRST_ID      0x0720
+#define ACCZ_LAST_ID       0x072f
+#define ACCZ_ID_8					0x72
+#define GPS_SPEED_FIRST_ID 0x0830
+#define GPS_SPEED_LAST_ID  0x083f
+#define GPS_SPEED_ID_8		0x83
+
+
+#define BETA_VARIO_ID      0x8030
+#define BETA_VARIO_ID_8		 0x03
+#define BETA_BARO_ALT_ID   0x8010
+#define BETA_ALT_ID_8		   0x01
+
+
+// Conversion table
+// 0100		FR_ALT_BARO
+// 0110   FR_VSPD
+// 0200   FR_CURRENT
+// 0210   FR_VOLTS
+// 0300
+// 0400   FR_TEMP1
+// 0410   FR_TEMP2
+// 0500		FR_RPM
+// 0600   FR_FUEL
+// 0700   FR_ACCX
+// 0710   FR_ACCY
+// 0720   FR_ACCZ
+// 0830		FR_GPS_SPEED
+
 
 
 
@@ -167,10 +240,11 @@ enum AlarmLevel {
 struct FrskyData {
   uint8_t value;
   uint8_t raw;
-  uint8_t min;
-  uint8_t max;
+//  uint8_t min;
+//  uint8_t max;
 	uint8_t offset ;
 	uint16_t averaging_total ;
+	uint8_t averageCount ;
   void set(uint8_t value, uint8_t copy);
 	void setoffset();
 };
@@ -209,15 +283,15 @@ extern uint8_t FrskyAlarmSendState;
 extern FrskyData frskyTelemetry[4];
 //extern FrskyData frskyRSSI[2];
 extern int16_t FrskyHubData[] ;
-extern int16_t FrskyHubMin[] ;
-extern int16_t FrskyHubMax[] ;
+//extern int16_t FrskyHubMin[] ;
+//extern int16_t FrskyHubMax[] ;
 extern uint8_t FrskyVolts[];
 extern uint8_t FrskyBattCells;
 extern uint8_t FrskyAlarmCheckFlag ;
 //extern uint8_t MaxGpsSpeed ;
 //extern uint16_t MaxGpsAlt ;
 
-void FRSKY_Init(void);
+void FRSKY_Init( uint8_t brate ) ;
 void FRSKY10mspoll(void);
 uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
 void check_frsky( void ) ;
@@ -228,6 +302,14 @@ enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm=2) ;
 void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm) ;
 void resetTelemetry();
 extern void frskyTransmitBuffer( uint32_t size ) ;
+
+struct t_hub_max_min
+{
+	int16_t hubMin[HUBMINMAXLEN] ;
+	int16_t hubMax[HUBMINMAXLEN] ;
+} ;
+
+extern struct t_hub_max_min FrskyHubMaxMin ;
 
 #endif
 

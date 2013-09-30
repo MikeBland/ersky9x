@@ -31,6 +31,9 @@
 #ifndef SIMU
 #include "CoOS.h"
 #endif
+#ifdef REVX
+#include "sound.h"
+#endif
 
 extern PROGMEM s9xsplash[] ;
 
@@ -595,7 +598,7 @@ void ee32LoadModel(uint8_t id)
 				
 				if ( version != 255 )
 				{
-					g_model.version = 0 ;					// default version number
+					g_model.modelVersion = 0 ;					// default version number
 				}
 			}
 
@@ -605,7 +608,7 @@ void ee32LoadModel(uint8_t id)
           g_model.name[i] = idx2char(idx);
       }
 
-			g_model.version = MDSKYVERS ; //update mdvers
+//			g_model.modelVersion = MDSKYVERS ; //update mdvers
 
 			if ( g_model.numBlades == 0 )
 			{
@@ -616,11 +619,46 @@ void ee32LoadModel(uint8_t id)
 				g_model.protocol = PROTO_PPM ;
 			}
 
+#ifdef FIX_MODE
+
+// check for updating mix sources
+	if ( g_model.modelVersion < 2 )
+	{
+   	for(uint8_t i=0;i<MAX_MIXERS;i++)
+		{
+			SKYMixData *md = &g_model.mixData[i] ;
+      if (md->srcRaw)
+			{
+       	if (md->srcRaw <= 4)		// Stick
+				{
+					md->srcRaw = modeFixValue( md->srcRaw-1 ) ;
+				}
+			}
+		}
+		alert(PSTR("CHECK MIX SOURCES"));
+		g_model.modelVersion = 2 ;
+		STORE_MODELVARS ;
+	}
+#endif
+
+
 #ifdef FRSKY
   FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
         FRSKY_setModelAlarms();
 #endif
     }
+
+#ifdef REVX
+	if ( g_model.telemetryRxInvert )
+	{
+		setMFP() ;
+	}
+	else
+	{
+		clearMFP() ;
+	}
+#endif
+
 }
 
 bool ee32ModelExists(uint8_t id)
@@ -949,7 +987,7 @@ void convertModel( SKYModelData *dest, ModelData *source )
 	dest->FrSkyGpsAlt = source->FrSkyGpsAlt ;
 	dest->FrSkyImperial = source->FrSkyImperial ;
 	dest->FrSkyAltAlarm = source->FrSkyAltAlarm ;
-	dest->version = source->version ;
+	dest->modelVersion = source->version ;
 	dest->protocol = source->protocol ;
 	dest->ppmNCH = source->ppmNCH ;
 	dest->thrTrim = source->thrTrim ;

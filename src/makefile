@@ -148,6 +148,7 @@ SRC  = x9d/system_stm32f2xx.c \
        x9d/stm32f2xx_rtc.c \
        x9d/stm32f2xx_pwr.c \
        coos.c \
+       port.c \
        x9d/stm32f2xx_rcc.c
 
 
@@ -181,6 +182,7 @@ SRC  = core_cm3.c \
        board_lowlevel.c \
        crt.c \
        vectors_sam3s.c \
+       port.c \
        coos.c \
        usb/device/core/USBD_UDP.c usb/device/core/USBDDriver.c usb/device/core/USBDCallbacks.c \
        usb/device/massstorage/MSDDriver.c usb/device/massstorage/MSDDStateMachine.c usb/device/massstorage/MSDLun.c usb/device/massstorage/MSDDriverDescriptors.c usb/device/massstorage/SBCMethods.c \

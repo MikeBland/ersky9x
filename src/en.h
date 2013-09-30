@@ -131,7 +131,11 @@
 #define STR_COPY_TRIM      "COPY TRIM [MENU]"
 #define STR_TELEMETRY      "TELEMETRY"
 #define STR_USR_PROTO      "UsrProto"
+#ifdef REVX
+#define STR_FRHUB_WSHHI    "\005FrHubWSHhiDSMx "
+#else
 #define STR_FRHUB_WSHHI    "\005FrHubWSHhi"
+#endif
 #define STR_MET_IMP        "\003MetImp"
 #define STR_A_CHANNEL      "A  channel"
 #define STR_ALRM           "alrm"
@@ -226,7 +230,11 @@
 #define STR_23_US          "\023uS"
 // STR_PPMFRAME_MSEC before \015 max 9 chars, after max 4 chars
 #define STR_PPMFRAME_MSEC  "PPM FrLen\015mSec"
+#ifdef REVX
 #define STR_SEND_RX_NUM    "Send Rx Number [MENU]"
+#else
+#define STR_SEND_RX_NUM    "Bind  Range"
+#endif
 #define STR_DSM_TYPE       "DSM Type"
 #define STR_PPM_1ST_CHAN   "PPM 1st Chan"
 #define STR_SHIFT_SEL      "Shift Sel"
@@ -312,7 +320,7 @@
 #define STR_MODE           "Mode"
 
 // SWITCHES_STR 3 chars each
-#define SWITCHES_STR       "THR""RUD""ELE""ID0""ID1""ID2""AIL""GEA""TRN""SW1""SW2""SW3""SW4""SW5""SW6""SW7""SW8""SW9""SWA""SWB""SWC"
+#define SWITCHES_STR "\003THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
 #define SWITCH_WARN_STR	   "Switch Warning"
 // CURV_STR indexed 3 chars each
 #define CURV_STR           "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16"
@@ -335,6 +343,8 @@
 #define STR_ALT_MAX        "Alt=\011m   Max="
 #define STR_SPD_KTS_MAX    "Spd=\011kts Max="
 #define STR_11_MPH         "\011mph"
+
+#define STR_SINK_TONES	   "Sink Tones"
 
 
 // ersky9x strings
@@ -373,6 +383,5 @@
 #define STR_STICK_LH_GAIN  "Stick LH Gain"
 #define STR_STICK_RV_GAIN  "Stick RV Gain"
 #define STR_STICK_RH_GAIN  "Stick RH Gain"
-#define STR_NO_SINK_TONES  "No Sink Tones"
 
 

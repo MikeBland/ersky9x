@@ -34,6 +34,7 @@ extern volatile uint32_t Spi_complete ;
 
 extern void putEvent( register uint8_t evt) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
+extern void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void UART_Stop( void ) ;
 extern void Bt_UART_Stop( void ) ;
 extern void txmit( uint8_t c ) ;

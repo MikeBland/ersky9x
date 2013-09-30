@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+#define FIX_MODE		1
+
 #ifdef SIMU
 #include "simpgmspace.h"
 #else
@@ -57,6 +59,8 @@ extern const char stamp5[] ;
 
 extern const char Str_OFF[] ;
 extern const char Str_ON[] ;
+extern const char Str_Switches[] ;
+extern const char Str_Switch_warn[] ;
 
 #define CPU_INT		int32_t
 #define CPU_UINT	uint32_t
@@ -337,16 +341,18 @@ extern uint8_t Ee_lock ;
 #define PROTO_DSM2       2
 #define PROT_MAX         2
 #define PROTO_PPM16			 3		// No longer needed
-#define PROT_STR "PPM   PXX   DSM2  "
+#define PROT_STR "\006PPM   PXX   DSM2  "
 #define PROT_STR_LEN     6
-#define DSM2_STR "LP4/LP5  DSM2only DSM2/DSMX"
+#define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX"
 #define DSM2_STR_LEN   9
 #define LPXDSM2          0
 #define DSM2only         1
 #define DSM2_DSMX        2
 
+// PXX_SEND_RXNUM == BIND
 #define PXX_SEND_RXNUM     0x01
-#define PXX_SEND_FAILSAFE  0x02
+#define PXX_SEND_FAILSAFE  0x10
+#define PXX_RANGE_CHECK		 0x20
 
 #define POWER_OFF			0
 #define POWER_ON			1
@@ -412,12 +418,13 @@ extern uint16_t Current_max ;
 extern uint16_t MAh_used ;
 extern uint16_t Run_time ;
 
-
-const char modn12x3[]= {
-    1, 2, 3, 4,
-    1, 3, 2, 4,
-    4, 2, 3, 1,
-    4, 3, 2, 1 };
+#ifdef FIX_MODE
+extern const char stickScramble[] ;
+//extern const char modeFix[] ;
+uint8_t modeFixValue( uint8_t value ) ;
+#else
+extern const char modn12x3[] ;
+#endif
 
 extern const uint8_t bchout_ar[] ;
 
@@ -461,7 +468,7 @@ union t_xmem
 #ifndef CPUARM
 	char buf[sizeof(g_model.name)+5];
 #endif
-//#if defined(CPUM128)
+//#if defined(CPUM128) || defined(CPUM2561)
 //  uint8_t file_buffer[256];
 //#else
 //  uint8_t file_buffer[128];
@@ -544,6 +551,7 @@ extern int16_t intpol(int16_t x, uint8_t idx);
 
 extern uint16_t anaIn(uint8_t chan) ;
 
+extern int8_t phyStick[4] ;
 extern int16_t ex_chans[NUM_SKYCHNOUT];
 
 extern void modelDefault( uint8_t id ) ;
@@ -564,6 +572,7 @@ extern uint8_t char2idx(char c) ;
 
 extern int16_t            g_ppmIns[];
 extern uint8_t ppmInState ; //0=unsync 1..8= wait for value i-1
+extern uint8_t ppmInValid ;
 
 /// goto given Menu, but substitute current menu in menuStack
 extern void    chainMenu(MenuFuncP newMenu);
@@ -644,6 +653,17 @@ enum PowerState
   e_power_off
 } ;
 
+struct t_p1
+{
+	int16_t p1val ;
+	int16_t p1valdiff ;
+  int16_t p1valprev ;
+	int16_t p2valprev ;
+	int16_t p3valprev ;
+} ;
+
+extern struct t_p1 P1values ;
+
 extern uint16_t ResetReason ;
 extern uint8_t unexpectedShutdown ;
 
@@ -656,5 +676,6 @@ void rtc_gettime(struct gtm * t) ;
 void rtcInit( void ) ;
 #endif
 
+extern void setVolume( uint8_t value ) ;
 
 #endif

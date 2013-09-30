@@ -134,7 +134,11 @@
 #define STR_COPY_TRIM      "KOPIE TRIM [MENU]"
 #define STR_TELEMETRY      "TELEMETRIE"
 #define STR_USR_PROTO      "BenProto"
+#ifdef REVX
+#define STR_FRHUB_WSHHI    "\005FrHubWSHhiDSMx "
+#else
 #define STR_FRHUB_WSHHI    "\005FrHubWSHhi"
+#endif
 #define STR_MET_IMP        "\003MetImp" // Metrisches System / Imperiales System
 #define STR_A_CHANNEL      "A  Kanal"
 #define STR_ALRM           "alrm"
@@ -229,7 +233,11 @@
 #define STR_23_US          "\023uS"
 // STR_PPMFRAME_MSEC before \015 max 9 chars, after max 4 chars
 #define STR_PPMFRAME_MSEC  "PPM FrLen\015mSek" // Puls Pausen Modulation
+#ifdef REVX
 #define STR_SEND_RX_NUM    "Send Em Nummer [MENU]"
+#else
+#define STR_SEND_RX_NUM    "Bind  Range"
+#endif
 #define STR_DSM_TYPE       "DSM Typ" 
 #define STR_PPM_1ST_CHAN   "PPM 1. Kanal"
 #define STR_SHIFT_SEL      "Signalart" // Signalart
@@ -339,6 +347,9 @@
 #define STR_SPD_KTS_MAX    "Ges=\011kts Max="
 #define STR_11_MPH         "\011mph"
 
+#define STR_SINK_TONES	   "Sink Tones"
+#define STR_FRSKY_MOD      "Frksy Mod Done"
+
 // ersky9x strings
 #define STR_ST_CARD_STAT   "SD CARD STAT"
 #define STR_4_READY        "\004Bereit"
@@ -375,8 +386,7 @@
 #define STR_STICK_LH_GAIN  "Stick LH Anstieg"
 #define STR_STICK_RV_GAIN  "Stick RV Anstieg"
 #define STR_STICK_RH_GAIN  "Stick RH Anstieg"
-#define STR_NO_SINK_TONES  "No Sink Tones"
-#define STR_FRSKY_MOD      "Frksy Mod Done"
+
 
 
 
