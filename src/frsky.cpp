@@ -335,7 +335,7 @@ void frsky_proc_user_byte( uint8_t byte )
 						{
 							byte = 0 ;	// Use a discard item							
 						}
-					  Frsky_user_id	= Fr_indices[byte] ;
+					  Frsky_user_id	= byte ;
 						Frsky_user_state = 2 ;
 					}
   	      else if ( Frsky_user_state == 2 )
@@ -794,7 +794,7 @@ void processSportPacket()
 			switch ( id )
 			{
 				case ALT_ID_8 :
-					value = (int32_t)value / 100 ;
+					value = (int32_t)value / 10 ;
 					store_hub_data( FR_SPORT_ALT, value ) ;
 				break ;
 
@@ -1127,7 +1127,15 @@ void FRSKY_Init( uint8_t brate )
 	
 	if ( brate == 0 )
 	{
-		UART2_Configure( 9600, Master_frequency ) ;
+		if ( g_model.frskyComPort == 0 )
+		{
+			UART2_Configure( 9600, Master_frequency ) ;
+		}
+		else
+		{
+			UART_Configure( 9600, Master_frequency ) ;
+		}
+		
 	}
 #ifdef REVX
 	else if ( brate == 1 )
@@ -1135,12 +1143,26 @@ void FRSKY_Init( uint8_t brate )
 	else
 #endif
 	{
-		UART2_Configure( 57600, Master_frequency ) ;
+		if ( g_model.frskyComPort == 0 )
+		{
+			UART2_Configure( 57600, Master_frequency ) ;
+		}
+		else
+		{
+			UART_Configure( 57600, Master_frequency ) ;
+		}
 	}
 #ifdef REVX
 	else
 	{
-		UART2_Configure( 115200, Master_frequency ) ;
+		if ( g_model.frskyComPort == 0 )
+		{
+			UART2_Configure( 115200, Master_frequency ) ;
+		}
+		else
+		{
+			UART_Configure( 115200, Master_frequency ) ;
+		}
 	}
 #endif
   // clear frsky variables

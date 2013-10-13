@@ -25,6 +25,7 @@
 #include "myeeprom.h"
 #include "drivers.h"
 #include "file.h"
+#include "ff.h"
 #ifdef FRSKY
 #include "frsky.h"
 #endif
@@ -1140,6 +1141,94 @@ void convertModel( SKYModelData *dest, ModelData *source )
 
   memcpy( &dest->customDisplayIndex[0], &source->customDisplayIndex[0], 6 ) ;
 
+}
+
+void setModelFilename( uint8_t *filename, uint8_t modelIndex )
+{
+	uint8_t *bptr ;
+	uint32_t i ;
+	
+	bptr = cpystr( filename, (uint8_t *)"/MODELS/" ) ;
+  memcpy( bptr, Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
+	for ( i = 0 ; i < sizeof(g_model.name) ; i += 1 )
+	{
+		if ( *bptr && (*bptr != ' ' ) )
+		{
+			bptr += 1 ;			
+		}
+		else
+		{
+			break ;
+		}
+	}
+	cpystr( bptr, (uint8_t *)".MOD" ) ;
+	
+}
+
+
+const char *ee32BackupModel( uint8_t modelIndex )
+{
+	uint8_t filename[50] ;
+  uint16_t size ;
+	FRESULT result ;
+  DIR archiveFolder ;
+  FIL archiveFile ;
+  UINT written ;
+
+
+	// Check for SD avaliable
+
+
+  size = File_system[modelIndex].size ;
+	 
+	while (ee32_check_finished() == 0)
+	{	// wait
+#ifndef SIMU
+		if ( General_timer )
+		{
+			General_timer = 1 ;		// Make these happen soon
+		}
+		if ( Model_timer )
+		{
+			Model_timer = 1 ;
+		}
+		CoTickDelay(1) ;					// 2mS for now
+#endif
+	}
+
+  read32_eeprom_data( (File_system[modelIndex].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.model_data, size, 0 ) ;
+
+	// Build filename
+	setModelFilename( filename, modelIndex ) ;
+
+//  strcpy(buf, STR_MODELS_PATH);
+  result = f_opendir(&archiveFolder, "/MODELS") ;
+  if (result != FR_OK)
+	{
+    if (result == FR_NO_PATH)
+		{
+      result = f_mkdir("/MODELS") ;
+    	if (result != FR_OK)
+			{
+      	return "SDCARD ERROR" ;
+			}
+		}
+  }
+	
+  result = f_open( &archiveFile, (TCHAR *)filename, FA_CREATE_ALWAYS | FA_WRITE) ;
+  if (result != FR_OK)
+	{
+   	return "CREATE ERROR" ;
+  }
+
+  result = f_write(&archiveFile, (uint8_t *)&Eeprom_buffer.data.model_data, size, &written) ;
+  f_close(&archiveFile) ;
+  if (result != FR_OK || written != size)
+	{
+    return "WRITE ERROR" ;
+  }
+
+  return "MODEL SAVED" ;
 }
 
 

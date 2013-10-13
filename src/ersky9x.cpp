@@ -1570,7 +1570,7 @@ void mainSequence( uint32_t no_menu )
 							if ( vspd < 0 )
 							{
 								vspd = -vspd ;
-								if (g_model.varioData.sinkTones )
+								if (!g_model.varioData.sinkTones )
 								{
          		    	audio.event( AU_VARIO_DOWN ) ;
 								}
@@ -1783,6 +1783,7 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
 			{
 				RotaryState = ROTARY_MENU_UD ;
 			}
+			event = 0 ;
   }
 
   if (s_editMode>0 && (i_flags & INCDEC_SWITCH))
@@ -2525,7 +2526,7 @@ static uint8_t checkTrim(uint8_t event)
     int16_t tm = getTrimValue( phaseNo, idx ) ;
     int8_t  v = (s==0) ? (abs(tm)/4)+1 : s;
 #ifdef FIX_MODE
-    bool thrChan = (1 == idx) ;
+    bool thrChan = (2 == idx) ;
 #else
 		bool thrChan = ((2-(g_eeGeneral.stickMode&1)) == idx);
 #endif

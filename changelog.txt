@@ -10,6 +10,21 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 13-Oct-2013  MPB
+Correct sink tones sense
+Fix HP vario SPort scaling
+Make COM2 work with in SPort mode
+Add code towards model backup to SD card
+Add channel uS display to limits menu
+Fix trainer bug on stick modes
+Fix expo/dr bug due to stick modes change
+Fix throttle trim bug due to stick modes change
+Fix encoder button not changing on/off values
+Fix cyclic pitch bug on different stick modes
+Scale output bars if extended limits enabled
+Increase RPM blade count to 127
+
+******************************************
 CHANGELOG: 30-Sep-2013  MPB
 Pot/GVAR for volume control
 Add mutex support in OS
