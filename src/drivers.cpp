@@ -1214,8 +1214,6 @@ void set_stick_gain( uint32_t gains )
 
 }
 
-
-
 // Start TIMER3 for input capture
 void start_timer3()
 {

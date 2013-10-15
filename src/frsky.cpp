@@ -849,6 +849,7 @@ void processSportPacket()
    received using dma, and sent here every 10 mS.
 */
 
+
 void frsky_receive_byte( uint8_t data )
 {
   static uint8_t numPktBytes = 0;
@@ -871,7 +872,7 @@ void frsky_receive_byte( uint8_t data )
 					if ( FrskyTelemetryType )		// SPORT
 					{
          		dataState = frskyDataInFrame ;
-           	numbytes = 0;
+           	numbytes = 0 ;
 					}
 #endif
 					break ; // Remain in userDataStart if possible 0x7e,0x7e doublet found.

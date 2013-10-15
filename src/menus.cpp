@@ -6621,7 +6621,7 @@ void perOut(int16_t *chanOut, uint8_t att)
                     v = int32_t(v)*g_model.swashRingValue*RESX/(int32_t(d)*100);
                 //===========Swash Ring================
 
-                uint8_t expoDrOn = GET_DR_STATE(i);
+                uint8_t expoDrOn = GET_DR_STATE(index);
                 uint8_t stkDir = v>0 ? DR_RIGHT : DR_LEFT;
 
                 if(IS_THROTTLE(index) && g_model.thrExpo){

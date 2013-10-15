@@ -2509,7 +2509,7 @@ static uint8_t checkTrim(uint8_t event)
 			}
 		}
 
-  if((k>=0) && (k<8))// && (event & _MSK_KEY_REPT))
+  if( (k>=0) && (k<8) && !IS_KEY_BREAK(event)) // && (event & _MSK_KEY_REPT))
   {
     //LH_DWN LH_UP LV_DWN LV_UP RV_DWN RV_UP RH_DWN RH_UP
     uint8_t idx = k/2;
@@ -2531,7 +2531,7 @@ static uint8_t checkTrim(uint8_t event)
 		bool thrChan = ((2-(g_eeGeneral.stickMode&1)) == idx);
 #endif
 		bool thro = (thrChan && (g_model.thrTrim));
-    if(thro) v = 4; // if throttle trim and trim trottle then step=4
+    if(thro) v = 2; // if throttle trim and trim trottle then step=2
     if(thrChan && g_eeGeneral.throttleReversed) v = -v;  // throttle reversed = trim reversed
     int16_t x = (k&1) ? tm + v : tm - v;   // positive = k&1
 

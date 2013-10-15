@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 15-Oct-2013  MPB
+Fix EXPO/DR bug
+Trim improvements 
+
+******************************************
 CHANGELOG: 13-Oct-2013  MPB
 Correct sink tones sense
 Fix HP vario SPort scaling
