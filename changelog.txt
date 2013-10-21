@@ -10,6 +10,13 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 21-Oct-2013  MPB
+Fix sink tones editing bug
+Add ppm in monitoring in mixers
+Fix vario bug
+Fix volume bug
+
+******************************************
 CHANGELOG: 15-Oct-2013  MPB
 Fix EXPO/DR bug
 Trim improvements 
