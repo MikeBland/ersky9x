@@ -335,7 +335,7 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		      break;
 				
 				case AU_VARIO_UP :
-		      playNow(BEEP_DEFAULT_FREQ + 60, 10, 0, 0, 0, 1 ) ;
+		      playNow(BEEP_DEFAULT_FREQ + 20, 10, 0, 0, 0, 1 ) ;
 		    break ;
 		    
 				case AU_VARIO_DOWN :

@@ -1099,6 +1099,7 @@ static void almess( const char * s, uint8_t type )
   refreshDisplay();
 }
 
+
 void mainSequence( uint32_t no_menu )
 {
 	static uint32_t coProTimer = 0 ;
@@ -1528,88 +1529,90 @@ void mainSequence( uint32_t no_menu )
 
 
 		VoiceCheckFlag = 0 ;
-	}
 
-	// Vario
-	{
-
-		static uint8_t varioRepeatRate = 0 ;
-			
-		if ( g_model.varioData.varioSource ) // Vario enabled
+		// Vario
 		{
-			if ( getSwitch( g_model.varioData.swtch, 0, 0 ) )
+
+			static uint8_t varioRepeatRate = 0 ;
+
+			if ( g_model.varioData.varioSource ) // Vario enabled
 			{
-				uint8_t new_rate = 0 ;
-				if ( varioRepeatRate )
+				if ( getSwitch( g_model.varioData.swtch, 0, 0 ) )
 				{
-					varioRepeatRate -= 1 ;
-				}
-				if ( varioRepeatRate == 0 )
-				{
-					int16_t vspd ;
+					uint8_t new_rate = 0 ;
+					if ( varioRepeatRate )
+					{
+						varioRepeatRate -= 1 ;
+					}
+					if ( varioRepeatRate == 0 )
+					{
+						int16_t vspd ;
 						if ( g_model.varioData.varioSource == 1 )
-					{
-						vspd = FrskyHubData[FR_VSPD] ;
-						if ( g_model.varioData.param > 1 )
 						{
-							vspd /= g_model.varioData.param ;
-						}
-					}
-					else // VarioSetup.varioSource == 2
-					{
-						vspd = FrskyHubData[FR_A2_COPY] - 128 ;
-						if ( ( vspd < 3 ) && ( vspd > -3 ) )
-						{
-							vspd = 0 ;							
-						}
-						vspd *= g_model.varioData.param ;
-					}
-					if ( vspd )
-					{
-						{
-							if ( vspd < 0 )
+							vspd = FrskyHubData[FR_VSPD] ;
+
+							if ( g_model.varioData.param > 1 )
 							{
-								vspd = -vspd ;
-								if (!g_model.varioData.sinkTones )
+								vspd /= g_model.varioData.param ;
+							}
+						}
+						else // VarioSetup.varioSource == 2
+						{
+							vspd = FrskyHubData[FR_A2_COPY] - 128 ;
+							if ( ( vspd < 3 ) && ( vspd > -3 ) )
+							{
+								vspd = 0 ;							
+							}
+							vspd *= g_model.varioData.param ;
+						}
+
+						if ( vspd )
+						{
+							{
+								if ( vspd < 0 )
 								{
-         		    	audio.event( AU_VARIO_DOWN ) ;
+									vspd = -vspd ;
+									if (!g_model.varioData.sinkTones )
+									{
+  	       		    	audio.event( AU_VARIO_DOWN ) ;
+									}
+								}
+								else
+								{
+  	        		  audio.event( AU_VARIO_UP ) ;
+								}
+								if ( vspd < 75 )
+								{
+									new_rate = 8 ;
+								}
+								else if ( vspd < 125 )
+								{
+									new_rate = 6 ;
+								}
+								else if ( vspd < 175 )
+								{
+									new_rate = 4 ;
+								}
+								else
+								{
+									new_rate = 2 ;
 								}
 							}
-							else
-							{
-          		  audio.event( AU_VARIO_UP ) ;
-							}
-							if ( vspd < 75 )
-							{
-								new_rate = 8 ;
-							}
-							else if ( vspd < 125 )
-							{
-								new_rate = 6 ;
-							}
-							else if ( vspd < 175 )
-							{
-								new_rate = 4 ;
-							}
-							else
-							{
-								new_rate = 2 ;
-							}
 						}
-					}
-					else
-					{
-						if (g_model.varioData.sinkTones == 0 )
+						else
 						{
-							new_rate = 20 ;
-        		  audio.event( AU_VARIO_UP ) ;
+							if (g_model.varioData.sinkTones )
+							{
+								new_rate = 20 ;
+  	      		  audio.event( AU_VARIO_UP ) ;
+							}
 						}
+						varioRepeatRate = new_rate ;
 					}
-					varioRepeatRate = new_rate ;
 				}
 			}
-		}
-	}	
+		}	
+	}
 
 }
 
@@ -1989,7 +1992,7 @@ void perMain( uint32_t no_menu )
 			
 		if ( g_model.anaVolume )	// Only check if on main screen
 		{
-			uint8_t x ;
+			uint16_t x ;
 			uint16_t divisor ;
 			if ( g_model.anaVolume < 4 )
 			{

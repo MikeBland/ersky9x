@@ -1787,7 +1787,7 @@ void menuProcTelemetry2(uint8_t event)
 			subN++;
 		}
 	}
-	else if ( sub < 18 )
+	else if ( sub < T2COUNT_ITEMS - 4 )
 	{
 		uint8_t subN = 14 ;
   	lcd_puts_Pleft( FH, PSTR("BT Telemetry") );
@@ -1833,7 +1833,7 @@ void menuProcTelemetry2(uint8_t event)
 	}
 	else
 	{
-		uint8_t subN = 18 ;
+		uint8_t subN = T2COUNT_ITEMS - 4 ;
 		// Vario
    	for( uint8_t j=0 ; j<4 ; j += 1 )
 		{
@@ -2512,6 +2512,7 @@ void menuProcMixOne(uint8_t event)
         case 11:
 						b = md2->delayDown ;
             lcd_puts_P(  2*FW,y,PSTR(STR_2DELAY_DOWN));
+  					lcd_putc( FW*16, y, '.' ) ;
             lcd_outdezAtt(FW*16,y,b/10,attr);
             lcd_outdezAtt(FW*18-3,y,b%10,attr);
             if(attr) { md2->delayDown = checkIncDec16( event, b, 0, 250, EE_MODEL); }
@@ -2519,6 +2520,7 @@ void menuProcMixOne(uint8_t event)
         case 12:
 						b = md2->delayUp ;
             lcd_puts_P(  2*FW,y,PSTR(STR_2DELAY_UP));
+  					lcd_putc( FW*16, y, '.' ) ;
             lcd_outdezAtt(FW*16,y,b/10,attr);
             lcd_outdezAtt(FW*18-3,y,b%10,attr);
             if(attr) { md2->delayUp = checkIncDec16( event, b, 0, 250, EE_MODEL); }
@@ -2526,6 +2528,7 @@ void menuProcMixOne(uint8_t event)
         case 13:
 						b = md2->speedDown ;
             lcd_puts_P(  2*FW,y,PSTR(STR_2SLOW_DOWN));
+  					lcd_putc( FW*16, y, '.' ) ;
             lcd_outdezAtt(FW*16,y,b/10,attr);
             lcd_outdezAtt(FW*18-3,y,b%10,attr);
             if(attr) { md2->speedDown = checkIncDec16( event, b, 0, 250, EE_MODEL); }
@@ -2533,6 +2536,7 @@ void menuProcMixOne(uint8_t event)
         case 14:
 						b = md2->speedUp ;
             lcd_puts_P(  2*FW,y,PSTR(STR_2SLOW_UP));
+  					lcd_putc( FW*16, y, '.' ) ;
             lcd_outdezAtt(FW*16,y,b/10,attr);
             lcd_outdezAtt(FW*18-3,y,b%10,attr);
             if(attr) { md2->speedUp = checkIncDec16( event, b, 0, 250, EE_MODEL); }
@@ -6790,11 +6794,20 @@ void perOut(int16_t *chanOut, uint8_t att)
         //Notice 0 = NC switch means not used -> always on line
         int16_t v  = 0;
         uint8_t swTog;
-
-        //swOn[i]=false;
-        if(!getSwitch(md->swtch,1)){ // switch on?  if no switch selected => on
-            swTog = swOn[i];
-            swOn[i] = false;
+        uint8_t swon = swOn[i] ;
+				
+				bool t_switch = getSwitch(md->swtch,1) ;
+        if (md->swtch && (md->srcRaw >= PPM_BASE) && (md->srcRaw < PPM_BASE+NUM_PPM)	&& (ppmInValid == 0) )
+				{
+					// then treat switch as false ???				
+					t_switch = 0 ;
+				}	
+        
+				//swOn[i]=false;
+        if(!t_switch)
+        { // switch on?  if no switch selected => on
+            swTog = swon ;
+            swon = false;
             //            if(md->srcRaw==MIX_MAX) act[i] = 0;// MAX back to 0 for slow up
             //            if(md->srcRaw!=MIX_FULL) continue;// if not FULL - next loop
             //            v = -RESX; // switch is off  => FULL=-RESX
@@ -6804,8 +6817,8 @@ void perOut(int16_t *chanOut, uint8_t att)
             v = (md->srcRaw == MIX_FULL ? -RESX : 0); // switch is off and it is either MAX=0 or FULL=-512
         }
         else {
-            swTog = !swOn[i];
-            swOn[i] = true;
+            swTog = !swon ;
+            swon = true;
             uint8_t k = md->srcRaw-1;
             v = anas[k]; //Switch is on. MAX=FULL=512 or value.
             if(k>=CHOUT_BASE && (k<i)) v = chans[k]; // if we've already calculated the value - take it instead // anas[i+CHOUT_BASE] = chans[i]
@@ -6818,6 +6831,7 @@ void perOut(int16_t *chanOut, uint8_t att)
                 }
             }
         }
+        swOn[i] = swon ;
 
         //========== INPUT OFFSET ===============
         if ( ( md->enableFmTrim == 0 ) && ( md->lateOffset == 0 ) )
