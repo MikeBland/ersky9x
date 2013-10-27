@@ -666,6 +666,7 @@ extern struct t_p1 P1values ;
 
 extern uint16_t ResetReason ;
 extern uint8_t unexpectedShutdown ;
+extern uint8_t SdMounted ;
 
 #ifdef PCBX9D
 #include "x9d/stm32f2xx.h"

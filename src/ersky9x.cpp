@@ -69,9 +69,10 @@
 #define MAIN_STACK_SIZE		500
 #ifdef PCBSKY
 #define BT_STACK_SIZE			100
+#define LOG_STACK_SIZE		350
 #endif
 #define DEBUG_STACK_SIZE	130
-#define VOICE_STACK_SIZE	130
+#define VOICE_STACK_SIZE	130+200
 
 OS_TID MainTask;
 OS_STK main_stk[MAIN_STACK_SIZE] ;
@@ -79,6 +80,8 @@ OS_STK main_stk[MAIN_STACK_SIZE] ;
 #ifdef PCBSKY
 OS_TID BtTask;
 OS_STK Bt_stk[BT_STACK_SIZE] ;
+OS_TID LogTask;
+OS_STK Log_stk[LOG_STACK_SIZE] ;
 #endif
 OS_TID VoiceTask;
 OS_STK voice_stk[VOICE_STACK_SIZE] ;
@@ -100,6 +103,7 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 t_time Time ;
 
 uint8_t unexpectedShutdown = 0;
+uint8_t SdMounted = 0;
 
 //#define TRUE	1
 //#define FALSE	0
@@ -152,6 +156,7 @@ uint8_t ppmInValid = 0 ;
 #ifdef PCBSKY
 void tmrBt_Handle( void ) ;
 void bt_task(void* pdata) ;
+void log_task(void* pdata) ;
 #endif
 void main_loop( void* pdata ) ;
 void mainSequence( uint32_t no_menu ) ;
@@ -246,11 +251,11 @@ SKYModelData  g_model;
 
 const char *AlertMessage ;
 
-const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
-                                1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
-                                2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
-                                3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
-                                4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
+//const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
+//                                1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
+//                                2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
+//                                3,1,2,4 , 3,1,4,2 , 3,2,1,4 , 3,2,4,1 , 3,4,1,2 , 3,4,2,1,
+//                                4,1,2,3 , 4,1,3,2 , 4,2,1,3 , 4,2,3,1 , 4,3,1,2 , 4,3,2,1    };
 const uint8_t bchout_ar[] = {
 															0x1B, 0x1E, 0x27, 0x2D, 0x36, 0x39,
 															0x4B, 0x4E, 0x63, 0x6C, 0x72, 0x78,
@@ -628,11 +633,12 @@ int main(void)
 
 #ifdef PCBSKY
 	BtTask = CoCreateTask(bt_task,NULL,19,&Bt_stk[BT_STACK_SIZE-1],BT_STACK_SIZE);
+	LogTask = CoCreateTask(log_task,NULL,17,&Log_stk[LOG_STACK_SIZE-1],LOG_STACK_SIZE);
 #endif
 
 	MainTask = CoCreateTask( main_loop,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
 
-	VoiceTask = CoCreateTaskEx( voice_task,NULL,17,&voice_stk[VOICE_STACK_SIZE-1], VOICE_STACK_SIZE, 1, FALSE );
+	VoiceTask = CoCreateTaskEx( voice_task,NULL,16,&voice_stk[VOICE_STACK_SIZE-1], VOICE_STACK_SIZE, 1, FALSE );
 
 #ifdef	DEBUG
 
@@ -902,9 +908,77 @@ void bt_task(void* pdata)
 //		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
 	}
 }
-#endif
 
-#endif
+extern const char *openLogs( void ) ;
+extern void writeLogs( void ) ;
+extern void closeLogs( void ) ;
+
+uint8_t LogsRunning = 0 ;
+void log_task(void* pdata)
+{
+	while(1)
+	{
+		// THis needs to be a bit more accurate than
+		// just a delay to get the correct logging rate
+		CoTickDelay(500) ;					// 1S
+		if ( g_model.logSwitch )
+		{
+			if ( getSwitch( g_model.logSwitch, 0, 0 ) )
+			{	// logs ON
+				if ( ( LogsRunning & 1 ) == 0 )
+				{	// were off
+					LogsRunning = 3 ;		// On and changed
+				}
+			}
+			else
+			{	// logs OFF
+				if ( LogsRunning & 1 )
+				{	// were on
+					LogsRunning = 2 ;		// Off and changed
+				}
+			}
+
+			if ( LogsRunning & 2 )
+			{
+				if ( LogsRunning & 1 )
+				{
+					// Start logging
+					if ( openLogs() != NULL )
+					{
+    				audioDefevent( AU_SIREN ) ;
+					}
+				}
+				else
+				{
+					// Stop logging
+					closeLogs() ;
+				}
+				LogsRunning &= ~2 ;				
+			}
+
+			if ( LogsRunning & 1 )
+			{
+				// log Data (depending on Rate)
+				if ( g_model.logRate )
+				{
+					LogsRunning ^= 0x80 ;
+					if ( LogsRunning & 0x80 )
+					{
+						writeLogs() ;
+					}
+				}
+				else
+				{
+					writeLogs() ;
+				}
+			}
+		}
+	}
+}
+
+#endif	// PCBSKY
+
+#endif	// SIMU
 
 void telem_byte_to_bt( uint8_t data )
 {
@@ -967,6 +1041,11 @@ void main_loop(void* pdata)
 
 			// Wait for OK to turn off
 			// Currently wait 1 sec, needs to check eeprom finished
+
+			if ( LogsRunning & 1 )
+			{
+				closeLogs() ;
+			}
 
   		g_eeGeneral.unexpectedShutdown = 0;
 			MAh_used += Current_used/22/36 ;

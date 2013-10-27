@@ -302,6 +302,7 @@ enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm=2) ;
 void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm) ;
 void resetTelemetry();
 extern void frskyTransmitBuffer( uint32_t size ) ;
+extern uint8_t FrskyTelemetryType ;
 
 struct t_hub_max_min
 {
@@ -310,6 +311,8 @@ struct t_hub_max_min
 } ;
 
 extern struct t_hub_max_min FrskyHubMaxMin ;
+
+extern uint16_t logAxScale( uint8_t channel, uint8_t *dps ) ;
 
 #endif
 

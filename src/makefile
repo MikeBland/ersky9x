@@ -210,7 +210,8 @@ CPPSRC = stamp.cpp \
          timers.cpp \
          logicio.cpp \
          pulses.cpp \
-         massstorage.cpp
+         massstorage.cpp \
+			logs.cpp
 
 # List ASM source files here
 ASRC =

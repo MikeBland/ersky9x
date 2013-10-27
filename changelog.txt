@@ -10,6 +10,11 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 27-Oct-2013  MPB (r186)
+Add telemetry logging
+Improve model version update
+
+******************************************
 CHANGELOG: 21-Oct-2013  MPB (r185)
 Correctly commit the release!
 

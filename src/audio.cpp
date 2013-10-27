@@ -496,7 +496,7 @@ void voice_task(void* pdata)
 
 		if ( fr == FR_OK)
 		{
-			mounted = 1 ;
+			SdMounted = mounted = 1 ;
 	
 			while ( Voice.VoiceQueueCount == 0 )
 			{
@@ -648,7 +648,7 @@ void voice_task(void* pdata)
 				else
 				{
 					SDlastError = fr ;
-					mounted = 0 ;
+					SdMounted = mounted = 0 ;
 				}
 				Voice.VoiceLock = 0 ;
 			}

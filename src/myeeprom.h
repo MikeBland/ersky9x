@@ -501,6 +501,8 @@ PACK(typedef struct te_ModelData {
 	VarioData varioData ;
 	uint8_t		anaVolume ;	// analog volume control
 	int8_t pxxFailsafe[16] ;
+	int8_t logSwitch ;
+	uint8_t logRate ;
 //	uint8_t   curentSource ;
 //	uint8_t   altSource ;
 }) SKYModelData;

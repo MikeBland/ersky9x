@@ -1422,6 +1422,24 @@ void process_frsky_q()
 //  GpsPosLat = (((uint32_t)(uint16_t)FrskyHubData[FR_GPS_LAT] / 100) * 1000000) + (((uint32_t)((uint16_t)FrskyHubData[FR_GPS_LAT] % 100) * 10000 + (uint16_t)FrskyHubData[FR_GPS_LATd]) * 5) / 3;
 //}
 
+uint16_t logAxScale( uint8_t channel, uint8_t *dps )
+{
+	uint16_t val ;
+	*dps = 0 ;
+	val = FrskyHubData[channel ? FR_A2_COPY : FR_A1_COPY] ;
+	uint8_t ltype = g_model.frsky.channels[channel].type ;
+	val = scale_telem_value( val, channel, (ltype == 2/*V*/), dps ) ;
+	if ( *dps )
+	{
+		*dps = (*dps == PREC1) ? 10 : 100 ; 
+	}
+	else
+	{
+		*dps = 1 ;
+	}
+	return val ; 
+}
+
 
 uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att )
 {
@@ -1432,23 +1450,24 @@ uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8
   ratio = g_model.frsky.channels[channel].ratio ;
   if ( times2 )
   {
-      ratio <<= 1 ;
+    ratio <<= 1 ;
   }
   value *= ratio ;
 	if (g_model.frsky.channels[channel].type == 3/*A*/)
   {
-      value /= 100 ;
-      *p_att |= PREC1 ;
+    value /= 100 ;
+    *p_att |= PREC1 ;
   }
   else if ( ratio < 100 )
   {
-      value *= 2 ;
-      value /= 51 ;  // Same as *10 /255 but without overflow
-      *p_att |= PREC2 ;
+    value *= 2 ;
+    value /= 51 ;  // Same as *10 /255 but without overflow
+    *p_att |= PREC2 ;
   }
   else
   {
-      value /= 255 ;
+    value /= 255 ;
+    *p_att |= PREC1 ;
   }
 	return value ;
 }

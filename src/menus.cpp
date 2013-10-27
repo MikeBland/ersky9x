@@ -1671,9 +1671,9 @@ extern uint8_t frskyRSSItype[2] ;
 
 //VarioData VarioSetup ;
 #ifdef REVX
-#define T2COUNT_ITEMS	22
+#define T2COUNT_ITEMS	24
 #else
-#define T2COUNT_ITEMS	21
+#define T2COUNT_ITEMS	23
 #endif
 void menuProcTelemetry2(uint8_t event)
 {
@@ -1787,7 +1787,7 @@ void menuProcTelemetry2(uint8_t event)
 			subN++;
 		}
 	}
-	else if ( sub < T2COUNT_ITEMS - 4 )
+	else if ( sub < T2COUNT_ITEMS - 6 )
 	{
 		uint8_t subN = 14 ;
   	lcd_puts_Pleft( FH, PSTR("BT Telemetry") );
@@ -1833,43 +1833,60 @@ void menuProcTelemetry2(uint8_t event)
 	}
 	else
 	{
-		uint8_t subN = T2COUNT_ITEMS - 4 ;
+		uint8_t subN = T2COUNT_ITEMS - 6 ;
 		// Vario
-   	for( uint8_t j=0 ; j<4 ; j += 1 )
+   	for( uint8_t j=0 ; j<6 ; j += 1 )
 		{
+			uint8_t b ;
       uint8_t attr = (sub==subN) ? INVERS : 0 ;
 			uint8_t y = (1+j)*FH ;
 
-   		if (j == 0)
+			switch ( j )
 			{
-				lcd_puts_Pleft( y, PSTR(STR_VARIO_SRC) ) ;
-				lcd_putsAttIdx( 15*FW, y, PSTR(STR_VSPD_A2), g_model.varioData.varioSource, attr ) ;
-   		  if(attr)
-				{
-					g_model.varioData.varioSource = checkIncDec( event, g_model.varioData.varioSource, 0, 2, 0 ) ;
-   		  }
+				case 0 :
+					lcd_puts_Pleft( y, PSTR(STR_VARIO_SRC) ) ;
+					lcd_putsAttIdx( 15*FW, y, PSTR(STR_VSPD_A2), g_model.varioData.varioSource, attr ) ;
+   		  	if(attr)
+					{
+						CHECK_INCDEC_H_MODELVAR(event, g_model.varioData.varioSource, 0, 2 ) ;
+   		  	}
+				break ;
 				
+				case 1 :
+					lcd_puts_Pleft( y, PSTR(STR_2SWITCH) ) ;
+					g_model.varioData.swtch = edit_dr_switch( 15*FW, y, g_model.varioData.swtch, attr, attr, event ) ;
+				break ;
+
+				case 2 :
+					lcd_puts_Pleft( y, PSTR(STR_2SENSITIVITY) ) ;
+ 					lcd_outdezAtt( 17*FW, y, g_model.varioData.param, attr) ;
+   			  if(attr)
+					{
+						CHECK_INCDEC_H_MODELVAR(event, g_model.varioData.param, 0, 50 ) ;
+	   		  }
+				break ;
+
+				case 3 :
+	        b = 1-g_model.varioData.sinkTones ;
+					g_model.varioData.sinkTones = 1-onoffMenuItem_m( event, b, y, PSTR(STR_SINK_TONES), attr ) ;
+				break ;
+
+				case 4 :
+					lcd_puts_Pleft( y, PSTR("Log Switch") ) ;
+					g_model.logSwitch = edit_dr_switch( 15*FW, y, g_model.logSwitch, attr, attr, event ) ;
+				break ;
+
+				case 5 :
+					lcd_puts_Pleft( y, PSTR("Log Rate") ) ;
+					lcd_putsAttIdx( 15*FW, y, PSTR("\0041.0s2.0s"), g_model.logRate, attr ) ;
+   			  if(attr)
+					{
+						CHECK_INCDEC_H_MODELVAR(event, g_model.logRate, 0, 1 ) ;
+	   		  }
+				break ;
+
 			}
-   		else if (j == 1)
-   		{
-				lcd_puts_Pleft( y, PSTR(STR_2SWITCH) ) ;
-				
-				g_model.varioData.swtch = edit_dr_switch( 15*FW, y, g_model.varioData.swtch, attr, attr, event ) ;
-			}
-   		else if (j == 2)
-			{
-				lcd_puts_Pleft( y, PSTR(STR_2SENSITIVITY) ) ;
- 				lcd_outdezAtt( 17*FW, y, g_model.varioData.param, attr) ;
-   		  if(attr)
-				{
-					g_model.varioData.param = checkIncDec( event, g_model.varioData.param, 0, 50, 0 ) ;
-   		  }
-			}	
-			else// j == 3
-			{
-        uint8_t b = 1-g_model.varioData.sinkTones ;
-				g_model.varioData.sinkTones = 1-onoffMenuItem_m( event, b, y, PSTR(STR_SINK_TONES), attr ) ;
-			}
+
 			subN += 1 ;
 		}
 	}
