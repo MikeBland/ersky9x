@@ -31,6 +31,10 @@ extern uint16_t Max_temperature ;
 
 extern volatile uint32_t Spi_complete ;
 
+#ifdef PCBX9D
+extern void x9dConsoleInit( void ) ;
+extern uint16_t rxTelemetry( void ) ;
+#endif
 
 extern void putEvent( register uint8_t evt) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
@@ -92,7 +96,9 @@ extern void init_SDcard( void ) ;
 //------------------------------------------------------------------------------
 /// Detect if SD card is connected
 //------------------------------------------------------------------------------
+#ifdef PCBSKY
 #define CardIsConnected() ( (PIOB->PIO_PDSR & PIO_PB7) == 0 )
+#endif
 
 extern uint32_t Card_ID[4] ;
 extern uint32_t Card_SCR[2] ;

@@ -27,8 +27,8 @@
 
 extern void initWatchdog( void ) ;
 
-#define MAIN_STACK_SIZE		500
-#define DEBUG_STACK_SIZE	130
+#define MAIN_STACK_SIZE		600
+#define DEBUG_STACK_SIZE	430
 #define VOICE_STACK_SIZE	130
 
 OS_TID MainTask;
@@ -63,6 +63,8 @@ EEGeneral  g_eeGeneral;
 //ModelData  g_oldmodel;
 SKYModelData  g_model;
 
+uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
+
 int16_t g_ppmIns[8];
 uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
 
@@ -71,6 +73,23 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 	'S','P','E',0};
 
 #include "sticks.lbm"
+
+#define DO_SQUARE(xx,yy,ww)         \
+{uint8_t x,y,w ; x = xx; y = yy; w = ww ; \
+    lcd_vline(x-w/2,y-w/2,w);  \
+    lcd_hline(x-w/2,y+w/2,w);  \
+    lcd_vline(x+w/2,y-w/2,w);  \
+    lcd_hline(x-w/2,y-w/2,w);}
+
+#define DO_CROSS(xx,yy,ww)          \
+    lcd_vline(xx,yy-ww/2,ww);  \
+    lcd_hline(xx-ww/2,yy,ww);  \
+
+#define V_BAR(xx,yy,ll)       \
+    lcd_vline(xx-1,yy-ll,ll); \
+    lcd_vline(xx  ,yy-ll,ll); \
+    lcd_vline(xx+1,yy-ll,ll);
+
 
 
 const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
@@ -96,12 +115,17 @@ uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
 int8_t  CsTimer[NUM_SKYCSW] ;
 
-const char modi12x3[]=
-  "RUD ELE THR AIL "
-  "RUD THR ELE AIL "
-  "AIL ELE THR RUD "
-  "AIL THR ELE RUD ";
-// Now indexed using modn12x3
+const char modi12x3[]= "\004RUD ELE THR AIL " ;
+const char stickScramble[]= {
+    0, 1, 2, 3,
+    0, 2, 1, 3,
+    3, 1, 2, 0,
+    3, 2, 1, 0 };
+
+uint8_t modeFixValue( uint8_t value )
+{
+	return stickScramble[g_eeGeneral.stickMode*4+value]+1 ;
+}
 
 MenuFuncP g_menuStack[5];
 
@@ -114,6 +138,7 @@ uint8_t heartbeat_running ;
 
 uint16_t ResetReason ;
 
+int8_t phyStick[4] ;
 
 
 int main( void ) ;
@@ -171,12 +196,12 @@ void clearKeyEvents()
   			if(heartbeat == 0x3)
   			{
   			  heartbeat = 0;
-//  			  wdt_reset();
+  			  wdt_reset();
   			}
 			}
 			else
 			{
-//				wdt_reset() ;
+				wdt_reset() ;
 			}
 		}	
     putEvent(0);
@@ -195,9 +220,11 @@ void alertMessages( const char * s, const char * t )
   clearKeyEvents();
 }
 
+//uint32_t AlertActive ;
 
 void alert(const char * s, bool defaults)
 {
+//	AlertActive = 1 ;
   lcd_clear();
   lcd_putsAtt(64-5*FW,0*FH,PSTR("ALERT"),DBLSIZE);
   lcd_puts_P(0,4*FH,s);
@@ -216,9 +243,11 @@ void alert(const char * s, bool defaults)
 
     if(keyDown())
     {
+	    clearKeyEvents();
+//			AlertActive = 0 ;
       return;  //wait for key release
     }
-//    wdt_reset();
+    wdt_reset();
 //		if ( check_power_or_usb() ) return ;		// Usb on or power off
 //    if(getSwitch(g_eeGeneral.lightSw,0) || g_eeGeneral.lightAutoOff || defaults)
 //      BACKLIGHT_ON;
@@ -274,6 +303,33 @@ void pushMenu(MenuFuncP newMenu)
 }
 
 
+
+void getADC()
+{
+	register uint32_t x ;
+	register uint32_t y ;
+	
+	uint16_t temp[NUMBER_ANALOG] ;
+
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
+	{
+		temp[x] = 0 ;
+	}
+	for( y = 0 ; y < 4 ; y += 1 )
+	{
+		read_adc() ;
+		for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
+		{
+			temp[x] += Analog[x] ;
+		}
+	}
+	temp[1] = 16384 - temp[1] ;
+	temp[3] = 16384 - temp[3] ;
+	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
+	{
+		S_anaFilt[x] = temp[x] >> 2 ;
+	}
+}
 
 
 
@@ -452,17 +508,21 @@ int main( void )
 
   
 
+	x9dConsoleInit() ;
 
-	// Serial configure  
-	RCC->APB1ENR |= RCC_APB1ENR_USART3EN ;		// Enable clock
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
-	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
-	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
-//	USART3->BRR = 0x0C35 ;		// 195.3125 divider => 9600 baud
-	USART3->BRR = 0x061A ;		// 195.3125 divider => 9600 baud
-	USART3->CR1 = 0x200C ;
-	USART3->CR2 = 0 ;
-	USART3->CR3 = 0 ;
+//	// Serial configure  
+//	RCC->APB1ENR |= RCC_APB1ENR_USART3EN ;		// Enable clock
+//	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
+//	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
+//	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
+////	USART3->BRR = 0x0C35 ;		// 195.3125 divider => 9600 baud
+//	USART3->BRR = 0x061A ;		// 195.3125 divider => 9600 baud
+//	USART3->CR1 = 0x200C ;
+//	USART3->CR2 = 0 ;
+//	USART3->CR3 = 0 ;
+
+	// USART2 use for SPort.
+
 
 	init5msTimer() ;
 	init_hw_timer() ;
@@ -502,9 +562,6 @@ int main( void )
 // Switches PE2,7,8,9,13,14
 	configure_pins( 0x6384, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
 
-
-	init_adc() ;
-
 	init_main_ppm() ;
 	
 	init_trainer_ppm() ;
@@ -515,6 +572,9 @@ int main( void )
 	disp_256( TIM1_BASE, 6 ) ;
 	crlf() ;
 
+	// SD card detect pin
+	configure_pins( GPIO_Pin_CP, PIN_PORTD | PIN_INPUT | PIN_PULLUP ) ;
+	
 	disk_initialize( 0 ) ;
 
 	dispw_256( GPIOB_BASE, 4 ) ;
@@ -530,6 +590,8 @@ int main( void )
 	I2C_EE_Init() ;
 
 	rtcInit() ;
+
+	eeReadAll() ;
 
 	CoInitOS();
 	
@@ -550,6 +612,45 @@ extern uint32_t test_sound( void ) ;
 extern void stop_sound( void ) ;
 uint32_t SoundTime ;
 
+#define BOX_WIDTH     23
+#define BAR_HEIGHT    (BOX_WIDTH-1l)
+#define MARKER_WIDTH  5
+#define SCREEN_WIDTH  128
+#define SCREEN_HEIGHT 64
+#define BOX_LIMIT     (BOX_WIDTH-MARKER_WIDTH)
+#define LBOX_CENTERX  (  SCREEN_WIDTH/4 + 10)
+#define BOX_CENTERY  (SCREEN_HEIGHT-9-BOX_WIDTH/2)
+#define RBOX_CENTERX  (3*SCREEN_WIDTH/4 - 10)
+//#define RBOX_CENTERY  (SCREEN_HEIGHT-9-BOX_WIDTH/2)
+
+
+void telltale( uint8_t centrex, int8_t xval, int8_t yval )
+{
+  DO_SQUARE( centrex, BOX_CENTERY, BOX_WIDTH ) ;
+  DO_CROSS( centrex, BOX_CENTERY,3 ) ;
+	DO_SQUARE( centrex +( xval/((2*RESX/16)/BOX_LIMIT)), BOX_CENTERY-( yval/((2*RESX/16)/BOX_LIMIT)), MARKER_WIDTH ) ;
+}
+
+void doMainScreenGrphics()
+{
+	int8_t *cs = phyStick ;
+	
+	telltale( LBOX_CENTERX, cs[0], cs[1] ) ;
+	telltale( RBOX_CENTERX, cs[3], cs[2] ) ;
+    
+
+    // Optimization by Mike Blandford
+    {
+        uint8_t x, y, len ;			// declare temporary variables
+        for( x = -5, y = 4 ; y < 7 ; x += 5, y += 1 )
+        {
+//            len = ((calibratedStick[y]+RESX)/((RESX*2)/BAR_HEIGHT))+1 ;  // calculate once per loop
+            len = ((0+RESX)/((RESX*2)/BAR_HEIGHT))+1 ;  // calculate once per loop
+            V_BAR(SCREEN_WIDTH/2+x,SCREEN_HEIGHT-8, len )
+        }
+    }
+}
+
 // This is the main task for the RTOS
 void main_loop(void* pdata)
 {
@@ -561,6 +662,8 @@ void main_loop(void* pdata)
 	uint32_t ttest = 0 ;
 	uint16_t tresult = 0 ;
 	uint16_t xxx = 0 ;
+
+//	uint16_t tcount = 0 ;
 	
 	counter = 0 ;
 	counter1 = 0 ;
@@ -617,7 +720,7 @@ void main_loop(void* pdata)
 		if ( counter > 5 )
 		{
 			screen += 1 ;
-			if ( screen > 1 )
+			if ( screen > 2 )
 			{
 				screen = 0 ;				
 			}
@@ -650,6 +753,27 @@ void main_loop(void* pdata)
 			tresult = get_tmr10ms() - time ;
 			aaaa = TIM13->PSC ;
 		}
+
+
+		static uint32_t counterx ;
+		uint32_t x ;
+
+		if ( ++counterx > 0 )
+		{
+			getADC() ;
+			for( x = 0 ; x < 8 ; x += 1 )
+			{
+				g_chans512[x] = ( S_anaFilt[x] - 0x800) / 2 ;
+				if ( x < 4 )
+				{
+        	phyStick[x] = g_chans512[x] >> 4 ;
+				}
+			}
+			counterx = 0 ;
+		}
+
+//	if ( AlertActive == 0 )
+//	{
 
 		if ( screen == 0 )
 		{
@@ -697,7 +821,6 @@ void main_loop(void* pdata)
 				lastx = 0 ;
 			}
 
-			uint32_t x ;
   		x=0;
   		lcd_putsn_P(x, 3*FH,PSTR("Trim- +"),7);
   		for(uint8_t i=0; i<4; i++)
@@ -712,27 +835,17 @@ void main_loop(void* pdata)
 		
 			lcd_outhex4( 100, 8, read_adc() ) ;
 
-			static uint32_t counterx ;
 
-			if ( ++counterx > 0 )
-			{
-				for( x = 0 ; x < 8 ; x += 1 )
-				{
-					g_chans512[x] = ( Analog[x] - 0x800) / 2 ;
-				}
-				counterx = 0 ;
-			}
+			lcd_outhex4( 100, 16, S_anaFilt[0] ) ;
+			lcd_outhex4( 100, 24, S_anaFilt[1] ) ;
+			lcd_outhex4( 100, 32, S_anaFilt[2] ) ;
+			lcd_outhex4( 100, 40, S_anaFilt[3] ) ;
 
-			lcd_outhex4( 100, 16, Analog[0] ) ;
-			lcd_outhex4( 100, 24, Analog[1] ) ;
-			lcd_outhex4( 100, 32, Analog[2] ) ;
-			lcd_outhex4( 100, 40, Analog[3] ) ;
-
-			lcd_outhex4( 70, 16, Analog[4] ) ;
-			lcd_outhex4( 70, 24, Analog[5] ) ;
-			lcd_outhex4( 70, 32, Analog[6] ) ;
-			lcd_outhex4( 70, 40, Analog[7] ) ;
-			lcd_outhex4( 70, 48, Analog[8] ) ;
+			lcd_outhex4( 70, 16, S_anaFilt[4] ) ;
+			lcd_outhex4( 70, 24, S_anaFilt[5] ) ;
+			lcd_outhex4( 70, 32, S_anaFilt[6] ) ;
+			lcd_outhex4( 70, 40, S_anaFilt[7] ) ;
+			lcd_outhex4( 70, 48, S_anaFilt[8] ) ;
 		 
 			lcd_outhex4( 125, 40, ADC1->SR ) ;
 			lcd_outhex4( 125, 32, DMA2->LISR & 0x3F ) ;
@@ -828,11 +941,59 @@ extern void backlight_off() ;
 
 		}
 
-//		if ( screen == 2 )
-//		{
+		if ( screen == 2 )
+		{
+			lcd_outhex4( 180, 0, getEvent() ) ;
+			doMainScreenGrphics() ;
+
+  	//trim sliders
+  	for( i=0 ; i<4 ; i++ )
+  	{
+	#define TL 27
+  	  //                        LH LV RV RH
+  	  static uint8_t x[4]    = {128*1/4+2, 4, 128-4, 128*3/4-2};
+//  	  static uint8_t vert[4] = {0,1,1,0};
+  	  register uint8_t xm, ym ;
+#ifdef FIX_MODE
+			xm = modeFixValue( i ) ;
+      xm = x[xm-1] ;
+#else
+  	  xm=x[i] ;
+#endif
+  	  
+			
+//			register int8_t val = max((int8_t)-(TL+1),min((int8_t)(TL+1),(int8_t)(getTrimValue( CurrentPhase, i )/4)));
+			register int8_t val = 0 ;
+//  	  if(vert[i])
+      if( (i == 1) || ( i == 2 ))
+			{
+  	    ym=31;
+  	    lcd_vline(xm,   ym-TL, TL*2);
+
+#ifdef FIX_MODE
+          if((i == 1) || !(g_model.thrTrim))
+#else
+  	      if(((g_eeGeneral.stickMode&1) != (i&1)) || !(g_model.thrTrim))
+#endif
+					{
+  	          lcd_vline(xm-1, ym-1,  3);
+  	          lcd_vline(xm+1, ym-1,  3);
+  	      }
+  	      ym -= val;
+  	  }else{
+  	    ym=59;
+  	    lcd_hline(xm-TL,ym,    TL*2);
+  	    lcd_hline(xm-1, ym-1,  3);
+  	    lcd_hline(xm-1, ym+1,  3);
+  	    xm += val;
+  	  }
+  		DO_SQUARE(xm,ym,7)
+		}
 			
 			
-//		}
+			
+		}
+//	}
 
 		time = get_tmr10ms() ;
 		refreshDisplay();

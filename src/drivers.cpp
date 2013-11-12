@@ -36,6 +36,16 @@
 #include "CoOS.h"
 #endif
 
+#ifdef PCBX9D
+#include "diskio.h"
+#include "x9d\stm32f2xx.h"
+#include "x9d\stm32f2xx_gpio.h"
+#include "x9d\stm32f2xx_rcc.h"
+#include "x9d\stm32f2xx_usart.h"
+#include "x9d\hal.h"
+#endif
+
+
 // Timer usage
 // TIMER3 for input capture
 // Timer4 to provide 0.5uS clock for input capture
@@ -44,7 +54,9 @@
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
+#ifdef PCBSKY
 uint16_t Analog_values[NUMBER_ANALOG] ;
+#endif
 uint16_t Temperature ;				// Raw temp reading
 uint16_t Max_temperature ;		// Max raw temp reading
 
@@ -63,6 +75,9 @@ uint32_t TelemetryActiveBuffer ;
 struct t_fifo32 Console_fifo ;
 struct t_fifo32 BtRx_fifo ;
 
+#ifdef PCBX9D
+struct t_fifo32 Telemetry_fifo ;
+#endif
 
 volatile uint32_t Spi_complete ;
 
@@ -234,7 +249,6 @@ void per10ms()
 
   g_tmr10ms++;
   g_blinkTmr10ms++;
-
   uint8_t enuk = KEY_MENU;
   uint8_t    in = ~read_keys() ;
 	// Bits 3-6 are down, up, right and left
@@ -326,6 +340,10 @@ void per10ms()
 #endif
 
 #endif
+#ifdef PCBX9D
+	sdPoll10ms() ;
+#endif
+
 }
 
 
@@ -1360,6 +1378,76 @@ void disable_ssc()
 	sscptr = SSC ;
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
 }
+
+#endif
+
+#ifdef PCBX9D
+void x9dConsoleInit()
+{
+	// Serial configure  
+	RCC->APB1ENR |= RCC_APB1ENR_USART3EN ;		// Enable clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
+	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
+	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
+	USART3->BRR = 0x061A ;		// 97.625 divider => 9600 baud
+	USART3->CR1 = 0x200C ;
+	USART3->CR2 = 0 ;
+	USART3->CR3 = 0 ;
+}
+
+void x9dSPortInit()
+{
+	// Serial configure  
+	RCC->APB1ENR |= RCC_APB1ENR_USART2EN ;		// Enable clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
+	GPIOB->MODER = (GPIOB->MODER & 0xFFFFC3FF ) | 0x00002800 ;	// Alternate func.
+	GPIOB->AFR[0] = (GPIOB->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
+	USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
+	USART2->CR1 = 0x200C ;
+	USART2->CR2 = 0 ;
+	USART2->CR3 = 0 ;
+  NVIC_EnableIRQ(USART2_IRQn);
+}
+
+#if !defined(SIMU)
+
+#define USART_FLAG_ERRORS (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE)
+
+extern "C" void USART2_IRQHandler()
+{
+  uint32_t status;
+  uint8_t data;
+
+  status = USART2->SR ;
+
+  while (status & (USART_FLAG_RXNE | USART_FLAG_ERRORS))
+	{
+    data = USART2->DR;
+
+    if (!(status & USART_FLAG_ERRORS))
+		{
+			put_fifo32( &Telemetry_fifo, data ) ;
+		}
+    status = USART2->SR ;
+  }
+}
+
+#endif
+
+uint16_t rxTelemetry()
+{
+	return get_fifo32( &Telemetry_fifo ) ;
+  
+//	Uart *pUart=CONSOLE_USART ;
+
+//  if (pUart->UART_SR & UART_SR_RXRDY)
+//	{
+//		return pUart->UART_RHR ;
+//	}
+//	return 0xFFFF ;
+}
+
+
 
 #endif
 

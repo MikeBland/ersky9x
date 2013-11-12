@@ -45,7 +45,7 @@
 #define STICK_RV  0
 #define STICK_RH  1
 #define POT_L			6
-#define POT_R			7
+#define POT_R			8
 #define SLIDE_L		14
 #define SLIDE_R		15
 #define BATTERY		10
@@ -53,7 +53,7 @@
 // Sample time should exceed 1uS
 #define SAMPTIME	2		// sample time = 15 cycles
 
-volatile uint16_t Analog[NUM_ANALOG] ;
+volatile uint16_t Analog[NUMBER_ANALOG] ;
 
 void init_adc()
 {
@@ -61,13 +61,14 @@ void init_adc()
 	RCC->AHB1ENR |= RCC_AHB1Periph_GPIOADC ;	// Enable ports A&C clocks
 	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	configure_pins( PIN_STK_J1 | PIN_STK_J2 | PIN_STK_J3 | PIN_STK_J4 |
-									PIN_FLP_J1 | PIN_FLP_J2, PIN_ANALOG | PIN_PORTA ) ;
+									PIN_FLP_J1 , PIN_ANALOG | PIN_PORTA ) ;
+	configure_pins( PIN_FLP_J2, PIN_ANALOG | PIN_PORTB ) ;
 	configure_pins( PIN_SLD_J1 | PIN_SLD_J2 | PIN_MVOLT, PIN_ANALOG | PIN_PORTC ) ;
 				
 
 	ADC1->CR1 = ADC_CR1_SCAN ;
 	ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_DMA | ADC_CR2_DDS ;
-	ADC1->SQR1 = (NUM_ANALOG-1) << 20 ;		// NUM_ANALOG Channels
+	ADC1->SQR1 = (NUMBER_ANALOG-1) << 20 ;		// NUMBER_ANALOG Channels
 	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) ;
 	ADC1->SQR3 = STICK_LH + (STICK_LV<<5) + (STICK_RV<<10) + (STICK_RH<<15) + (POT_L<<20) + (POT_R<<25) ;
 	ADC1->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
@@ -91,7 +92,7 @@ uint32_t read_adc()
 	ADC1->SR &= ~(uint32_t) ( ADC_SR_EOC | ADC_SR_STRT | ADC_SR_OVR ) ;
 	DMA2->LIFCR = DMA_LIFCR_CTCIF0 | DMA_LIFCR_CHTIF0 |DMA_LIFCR_CTEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CFEIF0 ; // Write ones to clear bits
 	DMA2_Stream0->M0AR = (uint32_t) Analog ;
-	DMA2_Stream0->NDTR = NUM_ANALOG ;
+	DMA2_Stream0->NDTR = NUMBER_ANALOG ;
 	DMA2_Stream0->CR |= DMA_SxCR_EN ;		// Enable DMA
 	ADC1->CR2 |= (uint32_t)ADC_CR2_SWSTART ;
 	for ( i = 0 ; i < 10000 ; i += 1 )
@@ -104,6 +105,9 @@ uint32_t read_adc()
 	DMA2_Stream0->CR &= ~DMA_SxCR_EN ;		// Disable DMA
 	return ( i < 10000 ) ? 1 : 0 ;
 }
+
+
+
 
 // TODO
 void stop_adc()

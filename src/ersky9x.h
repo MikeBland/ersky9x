@@ -73,10 +73,21 @@ extern const char Str_Switch_warn[] ;
 #define strncpy_P(a,b,c)	strncpy(a,b,c)
 #define pgm_read_byte(p)	(*(p))
 
-#ifdef REVB
-#define NUMBER_ANALOG	9
+
+#ifdef PCBX9D
+ #define NUMBER_ANALOG		9
 #else
-#define NUMBER_ANALOG	8
+#ifdef REVX
+#define NUMBER_ANALOG		10
+#define CURRENT_ANALOG	8
+#else
+ #ifdef REVB
+ #define NUMBER_ANALOG		9
+ #define CURRENT_ANALOG	8
+ #else
+ #define NUMBER_ANALOG	8
+ #endif
+#endif
 #endif
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
@@ -350,7 +361,7 @@ extern uint8_t Ee_lock ;
 #define DSM2_DSMX        2
 
 // PXX_SEND_RXNUM == BIND
-#define PXX_SEND_RXNUM     0x01
+#define PXX_BIND			     0x01
 #define PXX_SEND_FAILSAFE  0x10
 #define PXX_RANGE_CHECK		 0x20
 

@@ -23,7 +23,9 @@
 #include "myeeprom.h"
 #include "drivers.h"
 #include "audio.h"
+#ifdef PCBSKY
 #include "AT91SAM3S4.h"
+#endif
 #ifndef SIMU
 #include "core_cm3.h"
 #endif
@@ -855,10 +857,12 @@ void frsky_receive_byte( uint8_t data )
   static uint8_t numPktBytes = 0;
   static uint8_t dataState = frskyDataIdle;
 
+#ifdef PCBSKY
 	if ( g_model.bt_telemetry )
 	{
 		telem_byte_to_bt( data ) ;
 	}
+#endif
 
   uint8_t numbytes = numPktBytes ;
 //  if (FrskyRxBufferReady == 0) // can't get more data if the buffer hasn't been cleared
@@ -958,11 +962,12 @@ void frsky_receive_byte( uint8_t data )
 
 /******************************************/
 
+#ifdef PCBSKY
 void frskyTransmitBuffer( uint32_t size )
 {
 	txPdcUsart( frskyTxBuffer, size ) ;
 }
-
+#endif
 
 uint8_t FrskyAlarmSendState = 0 ;
 uint8_t FrskyDelay = 0 ;
@@ -976,6 +981,7 @@ void FRSKY10mspoll(void)
     FrskyDelay -= 1 ;
     return ;
   }
+#ifdef PCBSKY
 	if ( txPdcPending() )
   {
     return; // we only have one buffer. If it's in use, then we can't send yet.
@@ -1024,6 +1030,7 @@ void FRSKY10mspoll(void)
     FrskyDelay = 5 ; // 50mS
     frskyTransmitBuffer( size ) ; 
   }
+#endif
 }
 
 //  uint8_t i = 0;
@@ -1099,6 +1106,7 @@ enum AlarmLevel FRSKY_alarmRaised(uint8_t idx, uint8_t alarm)
 
 void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
 {
+#ifdef PCBSKY
 	uint8_t alarmLevel = ALARM_LEVEL(idx, alarm);
 			
 	if(((g_eeGeneral.speakerMode &1) == 1 /*|| g_eeGeneral.speakerMode == 2*/) && g_eeGeneral.frskyinternalalarm == 1)
@@ -1118,12 +1126,15 @@ void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
 			break;		
 		}	
 	}
+#endif
 }
 
 
 
 void FRSKY_Init( uint8_t brate )
 {
+	
+#ifdef PCBSKY
 	FrskyTelemetryType = brate ;
 	
 	if ( brate == 0 )
@@ -1170,6 +1181,8 @@ void FRSKY_Init( uint8_t brate )
   memset(frskyAlarms, 0, sizeof(frskyAlarms));
   resetTelemetry();
 	startPdcUsartReceive() ;
+#endif
+
 }
 
 static void frskyPushValue(uint8_t & i, uint8_t value)
@@ -1191,6 +1204,7 @@ static void frskyPushValue(uint8_t & i, uint8_t value)
 	}
   frskyTxBuffer[i++] = value;
 }
+
 
 void FrskyData::setoffset()
 {
@@ -1267,6 +1281,7 @@ void check_frsky()
 		FRSKY_Init( telemetryType ) ;	
 	}
 	
+#ifdef PCBSKY
 	if ( g_model.frskyComPort == 0 )
 	{
 		rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
@@ -1279,7 +1294,18 @@ void check_frsky()
 			frsky_receive_byte( rxchar ) ;
 		}
 	}
-	
+#endif
+
+#ifdef PCBX9D
+	{
+		uint16_t rxchar ;
+		while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
+		{
+			frsky_receive_byte( rxchar ) ;
+		}
+	}
+#endif
+	 
 	if (frskyStreaming > 0)
 	{
 		if ( --frskyStreaming == 0 )

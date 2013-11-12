@@ -10,6 +10,13 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 12-Nov-2013  MPB (r187)
+Channel order moved to radio setup
+Handle menu switching better
+PXX support 16 channels output
+Fix HELI bug
+
+******************************************
 CHANGELOG: 27-Oct-2013  MPB (r186)
 Add telemetry logging
 Improve model version update

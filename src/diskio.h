@@ -164,6 +164,9 @@ extern uint32_t sd_acmd6( void ) ;
 extern uint32_t sd_acmd51( uint32_t *presult ) ;
 extern uint32_t sd_cmd13( uint32_t *status) ;
 extern void sd_poll_10mS( void ) ;
+#ifdef PCBX9D
+extern void sdPoll10ms( void ) ;
+#endif
 extern uint32_t sd_card_ready( void ) ;
 extern uint32_t sd_read_block( uint32_t block_no, uint32_t *data ) ;
 

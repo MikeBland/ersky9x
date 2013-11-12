@@ -13,8 +13,6 @@
 *
 ****************************************************************************/
 
-#define NUM_ANALOG 9
-
 extern volatile uint16_t Analog[] ;
 
 extern void init_adc( void ) ;

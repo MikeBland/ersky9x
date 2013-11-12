@@ -46,7 +46,7 @@ static void I2C_GPIO_Configuration(void)
 //  GPIO_Init(I2C_EE_WP_GPIO, &GPIO_InitStructure);
 
   /* Configure I2C_EE pins: SCL and SDA */
-	configure_pins( I2C_EE_SCL | I2C_EE_SDA, PIN_OUTPUT | PIN_OS50 | PIN_PORTE | PIN_ODRAIN | PIN_PULLUP ) ;
+	configure_pins( I2C_EE_SCL | I2C_EE_SDA, PIN_OUTPUT | PIN_OS50 | PIN_PORTB | PIN_ODRAIN | PIN_PULLUP ) ;
 //  GPIO_InitStructure.GPIO_Pin =  I2C_EE_SCL | I2C_EE_SDA;//PE0,PE1
 //  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 //  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;

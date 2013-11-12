@@ -197,11 +197,14 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
+		static uint8_t xxxyyy = 0 ;
 		
+#if PCBSKY		
 		while ( g_model.frskyComPort )		// Leave the port alone!
 		{
 			CoTickDelay(50) ;					// 100mS for now
 		}
+#endif
 		
 #if PCBSKY		
 		if ( SoundCheck )
@@ -485,30 +488,60 @@ extern void initWatchdog( void ) ;
 			}
 		}
 
+		static uint32_t bk_address = 0 ;
 		if ( rxchar == 'X' )
 		{
-			txmit( 'x' ) ;
+			txmit( 'X' ) ;
+			bk_address = 0 ;
+			crlf() ;
+			p8hex( bk_address ) ;
+			crlf() ;
 			uint32_t i ;
-			for ( i = 0 ; i < 64 ; i += 1 )
+			for ( i = 0 ; i < 128 ; i += 1 )
 			{
 				EEdata[i] = 0x55 ;
 			}
-			disp_256( (uint32_t)EEdata, 4 ) ;
-			I2C_EE_BufferRead( EEdata, 0, 64 ) ;
+			disp_256( (uint32_t)EEdata, 8 ) ;
+			I2C_EE_BufferRead( EEdata, 0, 128 ) ;
 			txmit( 'y' ) ;
-			disp_256( (uint32_t)EEdata, 4 ) ;
-		}	
+			disp_256( (uint32_t)EEdata, 8 ) ;
+		}
+
+		if ( rxchar == 'x' )
+		{
+			txmit( 'x' ) ;
+			crlf() ;
+			p8hex( bk_address ) ;
+			crlf() ;
+			uint32_t i ;
+			for ( i = 0 ; i < 128 ; i += 1 )
+			{
+				EEdata[i] = 0x55 ;
+			}
+			disp_256( (uint32_t)EEdata, 8 ) ;
+			I2C_EE_BufferRead( EEdata, bk_address, 128 ) ;
+			txmit( 'y' ) ;
+			disp_256( (uint32_t)EEdata, 8 ) ;
+			bk_address += 128 ;
+		}
+
+		if ( rxchar == 'g' )
+		{
+void generalDefault() ;
+			generalDefault() ;			
+		}
+
 		if ( rxchar == 'W' )
 		{
 			txmit( 'w' ) ;
 			uint32_t i ;
-			for ( i = 0 ; i < 64 ; i += 1 )
+			for ( i = 0 ; i < 128 ; i += 1 )
 			{
 				EEdata[i] = i ;
 			}
-			disp_256( (uint32_t)EEdata, 4 ) ;
+			disp_256( (uint32_t)EEdata, 128 ) ;
 			WP_L ;
-			I2C_EE_BufferWrite( EEdata, 0, 64 ) ;
+			I2C_EE_BufferWrite( EEdata, 0, 128 ) ;
 			txmit( 'z' ) ;
 		}	
 		
@@ -516,13 +549,13 @@ extern void initWatchdog( void ) ;
 		{
 			txmit( 'q' ) ;
 			uint32_t i ;
-			for ( i = 0 ; i < 64 ; i += 1 )
+			for ( i = 0 ; i < 128 ; i += 1 )
 			{
 				EEdata[i] = 0xFF ;
 			}
-			disp_256( (uint32_t)EEdata, 4 ) ;
+			disp_256( (uint32_t)EEdata, 8 ) ;
 			WP_L ;
-			I2C_EE_BufferWrite( EEdata, 0, 64 ) ;
+			I2C_EE_BufferWrite( EEdata, 0, 128 ) ;
 			txmit( 'z' ) ;
 		}	
 
@@ -532,10 +565,36 @@ extern void initWatchdog( void ) ;
 			PlayVoice = 1 ;			
 		}
 
-		if ( rxchar == 'L' )
+		if ( rxchar == 'S' )
 		{
-			lcd_init() ;		
+			txmit( 'S' ) ;
+			eeReadAll() ;
 		}
+
+//extern int8_t EeFsck() ;
+//extern bool eeLoadGeneral() ;
+//extern bool EeFsOpen() ;
+
+//		if ( rxchar == 't' )
+//		{
+//  		EeFsOpen() ;
+//		}
+//		if ( rxchar == 'u' )
+//		{
+//			EeFsck() ;
+//			txmit( '<' ) ;
+//			disp_256( (uint32_t)&g_model, 8 ) ;
+//		}
+//		if ( rxchar == 'v' )
+//		{
+//      eeLoadGeneral() ;
+//		}
+
+
+//		if ( rxchar == 'L' )
+//		{
+//			lcd_init() ;		
+//		}
 
 #endif
 
@@ -559,7 +618,7 @@ extern void initWatchdog( void ) ;
 			volume = I2C_read_volume() ;
 			if ( volume < 127 )
 			{
-				I2C_setVolume( ++volume ) ;				
+				I2C_set_volume( ++volume ) ;				
 			}
 		}
 
@@ -570,7 +629,7 @@ extern void initWatchdog( void ) ;
 			volume = I2C_read_volume() ;
 			if ( volume > 0 )
 			{
-				I2C_setVolume( --volume ) ;				
+				I2C_set_volume( --volume ) ;				
 			}
 		}
 #endif

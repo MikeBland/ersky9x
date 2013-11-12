@@ -187,11 +187,11 @@ extern "C" void PWM_IRQHandler (void)
 			break ;
 
       case PROTO_PXX:
-				// Alternate periods of 15.5mS and 2.5 mS
+				// Alternate periods of 6.5mS and 2.5 mS
 				period = pwmptr->PWM_CH_NUM[3].PWM_CPDR ;
 				if ( period == 5000 )	// 2.5 mS
 				{
-					period = 15500*2 ;
+					period = 6500*2 ;
 				}
 				else
 				{
@@ -335,6 +335,11 @@ void setupPulsesDsm2(uint8_t chns)
 	}
 }
 
+void startPulses()
+{
+	Current_protocol = g_model.protocol + 1 ;		// Not the same!
+	setupPulses() ;
+}
 
 void setupPulses()
 {
@@ -562,12 +567,12 @@ void crc( uint8_t data )
 // 8uS/bit 01 = 0, 001 = 1
 void putPcmPart( uint8_t value )
 {
-	put_serial_bit( 1 ) ; 
+	put_serial_bit( 0 ) ; 
 	if ( value )
 	{
-		put_serial_bit( 1 ) ;
+		put_serial_bit( 0 ) ;
 	}
-	put_serial_bit( 0 ) ;
+	put_serial_bit( 1 ) ;
 }
 
 
@@ -632,12 +637,12 @@ uint16_t scaleForPXX( uint8_t i )
   value = g_chans512[i] *3 / 4 + 2250 ;
 	return value ;
 #else 
-	value = g_chans512[i] *3 / 4 + 1024 ;	
+	value = ( i < 24 ) ? g_chans512[i] *3 / 4 + 1024 : 0 ;
 	return limit( (int16_t)1, value, (int16_t)2046 ) ;
 #endif
 }
 
-
+static uint8_t pass ;
 
 //void setUpPulsesPCM()
 void setupPulsesPXX()
@@ -645,6 +650,7 @@ void setupPulsesPXX()
     uint8_t i ;
     uint16_t chan ;
     uint16_t chan_1 ;
+		uint8_t lpass = pass ;
 
 		Serial_byte = 0 ;
 		Serial_bit_count = 0 ;
@@ -663,7 +669,7 @@ void setupPulsesPXX()
 		putPcmByte( pxxFlag ) ;     // First byte of flags
 #else
   	uint8_t flag1;
-  	if (pxxFlag & PXX_SEND_RXNUM)
+  	if (pxxFlag & PXX_BIND)
 		{
   	  flag1 = (g_model.sub_protocol<< 6) | (g_model.country << 1) | pxxFlag ;
   	}
@@ -678,12 +684,24 @@ void setupPulsesPXX()
     pxxFlag = 0;          // reset flag after send
 #endif
 		uint8_t startChan = g_model.startChannel ;
+		if ( lpass & 1 )
+		{
+			startChan += 8 ;			
+		}
     for ( i = 0 ; i < 4 ; i += 1 )		// First 8 channels only
     {																	// Next 8 channels would have 2048 added
       chan = scaleForPXX( startChan ) ;
+			if ( lpass & 1 )
+			{
+				chan += 2048 ;
+			}
       putPcmByte( chan ) ; // Low byte of channel
 			startChan += 1 ;
       chan_1 = scaleForPXX( startChan ) ;
+			if ( lpass & 1 )
+			{
+				chan_1 += 2048 ;
+			}
 			startChan += 1 ;
 			putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
       putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
@@ -696,6 +714,7 @@ void setupPulsesPXX()
     putPcmByte( chan ) ; 			// Checksum lo
     putPcmHead(  ) ;      // sync byte
     putPcmFlush() ;
+		pass = lpass + 1 ;
 }
 
 

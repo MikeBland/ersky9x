@@ -944,7 +944,7 @@ void setRtcCAL( uint8_t value )
 }
 
 
-void writeRTC( uint8_t *ptr, uint32_t count )
+void writeRTC( uint8_t *ptr )
 {
 	uint32_t year ;
 	RtcConfig[0] = 0x80 | toBCD( *ptr++ ) ;

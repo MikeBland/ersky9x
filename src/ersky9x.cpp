@@ -323,6 +323,7 @@ uint8_t modeFixValue( uint8_t value )
 MenuFuncP g_menuStack[5];
 
 uint8_t  g_menuStackPtr = 0;
+uint8_t  EnterMenu = 0 ;
 
 
 // Temporary to allow compile
@@ -613,7 +614,8 @@ int main(void)
 	}
 
 	// Must do this to start PPM2 as well
-	init_main_ppm( 3000, 1 ) ;		// Default for now, initial period 1.5 mS, output on
+	init_main_ppm( 3000, 0 ) ;		// Default for now, initial period 1.5 mS, output off
+	startPulses() ;		// using the required protocol
 
 	start_ppm_capture() ;
 
@@ -2224,9 +2226,16 @@ void perMain( uint32_t no_menu )
 		else
 		{
 			alertKey = 0 ;
-    	g_menuStack[g_menuStackPtr](evt);
-    	refreshDisplay();
+    	
+			if ( EnterMenu )
+			{
+				evt = EnterMenu ;
+				EnterMenu = 0 ;
+				audioDefevent(AU_MENUS);
+			}
+			g_menuStack[g_menuStackPtr](evt);
 		}
+    refreshDisplay();
 	}
 
 
@@ -2728,8 +2737,8 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
   	}
 		else
 		{
-  		tm -= TMR_VAROFS ;
-  		lcd_putsnAtt(  x, y, PSTR( CURV_STR )+1 + 21 + 3*tm, 3, attr ) ;		// Cheat to get chan# text
+  		tm -= TMR_VAROFS - 7 ;
+      lcd_putsAttIdx(  x, y, PSTR( CURV_STR), tm, attr ) ;
 			if ( tm < 9 )
 			{
 				x -= FW ;		
@@ -3254,22 +3263,18 @@ void popMenu(bool uppermost)
 void chainMenu(MenuFuncP newMenu)
 {
   g_menuStack[g_menuStackPtr] = newMenu;
-  (*newMenu)(EVT_ENTRY);
-  audioDefevent(AU_MENUS);
+	EnterMenu = EVT_ENTRY ;
 }
 void pushMenu(MenuFuncP newMenu)
 {
 
-  g_menuStackPtr++;
-  if(g_menuStackPtr >= DIM(g_menuStack))
+  if(g_menuStackPtr >= DIM(g_menuStack)-1)
   {
-    g_menuStackPtr--;
     alert(PSTR("menuStack overflow"));
     return;
   }
-  audioDefevent(AU_MENUS);
+	EnterMenu = EVT_ENTRY ;
   g_menuStack[g_menuStackPtr] = newMenu;
-  (*newMenu)(EVT_ENTRY);
 }
 
 

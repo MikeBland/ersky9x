@@ -167,6 +167,7 @@ CPPSRC = x9d.cpp \
          logicio.cpp \
          analog.cpp \
          debug.cpp \
+			frsky.cpp \
 		   lcd.cpp
 
 #         audio.cpp \

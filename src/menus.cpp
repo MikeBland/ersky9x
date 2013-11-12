@@ -1940,7 +1940,7 @@ void menuProcGlobals(uint8_t event)
 #ifndef NO_TEMPLATES
 void menuProcTemplates(uint8_t event)  //Issue 73
 {
-    SIMPLE_MENU(STR_TEMPLATES, menuTabModel, e_Templates, NUM_TEMPLATES+3);
+    SIMPLE_MENU(STR_TEMPLATES, menuTabModel, e_Templates, NUM_TEMPLATES+2);
 
     uint8_t t_pgOfs ;
     uint8_t y = 0;
@@ -1976,22 +1976,6 @@ void menuProcTemplates(uint8_t event)  //Issue 73
 
     if(y>7*FH) return;
     uint8_t attr = s_noHi ? 0 : ((sub==NUM_TEMPLATES) ? INVERS : 0);
-    lcd_puts_P( 1*FW, y,PSTR(STR_CHAN_ORDER));//   RAET->AETR
-
-    {
-        uint8_t i ;
-        for ( i = 1 ; i <= 4 ; i += 1 )
-        {
-            lcd_putsnAtt((14+i)*FW, y, PSTR(STR_SP_RETA)+CHANNEL_ORDER(i),1,attr);
-        }
-    }
-
-
-    if(attr) CHECK_INCDEC_H_GENVAR(event, g_eeGeneral.templateSetup, 0, 23);
-    y+=FH;
-
-    if(y>7*FH) return;
-    attr = s_noHi ? 0 : ((sub==NUM_TEMPLATES+1) ? INVERS : 0);
     lcd_putsAtt(  1*FW,y,PSTR(STR_CLEAR_MIXES),attr);
     y+=FH;
 
@@ -3405,7 +3389,7 @@ void menuDeleteDupModel(uint8_t event)
 void menuRangeBind(uint8_t event)
 {
 	static uint8_t timer ;
-	uint8_t flag = pxxFlag & PXX_SEND_RXNUM ;
+	uint8_t flag = pxxFlag & PXX_BIND ;
 	lcd_puts_Pleft( 3*FH, (flag) ? PSTR("\006BINDING") : PSTR("RANGE CHECK RSSI:") ) ;
   if ( event == EVT_KEY_FIRST(KEY_EXIT) )
 	{
@@ -3736,7 +3720,7 @@ if(t_pgOfs<subN) {
         if(sub==subN && event==EVT_KEY_LONG(KEY_MENU))
         {
             //send reset code
-            pxxFlag = PXX_SEND_RXNUM;
+            pxxFlag = PXX_BIND ;
         }
 #else
 			lcd_puts_Pleft( y, PSTR(STR_SEND_RX_NUM) ) ;
@@ -3746,7 +3730,7 @@ if(t_pgOfs<subN) {
 				if ( subSub == 0 )
 				{
 					lcd_char_inverse( 0, y, 4*FW, 0 ) ;
-					newFlag = PXX_SEND_RXNUM ;
+					newFlag = PXX_BIND ;
 				}
 				else
 				{
@@ -4401,7 +4385,7 @@ void menuProcDiagAna(uint8_t event)
 	register uint32_t i ;
   SIMPLE_MENU(STR_ANA, menuTabDiag, e_Ana, 3);
 #ifdef REVB    
-	Current_sum += anaIn(NUMBER_ANALOG-1) ;
+	Current_sum += anaIn(CURRENT_ANALOG) ;
 	if ( ++Current_count > 99 )
 	{
 		Current = Current_sum / 10 ;
@@ -4794,7 +4778,7 @@ void menuProcSetup(uint8_t event)
 //*/
 
 #ifdef FRSKY
-	uint8_t vCountItems = 23 ; //21 is default
+	uint8_t vCountItems = 24 ; //21 is default
 //  int8_t sw_offset = -6 ;
 	switch (g_eeGeneral.speakerMode & 1)
 	{
@@ -5183,6 +5167,22 @@ void menuProcSetup(uint8_t event)
     if((y+=FH)>7*FH) return;
 	}subN++;
 
+  if(t_pgOfs<subN)
+	{
+		uint8_t attr = sub==subN ? INVERS : 0 ;
+	  lcd_puts_Pleft( y, PSTR(STR_CHAN_ORDER) ) ;//   RAET->AETR
+		uint8_t bch = bchout_ar[g_eeGeneral.templateSetup] ;
+    for ( uint8_t i = 4 ; i > 0 ; i -= 1 )
+		{
+			uint8_t letter ;
+			letter = *(PSTR(STR_SP_RETA) +(bch & 3) + 1 ) ;
+  		lcd_putcAtt( (14+i)*FW, y, letter, attr ) ;
+			bch >>= 2 ;
+		}
+	  if(attr) CHECK_INCDEC_H_GENVAR( event, g_eeGeneral.templateSetup, 0, 23 ) ;
+		if((y+=FH)>7*FH) return ;
+  }
+	subN++;
 
     if(t_pgOfs<subN) {
         lcd_puts_P( 1*FW, y, PSTR(STR_MODE));//sub==3?INVERS:0);
@@ -5268,7 +5268,7 @@ void timer(int16_t throttle_val)
 		val = throttle_val ;
    	if(tma>=TMR_VAROFS) // Cxx%
 		{
- 	    val = ex_chans[tma-TMR_VAROFS] ;
+ 	    val = g_chans512[tma-TMR_VAROFS] ;
 		}		
 
 		val = ( val + RESX ) / (RESX/16) ;
@@ -5575,7 +5575,7 @@ void menuProcDate(uint8_t event)
 			TimeToSet.Time[5] = (uint8_t) EntryTime.year ;
 			TimeToSet.Time[6] = EntryTime.year >> 8 ;
 #ifdef REVX
-			writeRTC( (uint8_t *) &TimeToSet.Time[0], 8 ) ;
+			writeRTC( (uint8_t *) &TimeToSet.Time[0] ) ;
 #else
 			write_coprocessor( (uint8_t *) &TimeToSet, 8 ) ;
 #endif
@@ -5697,7 +5697,7 @@ void menuProcBattery(uint8_t event)
 		putsVolts( 13*FW, 2*FH, g_vbat100mV, 0 ) ;
 
 #ifdef REVB    
-		Current_sum += anaIn(NUMBER_ANALOG-1) ;
+		Current_sum += anaIn(CURRENT_ANALOG) ;
 		if ( ++Current_count > 49 )
 		{
 			Current = Current_sum / 5 ;
@@ -6137,6 +6137,10 @@ void menuProc0(uint8_t event)
   
 	if(view<e_inputs1)
 	{
+		if ( io_subview > 2 )
+		{
+			io_subview = 0 ;
+		}
     lcd_hlineStip(38, 33, 54, 0x55 ) ;
     lcd_hlineStip(38, 34, 54, 0x55 ) ;
     lcd_hlineStip(38 + io_subview * 18, 33, 18, 0xAA ) ;
@@ -6553,7 +6557,7 @@ void perOut(int16_t *chanOut, uint8_t att)
         {
             uint32_t v = (int32_t(calibratedStick[ele_stick])*calibratedStick[ele_stick] +
                           int32_t(calibratedStick[ail_stick])*calibratedStick[ail_stick]);
-            uint32_t q = int32_t(RESX)*g_model.swashRingValue/100;
+						uint32_t q = calc100toRESX(g_model.swashRingValue) ;
             q *= q;
             if(v>q)
                 d = isqrt32(v);
@@ -6638,8 +6642,8 @@ void perOut(int16_t *chanOut, uint8_t att)
                 }
 
                 //===========Swash Ring================
-                if(d && (i==ele_stick || i==ail_stick))
-                    v = int32_t(v)*g_model.swashRingValue*RESX/(int32_t(d)*100);
+                if(d && (index==ele_stick || index==ail_stick))
+                    v = int32_t(v)*calc100toRESX(g_model.swashRingValue)/int32_t(d) ;
                 //===========Swash Ring================
 
                 uint8_t expoDrOn = GET_DR_STATE(index);
@@ -6718,15 +6722,16 @@ void perOut(int16_t *chanOut, uint8_t att)
         //===========Swash Ring================
         if(g_model.swashRingValue)
         {
-            uint32_t v = ((int32_t)anas[ele_stick]*anas[ele_stick] + (int32_t)anas[ail_stick]*anas[ail_stick]);
-            uint32_t q = (int32_t)RESX*g_model.swashRingValue/100;
-            q *= q;
-            if(v>q)
-            {
-                uint16_t d = isqrt32(v);
-                anas[ele_stick] = (int32_t)anas[ele_stick]*g_model.swashRingValue*RESX/((int32_t)d*100);
-                anas[ail_stick] = (int32_t)anas[ail_stick]*g_model.swashRingValue*RESX/((int32_t)d*100);
-            }
+          uint32_t v = ((int32_t)anas[ele_stick]*anas[ele_stick] + (int32_t)anas[ail_stick]*anas[ail_stick]);
+		      int16_t tmp = calc100toRESX(g_model.swashRingValue) ;
+          uint32_t q ;
+          q = (int32_t)tmp * tmp ;
+          if(v>q)
+          {
+            uint16_t d = isqrt32(v);
+            anas[ele_stick] = (int32_t)anas[ele_stick]*tmp/((int32_t)d) ;
+            anas[ail_stick] = (int32_t)anas[ail_stick]*tmp/((int32_t)d) ;
+          }
         }
 
 #define REZ_SWASH_X(x)  ((x) - (x)/8 - (x)/128 - (x)/512)   //  1024*sin(60) ~= 886
@@ -6734,13 +6739,14 @@ void perOut(int16_t *chanOut, uint8_t att)
 
         if(g_model.swashType)
         {
-            int16_t vp = anas[ele_stick]+trimA[ele_stick];
-            int16_t vr = anas[ail_stick]+trimA[ail_stick];
+            int16_t vp = 0 ;
+            int16_t vr = 0 ;
 
-            if(att&NO_INPUT)  //zero input for setStickCenter()
-            {
-                vp = vr = 0;
-            }
+            if( !(att & NO_INPUT) )  //zero input for setStickCenter()
+						{
+	            vp = anas[ele_stick]+trimA[ele_stick];
+  	          vr = anas[ail_stick]+trimA[ail_stick];
+						}
 
             int16_t vc = 0;
             if(g_model.swashCollectiveSource)
