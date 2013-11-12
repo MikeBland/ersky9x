@@ -10,6 +10,10 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 12-Nov-2013  MPB (r188)
+fix menu underflow bug!
+
+******************************************
 CHANGELOG: 12-Nov-2013  MPB (r187)
 Channel order moved to radio setup
 Handle menu switching better

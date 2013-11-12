@@ -79,6 +79,9 @@
 #define RCC_AHB1Periph_GPIOPWR          RCC_AHB1Periph_GPIOC | RCC_AHB1Periph_GPIOD
 #define GPIOPWRLED                      GPIOC
 #define GPIOPWR                         GPIOD
+#define PIN_INT_RF_PWR                  GPIO_Pin_15
+#define PIN_EXT_RF_PWR                  GPIO_Pin_8
+
 
 // Smart-Port
 #define PIN_SPORT_ON                    GPIO_Pin_4  //PD.04
@@ -86,8 +89,13 @@
 #define PIN_SPORT_RX                    GPIO_Pin_6  //PD.06
 
 // Trainer Port
+#define GPIO_TR_INOUT                   GPIOC
 #define PIN_TR_PPM_IN                   GPIO_Pin_8  //PC.08
 #define PIN_TR_PPM_OUT                  GPIO_Pin_9  //PC.09
+#define GPIOTRNDET                      GPIOA
+#define PIN_TRNDET                      GPIO_Pin_8
+
+
 
 // Cppm
 #define RCC_AHB1Periph_GPIOCPPM         RCC_AHB1Periph_GPIOA
@@ -181,10 +189,6 @@
 #define CODEC_USE_INT
 //#define CODEC_USE_DMA 
 #define AudioFreq                       I2S_AudioFreq_44k 
-
-
-
-
 
 
 // EEPROM and CAT5137

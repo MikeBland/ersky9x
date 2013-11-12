@@ -1329,35 +1329,4 @@ bool Last_switch[NUM_SKYCSW] ;
 //}
 
 
-// **** SPI1 does not seem to support I2S *** !!!
-
-// Code to init SPI1 in I2S mode for DSM2 serial
-//void init_i2s1()
-//{
-//  uint32_t i ;
-////	RCC->PLLI2SCFGR = (PLLI2SN << 6) | (PLLI2SR << 28);
-//	RCC->PLLI2SCFGR = ( 192<< 6) | ( 6 << 28) ;	// I2S clock 32MHz
-//	RCC->CR |= 1 << 26 ;			// Enable
-
-//	// Should wait for bit 27 to be set!
-//	for ( i = 0 ; i < 50000 ; i += 1 )
-//	{
-//		if ( RCC->CR & (1 << 27) )			// Ready
-//		{
-//			break ;
-//		}
-//	}
-//	RCC->CFGR &= ~(uint32_t)RCC_CFGR_I2SSRC ;
-//	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
-//	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN ;			// Enable SPI1 clock
-//	// PA7 assigned to SPI1
-//	configure_pins( 0x0080, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_5 ) ;
-//	SPI1->CR1 = 0 ;
-////	SPI1->I2SCFGR = 0 ;
-//	SPI1->I2SCFGR = 0x0A10 ;
-//	SPI1->I2SPR = 64 ;		// Clock divider
-//	SPI1->I2SCFGR |= 0x0400 ;		// Enable
-//}
-
-
 

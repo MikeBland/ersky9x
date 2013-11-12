@@ -3251,10 +3251,10 @@ MenuFuncP lastPopMenu()
 
 void popMenu(bool uppermost)
 {
-  if(g_menuStackPtr>0 || uppermost){
+  if(g_menuStackPtr>0 || uppermost)
+	{
     g_menuStackPtr = uppermost ? 0 : g_menuStackPtr-1;
-    audioDefevent(AU_MENUS);
-    (*g_menuStack[g_menuStackPtr])(EVT_ENTRY_UP);
+ 		EnterMenu = EVT_ENTRY_UP ;
   }else{
     alert(PSTR("menuStack underflow"));
   }
@@ -3274,7 +3274,7 @@ void pushMenu(MenuFuncP newMenu)
     return;
   }
 	EnterMenu = EVT_ENTRY ;
-  g_menuStack[g_menuStackPtr] = newMenu;
+  g_menuStack[++g_menuStackPtr] = newMenu ;
 }
 
 
