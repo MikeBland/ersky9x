@@ -4752,8 +4752,13 @@ uint8_t onoffMenuItem( uint8_t value, uint8_t y, const char *s, uint8_t sub, int
 }
 
 #ifdef PCBSKY
+#ifdef REVX
+#define NUM_SETUP1_ITEMS	12
+#define NUM_SETUP1_PG1		7
+#else
 #define NUM_SETUP1_ITEMS	13
 #define NUM_SETUP1_PG1		8
+#endif
 #endif
 #ifdef PCBX9D
 #define NUM_SETUP1_ITEMS	6
@@ -4830,9 +4835,11 @@ void menuProcSetup1(uint8_t event)
 		subN++;
 
 #ifdef PCBSKY
+#ifndef REVX
   	g_eeGeneral.optrexDisplay = onoffMenuItem( g_eeGeneral.optrexDisplay, y, XPSTR("Optrex Display"), sub, subN, event ) ;
   	if((y+=FH)>7*FH) return;
 		subN++;
+#endif
 
   	lcd_puts_Pleft( y, PSTR(STR_CAPACITY_ALARM));
 		lcd_outdezAtt( PARAM_OFS+2*FW, y, g_eeGeneral.mAh_alarm*50, (sub==subN) ? INVERS : 0 ) ;
