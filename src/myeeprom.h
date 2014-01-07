@@ -150,6 +150,11 @@ PACK(typedef struct t_EEGeneral {
 	uint8_t   crosstrim:1;
 	uint8_t   spare9:7;
 	int8_t   rtcCal ;
+  int16_t   x9dcalibMid ;			// X9D
+  int16_t   x9dcalibSpanNeg ;	// X9D
+  int16_t   x9dcalibSpanPos ;	// X9D
+	uint8_t		stickReverse ;
+	uint8_t		language ;
 }) EEGeneral;
 
 
@@ -318,22 +323,6 @@ PACK(typedef struct t_ModelData {
 extern EEGeneral g_eeGeneral;
 extern ModelData g_oldmodel;
 
-//extern voiceSwData VoiceSwData[] ;
-
-// Revised structure for ersky9x
-
-//PACK(typedef struct te_TrainerMix {
-//  uint8_t srcChn:3; //0-7 = ch1-8
-//  int8_t  swtch:5;
-//  int8_t  studWeight;
-//  uint8_t mode;   //off,add-mode,subst-mode
-//}) SKYTrainerMix; //
- 
-//PACK(typedef struct te_TrainerData {
-//  int16_t        calib[4];
-//  SKYTrainerMix    mix[4];
-//}) SKYTrainerData;
-
 PACK(typedef struct t_PhaseData {
   int16_t trim[4];     // -500..500 => trim value, 501 => use trim of phase 0, 502, 503, 504 => use trim of phases 1|2|3|4 instead
   int8_t swtch;       // swtch of phase[0] is not used
@@ -441,7 +430,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
   uint8_t   telemetryRxInvert:1 ;	// was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
-  uint8_t   DsmTelemetry:1 ;	// Another user telemetry protocol
+  uint8_t   spare15:1 ;
   uint8_t   FrSkyUsrProto:1 ; // Protocol in FrSky User Data, 0=FrSky Hub, 1=WS HowHigh
   uint8_t   FrSkyGpsAlt:1 ;		// Use Gps Altitude as main altitude reading
   uint8_t   FrSkyImperial:1 ; // Convert FrSky values to imperial units
@@ -503,6 +492,24 @@ PACK(typedef struct te_ModelData {
 	int8_t pxxFailsafe[16] ;
 	int8_t logSwitch ;
 	uint8_t logRate ;
+  // X9D ext module
+	uint8_t   xprotocol:4 ;
+  uint8_t   xcountry:2 ;
+  uint8_t   xsub_protocol:2 ;
+  int8_t    xppmNCH ;
+  int8_t    xppmDelay ;
+  uint8_t   xpulsePol ;
+  int8_t    xppmFrameLength;  //0=22.5  (10msec-30msec) 0.5msec increments
+	uint8_t		xstartChannel ;		// for output 0 = ch1
+	uint8_t		pxxRxNum ;
+  int8_t    dsmMode ;
+	uint8_t		xPxxRxNum ;				// For external module
+  uint16_t  modelswitchWarningStates ;	// Enough bits for Taranis
+	int8_t		enRssiOrange:2 ;
+	int8_t		rssiOrange:6 ;
+	uint8_t		enRssiRed:2 ;
+	int8_t		rssiRed:6 ;
+//	uint8_t		spare24:6 ;
 //	uint8_t   curentSource ;
 //	uint8_t   altSource ;
 }) SKYModelData;

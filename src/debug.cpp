@@ -197,8 +197,6 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
-		static uint8_t xxxyyy = 0 ;
-		
 #if PCBSKY		
 		while ( g_model.frskyComPort )		// Leave the port alone!
 		{
@@ -1727,107 +1725,107 @@ int32_t Ymodem_Receive (uint8_t *buf)
 
 #endif
 
-#ifdef PCBX9D
-void voice_task(void* pdata)
-{
-	uint32_t v_index ;
-//	FRESULT fr ;
-//	UINT nread ;
-	uint32_t x ;
-//	uint32_t w8or16 ;
-//	uint32_t mounted = 0 ;
-	uint32_t size ;
+//#ifdef PCBX9D
+//void voice_task(void* pdata)
+//{
+//	uint32_t v_index ;
+////	FRESULT fr ;
+////	UINT nread ;
+//	uint32_t x ;
+////	uint32_t w8or16 ;
+////	uint32_t mounted = 0 ;
+//	uint32_t size ;
 
-	for(;;)
-	{
-		while ( PlayVoice == 0 )
-		{
-			CoTickDelay(3) ;					// 6mS for now
-		}
+//	for(;;)
+//	{
+//		while ( PlayVoice == 0 )
+//		{
+//			CoTickDelay(3) ;					// 6mS for now
+//		}
 
-		PlayVoice = 0 ;
-		txmit( '1' ) ;
+//		PlayVoice = 0 ;
+//		txmit( '1' ) ;
 
-		if ( 1 )
-		{
-			uint32_t i ;
-			uint32_t j ;
-			i = 0 ;
-			for ( j = 0 ; j < 400 ; j += 1 )
-			{
-				VoiceBuffer[0].data[j] = Sine_values[i] ;
-				i += 1 ;
-				if ( i >= 100 )
-				{
-					i = 0 ;					
-				}
-			}
-			VoiceBuffer[0].count = 400 ;
+//		if ( 1 )
+//		{
+//			uint32_t i ;
+//			uint32_t j ;
+//			i = 0 ;
+//			for ( j = 0 ; j < 400 ; j += 1 )
+//			{
+//				VoiceBuffer[0].data[j] = Sine_values[i] ;
+//				i += 1 ;
+//				if ( i >= 100 )
+//				{
+//					i = 0 ;					
+//				}
+//			}
+//			VoiceBuffer[0].count = 400 ;
 
-			i = 0 ;
-			for ( j = 0 ; j < 400 ; j += 1 )
-			{
-				VoiceBuffer[1].data[j] = Sine_values[i] ;
-				i += 1 ;
-				if ( i >= 100 )
-				{
-					i = 0 ;					
-				}
-			}
-			VoiceBuffer[1].count = 400 ;
+//			i = 0 ;
+//			for ( j = 0 ; j < 400 ; j += 1 )
+//			{
+//				VoiceBuffer[1].data[j] = Sine_values[i] ;
+//				i += 1 ;
+//				if ( i >= 100 )
+//				{
+//					i = 0 ;					
+//				}
+//			}
+//			VoiceBuffer[1].count = 400 ;
 
-			i = 0 ;
-			for ( j = 0 ; j < 400 ; j += 1 )
-			{
-				VoiceBuffer[2].data[j] = Sine_values[i] ;
-				i += 1 ;
-				if ( i >= 100 )
-				{
-					i = 0 ;					
-				}
-			}
-			VoiceBuffer[2].count = 400 ;
+//			i = 0 ;
+//			for ( j = 0 ; j < 400 ; j += 1 )
+//			{
+//				VoiceBuffer[2].data[j] = Sine_values[i] ;
+//				i += 1 ;
+//				if ( i >= 100 )
+//				{
+//					i = 0 ;					
+//				}
+//			}
+//			VoiceBuffer[2].count = 400 ;
 
 
-				VoiceBuffer[0].frequency = 25000 ;		// sample rate
+//				VoiceBuffer[0].frequency = 25000 ;		// sample rate
 
-				startVoice( 3 ) ;
-		txmit( '2' ) ;
-				for(x = 0, size = 0 ; size < 25 ; size += 1 )
-				{
-	  			while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
-					{
-						CoTickDelay(1) ;					// 2mS for now
-					}
-					VoiceBuffer[x].count = 400 ;
-					VoiceBuffer[x].frequency = 0 ;
-					appendVoice( x ) ;					// index of next buffer
+//				startVoice( 3 ) ;
+//		txmit( '2' ) ;
+//				for(x = 0, size = 0 ; size < 25 ; size += 1 )
+//				{
+//	  			while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
+//					{
+//						CoTickDelay(1) ;					// 2mS for now
+//					}
+//					VoiceBuffer[x].count = 400 ;
+//					VoiceBuffer[x].frequency = 0 ;
+//					appendVoice( x ) ;					// index of next buffer
 
-extern uint8_t VoiceCount ;
+//extern uint8_t VoiceCount ;
 
-		txmit( VoiceCount + '0' ) ;
-					v_index = x ;		// Last buffer sent
-					x += 1 ;
-					if ( x > 2 )
-					{
-						x = 0 ;							
-					}
-				}
-			// Now wait for last buffer to have been sent
-			x = 100 ;
-		txmit( '4' ) ;
- 			while ( ( VoiceBuffer[v_index].flags & VF_SENT ) == 0 )
-			{
-				CoTickDelay(1) ;					// 2mS for now
-				if ( --x == 0 )
-				{
-					break ;		// Timeout, 200 mS
-				}
-			}
-		}
-		CoTickDelay(1) ;					// 2mS for now
-	} // for(;;)
-}
-#endif
+//		txmit( VoiceCount + '0' ) ;
+//					v_index = x ;		// Last buffer sent
+//					x += 1 ;
+//					if ( x > 2 )
+//					{
+//						x = 0 ;							
+//					}
+//				}
+//			// Now wait for last buffer to have been sent
+//			x = 100 ;
+//		txmit( '4' ) ;
+// 			while ( ( VoiceBuffer[v_index].flags & VF_SENT ) == 0 )
+//			{
+//				CoTickDelay(1) ;					// 2mS for now
+//				if ( --x == 0 )
+//				{
+//					break ;		// Timeout, 200 mS
+//				}
+//			}
+//		}
+//		CoTickDelay(1) ;					// 2mS for now
+//	} // for(;;)
+//}
+//#endif
 
 

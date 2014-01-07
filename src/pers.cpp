@@ -24,7 +24,7 @@
 #include "myeeprom.h"
 #include "file.h"
 #include "debug.h"
-#include "language.h"
+#include "Stringidx.h"
 
 #ifdef FRSKY
 #include "frsky.h"
@@ -69,6 +69,7 @@ void modelDefault(uint8_t id)
   g_model.name[5]='0'+(id+1)/10;
   g_model.name[6]='0'+(id+1)%10;
 	g_model.modelVersion = MDSKYVERS;
+	g_model.trimInc = 2 ;
 
   applyTemplate(0); //default 4 channel template
 }
@@ -102,7 +103,7 @@ void eeReadAll()
   {
 //	txmit('b') ;
 		
-    alert((char const *)STR_BAD_EEPROM, true);
+    alert((char const *)PSTR(STR_BAD_EEPROM), true);
     g_eeGeneral.contrast = 25 ;
     message(PSTR(STR_EE_FORMAT));
     generalDefault();

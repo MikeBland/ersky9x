@@ -67,7 +67,13 @@ const char *openLogs()
   DIR folder;
   char filename[34]; // /LOGS/modelnamexxx-2013-01-01.log
 
+#ifdef PCBSKY
   if ( SdMounted == 0 )
+#endif
+#ifdef PCBX9D
+extern uint32_t sdMounted( void ) ;
+  if ( sdMounted() == 0 )
+#endif
     return "NO SD CARD" ;
 
   strcpy( filename, LOGS_PATH ) ;

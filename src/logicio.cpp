@@ -42,6 +42,7 @@
 #include "lcd.h"
 #endif
 
+
 #ifndef SIMU
 #ifdef PCBSKY
 void configure_pins( uint32_t pins, uint16_t config )
@@ -114,6 +115,8 @@ void configure_pins( uint32_t pins, uint16_t config )
 	}
 }
 #endif
+
+#ifndef BOOT
 
 #ifdef PCBX9D
 void configure_pins( uint32_t pins, uint16_t config )
@@ -313,6 +316,7 @@ void config_free_pins()
 
 #endif
 
+#endif // ndef BOOT
 
 // keys:
 // KEY_EXIT    PA31 (PC24)
@@ -374,7 +378,6 @@ uint32_t read_keys()
 	return y ;
 }
 #endif
-
 
 #ifdef PCBSKY
 uint32_t read_trims()
@@ -468,8 +471,33 @@ uint32_t read_trims()
 
 	return trims ;
 }
+
 #endif
 
+#ifdef BOOT
+#ifdef REVB
+extern "C" uint32_t initReadTrims( void ) ;
+
+uint32_t initReadTrims( void )
+{
+  PMC->PMC_PCER0 = (1<<ID_PIOB)|(1<<ID_PIOA)|(1<<ID_PIOC) ;				// Enable clocks to PIOB and PIOA and PIOC
+	config_free_pins() ;
+	init_keys() ;
+	setup_switches() ;
+	uint32_t i ;
+	for ( i = 0 ; i < 5000 ; i += 1 )
+	{
+		__asm("nop") ;
+	}
+	
+	return read_trims() ;
+}
+#endif // REVB
+
+#endif
+
+
+#ifndef BOOT
 
 #ifdef PCBSKY
 extern uint32_t keyState(EnumKeys enuk)
@@ -478,7 +506,7 @@ extern uint32_t keyState(EnumKeys enuk)
 	register uint32_t c ;
 
   CPU_UINT xxx = 0 ;
-  if(enuk < (int)DIM(keys))  return keys[enuk].state() ? 1 : 0;
+  if(enuk < (int)DIM(keys))  return keys[enuk].state() ? 1 : 0 ;
 
 	a = PIOA->PIO_PDSR ;
 	c = PIOC->PIO_PDSR ;
@@ -561,29 +589,34 @@ uint32_t read_keys()
 	y = 0 ;
 	if ( x & PIN_BUTTON_MENU )
 	{
-		y |= 0x02 << KEY_MENU ;			// MENU
+		y |= 0x02 << KEY_UP ;			// up
+//		y |= 0x02 << KEY_MENU ;			// MENU
 	}
 	if ( x & PIN_BUTTON_PAGE )
 	{
-		y |= 0x02 << KEY_UP ;			// up
+		y |= 0x02 << KEY_LEFT ;		// LEFT
 	}
 	if ( x & PIN_BUTTON_EXIT )
 	{
-		y |= 0x02 << KEY_EXIT ;			// EXIT
+		y |= 0x02 << KEY_DOWN ;		// DOWN
+//		y |= 0x02 << KEY_EXIT ;			// EXIT
 	}
+	
 	x = GPIOE->IDR ; // 10 RIGHT(+), 11 LEFT(-), 12 ENT(DOWN)
-
 	if ( x & PIN_BUTTON_PLUS )
 	{
-		y |= 0x02 << KEY_RIGHT ;		// RIGHT
+		y |= 0x02 << KEY_MENU ;			// MENU
+//		y |= 0x02 << KEY_UP ;			// up
 	}
 	if ( x & PIN_BUTTON_MINUS )
 	{
-		y |= 0x02 << KEY_LEFT ;		// LEFT
+		y |= 0x02 << KEY_RIGHT ;		// RIGHT
+//		y |= 0x02 << KEY_DOWN ;		// DOWN
 	}
 	if ( x & PIN_BUTTON_ENTER )
 	{
-		y |= 0x02 << KEY_DOWN ;		// DOWN
+		y |= 0x02 << KEY_EXIT ;			// EXIT
+//		y |= 0x02 << KEY_RIGHT ;		// RIGHT
 	}
 	return y ;
 }
@@ -624,33 +657,32 @@ uint32_t read_trims()
 	trima = GPIOC->IDR ;
 
 // TRIM_RV_UP
-	if ( ( trima & 0x00000008 ) == 0 )
+	if ( ( trima & 0x00000004 ) == 0 )
 	{
 		trims |= 0x20 ;
 	}
 
 // TRIM_RH_DOWN
-	if ( ( trima & 0x00002000 ) == 0 )
+	if ( ( trima & 0x00000002 ) == 0 )
 	{
 		trims |= 0x40 ;
 	}
 
 
 // TRIM_RV_DOWN
-	if ( ( trima & 0x00000004 ) == 0 )
+	if ( ( trima & 0x00000008 ) == 0 )
 	{
 		trims |= 0x10 ;
 	}
 
 // TRIM_RH_UP
-	if ( ( trima & 0x00000002 ) == 0 )
+	if ( ( trima & 0x00002000 ) == 0 )
 	{
 		trims |= 0x80 ;
 	}
 
 	return trims ;
 }
-
 
 #endif
 
@@ -733,27 +765,27 @@ uint32_t keyState(EnumKeys enuk)
       break;
 
     case SW_SF0:
-      xxx = ~e & PIN_SW_F ;
+      xxx = e & PIN_SW_F ;
       break;
     case SW_SF2:
-      xxx = e & PIN_SW_F ;
+      xxx = ~e & PIN_SW_F ;
       break;
 
     case SW_SG0:
-      xxx = ~e & PIN_SW_G_L ;
+      xxx = ~e & PIN_SW_G_H ;
       break;
     case SW_SG1:
       xxx = (e & (PIN_SW_G_H | PIN_SW_G_L)) == (PIN_SW_G_H | PIN_SW_G_L) ;
       break;
     case SW_SG2:
-      xxx = ~e & PIN_SW_G_H ;
+      xxx = ~e & PIN_SW_G_L ;
       break;
 
     case SW_SH0:
-      xxx = ~e & PIN_SW_H;
+      xxx = e & PIN_SW_H;
       break;
     case SW_SH2:
-      xxx = e & PIN_SW_H;
+      xxx = ~e & PIN_SW_H;
       break;
 
     default:
@@ -766,7 +798,35 @@ uint32_t keyState(EnumKeys enuk)
 
   return 0;
 }
+
+// Returns 0, 1 or 2 for ^ - or v
+uint32_t switchPosition( uint32_t swtch )
+{
+	swtch *= 3 ;
+	swtch += SW_SA0 ;
+	if ( swtch > SW_SF0 )
+	{
+		swtch -= 1 ;		
+	}
+	if ( keyState( (EnumKeys)swtch ) )
+	{
+		return 0 ;
+	}
+	swtch += 1 ;
+	if ( keyState( (EnumKeys)swtch ) )
+	{
+		if ( ( swtch != SW_SF2 ) && ( swtch != SW_SH2 ) )
+		{
+			return 1 ;			
+		}
+	}
+	return 2 ;
+}
+
+
+
 #endif
+#endif  // ndef BOOT
 
 
 

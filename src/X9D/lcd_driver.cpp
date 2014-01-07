@@ -20,9 +20,11 @@
 #include "timers.h"
 #include "lcd.h"
 #include "logicio.h"
+#include "myeeprom.h"
 
 #define	WriteData(x)	 AspiData(x)
 #define	WriteCommand(x)	 AspiCmd(x)
+#define CONTRAST_OFS 5
 
 #define __no_operation     __NOP
 
@@ -51,9 +53,6 @@ void refreshDisplay()
 		gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
 		gpiod->BSRRL = PIN_LCD_A0 ;			// A0 high
     gpiod->BSRRH = PIN_LCD_NCS ;		// CS low
-//		LCD_CLK_HIGH();
-//    LCD_A0_HIGH();
-//    LCD_NCS_LOW();
     
 		for (uint32_t x=0; x<DISPLAY_W; x+=2)
 		{
@@ -77,104 +76,87 @@ void refreshDisplay()
 					gpiod->BSRRH = PIN_LCD_MOSI ;
 				}
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
-				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
 
         if(data&0x40)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x20)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x10)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x08)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x04)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x02)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
-				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
-				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
+				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 
         if(data&0x01)
         {
-					gpiod->BSRRL = PIN_LCD_MOSI ;
+					gpiod->BSRRL = PIN_LCD_MOSI | PIN_LCD_CLK ;
         }
 				else
 				{
-					gpiod->BSRRH = PIN_LCD_MOSI ;
+					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
+				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
 				__no_operation() ;
-//				__no_operation() ;
 				gpiod->BSRRL = PIN_LCD_CLK ;		// Clock high
 
 		}
-//    LCD_NCS_HIGH();
-//    LCD_A0_HIGH();  
     gpiod->BSRRL = PIN_LCD_NCS ;
 		gpiod->BSRRL = PIN_LCD_A0 ;
     WriteData(0);
@@ -185,7 +167,7 @@ uint16_t BacklightBrightness ;
 
 void backlight_on()
 {
-	TIM10->CCR1 = BacklightBrightness ;
+	TIM10->CCR1 = 100 - BacklightBrightness ;
 }
 
 void backlight_off()
@@ -196,7 +178,7 @@ void backlight_off()
 void backlight_set( uint16_t brightness )
 {
 	BacklightBrightness = brightness ;
-	TIM10->CCR1 = BacklightBrightness ;
+	TIM10->CCR1 = 100 - BacklightBrightness ;
 }
 
 
@@ -243,10 +225,10 @@ static void LCD_Hardware_Init()
   GPIO_Init(GPIO_LCD, &GPIO_InitStructure);
   
   /*!< Configure lcd NCS pin in output pushpull mode ,PULLUP *************/
-  GPIO_InitStructure.GPIO_Pin = PIN_LCD_NCS; 
+  GPIO_InitStructure.GPIO_Pin = PIN_LCD_NCS | PIN_LCD_RST ;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
   
   GPIO_Init(GPIO_LCD, &GPIO_InitStructure);
@@ -254,6 +236,7 @@ static void LCD_Hardware_Init()
 
 static void LCD_Init()
 {
+  LCD_BL_Config() ;
   /*Hardware Reset need delay*/
   /*LCD_RST_LOW();
     Delay(50);    
@@ -263,13 +246,13 @@ static void LCD_Init()
   AspiCmd(0x2b);   //Panel loading set ,Internal VLCD.
   AspiCmd(0xEA);	//set bias=1/10 :Command table NO.27
   AspiCmd(0x81);	//Set Vop
-  AspiCmd(50);		//0--255
+  AspiCmd(25+CONTRAST_OFS);		//0--255
   AspiCmd(0xA6);	//inverse display off
   AspiCmd(0xD1);	//SET RGB:Command table NO.21 .SET RGB or BGR.  D1=RGB
   AspiCmd(0xD5);	//set color mode 4K and 12bits  :Command table NO.22
   AspiCmd(0xA0);	//line rates,25.2 Klps
   AspiCmd(0xC8);	//SET N-LINE INVERSION
-  AspiCmd(0x00);	//Disable NIV
+  AspiCmd(0x1D);	//Disable NIV
   AspiCmd(0xF1);	//Set CEN
   AspiCmd(0x3F);	// 1/64DUTY
   AspiCmd(0x84);	//Disable Partial Display
@@ -290,13 +273,43 @@ static void LCD_Init()
 	
 }
 
+static void Delay(volatile unsigned int ms)
+{
+  volatile u8 i;
+  while(ms != 0)
+  {
+    for(i=0;i<250;i++) {}
+    for(i=0;i<75;i++) {}
+    ms--;
+  }
+}
+
 void lcd_init()
 {
+	GPIO_TypeDef *gpiod = GPIOD ;
+	
   LCD_BL_Config();
   LCD_Hardware_Init();
+  
+	gpiod->BSRRL = PIN_LCD_RST ;		// RST high
+  Delay(5);
+
+  gpiod->BSRRH = PIN_LCD_RST ;		// RST low
+  Delay(120); //11ms
+
+	gpiod->BSRRL = PIN_LCD_RST ;		// RST high
+  Delay(2500);
+ 
+  AspiCmd(0xE2);
+  Delay(2500);
+
   LCD_Init();
+  Delay(120);
+  AspiCmd(0xAF);	//dc2=1, IC into exit SLEEP MODE, dc3=1 gray=ON, dc4=1 Green Enhanc mode disabled
 }
 
 void lcdSetRefVolt(uint8_t val)
 {
+  AspiCmd(0x81);	//Set Vop
+  AspiCmd(val+CONTRAST_OFS);		//0--255
 }

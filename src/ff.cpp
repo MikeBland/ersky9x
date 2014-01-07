@@ -409,7 +409,8 @@ void unlock_fs (
 	FRESULT res		/* Result code to be returned */
 )
 {
-	if (res != FR_NOT_ENABLED &&
+	if (fs &&
+		res != FR_NOT_ENABLED &&
 		res != FR_INVALID_DRIVE &&
 		res != FR_INVALID_OBJECT &&
 		res != FR_TIMEOUT) {
@@ -645,7 +646,7 @@ DWORD get_fat (	/* 0xFFFFFFFF:Disk error, 1:Internal error, Else:Cluster status 
 	BYTE *p;
 
 
-	if (clst < 2 || clst >= fs->n_fatent)	/* Chack range */
+	if (clst < 2 || clst >= fs->n_fatent)	/* Check range */
 		return 1;
 
 	switch (fs->fs_type) {
@@ -2027,6 +2028,7 @@ FRESULT f_mount (
 }
 
 
+#ifndef BOOT
 /*---------------------------------------------------------*/
 /* User Provided Date/Time Function for FatFs module       */
 /*---------------------------------------------------------*/
@@ -2050,6 +2052,7 @@ uint32_t o9x_get_fattime(void)
     | ((uint32_t)t.tm_min << 5)
     | ((uint32_t)t.tm_sec >> 1);
 }
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Open or Create a File                                                 */

@@ -30,27 +30,7 @@
 #include "lcd.h"
 #include "drivers.h"
 #include "logicio.h"
-#include "language.h"
-
-//const pm_uchar font_5x7[] PROGMEM = {
-//#include "fonts/std/font_05x07.lbm"
-//#if defined(TRANSLATIONS_DE)
-//#include "fonts/std/font_de_05x07.lbm"
-//#elif defined(TRANSLATIONS_CZ)
-//#include "fonts/std/font_cz_05x07.lbm"
-//#elif defined(TRANSLATIONS_ES)
-//#include "fonts/std/font_es_05x07.lbm"
-//#elif defined(TRANSLATIONS_FR)
-//#include "fonts/std/font_fr_05x07.lbm"
-//#elif defined(TRANSLATIONS_IT)
-//#include "fonts/std/font_it_05x07.lbm"
-//#elif defined(TRANSLATIONS_PT)
-//#include "fonts/std/font_pt_05x07.lbm"
-//#elif defined(TRANSLATIONS_SE)
-//#include "fonts/std/font_se_05x07.lbm"
-//#endif
-//};
-
+//#include "language.h"
 
 
 #include "font.lbm"
@@ -59,11 +39,45 @@
 #include "font_dblsize.lbm"
 #define font_10x16_x20_x7f (font_dblsize)
 
+#ifndef BOOT
+const uint8_t font_se_extra[] = {
+#include "font_se_05x07.lbm"
+} ;
+const uint8_t font_fr_extra[] = {
+#include "font_fr_05x07.lbm"
+} ;
+const uint8_t font_de_extra[] = {
+#include "font_de_05x07.lbm"
+} ;
+
+const uint8_t font_se_big_extra[] = {
+#include "font_se_10x14.lbm"
+} ;
+const uint8_t font_fr_big_extra[] = {
+#include "font_fr_10x14.lbm"
+} ;
+const uint8_t font_de_big_extra[] = {
+#include "font_de_10x14.lbm"
+} ;
+
+#endif
+
+#ifndef BOOT
+const uint8_t *ExtraFont = NULL ;
+const uint8_t *ExtraBigFont = NULL ;
+#endif
+
 // Local data
 uint8_t Lcd_lastPos ;
 uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
 #define DISPLAY_END (DisplayBuf+sizeof(DisplayBuf))
 
+#ifdef PCBX9D
+#define X9D_OFFSET		42
+#define DISPLAY_START (DisplayBuf + X9D_OFFSET)
+#else
+#define DISPLAY_START (DisplayBuf + 0)
+#endif 
 
 #ifdef PCBSKY
 // Lookup table for prototype board
@@ -92,6 +106,7 @@ const uint8_t Lcd_lookup[] =
 #endif 
 
 
+#ifndef BOOT
 void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
 {
   if ( tme<0 )
@@ -136,7 +151,13 @@ void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mo
   bool inv  = (mode & INVERS) ? true : (mode & BLINK ? BLINK_ON_PHASE : false ) ;
   for( yb = 0; yb < hb; yb++)
 	{
-    register uint8_t   *p = &DisplayBuf[ (i_y / 8 + yb) * DISPLAY_W + i_x ];
+    register uint8_t   *p = &DISPLAY_START[ (i_y / 8 + yb) * DISPLAY_W + i_x ];
+#if PCBX9D
+		if ( i_x > 211-X9D_OFFSET )
+		{
+			p -= DISPLAY_W ;		
+		}
+#endif
     for(x=0; x < w; x++)
 		{
       register uint8_t b = *q++ ;
@@ -145,6 +166,7 @@ void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mo
   }
 }
 
+#endif
 
 /// invers: 0 no 1=yes 2=blink
 void lcd_putc(uint8_t x,uint8_t y,const char c )
@@ -168,7 +190,13 @@ void lcd_putc(uint8_t x,uint8_t y,const char c )
 uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 {
 	register int32_t i ;
-	register uint8_t *p    = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
+	register uint8_t *p    = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+#if PCBX9D
+	if ( x > 211-X9D_OFFSET )
+	{
+		p -= DISPLAY_W ;		
+	}
+#endif
     //uint8_t *pmax = &displayBuf[ DISPLAY_H/8 * DISPLAY_W ];
 	if ( c < 22 )		// Move to specific x position (c)*FW
 	{
@@ -180,26 +208,105 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 		return x ;
 	}
 	x += FW ;
-  register uint8_t    *q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5] ;
+  register uint8_t    *q ;
+	if( c < 0xC0 )
+	{
+		q = (uint8_t *) &font_5x8_x20_x7f[(c-0x20)*5] ;
+	}
+	else
+	{
+#ifndef BOOT
+		if ( ExtraFont )
+		{
+			q = (uint8_t *) &ExtraFont[(c-0xC0)*5] ;
+		}
+		else
+		{
+#endif
+			q = (uint8_t *) &font_5x8_x20_x7f[0] ;
+#ifndef BOOT
+		}
+#endif
+	}
   register bool   inv = (mode & INVERS) ? true : (mode & BLINK ? BLINK_ON_PHASE : false);
-  if(mode&DBLSIZE)
+  
+	if(mode&DBLSIZE)
   {
 		if ( (c!=0x2E)) x+=FW; //check for decimal point
 	/* each letter consists of ten top bytes followed by
 	 * five bottom by ten bottom bytes (20 bytes per 
 	 * char) */
-    q = (uint8_t *) &font_10x16_x20_x7f[(c-0x20)*10 + ((c-0x20)/16)*160];
+	  unsigned char c_mapped ;
+		if( c < 0xC0 )
+		{
+#ifdef BOOT
+			if ( c == 'B' )
+			{
+				c_mapped = 1 ;
+			}
+			else if ( c == 'S' )
+			{
+				c_mapped = 2 ;
+			}
+			else if ( c == 'U' )
+			{
+				c_mapped = 3 ;
+			}
+			else
+			{
+				c_mapped = 0 ;
+			}
+#else
+			c_mapped = c - 0x20 ;
+#endif
+			q = (uint8_t *) &font_10x16_x20_x7f[(c_mapped)*20] ;
+//  	  q = (uint8_t *) &font_10x16_x20_x7f[(c-0x20)*10 + ((c-0x20)/16)*160];
+		}
+		else
+		{
+#ifndef BOOT
+			if ( ExtraBigFont )
+			{
+				q = (uint8_t *) &ExtraBigFont[(c-0xC0)*10] ;
+			}
+			else
+			{
+#endif
+				q = (uint8_t *) &font_10x16_x20_x7f[0] ;
+#ifndef BOOT
+			}
+#endif
+		}
     for( i=5 ; i>=0 ; i-- )
 		{
-	    /*top byte*/
-      uint8_t b1 = i>0 ? *q : 0;
-	    /*bottom byte*/
-      uint8_t b3 = i>0 ? *(q+160) : 0;
-	    /*top byte*/
-      uint8_t b2 = i>0 ? *(++q) : 0;
-	    /*bottom byte*/
-      uint8_t b4 = i>0 ? *(q+160) : 0;
-      q++;
+			uint8_t b1 ;
+			uint8_t b3 ;
+			uint8_t b2 ;
+			uint8_t b4 ;
+
+			if( c < 0xC0 )
+			{
+	    	/*top byte*/
+      	b1 = i>0 ? *q : 0;
+	    	/*bottom byte*/
+      	b3 = i>0 ? *(q+10) : 0;
+	    	/*top byte*/
+      	b2 = i>0 ? *(++q) : 0;
+	    	/*bottom byte*/
+      	b4 = i>0 ? *(q+10) : 0;
+      	q++;
+			}
+			else
+			{
+	    	/*top byte*/
+      	b1 = i>0 ? *q++ : 0 ;
+	    	/*bottom byte*/
+      	b3 = i>0 ? *q++ : 0 ;
+	    	/*top byte*/
+      	b2 = i>0 ? *q++ : 0 ;
+	    	/*bottom byte*/
+      	b4 = i>0 ? *q++ : 0 ;
+			}
       if(inv)
 			{
 		    b1=~b1;
@@ -254,6 +361,7 @@ uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 	return x ;
 }
 
+#ifndef BOOT
 // Puts sub-string from string options
 // First byte of string is sub-string length
 // idx is index into string (in length units)
@@ -265,7 +373,7 @@ void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_t att)
 
   lcd_putsnAtt(x,y,s+length*idx,length,att) ;
 }
-
+#endif
 
 void lcd_putsnAtt(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 {
@@ -274,6 +382,13 @@ void lcd_putsnAtt(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 //	size = mode & DBLSIZE ;
   while(len!=0) {
     c = *s++ ;
+#ifdef BOOT
+		if ( c == 0 )
+		{
+			break ;			
+		}
+#endif
+
     x = lcd_putcAtt(x,y,c,mode);
 //    x+=FW;
 //		if ((size)&& (c!=0x2E)) x+=FW; //check for decimal point
@@ -328,6 +443,7 @@ void lcd_outhex4(uint8_t x,uint8_t y,uint16_t val)
   }
 }
 
+#ifndef BOOT
 void lcd_outhex2(uint8_t x,uint8_t y,uint8_t val)
 {
   register int i ;
@@ -341,7 +457,7 @@ void lcd_outhex2(uint8_t x,uint8_t y,uint8_t val)
     val>>=4;
   }
 }
-
+#endif
 
 void lcd_outdez( uint8_t x, uint8_t y, int16_t val )
 {
@@ -373,6 +489,7 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
 		len = -len ;		
 	}
 
+#ifndef BOOT
   if (mode & DBLSIZE)
   {
     fw += FWNUM ;
@@ -380,6 +497,7 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
     Lcd_lastPos = 2*FW;
   }
   else
+#endif
   {
     xinc = FWNUM ;
     Lcd_lastPos = FW;
@@ -431,6 +549,7 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
     c = (tmp % 10) + '0';
     lcd_putcAtt(x, y, c, mode);
     if (prec==i) {
+#ifndef BOOT
       if (mode & DBLSIZE) {
         xn = x;
         if(c=='2' || c=='3' || c=='1') ln++;
@@ -444,7 +563,9 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
           }
         }
       }
-      else {
+      else
+#endif
+			{
         x -= 2;
         if (mode & INVERS)
           lcd_vline(x+1, y, 7);
@@ -490,20 +611,38 @@ void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len
   if(val<0) lcd_putcAtt(x-fw,y,'-',mode);
 }
 
+uint8_t plotType = PLOT_XOR ;
+
+void lcd_write_bits( uint8_t *p, uint8_t mask )
+{
+  if(p<DISPLAY_END)
+	{
+		uint8_t temp = *p ;
+		if ( plotType != PLOT_XOR )
+		{
+			temp |= mask ;
+		}
+		if ( plotType != PLOT_BLACK )
+		{
+			temp ^= mask ;
+		}
+		*p = temp ;
+	}
+}
 
 void lcd_plot( register uint8_t x, register uint8_t y )
 {
   //  if(y>=64)  return;
   //  if(x>=128) return;
   //  displayBuf[ y / 8 * DISPLAY_W + x ] ^= BITMASK(y%8);
-  register uint8_t *p   = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
-  if(p<DISPLAY_END) *p ^= BITMASK(y%8);
+  register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+	lcd_write_bits( p, BITMASK(y%8) ) ;
 }
 
 void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat )
 {
   if(w<0) {x+=w; w=-w;}
-  register uint8_t *p  = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
+  register uint8_t *p  = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
   register uint8_t msk = BITMASK(y%8);
   while(w)
 	{
@@ -511,9 +650,9 @@ void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat
     {
       break ;			
     }
-    if(pat&1) {
-      //lcd_plot(x,y);
-      *p ^= msk;
+    if(pat&1)
+		{
+			lcd_write_bits( p, msk ) ;
       pat = (pat >> 1) | 0x80;
     }
 		else
@@ -525,6 +664,7 @@ void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat
   }
 }
 
+#ifndef BOOT
 void lcd_hbar( uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t percent )
 {
 	uint8_t solid ;
@@ -547,6 +687,7 @@ void lcd_hbar( uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t percent )
 		}
 	}
 }
+#endif
 
 // Reverse video 8 pixels high, w pixels wide
 // Vertically on an 8 pixel high boundary
@@ -557,7 +698,7 @@ void lcd_char_inverse( uint8_t x, uint8_t y, uint8_t w, uint8_t blink )
 		return ;
 	}
 	uint8_t end = x + w ;
-  uint8_t *p = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
+  uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
 
 	while ( x < end )
 	{
@@ -566,6 +707,7 @@ void lcd_char_inverse( uint8_t x, uint8_t y, uint8_t w, uint8_t blink )
 	}
 }
 
+#ifndef BOOT
 void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h )
 {
   lcd_vline(x, y, h ) ;
@@ -576,6 +718,7 @@ void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h )
  	lcd_hline(x+1, y+h-1, w-2 ) ;
  	lcd_hline(x+1, y, w-2 ) ;
 }
+#endif
 void lcd_hline( uint8_t x, uint8_t y, int8_t w )
 {
   lcd_hlineStip(x,y,w,0xff);
@@ -583,25 +726,32 @@ void lcd_hline( uint8_t x, uint8_t y, int8_t w )
 
 void lcd_vline( uint8_t x, uint8_t y, int8_t h )
 {
-//    while ((y+h)>=DISPLAY_H) h--;
-  register uint8_t *p  = &DisplayBuf[ y / 8 * DISPLAY_W + x ];
-  register uint8_t *q  = &DisplayBuf[ (y+h) / 8 * DISPLAY_W + x ];
-    
-	*p ^= ~(BITMASK(y%8)-1);
-  while(p<q)
+  if (h<0) { y+=h; h=-h; }
+  register uint8_t *p  = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+//  register uint8_t *q  = &DisplayBuf[ (y+h) / 8 * DISPLAY_W + x ];
+
+  y &= 0x07 ;
+	if ( y )
 	{
-    p  += DISPLAY_W;
-    if ( p>=DISPLAY_END)
-    {
-      break ;			
-    }
-    *p ^= 0xff;
+    uint8_t msk = ~(BITMASK(y)-1) ;
+    h -= 8-y ;
+    if (h < 0)
+      msk -= ~(BITMASK(8+h)-1) ;
+		lcd_write_bits( p, msk ) ;
+    p += DISPLAY_W ;
+	}
+    
+  while( h >= 8 )
+	{
+		h -= 8 ;
+		lcd_write_bits( p, 0xFF ) ;
+    p += DISPLAY_W ;
   }
-  if(p<DISPLAY_END) *p ^= ~(BITMASK((y+h)%8)-1);
+	if ( h > 0 )
+	{
+  	lcd_write_bits( p, (BITMASK(h)-1) ) ;
+	}
 }
-
-
-
 
 #ifdef SIMU
 bool lcd_refresh = true;
@@ -609,12 +759,47 @@ uint8_t lcd_buf[DISPLAY_W*DISPLAY_H/8];
 #endif
 
 
+#if PCBX9D
+uint8_t arrows[] = {
+10,64,80,
+0xFF,0xF7,0xF3,0xF9,0x00,0x00,0xF9,0xF3,0xF7,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFC,0xFC,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xCF,0x87,0x03,0x49,0xCF,0xCF,0xCF,0xCF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFE,0xFF,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0x3F,0x3F,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xEF,0xCF,0x9F,0x00,0x00,0x9F,0xCF,0xEF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 
+0xFF,0xFF,0x3F,0x7F,0xFF,0x3F,0x8F,0xE3,0xF8,0xFF,
+0xFF,0xFF,0xFF,0xFE,0xFC,0xFE,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+0xFF,0xCF,0xCF,0xCF,0xCF,0x49,0x03,0x87,0xCF,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,0xFF,0xFF,0xFF,0xFF,
+0xFF,0x7F,0x7F,0xFF,0xFF,0xFF,0xFF,0x7F,0x7F,0xFF,
+0xFF,0x9E,0x8C,0xC0,0xE1,0xE1,0xC0,0x8C,0x9E,0xFF,
+0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+
+} ;
+uint8_t speaker[] = {
+4,8,0,
+0x38,0x38,0x7C,0xFE
+} ;
+#endif
 
 void lcd_clear()
 {
   //for(unsigned i=0; i<sizeof(displayBuf); i++) displayBuf[i]=0;
   memset( DisplayBuf, 0, sizeof( DisplayBuf) ) ;
+#if PCBX9D
+	lcd_img( 212-X9D_OFFSET, 0, arrows, 0, 0 ) ;
+	lcd_img( 212-X9D_OFFSET-10, 0, arrows, 1, 0 ) ;
+
+	putsTime( 140, 1*FH, Time.hour*60+Time.minute, 0, 0 ) ;
+	lcd_img( 130, 2*FH, speaker, 0, 0 ) ;
+extern uint8_t CurrentVolume ;
+	lcd_hbar( 135, 2*FH+1, 24, 6, CurrentVolume*100/23 ) ;
+#endif
 }
 
 // LCD i/o pins
@@ -646,6 +831,7 @@ void lcd_clear()
 
 uint8_t LcdLock ;
 uint8_t LcdInputs ;
+
 
 
 #ifdef PCBSKY
@@ -748,6 +934,13 @@ void lcd_init()
 }
 
 
+void lcd_stop()
+{
+	TC0->TC_CHANNEL[0].TC_CCR = 0 ;	// Enable clock and trigger it (may only need trigger)
+	
+}
+
+
 void lcdSetRefVolt(uint8_t val)
 {
 #ifndef SIMU
@@ -780,6 +973,7 @@ void lcdSetRefVolt(uint8_t val)
 	LcdLock = 0 ;
 }
 
+#endif
 
 
 void lcdSendCtl(uint8_t val)
@@ -863,7 +1057,11 @@ void refreshDisplay()
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
 #endif 
   for( y=0; y < 8; y++) {
+#ifndef BOOT
     lcdSendCtl( g_eeGeneral.optrexDisplay ? 0 : 0x04 ) ;
+#else
+    lcdSendCtl( 0x04 ) ;
+#endif
     lcdSendCtl(0x10); //column addr 0
     lcdSendCtl( y | 0xB0); //page addr y
     
@@ -926,7 +1124,63 @@ void refreshDisplay()
 	LcdLock = 0 ;
 
 }
-#endif
 
 #endif // PCBSKY
+
+#ifdef BOOT
+#ifdef REVB
+// This specially for the 9XR
+extern void start_timer0( void ) ;
+extern void stop_timer0( void ) ;
+
+extern "C" void dispUSB( void ) ;
+void dispUSB()
+{
+	// Put USB on display here?
+	start_timer0() ;
+	lcd_init() ;
+	g_eeGeneral.optrexDisplay = 1 ;
+	lcd_clear() ;
+	refreshDisplay() ;
+	g_eeGeneral.optrexDisplay = 0 ;
+	lcd_clear() ;
+#ifdef REVX
+	lcdSetRefVolt( 20 ) ;
+#else
+	lcdSetRefVolt( 30 ) ;
+#endif
+	lcd_putcAtt( 48, 24, 'U', 0x04 ) ;
+	lcd_putcAtt( 60, 24, 'S', 0x04 ) ;
+	lcd_putcAtt( 72, 24, 'B', 0x04 ) ;
+	refreshDisplay() ;
+	stop_timer0() ;
+}
+
+extern "C" void dispBOOT( uint32_t x ) ;
+void dispBOOT(uint32_t x)
+{
+	// Put USB on display here?
+	start_timer0() ;
+	lcd_init() ;
+	g_eeGeneral.optrexDisplay = 1 ;
+	lcd_clear() ;
+	refreshDisplay() ;
+	g_eeGeneral.optrexDisplay = 0 ;
+#ifdef REVX
+	lcdSetRefVolt( 20 ) ;
+#else
+	lcdSetRefVolt( 30 ) ;
+#endif
+	lcd_putcAtt( 42, 24, 'B', 0x04 ) ;
+	lcd_putcAtt( 54, 24, 'O', 0x04 ) ;
+	lcd_putcAtt( 66, 24, 'O', 0x04 ) ;
+	lcd_putcAtt( 78, 24, 'T', 0x04 ) ;
+	refreshDisplay() ;
+	stop_timer0() ;
+}
+
+#endif
+
+
+#endif
 

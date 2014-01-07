@@ -39,15 +39,24 @@
 /*-----------------------------------------------------------------------*/
 
 #include "ersky9x.h"
+//extern unsigned long Master_frequency ;
+extern void delay2ms() ;
+#ifdef BOOT
+#define	TRUE 1
+#endif
 
+
+#ifndef BOOT
 #if !defined(SIMU)
 #include "CoOS.h"
+#endif
 #endif
 
 #include "diskio.h"
 #include "board.h"
+#ifndef BOOT
 #include "debug.h"
-
+#endif
 // States for initialising card
 #define SD_ST_EMPTY             0
 #define SD_ST_INIT1             1
@@ -657,7 +666,11 @@ uint32_t sd_read_block(uint32_t block_no, uint32_t *data)
     uint8_t retry = 100;
     while (retry-- > 0)
 		{
+#ifndef BOOT
       CoTickDelay(1); // 2ms
+#else
+			delay2ms() ;
+#endif
       if (phsmci->HSMCI_SR & HSMCI_SR_ENDRX)
 			{
 //      		phsmci->HSMCI_PTCR = HSMCI_PTCR_RXTDIS;
@@ -697,8 +710,12 @@ uint32_t sd_write_block( uint32_t block_no, uint32_t *data )
       
     uint8_t retry = 100;
     while (retry-- > 0) {
+#ifndef BOOT
       CoTickDelay(1); // 2ms
-      if (phsmci->HSMCI_SR & HSMCI_SR_NOTBUSY)
+#else
+			delay2ms() ;
+#endif
+			if (phsmci->HSMCI_SR & HSMCI_SR_NOTBUSY)
 			{
 //      		phsmci->HSMCI_PTCR = HSMCI_PTCR_TXTDIS;
         result = 1;
@@ -814,8 +831,10 @@ Now decide what the card can do!
 #define LDIR_Chksum                     13
 #define LDIR_FstClusLO          26
 
+#ifdef BOOT
 #if !defined(SIMU)
 #include "Fat12.cpp"
+#endif
 #endif
 
 /*-----------------------------------------------------------------------*/
@@ -826,7 +845,9 @@ DSTATUS disk_initialize (
                          BYTE drv               /* Physical drive nmuber (0) */
                          )
 {
+#ifdef BOOT
   if (drv==1) return RES_OK ;             /* EEPROM */
+#endif
   if (drv) return STA_NOINIT;             /* Supports only single drive */
   if ( sd_card_ready() == 0 ) return RES_NOTRDY;
   return RES_OK;
@@ -909,6 +930,7 @@ DRESULT disk_read (
         uint32_t result ;
   if ( !count) return RES_PARERR ;
 
+#ifdef BOOT
   if (drv==1)             /* EEPROM */
 	{
 		
@@ -928,9 +950,8 @@ DRESULT disk_read (
       }
     } while ( count ) ;
 	}
-
-
   else
+#endif
 	{
 		if (drv ) return RES_PARERR;
 
@@ -968,11 +989,13 @@ DRESULT disk_write (
 
   if ( !count) return RES_PARERR ;
 
+#ifdef BOOT
   if (drv==1)             /* EEPROM */
 	{
 		count = fat12Write( buff, sector, count ) ;
 	}
   else
+#endif
 	{
 		if (drv ) return RES_PARERR;
 
@@ -1014,6 +1037,7 @@ DRESULT disk_ioctl (
         WORD csize;
 
         res = RES_ERROR;
+#ifdef BOOT
         if (drv==1)
 				{
           switch (ctrl)
@@ -1026,7 +1050,11 @@ DRESULT disk_ioctl (
             break ;
 
             case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
-               *(DWORD*)buff = (DWORD)28 ;
+#ifdef REVX
+							 *(DWORD*)buff = (DWORD)2051 ;
+#else
+							 *(DWORD*)buff = (DWORD)1539 ;
+#endif
                res = RES_OK;
              break;
 
@@ -1038,7 +1066,7 @@ DRESULT disk_ioctl (
 					}
         	return res ;
 				}
-
+#endif
 
         if (drv) return RES_PARERR;
 

@@ -117,4 +117,7 @@ extern void config_free_pins( void ) ;
 #define GPIO_SetBits( port, bits ) (port->BSRRL = bits)
 #define GPIO_ReadInputDataBit( port, bit) ( (port->IDR & bit) ? Bit_SET : Bit_RESET)
 
+#ifdef PCBX9D
+uint32_t switchPosition( uint32_t swtch ) ;
+#endif
 

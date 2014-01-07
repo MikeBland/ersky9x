@@ -57,17 +57,26 @@ extern const char stamp3[] ;
 extern const char stamp4[] ;
 extern const char stamp5[] ;
 
-extern const char Str_OFF[] ;
-extern const char Str_ON[] ;
-extern const char Str_Switches[] ;
-extern const char Str_Switch_warn[] ;
+//extern const char *Str_OFF ;
+//extern const char *Str_ON ;
+//extern const char *Str_Switches ;
+//extern const char *Str_Switch_warn ;
 
 #define CPU_INT		int32_t
 #define CPU_UINT	uint32_t
 
 #define BITMASK(bit) (1<<(bit))
 
-#define PSTR(a)  (char *)a
+extern const char * const *Language ;
+extern const char * const English[] ;
+extern const char * const French[] ;
+extern const char * const German[] ;
+extern const char * const Norwegian[] ;
+extern const char * const Swedish[] ;
+
+#define PSTR(a) Language[a]
+#define XPSTR(a)  (char *)a
+
 #define PROGMEM	 const unsigned char
 #define strcpy_P(a,b)	strcpy(a,b)
 #define strncpy_P(a,b,c)	strncpy(a,b,c)
@@ -180,11 +189,22 @@ enum EnumKeys {
 #define CS_TIMER			3
 #define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((x)<CS_EQUAL ? CS_VBOOL : ((x)<CS_TIME ? CS_VCOMP : CS_TIMER)))
 
+#ifdef PCBSKY
 #define SW_BASE      SW_ThrCt
 #define SW_BASE_DIAG SW_ThrCt
 #define MAX_PSWITCH   (SW_Trainer-SW_ThrCt+1)  // 9 physical switches
 #define MAX_DRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_CSW)
 #define MAX_SKYDRSWITCH (1+SW_Trainer-SW_ThrCt+1+NUM_SKYCSW)
+#endif
+
+#ifdef PCBX9D
+#define SW_BASE      SW_SA0
+#define SW_BASE_DIAG SW_SA0
+#define MAX_PSWITCH   (SW_SH2-SW_SA0+1)  // 9 physical switches
+#define MAX_DRSWITCH (1+SW_SH2-SW_SA0+1+NUM_CSW)
+#define MAX_SKYDRSWITCH (1+SW_SH2-SW_SA0+1+NUM_SKYCSW)
+#endif
+
 
 #define SWP_RUD (SW_RuddDR-SW_BASE)
 #define SWP_ELE (SW_ElevDR-SW_BASE)
@@ -215,7 +235,12 @@ enum EnumKeys {
 //#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
 #define NUM_CSW  12 //number of custom switches
 #define NUM_SKYCSW  24 //number of custom switches
+#ifdef PCBSKY
 #define CSW_INDEX	9	// Index of first custom switch
+#endif
+#ifdef PCBX9D
+#define CSW_INDEX	22	// Index of first custom switch
+#endif
 
 
 #define NUM_KEYS BTN_RE+1
@@ -279,12 +304,24 @@ enum EnumKeys {
 
 #define MIX_P1    5
 #define MIX_P2    6
+#ifdef PCBSKY
 #define MIX_P3    7
 #define MIX_MAX   8
 #define MIX_FULL  9
 #define MIX_CYC1  10
 #define MIX_CYC2  11
 #define MIX_CYC3  12
+#endif
+#ifdef PCBX9D
+#define MIX_P3    7
+#define MIX_P4    8
+#define MIX_MAX   9
+#define MIX_FULL  10
+#define MIX_CYC1  11
+#define MIX_CYC2  12
+#define MIX_CYC3  13
+#endif
+
 
 #define DR_HIGH   0
 #define DR_MID    1
@@ -352,13 +389,13 @@ extern uint8_t Ee_lock ;
 #define PROTO_DSM2       2
 #define PROT_MAX         2
 #define PROTO_PPM16			 3		// No longer needed
-#define PROT_STR "\006PPM   PXX   DSM2  "
 #define PROT_STR_LEN     6
-#define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX"
+#define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX9XR-DSM  "
 #define DSM2_STR_LEN   9
 #define LPXDSM2          0
 #define DSM2only         1
 #define DSM2_DSMX        2
+#define DSM_9XR		       3
 
 // PXX_SEND_RXNUM == BIND
 #define PXX_BIND			     0x01
@@ -396,10 +433,10 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 #define PPM_BASE    MIX_CYC3
 #define CHOUT_BASE  (PPM_BASE+NUM_PPM)
 
-extern const char Str_telemItems[] ;
+//extern const char *Str_telemItems ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 33
+#define NUM_TELEM_ITEMS 35
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
@@ -455,8 +492,17 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #define STORE_MODELVARS   eeDirty(EE_MODEL)
 #define STORE_GENERALVARS eeDirty(EE_GENERAL)
 
+#ifdef PCBSKY
 #define BACKLIGHT_ON    (PWM->PWM_CH_NUM[0].PWM_CDTY = g_eeGeneral.bright)
 #define BACKLIGHT_OFF   (PWM->PWM_CH_NUM[0].PWM_CDTY = 100)
+#endif
+
+#ifdef PCBX9D
+extern void backlight_on( void ) ;
+extern void backlight_off( void ) ;
+#define BACKLIGHT_ON        backlight_on()
+#define BACKLIGHT_OFF       backlight_off()
+#endif
 
 // Options for mainSequence()
 #define NO_MENU		1
@@ -466,9 +512,9 @@ extern uint16_t evalChkSum( void ) ;
 
 struct t_calib
 {
-	int16_t midVals[7];
-	int16_t loVals[7];
-	int16_t hiVals[7];
+	int16_t midVals[8];
+	int16_t loVals[8];
+	int16_t hiVals[8];
 	uint8_t idxState;
 } ;
 
@@ -521,6 +567,9 @@ int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 #define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
   var = checkIncDec(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
 
+#define CHECK_INCDEC_GENERALSWITCH( event, var, min, max) \
+  var = checkIncDec(event,var,min,max,EE_GENERAL|INCDEC_SWITCH)
+
 
 extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_SKYCHNOUT];
@@ -566,6 +615,7 @@ extern int8_t phyStick[4] ;
 extern int16_t ex_chans[NUM_SKYCHNOUT];
 
 extern void modelDefault( uint8_t id ) ;
+extern uint8_t VoiceCheckFlag ;
 
 //void eeWaitComplete( void ) ;
 void eeDirty(uint8_t msk);
@@ -630,6 +680,9 @@ extern int16_t getRawTrimValue( uint8_t phase, uint8_t idx ) ;
 extern int16_t getTrimValue( uint8_t phase, uint8_t idx ) ;
 extern void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim) ;
 
+extern void checkSwitches( void ) ;
+extern void setLanguage( void ) ;
+
 struct t_timer
 {
 	uint16_t s_sum ;
@@ -675,7 +728,12 @@ struct t_p1
 
 extern struct t_p1 P1values ;
 
+#ifdef PCBSKY
 extern uint16_t ResetReason ;
+#endif
+#ifdef PCBX9D
+extern uint32_t ResetReason ;
+#endif
 extern uint8_t unexpectedShutdown ;
 extern uint8_t SdMounted ;
 
@@ -683,11 +741,18 @@ extern uint8_t SdMounted ;
 #include "x9d/stm32f2xx.h"
 #include "x9d\rtc.h"
 #include "x9d\stm32f2xx_rtc.h"
-void rtcSetTime(struct gtm * t) ;
-void rtc_gettime(struct gtm * t) ;
+void rtcSetTime( t_time *t ) ;
+void rtc_gettime( t_time *t ) ;
 void rtcInit( void ) ;
 #endif
 
 extern void setVolume( uint8_t value ) ;
+extern uint8_t HoldVolume ;
+
+#ifdef PCBX9D
+#define INTERNAL_MODULE 0
+#define EXTERNAL_MODULE 1
+#define TRAINER_MODULE  2
+#endif
 
 #endif

@@ -13,7 +13,7 @@
 *
 ****************************************************************************/
 
-extern volatile uint16_t Analog[] ;
+extern volatile uint16_t Analog_values[] ;
 
 extern void init_adc( void ) ;
 extern uint32_t read_adc( void ) ;

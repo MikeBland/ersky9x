@@ -88,7 +88,12 @@
     #include "chip.h"
     #include "AT91SAM3S4.h"
 #else
+ #if defined(at91sam3s8)
+    #include "chip.h"
+    #include "AT91SAM3S4.h"
+ #else
     #error Board does not support the specified chip.
+ #endif
 #endif
 #endif
 

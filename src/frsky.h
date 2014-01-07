@@ -61,11 +61,12 @@
 #define FR_CELLS_TOT	37
 #define FR_VOLTS			38
 #define FR_VSPD				39
-#define FR_TRASH			40	// Used for invalid id
+#define FR_RXV				40
+#define FR_TRASH			41	// Used for invalid id
 
 #define FR_SPORT_ALT	0xFF
 
-#define HUBDATALENGTH 41
+#define HUBDATALENGTH 42
 #define HUBMINMAXLEN	9
 #define HUBOFFSETLEN	7			// Items with an offset field
 
@@ -309,6 +310,8 @@ struct t_hub_max_min
 	int16_t hubMin[HUBMINMAXLEN] ;
 	int16_t hubMax[HUBMINMAXLEN] ;
 } ;
+
+extern uint16_t DsmABLRFH[] ;
 
 extern struct t_hub_max_min FrskyHubMaxMin ;
 

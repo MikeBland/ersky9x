@@ -48,6 +48,7 @@
 #include "..\audio.h"
 #include "..\logicio.h"
 #include "..\timers.h"
+#include "i2c_ee.h"
 
 
 void start_sound( void ) ;
@@ -63,12 +64,13 @@ void end_sound( void ) ;
 void tone_start( register uint32_t time ) ;
 void tone_stop( void ) ;
 //void init_twi( void ) ;
-//void set_volume( register uint8_t volume ) ;
+void setVolume( register uint8_t volume ) ;
 //extern "C" void TWI0_IRQHandler (void) ;
 //void audioDefevent( uint8_t e ) ;
 
 
 extern uint32_t Master_frequency ;
+extern uint8_t CurrentVolume ;
 
 struct t_sound_globals Sound_g ;
 
@@ -236,7 +238,7 @@ void init_dac()
 	DAC->DHR12R1 = 2010 ;
 	DAC->SR = DAC_SR_DMAUDR1 ;		// Write 1 to clear flag
 	DAC->CR = DAC_CR_TEN1 | DAC_CR_EN1 ;			// Enable DAC
-	NVIC_SetPriority( DMA1_Stream5_IRQn, 2 ) ; // High priority interrupt
+	NVIC_SetPriority( DMA1_Stream5_IRQn, 2 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(TIM6_DAC_IRQn) ;
 	NVIC_EnableIRQ(DMA1_Stream5_IRQn) ;
 }
@@ -250,7 +252,7 @@ extern "C" void TIM6_DAC_IRQHandler()
 	DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
 }
 
-uint32_t Underrun ;
+uint8_t AudioVoiceUnderrun ;
 
 extern "C" void DMA1_Stream5_IRQHandler()
 {
@@ -265,7 +267,7 @@ extern "C" void DMA1_Stream5_IRQHandler()
 		VoiceCount -= 1 ;
 		if ( VoiceCount == 0 )		// Run out of buffers
 		{
-			Underrun = 1 ;		// For debug
+			AudioVoiceUnderrun = 1 ;		// For debug
 			Sound_g.VoiceActive = 0 ;
 //			DMA1_Stream5->CR &= ~DMA_SxCR_TCIE ;			// Disable DMA interrupt
 			DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
@@ -459,6 +461,7 @@ void tone_stop()
 
 void startVoice( uint32_t count )		// count of filled in buffers
 {
+	AudioVoiceUnderrun = 0 ;
 	VoiceBuffer[0].flags &= ~VF_SENT ;
 	PtrVoiceBuffer[0] = &VoiceBuffer[0] ;
 	if ( count > 1 )
@@ -484,8 +487,25 @@ void appendVoice( uint32_t index )		// index of next buffer
 	__enable_irq() ;
 }
 
+static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
+{
+	 0,  2,  4,   6,   8,  10,  13,  17,  22,  27,  33,  40,
+	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
+} ;
 
 
+void setVolume( register uint8_t volume )
+{
+#if !defined(SIMU)
+	if ( volume >= NUM_VOL_LEVELS )
+	{
+		volume = NUM_VOL_LEVELS - 1 ;		
+	}
+	CurrentVolume = volume ;
+	volume = Volume_scale[volume] ;
+	I2C_set_volume( volume ) ;
+#endif
+}
 
 
 

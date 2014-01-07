@@ -52,14 +52,20 @@
 /  object instead of the sector buffer in the individual file object for file
 /  data transfer. This reduces memory consumption 512 bytes each file object. */
 
-
+#ifdef BOOT
+#define _FS_READONLY	1	/* 0:Read/Write or 1:Read only */
+#else
 #define _FS_READONLY	0	/* 0:Read/Write or 1:Read only */
+#endif
 /* Setting _FS_READONLY to 1 defines read only configuration. This removes
 /  writing functions, f_write, f_sync, f_unlink, f_mkdir, f_chmod, f_rename,
 /  f_truncate and useless f_getfree. */
 
-
+#ifdef BOOT
+#define _FS_MINIMIZE	1	/* 0 to 3 */
+#else
 #define _FS_MINIMIZE	0	/* 0 to 3 */
+#endif
 /* The _FS_MINIMIZE option defines minimization level to remove some functions.
 /
 /   0: Full function.
@@ -69,7 +75,11 @@
 /   3: f_lseek is removed in addition to 2. */
 
 
+#ifdef BOOT
+#define	_USE_STRFUNC	0	/* 0:Disable or 1/2:Enable */
+#else
 #define	_USE_STRFUNC	1	/* 0:Disable or 1/2:Enable */
+#endif
 /* To enable string functions, set _USE_STRFUNC to 1 or 2. */
 
 

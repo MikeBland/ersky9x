@@ -166,9 +166,14 @@ extern uint32_t sd_cmd13( uint32_t *status) ;
 extern void sd_poll_10mS( void ) ;
 #ifdef PCBX9D
 extern void sdPoll10ms( void ) ;
+extern void sdInit( void ) ;
 #endif
 extern uint32_t sd_card_ready( void ) ;
 extern uint32_t sd_read_block( uint32_t block_no, uint32_t *data ) ;
 
+extern DWORD socket_is_empty( void ) ;
+
+extern int8_t SD_ReadSectors(uint8_t *buff, uint32_t sector, uint32_t count) ;
+extern int8_t SD_WriteSectors(uint8_t *buff, uint32_t sector, uint32_t count) ;
 
 #endif

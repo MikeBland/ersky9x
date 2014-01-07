@@ -40,6 +40,8 @@
 extern int16_t g_chans512[] ;
 
 
+extern void init_pxx(uint32_t port) ;
+extern void disable_pxx(uint32_t port) ;
 
 
 // Starts TIMER at 200Hz, 5mS period
@@ -204,6 +206,9 @@ void init_pwm()
 
 // Starts TIMER at 200Hz, 5mS period
 #ifdef PCBX9D
+
+uint8_t Dsm_mode_response = 0 ;
+
 void init5msTimer()
 {
 	// Timer14
@@ -231,26 +236,36 @@ extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 	interrupt5ms() ;
 }
 
+// To Do
+#define NUM_MODULES 2
 
-uint16_t *PulsePtr ;
+extern void init_ppm(uint32_t port) ;
+extern void disable_ppm(uint32_t port) ;
+
+
+//uint16_t *PulsePtr ;
 uint16_t *TrainerPulsePtr ;
-uint8_t Current_protocol ;
+//uint8_t Current_protocol ;
 uint8_t pxxFlag = 0 ;
 
+extern uint16_t *ppmStreamPtr[NUM_MODULES];
+extern uint16_t ppmStream[NUM_MODULES+1][20];
+extern uint8_t s_current_protocol[NUM_MODULES] ;
 
-void setupPulses()
+
+void setupPulses(unsigned int port)
 {
-//  heartbeat |= HEART_TIMER_PULSES ;
+  heartbeat |= HEART_TIMER_PULSES ;
 	
-  if ( Current_protocol != g_model.protocol )
+  if ( s_current_protocol[0] != g_model.protocol )
   {
-    switch( Current_protocol )
+    switch( s_current_protocol[0] )
     {	// stop existing protocol hardware
       case PROTO_PPM:
 				disable_main_ppm() ;
       break;
       case PROTO_PXX:
-				disable_pxx() ;
+				disable_pxx(0) ;
       break;
 //      case PROTO_DSM2:
 //				disable_ssc() ;
@@ -260,14 +275,14 @@ void setupPulses()
 //      break ;
     }
 		
-    Current_protocol = g_model.protocol ;
-    switch(Current_protocol)
+    s_current_protocol[0] = g_model.protocol ;
+    switch(s_current_protocol[0])
     { // Start new protocol hardware here
       case PROTO_PPM:
 				init_main_ppm() ;
       break;
       case PROTO_PXX:
-				init_pxx() ;
+				init_pxx(0) ;
       break;
 //      case PROTO_DSM2:
 //				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
@@ -280,13 +295,13 @@ void setupPulses()
   }
 
 // Set up output data here
-	switch(Current_protocol)
+	switch(s_current_protocol[0])
   {
 	  case PROTO_PPM:
       setupPulsesPpm();		// Don't enable interrupts through here
     break;
   	case PROTO_PXX:
-      setupPulsesPXX();
+      setupPulsesPXX(0);
     break;
 //	  case PROTO_DSM2:
 ////      sei() ;							// Interrupts allowed here
@@ -301,19 +316,19 @@ void setupPulses()
 
 
 
-uint16_t PpmStream[20] =
-{
-	2000,
-	2200,
-	2400,
-	2600,
-	2800,
-	3000,
-	3200,
-	3400,
-	45000-21600,
-	0,0,0,0,0,0,0,0,0,0,0
-} ;
+//uint16_t PpmStream[20] =
+//{
+//	2000,
+//	2200,
+//	2400,
+//	2600,
+//	2800,
+//	3000,
+//	3200,
+//	3400,
+//	45000-21600,
+//	0,0,0,0,0,0,0,0,0,0,0
+//} ;
 
 uint16_t TrainerPpmStream[20] =
 {
@@ -341,7 +356,7 @@ void setupPulsesPpm()
   uint32_t p=8+g_model.ppmNCH*2; //Channels *2
 	int16_t PPM_range = g_model.extendedLimits ? 640*2 : 512*2;   //range of 0.7..1.7msec
 
-  ptr = PpmStream ;
+  ptr = ppmStream[0] ;
 
 	total = 22500u*2; //Minimum Framelen=22.5 ms
   total += (int16_t(g_model.ppmFrameLength))*1000;
@@ -358,7 +373,7 @@ void setupPulsesPpm()
 	*ptr++ = total ;
 	*ptr = 0 ;
 	TIM1->CCR2 = total - 1000 ;		// Update time
-	TIM1->CCR1 = (g_model.ppmDelay*50+300)*2 ;
+	TIM1->CCR3 = (g_model.ppmDelay*50+300)*2 ;
 }
 
 // Pxx has 2 flags and 17 data bytes
@@ -369,62 +384,63 @@ void setupPulsesPpm()
 
 // Using Timer 1, also used by PPM output
 
-uint16_t PxxStream[400] ;		// Transisitions
+//uint16_t PxxStream[400] ;		// Transisitions
+extern uint16_t pxxStream[2][400];
 uint16_t *PtrPxx ;
 uint16_t PxxValue ;
 
-void init_pxx()
-{
-	// Timer1
-	setupPulsesPXX() ;
+//void init_pxx()
+//{
+//	// Timer1
+//	setupPulsesPXX(0) ;
 	
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
-	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
-	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
-	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;			// Enable DMA1 clock
+//	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+//	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+//	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
+//	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;			// Enable DMA1 clock
 	
-	TIM1->CR1 &= ~TIM_CR1_CEN ;
-	TIM1->ARR = 18000 ;			// 9mS
-	TIM1->CCR2 = 15000 ;		// Update time
-	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
-	TIM1->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P ;	
-	TIM1->CR2 = TIM_CR2_OIS1 ;			// O/P idle high
-	TIM1->BDTR = TIM_BDTR_MOE ;		// Enable outputs
-	TIM1->CCR1 = PxxStream[0] ;
-	TIM1->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_0 ;			// Force O/P high
- 	TIM1->EGR = 1 ;								// Restart
+//	TIM1->CR1 &= ~TIM_CR1_CEN ;
+//	TIM1->ARR = 18000 ;			// 9mS
+//	TIM1->CCR2 = 15000 ;		// Update time
+//	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
+//	TIM1->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P ;	
+//	TIM1->CR2 = TIM_CR2_OIS1 ;			// O/P idle high
+//	TIM1->BDTR = TIM_BDTR_MOE ;		// Enable outputs
+//	TIM1->CCR1 = pxxStream[0][0] ;
+//	TIM1->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_0 ;			// Force O/P high
+// 	TIM1->EGR = 1 ;								// Restart
 
-//	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+////	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+////	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+//	TIM1->DIER |= TIM_DIER_CC1DE ;		// Enable DMA on CC1 match
+//	TIM1->DCR = 13 ;								// DMA to CC1
+
+////	TIM1->CR1 = TIM_CR1_OPM ;				// Just run once
+//	// Enable the DMA channel here, DMA2 stream 1, channel 6
+//	DMA2_Stream1->CR &= ~DMA_SxCR_EN ;		// Disable DMA
+//	DMA2->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1 ; // Write ones to clear bits
+//	DMA2_Stream1->CR = DMA_SxCR_CHSEL_1 | DMA_SxCR_CHSEL_2 | DMA_SxCR_PL_0 | DMA_SxCR_MSIZE_0 
+//										 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC | DMA_SxCR_DIR_0 | DMA_SxCR_PFCTRL ;
+//	DMA2_Stream1->PAR = (uint32_t) &TIM1->DMAR ;
+//	DMA2_Stream1->M0AR = (uint32_t) &pxxStream[0][1] ;
+////	DMA2_Stream1->FCR = 0x05 ; //DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
+////	DMA2_Stream1->NDTR = 100 ;
+//	DMA2_Stream1->CR |= DMA_SxCR_EN ;		// Enable DMA
+
+//	TIM1->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0 ;			// Toggle CC1 o/p
 //	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
-	TIM1->DIER |= TIM_DIER_CC1DE ;		// Enable DMA on CC1 match
-	TIM1->DCR = 13 ;								// DMA to CC1
+//	TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+//	TIM1->CR1 |= TIM_CR1_CEN ;
+//	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
 
-//	TIM1->CR1 = TIM_CR1_OPM ;				// Just run once
-	// Enable the DMA channel here, DMA2 stream 1, channel 6
-	DMA2_Stream1->CR &= ~DMA_SxCR_EN ;		// Disable DMA
-	DMA2->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1 ; // Write ones to clear bits
-	DMA2_Stream1->CR = DMA_SxCR_CHSEL_1 | DMA_SxCR_CHSEL_2 | DMA_SxCR_PL_0 | DMA_SxCR_MSIZE_0 
-										 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC | DMA_SxCR_DIR_0 | DMA_SxCR_PFCTRL ;
-	DMA2_Stream1->PAR = (uint32_t) &TIM1->DMAR ;
-	DMA2_Stream1->M0AR = (uint32_t) &PxxStream[1] ;
-//	DMA2_Stream1->FCR = 0x05 ; //DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
-//	DMA2_Stream1->NDTR = 100 ;
-	DMA2_Stream1->CR |= DMA_SxCR_EN ;		// Enable DMA
+//}
 
-	TIM1->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0 ;			// Toggle CC1 o/p
-	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
-	TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
-	TIM1->CR1 |= TIM_CR1_CEN ;
-	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
-
-}
-
-void disable_pxx()
-{
-	NVIC_DisableIRQ(TIM1_CC_IRQn) ;
-	TIM1->DIER &= ~TIM_DIER_CC2IE ;
-	TIM1->CR1 &= ~TIM_CR1_CEN ;
-}
+//void disable_pxx()
+//{
+//	NVIC_DisableIRQ(TIM1_CC_IRQn) ;
+//	TIM1->DIER &= ~TIM_DIER_CC2IE ;
+//	TIM1->CR1 &= ~TIM_CR1_CEN ;
+//}
 
 
 const uint16_t CRCTable[]=
@@ -471,20 +487,22 @@ void crc( uint8_t data )
 {
     //	uint8_t i ;
 
-    PcmCrc=(PcmCrc>>8)^(CRCTable[(PcmCrc^data) & 0xFF]);
+  PcmCrc =(PcmCrc<<8) ^(CRCTable[((PcmCrc>>8)^data)&0xFF]);
 }
 
 
-void putPcmPart( uint8_t value )
+inline __attribute__ ((always_inline)) void putPcmPart( uint8_t value )
 {
-	PxxValue += 18 ;					// Output 1 for this time
-	*PtrPxx++ = PxxValue ;
-	PxxValue += 14 ;
+	uint16_t lpxxValue = PxxValue += 18 ;
+	
+	*PtrPxx++ = lpxxValue ;
+	lpxxValue += 14 ;
 	if ( value )
 	{
-		PxxValue += 16 ;
+		lpxxValue += 16 ;
 	}
-	*PtrPxx++ = PxxValue ;	// Output 0 for this time
+	*PtrPxx++ = lpxxValue ;	// Output 0 for this time
+	PxxValue = lpxxValue ;
 }
 
 void putPcmFlush()
@@ -541,46 +559,81 @@ void putPcmHead()
     putPcmPart( 0 ) ;
 }
 
+uint16_t scaleForPXX( uint8_t i )
+{
+	int16_t value ;
 
-void setupPulsesPXX()
+#ifdef REVX
+  value = g_chans512[i] *3 / 4 + 2250 ;
+	return value ;
+#else 
+	value = ( i < 24 ) ? g_chans512[i] *3 / 4 + 1024 : 0 ;
+	return limit( (int16_t)1, value, (int16_t)2046 ) ;
+#endif
+}
+
+static uint8_t pass ;
+
+void setupPulsesPXX(uint8_t module)
 {
   uint8_t i ;
   uint16_t chan ;
   uint16_t chan_1 ;
+	uint8_t lpass = pass ;
 
 //		Serial_byte = 0 ;
 //		Serial_bit_count = 0 ;
 //		Serial_byte_count = 0 ;
 	  
-	PtrPxx = PxxStream ;
+	PtrPxx = &pxxStream[0][0] ;
 	PxxValue = 0 ;
     
 	PcmCrc = 0 ;
   PcmOnesCount = 0 ;
+  putPcmPart( 0 ) ;
+  putPcmPart( 0 ) ;
+  putPcmPart( 0 ) ;
+  putPcmPart( 0 ) ;
   putPcmHead(  ) ;  // sync byte
-  putPcmByte( g_model.ppmNCH ) ;     // putPcmByte( g_model.rxnum ) ;  //
-  putPcmByte( pxxFlag ) ;     // First byte of flags
+  putPcmByte( g_model.pxxRxNum ) ;     // putPcmByte( g_model.rxnum ) ;  //
+ 	uint8_t flag1;
+ 	if (pxxFlag & PXX_BIND)
+	{
+ 	  flag1 = (g_model.sub_protocol<< 6) | (g_model.country << 1) | pxxFlag ;
+ 	}
+ 	else
+	{
+ 	  flag1 = (g_model.sub_protocol << 6) | pxxFlag ;
+	}	
+	putPcmByte( flag1 ) ;     // First byte of flags
   putPcmByte( 0 ) ;     // Second byte of flags
-  pxxFlag = 0;          // reset flag after send
-  for ( i = 0 ; i < 8 ; i += 2 )		// First 8 channels only
+	uint8_t startChan = g_model.startChannel ;
+	if ( lpass & 1 )
+	{
+		startChan += 8 ;			
+	}
+  for ( i = 0 ; i < 4 ; i += 1 )		// First 8 channels only
   {																	// Next 8 channels would have 2048 added
-    chan = g_chans512[i] *3 / 4 + 2250 ;
-    chan_1 = g_chans512[i+1] *3 / 4 + 2250 ;
-//        if ( chan > 2047 )
-//        {
-//            chan = 2047 ;
-//        }
-//        if ( chan_1 > 2047 )
-//        {
-//            chan_1 = 2047 ;
-//        }
+    chan = scaleForPXX( startChan ) ;
+		if ( lpass & 1 )
+		{
+			chan += 2048 ;
+		}
     putPcmByte( chan ) ; // Low byte of channel
-    putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
+		startChan += 1 ;
+    chan_1 = scaleForPXX( startChan ) ;
+		if ( lpass & 1 )
+		{
+			chan_1 += 2048 ;
+		}
+		startChan += 1 ;
+		putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
     putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
   }
+	putPcmByte( 0 ) ;
   chan = PcmCrc ;		        // get the crc
-  putPcmByte( chan ) ; 			// Checksum lo
   putPcmByte( chan >> 8 ) ; // Checksum hi
+  putPcmByte( chan ) ; 			// Checksum lo
   putPcmHead(  ) ;      // sync byte
   putPcmFlush() ;
 }
@@ -592,83 +645,86 @@ void setupPulsesPXX()
 // Pin is AF1 function for timer 1
 void init_main_ppm()
 {
+  setupPulses(0) ;
+	init_ppm(0) ;
 	// Timer1
-	setupPulsesPpm() ;
-	PulsePtr = PpmStream ;
+//	setupPulsesPpm() ;
+//	PulsePtr = PpmStream ;
 	
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
-	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
-	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
+//	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+//	configure_pins( 0x0100, PIN_PERIPHERAL | PIN_PORTA | PIN_PER_1 | PIN_OS25 | PIN_PUSHPULL ) ;
+//	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN ;		// Enable clock
 	
-	TIM1->ARR = *PulsePtr++ ;
-	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
-	TIM1->CCER = TIM_CCER_CC1E ;	
-	TIM1->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC2PE ;			// PWM mode 1
-	TIM1->CCR1 = 600 ;		// 300 uS pulse
-	TIM1->BDTR = TIM_BDTR_MOE ;
- 	TIM1->EGR = 1 ;
-	TIM1->DIER = TIM_DIER_UDE ;
+//	TIM1->ARR = *PulsePtr++ ;
+//	TIM1->PSC = (Peri2_frequency*Timer_mult2) / 2000000 - 1 ;		// 0.5uS from 30MHz
+//	TIM1->CCER = TIM_CCER_CC1E ;	
+//	TIM1->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC2PE ;			// PWM mode 1
+//	TIM1->CCR1 = 600 ;		// 300 uS pulse
+//	TIM1->BDTR = TIM_BDTR_MOE ;
+// 	TIM1->EGR = 1 ;
+//	TIM1->DIER = TIM_DIER_UDE ;
 
-	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
-	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
-	TIM1->DIER |= TIM_DIER_CC2IE ;
-	TIM1->DIER |= TIM_DIER_UIE ;
+//	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+//	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+//	TIM1->DIER |= TIM_DIER_CC2IE ;
+//	TIM1->DIER |= TIM_DIER_UIE ;
 
-	TIM1->CR1 = TIM_CR1_CEN ;
-	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
-	NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn) ;
+//	TIM1->CR1 = TIM_CR1_CEN ;
+//	NVIC_EnableIRQ(TIM1_CC_IRQn) ;
+//	NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn) ;
 
 }
 
 void disable_main_ppm()
 {
-	NVIC_DisableIRQ(TIM1_CC_IRQn) ;
-	NVIC_DisableIRQ(TIM1_UP_TIM10_IRQn) ;
-	TIM1->DIER &= ~TIM_DIER_CC2IE & ~TIM_DIER_UIE ;
-	TIM1->CR1 &= ~TIM_CR1_CEN ;
+	disable_ppm(0) ;
+//	NVIC_DisableIRQ(TIM1_CC_IRQn) ;
+//	NVIC_DisableIRQ(TIM1_UP_TIM10_IRQn) ;
+//	TIM1->DIER &= ~TIM_DIER_CC2IE & ~TIM_DIER_UIE ;
+//	TIM1->CR1 &= ~TIM_CR1_CEN ;
 }
 
 
-extern "C" void TIM1_CC_IRQHandler()
-{
-	TIM1->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
-	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+//extern "C" void TIM1_CC_IRQHandler()
+//{
+//	TIM1->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
+//	TIM1->SR &= ~TIM_SR_CC2IF ;				// Clear flag
 
-	setupPulses() ;
+//	setupPulses() ;
 
-	if ( Current_protocol == PROTO_PPM )
-	{
+//	if ( Current_protocol == PROTO_PPM )
+//	{
 
-		PulsePtr = PpmStream ;
+//		PulsePtr = PpmStream ;
 	
-		TIM1->DIER |= TIM_DIER_UDE ;
+//		TIM1->DIER |= TIM_DIER_UDE ;
 
 
-		TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
-		TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
-	}
-	else if ( Current_protocol == PROTO_PXX )
-	{
-		DMA2_Stream1->CR &= ~DMA_SxCR_EN ;		// Disable DMA
-		DMA2->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1 ; // Write ones to clear bits
-		DMA2_Stream1->M0AR = (uint32_t) &PxxStream[1] ;
-		DMA2_Stream1->CR |= DMA_SxCR_EN ;		// Enable DMA
-		TIM1->CCR1 = PxxStream[0] ;
-		TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
-	}
-}
+//		TIM1->SR &= ~TIM_SR_UIF ;					// Clear this flag
+//		TIM1->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
+//	}
+//	else if ( Current_protocol == PROTO_PXX )
+//	{
+//		DMA2_Stream1->CR &= ~DMA_SxCR_EN ;		// Disable DMA
+//		DMA2->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1 ; // Write ones to clear bits
+//		DMA2_Stream1->M0AR = (uint32_t) &pxxStream[1] ;
+//		DMA2_Stream1->CR |= DMA_SxCR_EN ;		// Enable DMA
+//		TIM1->CCR1 = pxxStream[0] ;
+//		TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+//	}
+//}
 
-extern "C" void TIM1_UP_TIM10_IRQHandler()
-{
-	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
+//extern "C" void TIM1_UP_TIM10_IRQHandler()
+//{
+//	TIM1->SR &= ~TIM_SR_UIF ;				// Clear flag
 
-	TIM1->ARR = *PulsePtr++ ;
-	if ( *PulsePtr == 0 )
-	{
-		TIM1->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
-		TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
-	}
-}
+//	TIM1->ARR = *PulsePtr++ ;
+//	if ( *PulsePtr == 0 )
+//	{
+//		TIM1->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
+//		TIM1->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+//	}
+//}
 
 
 void init_hw_timer()
@@ -762,31 +818,31 @@ void stop_trainer_ppm()
 	NVIC_DisableIRQ(TIM8_UP_TIM13_IRQn) ; // Stop Interrupt
 }
 
-extern "C" void TIM8_CC_IRQHandler()
-{
-	TIM8->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
-	TIM8->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+//extern "C" void TIM8_CC_IRQHandler()
+//{
+//	TIM8->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
+//	TIM8->SR &= ~TIM_SR_CC2IF ;				// Clear flag
 
-	setupTrainerPulses() ;
+//	setupTrainerPulses() ;
 
-	TrainerPulsePtr = TrainerPpmStream ;
-	TIM8->DIER |= TIM_DIER_UDE ;
+//	TrainerPulsePtr = TrainerPpmStream ;
+//	TIM8->DIER |= TIM_DIER_UDE ;
 
-	TIM8->SR &= ~TIM_SR_UIF ;					// Clear this flag
-	TIM8->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
-}
+//	TIM8->SR &= ~TIM_SR_UIF ;					// Clear this flag
+//	TIM8->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
+//}
 
-extern "C" void TIM8_UP_TIM13_IRQHandler()
-{
-	TIM8->SR &= ~TIM_SR_UIF ;				// Clear flag
+//extern "C" void TIM8_UP_TIM13_IRQHandler()
+//{
+//	TIM8->SR &= ~TIM_SR_UIF ;				// Clear flag
 
-	TIM8->ARR = *TrainerPulsePtr++ ;
-	if ( *TrainerPulsePtr == 0 )
-	{
-		TIM8->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
-		TIM8->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
-	}
-}
+//	TIM8->ARR = *TrainerPulsePtr++ ;
+//	if ( *TrainerPulsePtr == 0 )
+//	{
+//		TIM8->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
+//		TIM8->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
+//	}
+//}
 
 // Trainer capture, PC8, Timer 3 channel 3
 void init_trainer_capture()
@@ -845,6 +901,15 @@ extern "C" void TIM3_IRQHandler()
   }
 }
 
+void dsmBindResponse( uint8_t mode, int8_t channels )
+{
+	// Process mode here
+	
+	
+	g_model.ppmNCH = channels/2 - 8 ;
+// To Do
+//  STORE_MODELVARS ;
+}
 
 
 #endif

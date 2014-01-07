@@ -186,6 +186,7 @@ static uint32_t BOARD_ConfigurePmc(void)
 	return 36000000L ;		// Master_frequency
 }
 
+#ifndef BOOT
 void revert_osc()
 {
   register uint32_t timeout = 0 ;
@@ -207,10 +208,17 @@ void revert_osc()
 	pmcptr->CKGR_PLLAR = 1 << 29 ;		// Stop PLLA
 
 }
+#endif
 
+#ifdef BOOT
 
-#ifdef REVX
+#ifdef REVB
 extern void sam_bootx( void ) ;
+extern void dispUSB( void ) ;
+extern uint32_t initReadTrims( void ) ;
+extern void dispBOOT(uint32_t x) ;
+extern void run_application( void ) ;
+
 static void lowLevelUsbCheck( void )
 {
   PMC->PMC_PCER0 = (1<<ID_PIOC)	;	// Enable clock to PIOC
@@ -227,10 +235,20 @@ static void lowLevelUsbCheck( void )
 		if ( PIOC->PIO_PDSR & 0x02000000 )
 		{
   		PMC->PMC_PCDR0 = (1<<ID_PIOC)	;	// Disable clock to PIOC
+			dispUSB() ;
 			sam_bootx() ;
 		}
-	} 
+	}
+
+	uint32_t x = initReadTrims() ;
+	if ( ( x & 0x42 ) != 0x42 )
+	{
+		run_application() ;
+//		loadAndRunBoot() ;
+	}
+	dispBOOT(PIOB->PIO_PDSR) ;
 }
+#endif
 #endif
 
 /*----------------------------------------------------------------------------
@@ -245,8 +263,10 @@ static void lowLevelUsbCheck( void )
 /*----------------------------------------------------------------------------*/
 uint32_t SystemInit (void)
 {
-#ifdef REVX
+#ifdef BOOT
+#ifdef REVB
 	lowLevelUsbCheck() ;
+#endif
 #endif
     /** Set 2 cycle (1 WS) for Embedded Flash Access */
 		// Max clock is 38 MHz (1.8V VVDCORE)

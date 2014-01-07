@@ -54,12 +54,15 @@
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
+#ifndef BOOT
 #ifdef PCBSKY
-uint16_t Analog_values[NUMBER_ANALOG] ;
+volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 #endif
 uint16_t Temperature ;				// Raw temp reading
 uint16_t Max_temperature ;		// Max raw temp reading
-
+uint16_t Scc_baudrate ;				// 0 for 125000, 1 for 115200
+uint16_t DsmRxTimeout ;
+uint16_t WatchdogTimeout ;
 
 #define RX_UART_BUFFER_SIZE	32
 
@@ -79,9 +82,17 @@ struct t_fifo32 BtRx_fifo ;
 struct t_fifo32 Telemetry_fifo ;
 #endif
 
+#endif  // ndef BOOT
+
 volatile uint32_t Spi_complete ;
 
 void putEvent( register uint8_t evt) ;
+void per10ms( void ) ;
+uint8_t getEvent( void ) ;
+void pauseEvents(uint8_t event) ;
+void killEvents(uint8_t event) ;
+
+#ifndef BOOT
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( register char *string ) ;
@@ -91,10 +102,6 @@ void txmitBt( uint8_t c ) ;
 uint16_t rxBtuart( void ) ;
 
 uint32_t keyState( enum EnumKeys enuk) ;
-void per10ms( void ) ;
-uint8_t getEvent( void ) ;
-void pauseEvents(uint8_t event) ;
-void killEvents(uint8_t event) ;
 void init_spi( void ) ;
 void end_spi( void ) ;
 uint32_t eeprom_read_status( void ) ;
@@ -103,6 +110,7 @@ void eeprom_write_enable( void ) ;
 uint32_t spi_operation( uint8_t *tx, uint8_t *rx, uint32_t count ) ;
 //uint32_t spi_action( uint8_t *command, uint8_t *tx, uint8_t *rx, uint32_t comlen, uint32_t count ) ;
 uint32_t spi_PDC_action( uint8_t *command, uint8_t *tx, uint8_t *rx, uint32_t comlen, uint32_t count ) ;
+
 void crlf( void ) ;
 void p8hex( uint32_t value ) ;
 void p4hex( uint16_t value ) ;
@@ -110,7 +118,7 @@ void p2hex( unsigned char c ) ;
 void hex_digit_send( unsigned char c ) ;
 void read_9_adc(void ) ;
 void init_adc( void ) ;
-void init_ssc( void ) ;
+void init_ssc( uint16_t baudrate ) ;
 void disable_ssc( void ) ;
 
 /** Console baudrate 9600. */
@@ -134,6 +142,7 @@ void disable_ssc( void ) ;
 #define BT_USART       UART1
 #define BT_ID          ID_UART1
 
+#endif
 
 static uint8_t s_evt;
 void putEvent( register uint8_t evt)
@@ -239,15 +248,26 @@ void killEvents(uint8_t event)
 
 
 
-volatile uint16_t g_tmr10ms;
 volatile uint8_t  g_blinkTmr10ms;
+
+#ifndef BOOT
+volatile uint16_t g_tmr10ms;
 extern uint8_t StickScrollTimer ;
+#endif
 
 void per10ms()
 {
 	register uint32_t i ;
 
+#ifndef BOOT
   g_tmr10ms++;
+  if (WatchdogTimeout)
+	{
+    WatchdogTimeout -= 1;
+    wdt_reset();  // Retrigger hardware watchdog
+  }
+#endif
+
   g_blinkTmr10ms++;
   uint8_t enuk = KEY_MENU;
   uint8_t    in = ~read_keys() ;
@@ -296,7 +316,7 @@ void per10ms()
   for( i=1; i<7; i++)
   {
 		uint8_t value = in & (1<<i) ;
-#ifdef PCBSKY
+#ifndef BOOT
 #if !defined(SIMU)
 		if ( value )
 		{
@@ -308,6 +328,8 @@ void per10ms()
     keys[enuk].input(value,(EnumKeys)enuk);
     ++enuk;
   }
+
+#ifndef BOOT
 //  static const uint8_t crossTrim[]={
 //    1<<INP_D_TRM_LH_DWN,
 //    1<<INP_D_TRM_LH_UP,
@@ -343,8 +365,13 @@ void per10ms()
 #ifdef PCBX9D
 	sdPoll10ms() ;
 #endif
+#endif  // ndef BOOT
 
 }
+
+
+
+#ifndef BOOT
 
 
 void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
@@ -591,7 +618,6 @@ uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uin
 	return result ;
 }
 
-
 uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
 {
 #ifndef SIMU
@@ -648,7 +674,10 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 	return 0 ;
 }
 
+#endif
 
+
+#ifndef BOOT
 
 
 /**
@@ -792,6 +821,34 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 //  /* Enable receiver and transmitter */
   pUsart->US_CR = US_CR_RXEN | US_CR_TXEN;
 
+}
+
+void UART2_timeout_enable()
+{
+  register Usart *pUsart = SECOND_USART;
+  pUsart->US_CR = US_CR_STTTO ;
+  pUsart->US_RTOR = 115 ;		// Bits @ 115200 ~= 1mS
+  pUsart->US_IER = US_IER_TIMEOUT ;
+	DsmRxTimeout = 0 ;
+	NVIC_EnableIRQ(USART0_IRQn) ;
+	
+}
+
+void UART2_timeout_disable()
+{
+  register Usart *pUsart = SECOND_USART;
+  pUsart->US_RTOR = 0 ;
+
+  pUsart->US_IDR = US_IDR_TIMEOUT ;
+	NVIC_DisableIRQ(USART0_IRQn) ;
+	
+}
+
+extern "C" void USART0_IRQHandler()
+{
+  register Usart *pUsart = SECOND_USART;
+  pUsart->US_CR = US_CR_STTTO ;		// Clears timeout bit
+	DsmRxTimeout = 1 ;
 }
 
 // set outPtr start of buffer
@@ -1343,26 +1400,30 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 //  sei();
 }
 
-// Initialise the SSC to allow PXX output.
+// Initialise the SSC to allow PXX/DSM output.
 // TD is on PA17, peripheral A
-void init_ssc()
+void init_ssc( uint16_t baudrate )
 {
 //	register Pio *pioptr ;
 	register Ssc *sscptr ;
 
+	Scc_baudrate = baudrate ;
+
   PMC->PMC_PCER0 |= 0x00400000L ;		// Enable peripheral clock to SSC
 	
-	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
 //	pioptr = PIOA ;
 //  pioptr->PIO_ABCDSR[0] &= ~0x00020000 ;	// Peripheral A bit 17
 //  pioptr->PIO_ABCDSR[1] &= ~0x00020000 ;	// Peripheral A
 //  pioptr->PIO_PDR = 0x00020000 ;					// Assign to peripheral
 	
 	sscptr = SSC ;
-	sscptr->SSC_CMR = Master_frequency / (125000*2) ;		// 8uS per bit
+	sscptr->SSC_THR = 0xFF ;		// Make the output high.
+	sscptr->SSC_CMR = Master_frequency / ( baudrate ? (115200*2) : (125000*2) ) ;		// 8uS per bit
 	sscptr->SSC_TCMR = 0 ;  	//  0000 0000 0000 0000 0000 0000 0000 0000
 	sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
 	sscptr->SSC_CR = SSC_CR_TXEN ;
+
+	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
 
 }
 
@@ -1399,11 +1460,11 @@ void x9dSPortInit()
 {
 	// Serial configure  
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN ;		// Enable clock
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
-	GPIOB->MODER = (GPIOB->MODER & 0xFFFFC3FF ) | 0x00002800 ;	// Alternate func.
-	GPIOB->AFR[0] = (GPIOB->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
+	GPIOD->MODER = (GPIOD->MODER & 0xFFFFC3FF ) | 0x00002800 ;	// Alternate func.
+	GPIOD->AFR[0] = (GPIOD->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
 	USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
-	USART2->CR1 = 0x200C ;
+	USART2->CR1 = 0x202C ;
 	USART2->CR2 = 0 ;
 	USART2->CR3 = 0 ;
   NVIC_EnableIRQ(USART2_IRQn);
@@ -1412,6 +1473,12 @@ void x9dSPortInit()
 #if !defined(SIMU)
 
 #define USART_FLAG_ERRORS (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE)
+
+uint32_t USART_ERRORS ;
+uint32_t USART_ORE ;
+uint32_t USART_NE ;
+uint32_t USART_FE ;
+uint32_t USART_PE ;
 
 extern "C" void USART2_IRQHandler()
 {
@@ -1428,6 +1495,26 @@ extern "C" void USART2_IRQHandler()
 		{
 			put_fifo32( &Telemetry_fifo, data ) ;
 		}
+		else
+	{
+			USART_ERRORS += 1 ;
+			if ( status & USART_FLAG_ORE )
+			{
+				USART_ORE += 1 ;
+			}
+			if ( status & USART_FLAG_NE )
+			{
+				USART_NE += 1 ;
+			}
+			if ( status & USART_FLAG_FE )
+			{
+				USART_FE += 1 ;
+			}
+			if ( status & USART_FLAG_PE )
+			{
+				USART_PE += 1 ;
+			}
+		}
     status = USART2->SR ;
   }
 }
@@ -1437,17 +1524,78 @@ extern "C" void USART2_IRQHandler()
 uint16_t rxTelemetry()
 {
 	return get_fifo32( &Telemetry_fifo ) ;
-  
-//	Uart *pUart=CONSOLE_USART ;
-
-//  if (pUart->UART_SR & UART_SR_RXRDY)
-//	{
-//		return pUart->UART_RHR ;
-//	}
-//	return 0xFFFF ;
 }
 
+void txmit( uint8_t c )
+{
+	/* Wait for the transmitter to be ready */
+  while ( (USART3->SR & USART_SR_TXE) == 0 ) ;
+
+  /* Send character */
+	USART3->DR = c ;
+}
+
+uint16_t rxuart()
+{
+  if (USART3->SR & USART_SR_RXNE)
+	{
+		return USART3->DR ;
+	}
+	return 0xFFFF ;
+}
+
+void uputs( register char *string )
+{
+	while ( *string )
+	{
+		txmit( *string++ ) ;		
+	}	
+}
+
+
+// Send a <cr><lf> combination to the serial port
+void crlf()
+{
+	txmit( 13 ) ;
+	txmit( 10 ) ;
+}
+
+// Send the 32 bit value to the RS232 port as 8 hex digits
+void p8hex( uint32_t value )
+{
+	p4hex( value >> 16 ) ;
+	p4hex( value ) ;
+}
+
+// Send the 16 bit value to the RS232 port as 4 hex digits
+void p4hex( uint16_t value )
+{
+	p2hex( value >> 8 ) ;
+	p2hex( value ) ;
+}
+
+// Send the 8 bit value to the RS232 port as 2 hex digits
+void p2hex( unsigned char c )
+{
+//	asm("swap %c") ;
+	hex_digit_send( c >> 4 ) ;
+//	asm("swap %c") ;
+	hex_digit_send( c ) ;
+}
+
+// Send a single 4 bit value to the RS232 port as a hex digit
+void hex_digit_send( unsigned char c )
+{
+	c &= 0x0F ;
+	if ( c > 9 )
+	{
+		c += 7 ;
+	}
+	c += '0' ;
+	txmit( c ) ;
+}
 
 
 #endif
 
+#endif  // ndef BOOT

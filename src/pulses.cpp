@@ -70,6 +70,12 @@ uint8_t Serial_byte_count ;
 uint8_t Current_protocol ;
 uint8_t pxxFlag = 0 ;
 
+volatile uint8_t Dsm_9xr = 0 ;
+uint8_t DsmInitCounter = 0 ;
+//uint8_t Dsm_9xr_channels = 12 ;
+//uint8_t Dsm_9xr_10bit = 0 ;				// 0 for 11 bit, 1 for 10 bit
+//uint8_t Dsm_mode_response = 0 ;
+
 uint16_t Pulses[18] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0,0,0,0,0,0, 0 } ;
 uint16_t Pulses2[18] = {	2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 9000, 0, 0, 0,0,0,0,0,0, 0 } ;
 volatile uint32_t Pulses_index = 0 ;		// Modified in interrupt routine
@@ -82,6 +88,7 @@ volatile uint32_t Pulses2_index = 0 ;		// Modified in interrupt routine
 #define DsmxBit  0x08
 #define BadData 0x47
 
+static uint8_t pass ;		// For PXX and DSM-9XR
 
 void init_main_ppm( uint32_t period, uint32_t out_enable )
 {
@@ -195,7 +202,7 @@ extern "C" void PWM_IRQHandler (void)
 				}
 				else
 				{
-					period = 5000 ;
+					period = 5000 ;	// 2.5 mS
 				}
 				pwmptr->PWM_CH_NUM[3].PWM_CPDRUPD = period ;	// Period in half uS
 				if ( period != 5000 )	// 2.5 mS
@@ -213,11 +220,18 @@ extern "C" void PWM_IRQHandler (void)
 			break ;
 
       case PROTO_DSM2:
-				// Alternate periods of 19.5mS and 2.5 mS
+				// Alternate periods of 19.5mS/8.5mS and 2.5 mS
 				period = pwmptr->PWM_CH_NUM[3].PWM_CPDR ;
 				if ( period == 5000 )	// 2.5 mS
 				{
-					period = 19500*2 ;
+					if ( Dsm_9xr )
+					{
+						period = 8500*2 ;		// Total 11 mS
+					}
+					else
+					{
+						period = 19500*2 ;
+					}	 
 				}
 				else
 				{
@@ -278,7 +292,27 @@ void sendByteDsm2(uint8_t b) //max 10changes 0 10 10 10 10 1
   }
 	
 	put_serial_bit( 1 ) ;		// Stop bit
-	put_serial_bit( 1 ) ;		// Stop bit
+	if ( Dsm_9xr == 0 )
+	{
+		put_serial_bit( 1 ) ;		// Stop bit
+	}
+}
+
+
+void dsmBindResponse( uint8_t mode, int8_t channels )
+{
+	// Process mode here
+	uint8_t dsm_mode_response ;
+//	Dsm_9xr_channels = channels ;
+	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
+	channels -= 8 ;
+	channels /= 2 ;
+	if ( ( g_model.ppmNCH != channels ) || ( g_model.dsmMode != ( dsm_mode_response | 0x80 ) ) )
+	{
+		g_model.ppmNCH = channels ;
+		g_model.dsmMode = dsm_mode_response | 0x80 ;
+	  STORE_MODELVARS ;
+	}
 }
 
 
@@ -289,47 +323,157 @@ void sendByteDsm2(uint8_t b) //max 10changes 0 10 10 10 10 1
 //static uint8_t *Dsm2_pulsePtr = pulses2MHz.pbyte ;
 void setupPulsesDsm2(uint8_t chns)
 {
-  static uint8_t dsmDat[2+6*2]={0xFF,0x00,  0x00,0xAA,  0x05,0xFF,  0x09,0xFF,  0x0D,0xFF,  0x13,0x54,  0x14,0xAA};
-  uint8_t counter ;
+  static uint8_t dsmDat[2+6*2+4]={0xFF,0x00,  0x00,0xAA,  0x05,0xFF,  0x09,0xFF,  0x0D,0xFF,  0x13,0x54,  0x14,0xAA } ;
+  uint16_t required_baudrate ;
+	uint8_t counter ;
   //	CSwData &cs = g_model.customSw[NUM_SKYCSW-1];
+
+	required_baudrate = SCC_BAUD_125000 ;
+	if ( g_model.sub_protocol == DSM_9XR )
+	{
+		required_baudrate = SCC_BAUD_115200 ;
+		Dsm_9xr = 1 ;
+		// Consider inverting COM1 here
+	}
+	else
+	{
+		Dsm_9xr = 0 ;
+	}
+	if ( required_baudrate != Scc_baudrate )
+	{
+		init_ssc( required_baudrate ) ;
+	}
 
 	Serial_byte = 0 ;
 	Serial_bit_count = 0 ;
 	Serial_byte_count = 0 ;
   Pulses2MHzptr = Bit_pulses ;
     
-  // If more channels needed make sure the pulses union/array is large enough
-  if (dsmDat[0]&BadData)  //first time through, setup header
-  {
-    switch(g_model.ppmNCH)
-    {
-      case LPXDSM2:
-        dsmDat[0]= 0x80;
-      break;
-      case DSM2only:
-        dsmDat[0]=0x90;
-      break;
-      default:
-        dsmDat[0]=0x98;  //dsmx, bind mode
-      break;
-    }
-  }
-  if((dsmDat[0]&BindBit)&&(!keyState(SW_Trainer)))  dsmDat[0]&=~BindBit;		//clear bind bit if trainer not pulled
-  if ((!(dsmDat[0]&BindBit))&&getSwitch(MAX_SKYDRSWITCH-1,0,0)) dsmDat[0]|=RangeCheckBit;   //range check function
-  else dsmDat[0]&=~RangeCheckBit;
-  dsmDat[1]=g_eeGeneral.currModel+1;  //DSM2 Header second byte for model match
-  for(uint8_t i=0; i<chns; i++)
-  {
-		uint16_t pulse = limit(0, ((g_chans512[g_model.startChannel+i]*13)>>5)+512,1023);
-    dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
-    dsmDat[3+2*i] = pulse & 0xff;
-  }
+	if ( Dsm_9xr )
+	{
+		uint8_t channels = 12 ;
+		uint8_t flags = g_model.dsmMode ;
+		if ( flags == 0 )
+		{
+			flags = ORTX_AUTO_MODE ;
+		}
+		else
+		{
+			flags &= 0x7F ;
+			channels = g_model.ppmNCH*2 + 8 ;
+		}
+			 
+		if ( (dsmDat[0]&BindBit) && (!keyState(SW_Trainer) ) )
+		{
+			dsmDat[0] &= ~BindBit	;
+		}
+  	 
+		sendByteDsm2( 0xAA );
+		if ( pass == 0 )
+		{
+  		sendByteDsm2( pass ) ;		// Actually is a 0
+			// Do init packet
+			if ( (pxxFlag & PXX_BIND) || (dsmDat[0]&BindBit) )
+			{
+				flags |= ORTX_BIND_FLAG ;
+			}
 
-  for ( counter = 0 ; counter < 14 ; counter += 1 )
-  {
-    sendByteDsm2(dsmDat[counter]);
-  }
-  for ( counter = 0 ; counter < 16 ; counter += 1 )
+			// Need to choose dsmx/dsm2 as well
+  		sendByteDsm2( flags ) ;
+  		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 0: 7 ) ;		// 
+  		sendByteDsm2( channels ) ;			// Max channels
+  		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
+			pass = 1 ;
+		}
+		else
+		{
+			uint8_t startChan = g_model.startChannel ;
+			if ( pass == 2 )
+			{
+				startChan += 7 ;
+			}
+  		sendByteDsm2( pass );
+
+			for(uint8_t i=0 ; i<7 ; i += 1 )
+			{
+				uint16_t pulse ;
+				int16_t value = g_chans512[startChan] ;
+				if ( ( flags & ORTX_USE_11bit ) == 0 )
+				{
+					pulse = limit(0, ((value*13)>>5)+512,1023) | (startChan << 10) ;
+				}
+				else
+				{
+					pulse = limit(0, ((value*349)>>9)+1024,2047) | (startChan << 11) ;
+				}
+				startChan += 1 ;
+				if ( startChan <= channels )
+				{
+  		  	sendByteDsm2( pulse >> 8 ) ;
+    			sendByteDsm2( pulse & 0xff ) ;
+				}
+				else
+				{
+    			sendByteDsm2( 0xff ) ;
+    			sendByteDsm2( 0xff ) ;
+				}
+			}
+			if ( ++pass > 2 )
+			{
+				pass = 1 ;				
+			}
+			if ( channels < 8 )
+			{
+				pass = 1 ;				
+			}
+			DsmInitCounter += 1 ;
+			if( DsmInitCounter > 100)
+			{
+				DsmInitCounter = 0 ;
+				pass = 0 ;
+			}
+			if (dsmDat[0]&BindBit)
+			{
+				pass = 0 ;		// Stay here
+			}
+		}
+	}
+	else
+	{
+  	// If more channels needed make sure the pulses union/array is large enough
+  	if (dsmDat[0]&BadData)  //first time through, setup header
+  	{
+  	  switch(g_model.sub_protocol)
+  	  {
+  	    case LPXDSM2:
+  	      dsmDat[0]= 0x80;
+  	    break;
+  	    case DSM2only:
+  	      dsmDat[0]=0x90;
+  	    break;
+  	    default:
+  	      dsmDat[0]=0x98;  //dsmx, bind mode
+  	    break;
+  	  }
+  	}
+
+  	if((dsmDat[0]&BindBit)&&(!keyState(SW_Trainer)))  dsmDat[0]&=~BindBit;		//clear bind bit if trainer not pulled
+  	if ((!(dsmDat[0]&BindBit))&& (pxxFlag & PXX_RANGE_CHECK)) dsmDat[0]|=RangeCheckBit;   //range check function
+  	else dsmDat[0]&=~RangeCheckBit;
+  	dsmDat[1]=g_model.pxxRxNum ;  //DSM2 Header second byte for model match
+  	for(uint8_t i=0; i<chns; i++)
+  	{
+			uint16_t pulse = limit(0, ((g_chans512[g_model.startChannel+i]*13)>>5)+512,1023);
+ 		  dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
+  	 	dsmDat[3+2*i] = pulse & 0xff;
+  	}
+
+  	for ( counter = 0 ; counter < 14 ; counter += 1 )
+  	{
+  	  sendByteDsm2(dsmDat[counter]);
+  	}
+	}
+ 	for ( counter = 0 ; counter < 16 ; counter += 1 )
 	{
 		put_serial_bit( 1 ) ;		// 16 extra stop bits
 	}
@@ -338,7 +482,8 @@ void setupPulsesDsm2(uint8_t chns)
 void startPulses()
 {
 	Current_protocol = g_model.protocol + 1 ;		// Not the same!
-	setupPulses() ;
+	setupPulses() ;	// For DSM-9XR this won't be sent
+	pass = 0 ;			// Force a type 0 packet
 }
 
 void setupPulses()
@@ -368,11 +513,16 @@ void setupPulses()
       break;
       case PROTO_PXX:
 				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
-				init_ssc() ;
+				init_ssc(SCC_BAUD_125000) ;
       break;
       case PROTO_DSM2:
 				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
-				init_ssc() ;
+				init_ssc(SCC_BAUD_125000) ;
+				DsmInitCounter = 0 ;
+//				Dsm_9xr_channels = 12 ;
+//				Dsm_9xr_10bit = 0 ;				// 0 for 11 bit, 1 for 10 bit
+//				Dsm_mode_response = 0 ;
+				pass = 0 ;
       break;
     }
   }
@@ -389,7 +539,7 @@ void setupPulses()
     break;
 	  case PROTO_DSM2:
 //      sei() ;							// Interrupts allowed here
-      setupPulsesDsm2(6); 
+      setupPulsesDsm2( ( g_model.sub_protocol == DSM_9XR ) ? 12 : 6 ) ; 
     break;
   }
 }
@@ -642,7 +792,6 @@ uint16_t scaleForPXX( uint8_t i )
 #endif
 }
 
-static uint8_t pass ;
 
 //void setUpPulsesPCM()
 void setupPulsesPXX()
@@ -663,7 +812,7 @@ void setupPulsesPXX()
     putPcmPart( 0 ) ;
     putPcmPart( 0 ) ;
     putPcmHead(  ) ;  // sync byte
-    putPcmByte( g_model.ppmNCH ) ;     // putPcmByte( g_model.rxnum ) ;  //
+    putPcmByte( g_model.pxxRxNum ) ;
     
 #ifdef REVX
 		putPcmByte( pxxFlag ) ;     // First byte of flags

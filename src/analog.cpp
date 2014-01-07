@@ -53,7 +53,7 @@
 // Sample time should exceed 1uS
 #define SAMPTIME	2		// sample time = 15 cycles
 
-volatile uint16_t Analog[NUMBER_ANALOG] ;
+volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 
 void init_adc()
 {
@@ -80,7 +80,7 @@ void init_adc()
 	
 	DMA2_Stream0->CR = DMA_SxCR_PL | DMA_SxCR_MSIZE_0 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC ;
 	DMA2_Stream0->PAR = (uint32_t) &ADC1->DR ;
-	DMA2_Stream0->M0AR = (uint32_t) Analog ;
+	DMA2_Stream0->M0AR = (uint32_t) Analog_values ;
 	DMA2_Stream0->FCR = DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
 }
 
@@ -91,7 +91,7 @@ uint32_t read_adc()
 	DMA2_Stream0->CR &= ~DMA_SxCR_EN ;		// Disable DMA
 	ADC1->SR &= ~(uint32_t) ( ADC_SR_EOC | ADC_SR_STRT | ADC_SR_OVR ) ;
 	DMA2->LIFCR = DMA_LIFCR_CTCIF0 | DMA_LIFCR_CHTIF0 |DMA_LIFCR_CTEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CFEIF0 ; // Write ones to clear bits
-	DMA2_Stream0->M0AR = (uint32_t) Analog ;
+	DMA2_Stream0->M0AR = (uint32_t) Analog_values ;
 	DMA2_Stream0->NDTR = NUMBER_ANALOG ;
 	DMA2_Stream0->CR |= DMA_SxCR_EN ;		// Enable DMA
 	ADC1->CR2 |= (uint32_t)ADC_CR2_SWSTART ;

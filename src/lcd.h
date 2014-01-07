@@ -61,6 +61,23 @@ extern uint8_t LcdInputs ;
 extern uint8_t Lcd_lastPos;
 extern uint8_t DisplayBuf[] ;
 
+extern const uint8_t font_se_extra[] ;
+extern const uint8_t font_fr_extra[] ;
+extern const uint8_t font_de_extra[] ;
+
+extern const uint8_t font_se_big_extra[] ;
+extern const uint8_t font_fr_big_extra[] ;
+extern const uint8_t font_de_big_extra[] ;
+
+extern const uint8_t *ExtraFont ;
+extern const uint8_t *ExtraBigFont ;
+
+#define PLOT_XOR		0
+#define PLOT_BLACK	1
+#define PLOT_WHITE	2
+
+extern uint8_t plotType ;
+
 extern void lcd_putc(uint8_t x,uint8_t y,const char c ) ;
 extern uint8_t lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
 extern void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_t att) ;
@@ -93,6 +110,9 @@ extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
 extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 
+#ifdef PCBX9D
+extern void backlight_set( uint16_t brightness ) ;
+#endif
 
 #define BLINK_ON_PHASE (g_blinkTmr10ms & (1<<6))
 #define BLINK_SYNC      g_blinkTmr10ms = (3<<5)

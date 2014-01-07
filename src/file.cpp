@@ -35,6 +35,7 @@
 #ifdef REVX
 #include "sound.h"
 #endif
+#include "Stringidx.h"
 
 extern PROGMEM s9xsplash[] ;
 
@@ -82,9 +83,9 @@ extern PROGMEM s9xsplash[] ;
 
 
 
-
 // These may not be needed, or might just be smaller
 uint8_t Spi_tx_buf[24] ;
+
 uint8_t Spi_rx_buf[24] ;
 
 
@@ -322,8 +323,6 @@ void ee32SwapModels(uint8_t id1, uint8_t id2)
   Eeprom32_process_state = E32_BLANKCHECK ;
   ee32WaitFinished();
 }
-
-
 
 // Read eeprom data starting at random address
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate )
@@ -667,7 +666,7 @@ void ee32LoadModel(uint8_t id)
 				}
 			}
 		}
-		alert(PSTR("CHECK MIX SOURCES"));
+		alert(PSTR(STR_CHK_MIX_SRC));
 		g_model.modelVersion = 2 ;
 		STORE_MODELVARS ;
 	}
@@ -726,6 +725,7 @@ void init_eeprom()
 	ee32_read_model_names() ;
 	Eeprom32_process_state = E32_IDLE ;
 }
+
 
 // For virtual USB diskio
 uint32_t ee32_read_512( uint32_t sector, uint8_t *buffer )

@@ -99,9 +99,16 @@
 
 // Cppm
 #define RCC_AHB1Periph_GPIOCPPM         RCC_AHB1Periph_GPIOA
+#define RCC_AHB1Periph_GPIO_INTPPM      RCC_AHB1Periph_GPIOA
+#define PORT_INTPPM                     PIN_PORTA
+#define GPIO_INTPPM                    	GPIOA
+#define PIN_INTPPM_OUT                  GPIO_Pin_10  //PA.10
 #define PIN_CPPM_OUT                    GPIO_Pin_8  //PA.08
 #define GPIOCPPM                        GPIOA
 #define GPIO_PinSource_CPPM             GPIO_PinSource8
+#define PIN_EXTPPM_OUT                  GPIO_Pin_7  //PA.07
+#define PORT_EXTPPM                     PIN_PORTA
+#define GPIO_PinSource_EXTPPM           GPIO_PinSource7
 
 // Heart Beat
 #define PIN_HEART_BEAT                  GPIO_Pin_7  //PC.07
@@ -129,7 +136,7 @@
 #define PIN_LCD_CLK                     GPIO_Pin_11 //PD.11
 #define PIN_LCD_NCS                     GPIO_Pin_14 //PD.14
 #define PIN_LCD_A0                      GPIO_Pin_13 //PD.13
-#define PIN_LCD_RST                     //GPIO_Pin_12  //pd12 test //RESET occurs when powered up,but should delay before initialize
+#define PIN_LCD_RST                     GPIO_Pin_12  //pd12 test //RESET occurs when powered up,but should delay before initialize
 
 // Audio----I2S3
 //#define CODEC_I2S_ADDRESS              0x4000380C

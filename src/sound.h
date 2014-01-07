@@ -143,4 +143,7 @@ struct t_VoiceBuffer
 extern struct t_sound_globals Sound_g ;
 extern struct t_VoiceBuffer VoiceBuffer[] ;
 
+extern uint8_t AudioVoiceUnderrun ;
+
+
 #endif

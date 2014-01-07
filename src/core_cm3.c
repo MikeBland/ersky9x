@@ -68,8 +68,9 @@ uint32_t __REV(uint32_t value) ;
 
 void revert_osc( void ) ;
 void sam_boot( void ) ;
-#ifdef REVX
+#ifdef REVB
 void sam_bootx( void ) ;
+void run_application( void ) ;
 #endif
 
 
@@ -462,6 +463,7 @@ uint32_t __STREXW(uint32_t value, uint32_t *addr)
 #elif (defined (__GNUC__)) /*------------------ GNU Compiler ---------------------*/
 /* GNU gcc specific functions */
 
+#ifndef BOOT
 /**
  * @brief  Return the Process Stack Pointer
  *
@@ -637,6 +639,7 @@ void __set_CONTROL(uint32_t control)
   __ASM volatile ("MSR control, %0" : : "r" (control) );
 }
 
+#endif
 
 /**
  * @brief  Reverse byte order in integer value
@@ -654,6 +657,7 @@ uint32_t __REV(uint32_t value)
   return(result);
 }
 
+#ifndef BOOT
 /**
  * @brief  Reverse byte order in unsigned short value
  *
@@ -800,6 +804,29 @@ uint32_t __STREXW(uint32_t value, uint32_t *addr)
    __ASM volatile ("strex %0, %2, [%1]" : "=r" (result) : "r" (addr), "r" (value) );
    return(result);
 }
+#endif
+
+#ifdef BOOT
+void run_application()
+{
+  __ASM(" mov.w	r1, #4227072");		// 0x408000
+  __ASM(" movw	r0, #60680");			// 0xED08
+  __ASM(" movt	r0, #57344");			// 0xE000
+  __ASM(" str	r1, [r0, #0]");			// Set the VTOR
+	 
+//  __ASM("mov.w	r3, #0");				// 0x0000
+//  __ASM("movt		r3, #128");			// 0x0080
+  __ASM("ldr	r0, [r1, #0]");			// Stack pointer value
+  __ASM("msr msp, r0");						// Set it
+  __ASM("ldr	r0, [r1, #4]");			// Reset address
+  __ASM("mov.w	r1, #1");
+  __ASM("orr		r0, r1");					// Set lsbit
+  __ASM("bx r0");									// Execute application
+}
+
+#endif
+
+#ifndef BOOT
 
 void sam_boot()
 {
@@ -819,8 +846,10 @@ void sam_boot()
   __ASM("orr		r0, r3");
   __ASM("bx r0");
 }
+#endif
 
-#ifdef REVX
+#ifdef BOOT
+#ifdef REVB
 void sam_bootx()
 {
   __ASM(" mov.w	r1, #8388608");
@@ -839,6 +868,7 @@ void sam_bootx()
 }
 #endif
 
+#endif
 
 
 #elif (defined (__TASKING__)) /*------------------ TASKING Compiler ---------------------*/

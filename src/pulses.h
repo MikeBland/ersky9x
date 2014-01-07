@@ -45,6 +45,15 @@
 *
 ****************************************************************************/
 
+// For use with Orange DSM module - 9XR PRO
+#define ORTX_USE_DSMX			0x01 //- dsmX flag, else dsm2 use
+#define ORTX_USE_11mS			0x02 //- 11 mSec flag, else 22 mSec
+#define ORTX_USE_11bit		0x04 //- 11 bit (2048) flag, else 10 bit (1024) resolution
+#define ORTX_USE_TM				0x08 //- have a telemetry answer
+#define ORTX_USE_FUTABA		0x10 //- futaba channel "AETR"
+#define ORTX_USE_DEVO			0x20 //- walkera DEVO
+#define ORTX_AUTO_MODE		0x40 //- auto DSM2/DSMX
+#define ORTX_BIND_FLAG		0x80
 
 
 
@@ -58,5 +67,6 @@ extern void setupPulsesPPM( void ) ;
 extern void setupPulsesPPM2( void ) ;
 extern void setupPulsesDsm2(uint8_t chns) ;
 extern void setupPulsesPXX( void ) ;
+extern void dsmBindResponse( uint8_t mode, int8_t channels ) ;
 
 

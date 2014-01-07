@@ -264,6 +264,8 @@ extern void voice_task(void* pdata) ;
 #define	V_NOTELEM				58
 #define	V_WATTS					59
 
+#define V_RSSI_CRITICAL	71
+#define V_RSSI_WARN			70
 
 #define V_HUNDRED			 100
 #define V_THOUSAND		 110

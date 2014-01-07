@@ -121,7 +121,7 @@ mstate2.check_submenu_simple(event,lines_count-1)
 	*/
 
 
-extern int16_t calibratedStick[7] ;
+extern int16_t calibratedStick[] ;
 //extern int16_t g_chans512[NUM_SKYCHNOUT];
 
 extern void doMainScreenGrphics( void ) ;

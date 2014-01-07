@@ -25,9 +25,14 @@ extern struct t_serial_tx Bt_tx ;
 extern uint32_t txPdcBt( struct t_serial_tx *data ) ;
 extern void end_bt_tx_interrupt() ;
 
-extern uint16_t Analog_values[NUMBER_ANALOG] ;
+extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 extern uint16_t Temperature ;		// Raw temp reading
 extern uint16_t Max_temperature ;
+
+#define SCC_BAUD_125000		0
+#define SCC_BAUD_115200		1
+
+extern uint16_t Scc_baudrate ;				// 0 for 125000, 1 for 115200
 
 extern volatile uint32_t Spi_complete ;
 
@@ -36,9 +41,14 @@ extern void x9dConsoleInit( void ) ;
 extern uint16_t rxTelemetry( void ) ;
 #endif
 
+extern uint16_t DsmRxTimeout ;
+extern uint16_t WatchdogTimeout ;
+
 extern void putEvent( register uint8_t evt) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
+extern void UART2_timeout_enable( void ) ;
+extern void UART2_timeout_disable( void ) ;
 extern void UART_Stop( void ) ;
 extern void Bt_UART_Stop( void ) ;
 extern void txmit( uint8_t c ) ;
@@ -79,15 +89,16 @@ extern void hex_digit_send( unsigned char c ) ;
 extern void read_9_adc(void ) ;
 extern void init_adc( void ) ;
 void set_stick_gain( uint32_t gains ) ;
-extern void init_ssc( void ) ;
+extern void init_ssc( uint16_t baudrate ) ;
 extern void eeprom_write_byte_cmp (uint8_t dat, uint16_t pointer_eeprom) ;
 extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, size_t size) ;
 extern void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size ) ;
 void start_ppm_capture( void ) ;
 void end_ppm_capture( void ) ;
 
-extern void init_ssc( void ) ;
 extern void disable_ssc( void ) ;
+
+extern void x9dSPortInit() ;
 
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 

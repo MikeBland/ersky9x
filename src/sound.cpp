@@ -350,6 +350,8 @@ void init_dac()
 //}
 //#endif
 
+uint8_t AudioVoiceUnderrun ;
+
 #ifndef SIMU
 extern "C" void DAC_IRQHandler()
 {
@@ -371,6 +373,7 @@ extern "C" void DAC_IRQHandler()
 		{
 			DACC->DACC_IDR = DACC_IDR_ENDTX ;
 			DACC->DACC_IER = DACC_IER_TXBUFE ;
+			AudioVoiceUnderrun = 1 ;		// For debug
 		}
 		else
 		{
@@ -534,6 +537,7 @@ void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count )
 
 void startVoice( uint32_t count )		// count of filled in buffers
 {
+	AudioVoiceUnderrun = 0 ;
 	VoiceBuffer[0].flags &= ~VF_SENT ;
 	PtrVoiceBuffer[0] = &VoiceBuffer[0] ;
 	if ( count > 1 )
@@ -881,11 +885,11 @@ void setVolume( register uint8_t volume )
 {
 //	PMC->PMC_PCER0 |= 0x00080000L ;		// Enable peripheral clock to TWI0
 	
-	CurrentVolume = volume ;
 	if ( volume >= NUM_VOL_LEVELS )
 	{
 		volume = NUM_VOL_LEVELS - 1 ;		
 	}
+	CurrentVolume = volume ;
 	volume = Volume_scale[volume] ;
 	Volume_required = volume ;
 	__disable_irq() ;

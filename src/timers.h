@@ -36,11 +36,9 @@ extern void init_main_ppm( void ) ;
 extern void disable_main_ppm( void ) ;
 extern void init_trainer_ppm( void ) ;
 extern void init_trainer_capture( void ) ;
-extern void init_pxx( void ) ;
-extern void setupPulsesPXX( void ) ;
-extern void setupPulses( void ) ;
+extern void setupPulsesPXX(uint8_t module) ;
+extern void setupPulses( unsigned int port ) ;
 extern void setupPulsesPpm( void ) ;
-extern void disable_pxx( void ) ;
 
 #endif
 

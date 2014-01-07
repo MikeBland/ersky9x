@@ -388,7 +388,11 @@ unsigned char EEPROM_Initialize(Media *media, unsigned char mciID)
     media->blockSize = 512 ;
     media->baseAddress = 0;
 
-    media->size = 1027 ;
+#ifdef REVX
+    media->size = 2051 ;
+#else
+    media->size = 1539 ;
+#endif
 
     media->mappedRD  = 0;
     media->mappedWR  = 0;
