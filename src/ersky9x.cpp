@@ -215,7 +215,7 @@ void checkSwitches( void ) ;
 void check_backlight( void ) ;
 #ifdef PCBSKY
 void checkQuickSelect( void ) ;
-void actionUsb( void ) ;
+//void actionUsb( void ) ;
 #endif
 
 static uint8_t checkTrim(uint8_t event) ;
@@ -232,10 +232,10 @@ void soft_power_off( void ) ;
 #ifdef PCBSKY
 #if defined(SIMU)
   #define init_rotary_encoder()
-  #define stop_rotary_encoder()
+//  #define stop_rotary_encoder()
 #else
   static void init_rotary_encoder( void ) ;
-  static void stop_rotary_encoder( void ) ;
+//  static void stop_rotary_encoder( void ) ;
 #endif
 #endif
 
@@ -447,11 +447,11 @@ void clearKeyEvents()
 		{
 			  // loop until all keys are up
 #ifdef PCBSKY
-			if ( PIOC->PIO_PDSR & 0x02000000 )
-			{
+//			if ( PIOC->PIO_PDSR & 0x02000000 )
+//			{
 				// Detected USB
-				break ;
-			}
+//				break ;
+//			}
 #endif
 			if ( heartbeat_running )
 			{
@@ -619,18 +619,18 @@ int main( void )
 	init_spi() ;
 	init_eeprom() ;	
 
-	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) && !unexpectedShutdown )	// Not watchdog
-	{
-		pioptr = PIOC ;
-		if ( pioptr->PIO_PDSR & 0x02000000 )
-		{
-			g_eeGeneral.optrexDisplay = 1 ;
-			lcd_clear() ;
-			refreshDisplay() ;
-			g_eeGeneral.optrexDisplay = 0 ;
-			actionUsb() ;
-		}
-	}
+//	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) && !unexpectedShutdown )	// Not watchdog
+//	{
+//		pioptr = PIOC ;
+//		if ( pioptr->PIO_PDSR & 0x02000000 )
+//		{
+//			g_eeGeneral.optrexDisplay = 1 ;
+//			lcd_clear() ;
+//			refreshDisplay() ;
+//			g_eeGeneral.optrexDisplay = 0 ;
+//			actionUsb() ;
+//		}
+//	}
 #endif
 
 	eeReadAll() ;
@@ -1124,13 +1124,13 @@ void telem_byte_to_bt( uint8_t data )
 // This is the main task for the RTOS
 void main_loop(void* pdata)
 {
-	register uint32_t goto_usb ;
-	register Pio *pioptr ;
+//	register uint32_t goto_usb ;
+//	register Pio *pioptr ;
 	
-	goto_usb = 0 ;
+//	goto_usb = 0 ;
   while (1)
 	{
-		pioptr = PIOC ;
+//		pioptr = PIOC ;
 
 //#ifdef PCBSKY
 //		if ( UsbTimer < 1000 )		// 2 Seconds
@@ -1147,11 +1147,11 @@ void main_loop(void* pdata)
 //#endif
 #ifndef SIMU
 
-			if ( pioptr->PIO_PDSR & 0x02000000 )
-			{
+//			if ( pioptr->PIO_PDSR & 0x02000000 )
+//			{
 				// Detected USB, extend watchdog
-				WatchdogTimeout = 50 ;		// 0.5 seconds
-			}
+//				WatchdogTimeout = 50 ;		// 0.5 seconds
+//			}
 //     	usbMassStorage() ;
 #endif
 //#ifdef PCBSKY
@@ -1159,17 +1159,17 @@ void main_loop(void* pdata)
 //#endif
 
 #ifdef REVB	
-		if ( ( check_soft_power() == POWER_OFF ) || ( goto_usb ) )		// power now off
+		if ( ( check_soft_power() == POWER_OFF )/* || ( goto_usb ) */ )		// power now off
 		{
 			// Time to switch off
 			lcd_clear() ;
 			lcd_putsn_P( 4*FW, 3*FH, "SHUTTING DOWN", 13 ) ;
-#ifdef PCBSKY
-			if ( goto_usb )
-			{
-				lcd_putsn_P( 7*FW, 4*FH, "TO USB", 6 ) ;
-			}
-#endif
+//#ifdef PCBSKY
+//			if ( goto_usb )
+//			{
+//				lcd_putsn_P( 7*FW, 4*FH, "TO USB", 6 ) ;
+//			}
+//#endif
 			refreshDisplay() ;
 
 			// Wait for OK to turn off
@@ -1221,12 +1221,12 @@ void main_loop(void* pdata)
 //			}
 		}
 #endif
-#ifdef PCBSKY
-		if ( goto_usb )
-		{
-			break ;		
-		}
-#endif
+//#ifdef PCBSKY
+//		if ( goto_usb )
+//		{
+//			break ;		
+//		}
+//#endif
 		mainSequence( MENUS ) ;
 #ifndef SIMU
 		CoTickDelay(1) ;					// 2mS for now
@@ -1239,50 +1239,50 @@ void main_loop(void* pdata)
 #endif
 }
 
-#ifdef PCBSKY
-void actionUsb()
-{
-#if !defined(SIMU)
-	lcd_clear() ;
-	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
-	lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
-	lcd_putcAtt( 72, 24, 'D', DBLSIZE ) ;
-	refreshDisplay() ;
+//#ifdef PCBSKY
+//void actionUsb()
+//{
+//#if !defined(SIMU)
+//	lcd_clear() ;
+//	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
+//	lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
+//	lcd_putcAtt( 72, 24, 'D', DBLSIZE ) ;
+//	refreshDisplay() ;
 
-	// This might be replaced by a software reset
-	// Any interrupts that have been enabled must be disabled here
-	// BEFORE calling sam_boot()
-	SysTick->CTRL = 0 ;				// Turn off systick
+//	// This might be replaced by a software reset
+//	// Any interrupts that have been enabled must be disabled here
+//	// BEFORE calling sam_boot()
+//	SysTick->CTRL = 0 ;				// Turn off systick
 
-	stop_rotary_encoder() ;
-	endPdcUsartReceive() ;		// Terminate any serial reception
-	end_bt_tx_interrupt() ;
-	soft_power_off() ;
-	end_ppm_capture() ;
-	end_spi() ;
-	end_sound() ;
-	TC0->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;
-	stop_timer0() ;
-	TC0->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
-	stop5msTimer() ;
-	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
-	TC1->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
-	TC1->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
-	TC1->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
-	PWM->PWM_DIS = PWM_DIS_CHID0 | PWM_DIS_CHID1 | PWM_DIS_CHID2 | PWM_DIS_CHID3 ;	// Disable all
-//	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
-	disable_main_ppm() ;
-	disable_ppm2() ;
+//	stop_rotary_encoder() ;
+//	endPdcUsartReceive() ;		// Terminate any serial reception
+//	end_bt_tx_interrupt() ;
+//	soft_power_off() ;
+//	end_ppm_capture() ;
+//	end_spi() ;
+//	end_sound() ;
+//	TC0->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;
+//	stop_timer0() ;
+//	TC0->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
+//	stop5msTimer() ;
+//	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
+//	TC1->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;
+//	TC1->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;
+//	TC1->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
+//	PWM->PWM_DIS = PWM_DIS_CHID0 | PWM_DIS_CHID1 | PWM_DIS_CHID2 | PWM_DIS_CHID3 ;	// Disable all
+////	PWM->PWM_IDR1 = PWM_IDR1_CHID0 ;
+//	disable_main_ppm() ;
+//	disable_ppm2() ;
 
-//	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
-//	NVIC_DisableIRQ(PWM_IRQn) ;
-	disable_ssc() ;
-	UART_Stop() ;
-	Bt_UART_Stop() ;
-	sam_boot() ;
-#endif
-}
-#endif
+////	PWM->PWM_IDR1 = PWM_IDR1_CHID3 ;
+////	NVIC_DisableIRQ(PWM_IRQn) ;
+//	disable_ssc() ;
+//	UART_Stop() ;
+//	Bt_UART_Stop() ;
+//	sam_boot() ;
+//#endif
+//}
+//#endif
 
 static inline uint16_t getTmr2MHz()
 {
@@ -1913,12 +1913,12 @@ uint32_t check_power_or_usb()
 	{
 		return 1 ;
 	}
- #ifdef PCBSKY
-	if ( PIOC->PIO_PDSR & 0x02000000 )
-	{
-		return 1 ;			// Detected USB
-	}
- #endif
+// #ifdef PCBSKY
+//	if ( PIOC->PIO_PDSR & 0x02000000 )
+//	{
+//		return 1 ;			// Detected USB
+//	}
+// #endif
 #endif
 	return 0 ;
 }
@@ -2593,11 +2593,11 @@ static void init_rotary_encoder()
 	LastRotaryValue = Rotary_count ;
 }
 
-static void stop_rotary_encoder()
-{
-	NVIC_DisableIRQ(PIOC_IRQn) ;
-	PIOC->PIO_IDR = PIO_PC19 | PIO_PC21 ;
-}
+//static void stop_rotary_encoder()
+//{
+//	NVIC_DisableIRQ(PIOC_IRQn) ;
+//	PIOC->PIO_IDR = PIO_PC19 | PIO_PC21 ;
+//}
 
 extern "C" void PIOC_IRQHandler()
 {

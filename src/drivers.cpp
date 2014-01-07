@@ -896,12 +896,12 @@ void startPdcUsartReceive()
 	TelemetryActiveBuffer = 0 ;
 }
 
-void endPdcUsartReceive()
-{
-  register Usart *pUsart = SECOND_USART;
+//void endPdcUsartReceive()
+//{
+//  register Usart *pUsart = SECOND_USART;
 	
-	pUsart->US_PTCR = US_PTCR_RXTDIS ;
-}
+//	pUsart->US_PTCR = US_PTCR_RXTDIS ;
+//}
 
 void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 {
@@ -998,12 +998,12 @@ uint32_t txPdcBt( struct t_serial_tx *data )
 	return 0 ;				// Busy
 }
 
-void end_bt_tx_interrupt()
-{
-  Uart *pUart=BT_USART ;
-	pUart->UART_IDR = UART_IDR_TXBUFE ;
-	NVIC_DisableIRQ(UART1_IRQn) ;
-}
+//void end_bt_tx_interrupt()
+//{
+//  Uart *pUart=BT_USART ;
+//	pUart->UART_IDR = UART_IDR_TXBUFE ;
+//	NVIC_DisableIRQ(UART1_IRQn) ;
+//}
 
 extern "C" void UART1_IRQHandler()
 {
@@ -1347,11 +1347,11 @@ void start_ppm_capture()
 	start_timer3() ;
 }
 
-void end_ppm_capture()
-{
-	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;
-	NVIC_DisableIRQ(TC3_IRQn) ;
-}
+//void end_ppm_capture()
+//{
+//	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;
+//	NVIC_DisableIRQ(TC3_IRQn) ;
+//}
 
 
 // Timer3 used for PPM_IN pulse width capture. Counter running at 16MHz / 8 = 2MHz
