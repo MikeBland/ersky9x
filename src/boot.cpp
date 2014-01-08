@@ -288,6 +288,22 @@ uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
 	return i ;
 }
 
+void clearLockBits()
+{
+	uint32_t i ;
+	uint32_t flash_cmd = 0 ;
+
+	IAP_Function = /*((*)(unsigned long))*/ (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
+	for ( i = 0 ; i < 16 ; i += 1 )
+	{
+		flash_cmd = (0x5A << 24) | ((128*i) << 8) | 0x09 ; //AT91C_MC_FCMD_CLB ;
+		__disable_irq() ;
+		/* Call the IAP function with appropriate command */
+		(void) IAP_Function( 0, flash_cmd ) ;
+		__enable_irq() ;
+	} 
+}
+
 
 void interrupt10ms()
 {
@@ -514,6 +530,8 @@ int main()
 	uint32_t hpos = 0 ;
 	uint32_t firmwareAddress = 0x00400000 ;
 	uint32_t firmwareWritten = 0 ;
+	uint32_t clearCount = 0 ;
+	uint32_t cleared = 0 ;
 
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
@@ -562,6 +580,8 @@ int main()
 			if ( sd_card_ready() )
 			{
 				lcd_puts_Pleft( 0, "\014Ready" ) ;
+				lcd_putc( 120, 0, clearCount + '0' ) ;
+				lcd_putc( 120, 8, cleared + '0' ) ;
 
 				if ( PIOC->PIO_PDSR & 0x02000000 )
 				{
@@ -678,6 +698,7 @@ int main()
 									nameCount = fillNames( index ) ;
 								}
 							}
+							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_UP)) || ( event == EVT_KEY_FIRST(KEY_UP) ) )
 						{
@@ -693,6 +714,7 @@ int main()
 									nameCount = fillNames( index ) ;
 								}
 							}
+							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_RIGHT)) || ( event == EVT_KEY_FIRST(KEY_RIGHT) ) )
 						{
@@ -700,6 +722,7 @@ int main()
 							{
 								hpos += 1 ;								
 							}
+							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_LEFT)) || ( event == EVT_KEY_FIRST(KEY_LEFT) ) )
 						{
@@ -707,14 +730,25 @@ int main()
 							{
 								hpos -= 1 ;								
 							}
+							clearCount = 0 ;
 						}
 						if ( event == EVT_KEY_LONG(KEY_MENU) )
 						{
 							// Select file to flash
 							state = 4 ;
 							Valid = 0 ;
+							clearCount = 0 ;
 						}
-
+						if ( event == EVT_KEY_LONG(KEY_EXIT) )
+						{
+							clearCount += 1 ;
+							if ( clearCount > 2 )
+							{
+								clearCount = 0 ;
+								clearLockBits() ;
+								cleared = 1 ;
+							}
+						}
 					}
 					lcd_char_inverse( 0, 2*FH+FH*vpos, 21*FW, 0 ) ;
 				}
