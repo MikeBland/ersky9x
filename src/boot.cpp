@@ -85,6 +85,7 @@ uint32_t Spi_init_done = 0 ;
 
 uint32_t EepromBlocked = 1 ;
 uint32_t FlashBlocked = 1 ;
+uint32_t LockBits ;
 
 uint32_t  eeprom_write_one( uint8_t byte, uint8_t count ) ;
 uint32_t eeprom_read_status( void ) ;
@@ -242,6 +243,7 @@ uint32_t isFirmwareStart( uint32_t *block )
 
 uint32_t (*IAP_Function)(uint32_t, uint32_t) ;
 
+
 uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
 {
 	uint32_t FlashSectorNum ;
@@ -267,7 +269,8 @@ uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
 	{
 		return 1 ;
 	}
-	IAP_Function = /*((*)(unsigned long))*/ (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
+	// Always initialise this here, setting a default doesn't seem to work
+	IAP_Function = (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
 	FlashSectorNum = (uint32_t) address ;
 	FlashSectorNum >>= 8 ;		// page size is 256 bytes
 	FlashSectorNum &= 2047 ;	// max page number
@@ -288,12 +291,27 @@ uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
 	return i ;
 }
 
+
+uint32_t readLockBits()
+{
+	// Always initialise this here, setting a default doesn't seem to work
+	IAP_Function = (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
+	
+	uint32_t flash_cmd = (0x5A << 24) | 0x0A ; //AT91C_MC_FCMD_GLB ;
+	__disable_irq() ;
+	(void) IAP_Function( 0, flash_cmd ) ;
+	__enable_irq() ;
+	return EFC->EEFC_FRR ;
+}
+
+
 void clearLockBits()
 {
 	uint32_t i ;
 	uint32_t flash_cmd = 0 ;
 
-	IAP_Function = /*((*)(unsigned long))*/ (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
+	// Always initialise this here, setting a default doesn't seem to work
+	IAP_Function = (uint32_t (*)(uint32_t, uint32_t))  *(( uint32_t *)0x00800008) ;
 	for ( i = 0 ; i < 16 ; i += 1 )
 	{
 		flash_cmd = (0x5A << 24) | ((128*i) << 8) | 0x09 ; //AT91C_MC_FCMD_CLB ;
@@ -517,9 +535,6 @@ static uint32_t PowerUpDelay ;
 
 int main()
 {
-	
-	// Watchdog?
-	
 	uint32_t i ;
   uint8_t index = 0 ;
   uint8_t maxhsize = 21 ;
@@ -530,8 +545,6 @@ int main()
 	uint32_t hpos = 0 ;
 	uint32_t firmwareAddress = 0x00400000 ;
 	uint32_t firmwareWritten = 0 ;
-	uint32_t clearCount = 0 ;
-	uint32_t cleared = 0 ;
 
 	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
 
@@ -539,9 +552,6 @@ int main()
 	PIOC->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
 
 	start_timer0() ;
-//	lcd_clear() ;
-//	lcd_puts_Pleft( 8, "Boot Loader" ) ;
-//	refreshDisplay() ;
 	
 	__enable_irq() ;
 	init10msTimer() ;
@@ -550,6 +560,12 @@ int main()
 	uint32_t chip_id = CHIPID->CHIPID_CIDR ;
 
 	FlashSize = ( (chip_id >> 8 ) & 0x000F ) == 9 ? 256 : 512 ; 
+
+	LockBits = readLockBits() ;
+	if ( LockBits )
+	{
+		clearLockBits() ;
+	}
 
 	for(;;)
 	{
@@ -562,26 +578,12 @@ int main()
 			lcd_clear() ;
 			lcd_puts_Pleft( 0, "Boot Loader" ) ;
 			
-//  		x=0 ;
-//  		for(uint8_t i=0; i<6; i++)
-//  		{
-//  		  uint8_t y=(5-i)*FH+2*FH;
-//  		  bool t = keys[i].state() ? 1 : 0 ;
-
-//				lcd_putsn_P( 0, y, &" Menu Exit Down   UpRight Left"[i*5], 5 ) ;
-//  		  lcd_putcAtt(x+FW*5+2,  y,t+'0',t);
-//  		}
-//			lcd_outdez( 120, 0, Card_state ) ;
-//			lcd_outhex4( 36, 0, Cmd_A41_resp >> 16 ) ;
-//			lcd_outhex4( 56, 0, Cmd_A41_resp ) ;
-//			lcd_outhex4( 82, 0, HSMCI->HSMCI_RSPR[0] ) ;
-
-//			lcd_putc( 0, 0, '0' + CardIsConnected() ) ;
 			if ( sd_card_ready() )
 			{
 				lcd_puts_Pleft( 0, "\014Ready" ) ;
-				lcd_putc( 120, 0, clearCount + '0' ) ;
-				lcd_putc( 120, 8, cleared + '0' ) ;
+//				lcd_putc( 120, 0, clearCount + '0' ) ;
+//				lcd_putc( 120, 8, cleared + '0' ) ;
+//				lcd_outhex4( 0, 8, LockBits ) ;
 
 				if ( PIOC->PIO_PDSR & 0x02000000 )
 				{
@@ -641,7 +643,6 @@ int main()
 						nameCount = fillNames( 0 ) ;
 						hpos = 0 ;
 						vpos = 0 ;
-//						findex = 0 ;
 					}
 				}
 				if ( state == 3 )
@@ -651,10 +652,6 @@ int main()
 					{
 						limit = nameCount ;						
 					}
-		
-//		lcd_putc( 120, 0, '0' + nameCount ) ;
-//		lcd_putc( 113, 0, '0' + limit ) ;
-
 					maxhsize = 0 ;
 					for ( i = 0 ; i < limit ; i += 1 )
 					{
@@ -698,7 +695,6 @@ int main()
 									nameCount = fillNames( index ) ;
 								}
 							}
-							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_UP)) || ( event == EVT_KEY_FIRST(KEY_UP) ) )
 						{
@@ -714,7 +710,6 @@ int main()
 									nameCount = fillNames( index ) ;
 								}
 							}
-							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_RIGHT)) || ( event == EVT_KEY_FIRST(KEY_RIGHT) ) )
 						{
@@ -722,7 +717,6 @@ int main()
 							{
 								hpos += 1 ;								
 							}
-							clearCount = 0 ;
 						}
 						if ( ( event == EVT_KEY_REPT(KEY_LEFT)) || ( event == EVT_KEY_FIRST(KEY_LEFT) ) )
 						{
@@ -730,24 +724,12 @@ int main()
 							{
 								hpos -= 1 ;								
 							}
-							clearCount = 0 ;
 						}
 						if ( event == EVT_KEY_LONG(KEY_MENU) )
 						{
 							// Select file to flash
 							state = 4 ;
 							Valid = 0 ;
-							clearCount = 0 ;
-						}
-						if ( event == EVT_KEY_LONG(KEY_EXIT) )
-						{
-							clearCount += 1 ;
-							if ( clearCount > 2 )
-							{
-								clearCount = 0 ;
-								clearLockBits() ;
-								cleared = 1 ;
-							}
 						}
 					}
 					lcd_char_inverse( 0, 2*FH+FH*vpos, 21*FW, 0 ) ;
