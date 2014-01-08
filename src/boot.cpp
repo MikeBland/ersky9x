@@ -794,7 +794,12 @@ int main()
 				}
 				if ( state == 6 )
 				{
+					uint8_t event = getEvent() ;
 					lcd_puts_Pleft( 3*FH, "Flashing Complete" ) ;
+					if ( event == EVT_KEY_LONG(KEY_EXIT) )
+					{
+						state = 3 ;
+					}
 				}
 			}
 //			lcd_putc( 120, 0, '0' + state ) ;
