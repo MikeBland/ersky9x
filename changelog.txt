@@ -10,6 +10,27 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 09-Jan-2014  MPB (r197)
+Remove beeper options - not used
+Code for a DSM module on the 9XR-PRO, with telemetry, including new telemetry screen
+Display USB on 9XR-PRO when flashing
+Support for X9D
+Remove beeper/speaker options
+Sync. volume changes to voice output
+Various minor bug fixes.
+Change to the way curves and expo are drawn
+Change to the way curves are displayed and edited
+Re-arrange RF protocol items in menu
+Allow option to reverse any stick (in case replacement sticks are wrong)
+Add ability to use a switch to set the switch to be used when editing
+LCD plotting options
+Add 'sticky' throttle safety switch
+Add Hdg (heading) to GPS display
+Voice lockup fixes
+Language support
+Addition of "bootloader"
+
+******************************************
 CHANGELOG: 12-Nov-2013  MPB (r188)
 fix menu underflow bug!
 
