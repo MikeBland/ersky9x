@@ -55,12 +55,15 @@ EEGeneral g_eeGeneral ;
 
 uint32_t Block_buffer[1024] ;
 uint8_t Eblock_buffer[4096] ;
+uint8_t Eblock_current[4096] ;		// For erased checking
+int32_t EblockAddress ;
 UINT BlockCount ;
 
 uint32_t FirmwareSize ;
 
 uint32_t Master_frequency ;
 volatile uint8_t  Tenms ;
+uint8_t EE_timer ;
 
 //extern uint32_t Card_state ;
 extern uint32_t sd_card_ready( void ) ;
@@ -87,6 +90,9 @@ uint32_t EepromBlocked = 1 ;
 uint32_t FlashBlocked = 1 ;
 uint32_t LockBits ;
 
+//uint32_t EeWriteCount ;
+//uint32_t EeEraseCount ;
+
 uint32_t  eeprom_write_one( uint8_t byte, uint8_t count ) ;
 uint32_t eeprom_read_status( void ) ;
 void eeprom_write_enable( void ) ;
@@ -98,6 +104,7 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 void AT25D_Read( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset) ;
 void AT25D_Write( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset ) ;
 uint32_t AT25D_EraseBlock( uint32_t memoryOffset ) ;
+void writeBlock( void ) ;
 
 
 /*----------------------------------------------------------------------------
@@ -555,6 +562,7 @@ int main()
 	
 	__enable_irq() ;
 	init10msTimer() ;
+	EblockAddress = -1 ;
 	init_spi() ;
 
 	uint32_t chip_id = CHIPID->CHIPID_CIDR ;
@@ -574,6 +582,15 @@ int main()
 		if ( Tenms )
 		{
 	    wdt_reset() ;  // Retrigger hardware watchdog
+
+			if ( EE_timer )
+			{
+				if ( --EE_timer  == 0)
+				{
+					writeBlock() ;
+				}
+			}
+
 			Tenms = 0 ;
 			lcd_clear() ;
 			lcd_puts_Pleft( 0, "Boot Loader" ) ;
@@ -581,6 +598,10 @@ int main()
 			if ( sd_card_ready() )
 			{
 				lcd_puts_Pleft( 0, "\014Ready" ) ;
+
+//	lcd_outdez( 123, 0, EeWriteCount ) ;
+//	lcd_outdez( 123, 8, EeEraseCount ) ;
+
 //				lcd_putc( 120, 0, clearCount + '0' ) ;
 //				lcd_putc( 120, 8, cleared + '0' ) ;
 //				lcd_outhex4( 0, 8, LockBits ) ;
@@ -1163,17 +1184,54 @@ uint32_t eeprom_page_erased( register uint8_t *p)
 	return result ;
 }
 
+void writeBlock()
+{
+	uint32_t x ;
+	uint32_t address ;
+	uint32_t i ;
+	uint8_t *s ;
+	
+	x = eeprom_block_erased( Eblock_current ) ;		// EEPROM block blanked?
+	if ( x == 0 )
+	{
+		AT25D_EraseBlock( EblockAddress ) ;
+    memset( Eblock_current, 0xFF, 4096 ) ;		// Now erased
+	}
+			
+	s = Eblock_buffer ;
+	address = EblockAddress ;
+	for ( i = 0 ; i < 16 ; i += 1 )		// pages in block
+	{
+		x = eeprom_page_erased( s ) ;
+		if ( x == 0 )				// Not blank
+		{
+//EeWriteCount += 1 ;
+   		AT25D_Write( s, 256, address ) ;
+		}						
+		s += 256 ;
+		address += 256 ;
+	}
+	EblockAddress = -1 ;
+	EE_timer = 0 ;
+}
+
+
+void readBlock( uint32_t block_address )
+{
+  AT25D_Read( Eblock_buffer, 4096, block_address ) ;	// read block to write to
+  memcpy( Eblock_current, Eblock_buffer, 4096 ) ;			// Copy for erase checking
+
+	EblockAddress = block_address ;
+}
 			 
 uint32_t ee32_write( const uint8_t *buffer, uint32_t sector, uint32_t count )
 {
-	
 	// EEPROM write
 	uint32_t startMemoryOffset ;
 	uint32_t memoryOffset ;
 	uint32_t bytesToWrite ;
   uint8_t *pBuffer ;
-	uint32_t block_address ;
-	uint32_t x ;
+	int32_t block_address ;
 
 	if ( sector == 0 )
 	{
@@ -1203,21 +1261,41 @@ uint32_t ee32_write( const uint8_t *buffer, uint32_t sector, uint32_t count )
   pBuffer = (uint8_t *) buffer ;
 
 	block_address = memoryOffset &0xFFFFF000 ;		// 4k boundary
-  AT25D_Read( Eblock_buffer, 4096, block_address ) ;	// read block to write to
-	// Check to see if it is blank
-	x = eeprom_block_erased( Eblock_buffer ) ;
-	if ( x == 0 )
+
+	if ( EblockAddress != -1 )
 	{
-		AT25D_EraseBlock( block_address ) ;
+		// Ram copy is dirty
+		if ( EblockAddress != block_address )
+		{
+			// flush buffer
+			writeBlock() ;
+		}
+	}
+
+	// Now check for pre-read
+	if ( EblockAddress != block_address )
+	{
+		readBlock( block_address ) ;
+		
+//		// Check to see if it is blank
+//		x = eeprom_block_erased( Eblock_buffer ) ;
+//		if ( x == 0 )
+//		{
+//			AT25D_EraseBlock( block_address ) ;
+//		}
 	}
 
 	while (bytesToWrite)
 	{
 		uint32_t bytes_to_copy ;
 		uint32_t i ;
-		uint32_t j ;
 		uint8_t *s ;
 		uint8_t *dest ;
+
+		if ( EblockAddress != block_address )
+		{
+			readBlock( block_address ) ;
+		}
 
 		dest = Eblock_buffer + (memoryOffset & 0x0FFF ) ;
 		s = pBuffer ;
@@ -1232,22 +1310,17 @@ uint32_t ee32_write( const uint8_t *buffer, uint32_t sector, uint32_t count )
 		}
 		memoryOffset += bytes_to_copy ;
 		bytesToWrite -= bytes_to_copy ;
-		s = Eblock_buffer ;
-		j = 0 ;
-		for ( i = 0 ; i < 16 ; i += 1 )		// pages in block
+		 
+		if ( dest > &Eblock_buffer[4095] )
 		{
-			j <<= 1 ;
-			x = eeprom_page_erased( s ) ;
-			if ( x == 0 )				// Not blank
-			{
-        AT25D_Write( s, 256, block_address ) ;
-				j |= 1 ;
-			}						
-			s += 256 ;
-			block_address += 256 ;
+			// copied data past end
+			writeBlock() ;
+		}
+		else
+		{
+			EE_timer = 30 ;		// Write dirty block in 0.3 secs
 		}
 	}
-	
 	return 1 ;
 }
 
@@ -1255,7 +1328,9 @@ uint32_t AT25D_EraseBlock( uint32_t memoryOffset )
 {
 	register uint8_t *p ;
 	register uint32_t x ;
-	
+
+//	EeEraseCount += 1 ;
+	 
 	eeprom_write_enable() ;
 	p = Spi_tx_buf ;
 	*p = 0x20 ;		// Block Erase command

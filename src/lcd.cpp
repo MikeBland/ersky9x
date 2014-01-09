@@ -1057,11 +1057,7 @@ void refreshDisplay()
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
 #endif 
   for( y=0; y < 8; y++) {
-#ifndef BOOT
     lcdSendCtl( g_eeGeneral.optrexDisplay ? 0 : 0x04 ) ;
-#else
-    lcdSendCtl( 0x04 ) ;
-#endif
     lcdSendCtl(0x10); //column addr 0
     lcdSendCtl( y | 0xB0); //page addr y
     
