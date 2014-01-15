@@ -34,7 +34,7 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-//#include "stm32f2xx.h"
+#include "stm32f2xx.h"
 
 /** @addtogroup STM32F2xx_StdPeriph_Driver
   * @{

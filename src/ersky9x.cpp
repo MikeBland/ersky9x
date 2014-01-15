@@ -3523,6 +3523,27 @@ void checkSwitches()
   {
     uint16_t i = getCurrentSwitchStates() ;
 
+		if ( first )
+		{
+ 			clearKeyEvents();
+			first = 0 ;
+		}
+
+#ifdef PCBSKY
+    if( (i==warningStates) || (keyDown())) // check state against settings
+    {
+        return;  //wait for key release
+    }
+#endif
+
+#ifdef PCBX9D
+// To Do
+		if ( keyDown() )
+		{
+			return ;
+		}
+#endif
+
         //show the difference between i and switch?
         //show just the offending switches.
         //first row - THR, GEA, AIL, ELE, ID0/1/2
@@ -3557,26 +3578,6 @@ void checkSwitches()
 
         refreshDisplay();
 
-				if ( first )
-				{
-    			clearKeyEvents();
-					first = 0 ;
-				}
-
-#ifdef PCBSKY
-    if( (i==warningStates) || (keyDown())) // check state against settings
-    {
-        return;  //wait for key release
-    }
-#endif
-
-#ifdef PCBX9D
-// To Do
-		if ( keyDown() )
-		{
-			return ;
-		}
-#endif
 
     wdt_reset();
 

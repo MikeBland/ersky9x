@@ -792,6 +792,7 @@ void lcd_clear()
   //for(unsigned i=0; i<sizeof(displayBuf); i++) displayBuf[i]=0;
   memset( DisplayBuf, 0, sizeof( DisplayBuf) ) ;
 #if PCBX9D
+#ifndef BOOT
 	lcd_img( 212-X9D_OFFSET, 0, arrows, 0, 0 ) ;
 	lcd_img( 212-X9D_OFFSET-10, 0, arrows, 1, 0 ) ;
 
@@ -799,7 +800,8 @@ void lcd_clear()
 	lcd_img( 130, 2*FH, speaker, 0, 0 ) ;
 extern uint8_t CurrentVolume ;
 	lcd_hbar( 135, 2*FH+1, 24, 6, CurrentVolume*100/23 ) ;
-#endif
+#endif // ndef BOOT
+#endif // PCBX9D
 }
 
 // LCD i/o pins
@@ -866,7 +868,7 @@ void lcd_init()
 	pioptr->PIO_PER = PIO_PC27 | PIO_PC12 | 0xFF ;		// Enable bits 27,26,13,12,7-0
 #else
 	pioptr->PIO_PER = PIO_PC27 | PIO_PC26 | PIO_PC13 | PIO_PC12 | 0xFF ;		// Enable bits 27,26,13,12,7-0
-#endif
+#endif // REVX
 
 //#ifndef REVX
 //	pioptr->PIO_CODR = LCD_E | LCD_RnW ;
@@ -877,7 +879,7 @@ void lcd_init()
 	pioptr->PIO_CODR = LCD_RnW | LCD_CS1 ;	// No longer needed, used elsewhere
 #else
 	pioptr->PIO_CODR = LCD_E | LCD_RnW | LCD_CS1 ;
-#endif 
+#endif // REVX
 	pioptr->PIO_SODR = LCD_RES ;
 //#endif 
 	pioptr->PIO_OER = PIO_PC27 | PIO_PC26 | PIO_PC13 | PIO_PC12 | 0xFF ;		// Set bits 27,26,13,12,7-0 output
@@ -889,7 +891,7 @@ void lcd_init()
 	pioptr->PIO_SODR = LCD_RES | LCD_CS1 ;
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
-#endif 
+#endif // REVB
 	
 	pioptr->PIO_CODR = LCD_RES ;		// Reset LCD
 	TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
@@ -929,7 +931,7 @@ void lcd_init()
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
-#endif 
+#endif // REVB
 	LcdLock = 0 ;
 }
 
@@ -968,12 +970,11 @@ void lcdSetRefVolt(uint8_t val)
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
 	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
-#endif 
-#endif
+#endif // REVB
+#endif // SIMU
 	LcdLock = 0 ;
 }
 
-#endif
 
 
 void lcdSendCtl(uint8_t val)
@@ -1037,14 +1038,14 @@ void refreshDisplay()
 #else
   register uint8_t *lookup ;
 	lookup = (uint8_t *)Lcd_lookup ;
-#endif 
+#endif // REVB
 	ebit = LCD_E ;
 
 #ifdef REVB
 	pioptr = PIOA ;
 	pioptr->PIO_PER = 0x00000080 ;		// Enable bit 7 (LCD-A0)
 	pioptr->PIO_OER = 0x00000080 ;		// Set bit 7 output
-#endif 
+#endif // REVB
 
 // read the inputs, and lock the LCD lines
 	LcdInputs = PIOC->PIO_PDSR << 1 ; // 6 LEFT, 5 RIGHT, 4 DOWN, 3 UP ()
@@ -1055,7 +1056,7 @@ void refreshDisplay()
 	pioptr->PIO_OER = 0x0C0030FFL ;		// Set bits 27,26,15,13,12,7-0 output
 #else
 	pioptr->PIO_OER = 0x0C00B0FFL ;		// Set bits 27,26,15,13,12,7-0 output
-#endif 
+#endif // REVB
   for( y=0; y < 8; y++) {
     lcdSendCtl( g_eeGeneral.optrexDisplay ? 0 : 0x04 ) ;
     lcdSendCtl(0x10); //column addr 0
@@ -1063,18 +1064,18 @@ void refreshDisplay()
     
 #ifndef REVX
 		pioptr->PIO_CODR = LCD_CS1 ;		// Select LCD
-#endif
+#endif // REVX
 
 		PIOA->PIO_SODR = LCD_A0 ;			// Data
 #ifndef REVX
 		pioptr->PIO_CODR = LCD_RnW ;		// Write
-#endif
+#endif // REVX
 		 
 #ifdef REVB
 		x =	*p ;
 #else 
 		x =	lookup[*p] ;
-#endif 
+#endif // REVB
     for( z=0; z<128; z+=1)
 		{
 
@@ -1095,7 +1096,7 @@ void refreshDisplay()
 		x =	*p ;
 #else 
 		x =	lookup[*p] ;
-#endif 
+#endif // REVB
 //			TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
 //			while ( TC0->TC_CHANNEL[0].TC_CV < 3 )		// Value depends on MCK/2 (used 6MHz)
 //			{
@@ -1114,7 +1115,7 @@ void refreshDisplay()
 #else
 	pioptr->PIO_PUER = 0x0000003CL ;	// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
-#endif 
+#endif // REVB
 	pioptr->PIO_ODSR = 0xFE ;					// Drive D0 low
 
 	LcdLock = 0 ;
@@ -1122,7 +1123,9 @@ void refreshDisplay()
 }
 
 #endif // PCBSKY
+#endif // PCBSKY
 
+#ifdef PCBSKY
 #ifdef BOOT
 #ifdef REVB
 // This specially for the 9XR
@@ -1178,5 +1181,6 @@ void dispBOOT(uint32_t x)
 #endif
 
 
+#endif
 #endif
 

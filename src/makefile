@@ -163,9 +163,9 @@ SRC  = x9d/system_stm32f2xx.c \
        x9d/stm32f2xx_rcc.c \
        x9d/misc.c \
        port.c \
-       x9d/usb_bsp.c \
        coos.c
 
+#       x9d/usb_bsp.c \
 #       x9d/usbd_desc.c \
 #       x9d/usb/src/usb_core.c \
 #       x9d/usb/src/usb_dcd.c \
@@ -204,16 +204,17 @@ CPPSRC = x9d.cpp \
          ff.cpp \
 			logs.cpp \
          audio.cpp \
-         x9d/usbd_usr.cpp \
-         x9d/usbd_storage_msd.cpp \
 			en.cpp \
 			de.cpp \
 			no.cpp \
 			fr.cpp \
 			se.cpp \
+			loadboot.cpp \
 		   lcd.cpp
 
 #         massstorage.cpp \
+#         x9d/usbd_usr.cpp \
+#         x9d/usbd_storage_msd.cpp \
 
 # List ASM source files here
 ASRC = x9d/startup_stm32f2xx.s
@@ -373,7 +374,7 @@ size:
 # Build stamp-file
 stamp:
 	@echo
-ifeq ($(STAMP), 1)
+#ifeq ($(STAMP), 1)
 	@echo "Generate Version-stamp:"
 	-rm -f $(OBJDIR)/stamp.o
 	@echo "//Automatically generated file - do not edit" > stamp-ersky9x.h
@@ -382,12 +383,13 @@ ifeq ($(STAMP), 1)
 	@echo "#define SUB_VERS $(VER)-$(USER)" >> stamp-ersky9x.h
  ifeq ($(PCB), X9D)
 	@echo "#define SVN_VERS \"erx9d-r$(REV)\"" >> stamp-ersky9x.h
+	@echo "#define MOD_VERS \"X9D\"" >> stamp-ersky9x.h
  else	
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
- endif
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
+ endif
 #	@cat stamp-ersky9x.h
-endif
+#endif
 
 $(OBJDIR)/%.o : %.cpp
 	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@

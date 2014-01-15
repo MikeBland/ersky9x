@@ -316,6 +316,7 @@ void per10ms()
   for( i=1; i<7; i++)
   {
 		uint8_t value = in & (1<<i) ;
+#ifdef PCBSKY
 #ifndef BOOT
 #if !defined(SIMU)
 		if ( value )
@@ -324,6 +325,7 @@ void per10ms()
 		}
 #endif
 #endif
+#endif // PCBSKY
     //INP_B_KEY_MEN 1  .. INP_B_KEY_LFT 6
     keys[enuk].input(value,(EnumKeys)enuk);
     ++enuk;
@@ -674,7 +676,7 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 	return 0 ;
 }
 
-#endif
+//#endif
 
 
 #ifndef BOOT
@@ -1440,6 +1442,7 @@ void disable_ssc()
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
 }
 
+#endif
 #endif
 
 #ifdef PCBX9D

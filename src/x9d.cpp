@@ -3608,13 +3608,13 @@ void checkSwitches()
 			{
 				return ;
 			}
-  		alertMessages( Str_Switch_warn, PSTR(STR_RESET_SWITCHES) ) ;
+  		alertMessages( PSTR(STR_SWITCH_WARN), PSTR(STR_RESET_SWITCHES) ) ;
   		for ( uint8_t i = 0 ; i < 7 ; i += 1 )
 			{
   		  uint16_t mask = ( 0x03 << (i*2) ) ;
   		  uint8_t attr = ((warningStates & mask) == (switches_states & mask)) ? 0 : INVERS ;
   		  lcd_putcAtt( 3*FW+i*(2*FW+2), 2*FH, 'A'+i, attr ) ;
-				lcd_putcAtt( 4*FW+i*(2*FW+2), 2*FH, HW_SWITCHARROW_STR[(warningStates & mask) >> (i*2)], attr ) ;
+				lcd_putcAtt( 4*FW+i*(2*FW+2), 2*FH, PSTR(HW_SWITCHARROW_STR)[(warningStates & mask) >> (i*2)], attr ) ;
 			}
 #endif
         refreshDisplay();

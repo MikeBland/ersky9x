@@ -352,5 +352,7 @@ const char * const English[] =
 	ISTR_ALERT_YEL		 ,	
 	ISTR_ALERT_ORG		 ,	
 	ISTR_ALERT_RED		 ,	
-	ISTR_LANGUAGE				
+	ISTR_LANGUAGE			 ,
+	IHW_SWITCHES_STR   ,
+	IHW_SWITCHARROW_STR
 } ;

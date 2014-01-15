@@ -55,7 +55,17 @@ SECTIONS
   /* The program code and other data goes into FLASH */
   .text :
   {
-    . = ALIGN(4);
+    FILL(0xFFFF)
+      
+    CREATE_OBJECT_SYMBOLS
+
+    KEEP(*(.isr_boot_vector)) /* Startup code */
+    *(.bootrodata)
+    *(.bootrodata.*)
+      
+    . = ALIGN(32768);    /* Align the start of the main program */
+    _stext = .;          /* Provide the name for the start of this section */
+	 . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
     *(.text)           /* .text sections (code) */
     *(.text*)          /* .text* sections (code) */

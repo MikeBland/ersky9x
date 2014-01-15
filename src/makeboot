@@ -28,7 +28,7 @@ BINX = $(CP) -O binary
 # Object files directory
 # Object files directory
 ifeq ($(PCB), X9D)
- OBJDIR = x9bootdobj
+ OBJDIR = x9dbootobj
 else
  ifeq ($(REVX), 1)
   OBJDIR = skybootRobj
@@ -70,20 +70,28 @@ EXT = STD
 # Define project name and Ram/Flash mode here
 PROJECT        = bootloader
 
+ifeq ($(PCB), X9D)
+RUN_FROM_FLASH = 0
+else
 RUN_FROM_FLASH = 1
+endif
 
 #
 # Define linker script file here
 #
 ifeq ($(RUN_FROM_FLASH), 1)
- ifeq ($(REVX), 1)
-  LDSCRIPT = sam3s8c_boot.ld
-  FULL_PRJ = $(PROJECT)_flash8
+ ifeq ($(PCB), X9D)
+  LDSCRIPT = x9d/stm32_flashBoot.ld
+  FULL_PRJ = $(PROJECT)_flashT
  else
-  LDSCRIPT = sam3s4c_boot.ld
-  FULL_PRJ = $(PROJECT)_flash4
+  ifeq ($(REVX), 1)
+   LDSCRIPT = sam3s8c_boot.ld
+   FULL_PRJ = $(PROJECT)_flash8
+  else
+   LDSCRIPT = sam3s4c_boot.ld
+   FULL_PRJ = $(PROJECT)_flash4
+  endif
  endif
-
 # ifeq ($(SAM3S2), 1)
 # LDSCRIPT = sam3s2c_ram.ld
 # else
@@ -102,43 +110,59 @@ ifeq ($(RUN_FROM_FLASH), 1)
 # endif
 else
 
-# ifeq ($(SAM3S2), 1)
-# CPPDEFS += -DPCBSKY 
-# LDSCRIPT = sam3s2c_flash.ld
-# else
-#   ifeq ($(PCB), X9D)
-#     ARCH = ARM
-#     LDSCRIPT = x9d/stm32_flash.ld
-#     TRGT = arm-none-eabi-
-#     MCU  = cortex-m3
-#     CPPDEFS += -DHSE_VALUE=12000000
-#	  CPPDEFS += -DPCBX9D 
-#   else
-#    CPPDEFS += -DPCBSKY 
-#    ifeq ($(REVX), 1)
-#     LDSCRIPT = sam3s8c_flash.ld
-#     UDEFS = -Dat91sam3s8
-#	 else
-#     LDSCRIPT = sam3s4c_flash.ld
-#     UDEFS = -Dat91sam3s4
-#    endif
-#	endif
-# endif
-# FULL_PRJ = $(PROJECT)_rom
+ ifeq ($(PCB), X9D)
+  ARCH = ARM
+  LDSCRIPT = x9d/stm32_flashBoot.ld
+  TRGT = arm-none-eabi-
+  MCU  = cortex-m3
+  CPPDEFS += -DHSE_VALUE=12000000
+  CPPDEFS += -DPCBX9D 
+  FULL_PRJ = $(PROJECT)_ramBoot
+ endif
 endif
 
 # List all user C define here, like -D_DEBUG=1
 
-ifeq ($(LANG), FR)
- CPPDEFS += -DLANG_FR
-else
- ifeq ($(LANG), DE)
-  CPPDEFS += -DLANG_DE
- endif
-endif
-
 # Define ASM defines here
 UADEFS = 
+
+ifeq ($(PCB), X9D)
+SRC  = x9d/system_stm32f2xx.c \
+       x9d/stm32f2xx_rcc.c \
+       x9d/stm32f2xx_gpio.c \
+       x9d/stm32f2xx_spi.c \
+       x9d/misc.c \
+       x9d/usb_core.c \
+       x9d/usb_dcd.c \
+       x9d/usb_dcd_int.c \
+       x9d/usbd_core.c \
+       x9d/usbd_ioreq.c \
+       x9d/usbd_req.c \
+       x9d/usbd_msc_data.c \
+       x9d/usbd_msc_scsi.c \
+       x9d/usbd_msc_bot.c \
+       x9d/usbd_msc_core.c \
+       x9d/usbd_desc.c \
+       x9d/usb_bsp.c
+
+CPPSRC = lcd.cpp \
+         ff.cpp \
+         x9d/aspi.cpp \
+         x9d/diskio.cpp \
+         x9d/lcd_driver.cpp \
+       	x9d/i2c_ee.cpp \
+         drivers.cpp \
+         logicio.cpp \
+			ff_lfn.cpp \
+         x9d/usbd_usr.cpp \
+         x9d/usbd_storage_msd.cpp \
+         boot.cpp
+
+
+# List ASM source files here
+ASRC = x9d/startup_stm32f2xx.s
+
+else
 
 # List C source files here
 SRC  = core_cm3.c \
@@ -152,15 +176,6 @@ SRC  = core_cm3.c \
        MEDSdcard.c \
        vectors_sam3s.c
 
-#       port.c \
-#       coos.c \
-#       usb/device/core/USBD_UDP.c usb/device/core/USBDDriver.c usb/device/core/USBDCallbacks.c \
-#       usb/device/massstorage/MSDDriver.c usb/device/massstorage/MSDDStateMachine.c usb/device/massstorage/MSDLun.c usb/device/massstorage/MSDDriverDescriptors.c usb/device/massstorage/SBCMethods.c \
-#       usb/common/core/USBEndpointDescriptor.c usb/common/core/USBGenericRequest.c usb/common/core/USBFeatureRequest.c usb/common/core/USBInterfaceRequest.c usb/common/core/USBGetDescriptorRequest.c \
-#       usb/common/core/USBSetAddressRequest.c usb/common/core/USBSetConfigurationRequest.c \
-#       usb/common/core/USBConfigurationDescriptor.c usb/common/core/USBGenericDescriptor.c \
-#       MEDSdcard.c
-
 CPPSRC = lcd.cpp \
          ff.cpp \
 			diskio.cpp \
@@ -168,40 +183,14 @@ CPPSRC = lcd.cpp \
          logicio.cpp \
          sdcard_driver.cpp \
          massstorage.cpp \
+         bootsamEeprom.cpp \
+			ff_lfn.cpp \
          boot.cpp
-
-#			stamp.cpp \
-#         drivers.cpp \
-#         diskio.cpp \
-#         ff.cpp \
-#         gtime.cpp \
-#         sound.cpp \
-#         lcd.cpp \
-#         debug.cpp \
-#         file.cpp \
-#         templates.cpp \
-#         pers.cpp \
-#         file.cpp \
-#         menus.cpp \
-#         frsky.cpp \
-#         audio.cpp \
-#         ersky9x.cpp \
-#         timers.cpp \
-#         logicio.cpp \
-#         pulses.cpp \
-#         massstorage.cpp \
-#			en.cpp \
-#			de.cpp \
-#			no.cpp \
-#			fr.cpp \
-#			se.cpp \
-#			loadboot.cpp \
-#			logs.cpp
-
 
 # List ASM source files here
 ASRC =
 
+endif
 
 # List all user directories here
 UINCDIR = ./inc
@@ -238,8 +227,8 @@ OBJS    = $(ASRC:%.s=$(OBJDIR)/%.o) $(SRC:%.c=$(OBJDIR)/%.o) $(CPPSRC:%.cpp=$(OB
 LIBS    = $(DLIBS) $(ULIBS)
 MCFLAGS = -mcpu=$(MCU)
 
-#XOBJS = $(ASRC:%.s=x9dobj/%.o) $(SRC:%.c=x9dobj/%.o) $(CPPSRC:%.cpp=x9dobj/%.o)
-#ROBJS = $(ASRC:%.s=skyRobj/%.o) $(SRC:%.c=skyRob/%.o) $(CPPSRC:%.cpp=skyRobj/%.o)
+XOBJS = $(ASRC:%.s=x9bootdobj/%.o) $(SRC:%.c=x9dbootobj/%.o) $(CPPSRC:%.cpp=x9dbootobj/%.o)
+ROBJS = $(ASRC:%.s=skybootRobj/%.o) $(SRC:%.c=skybootRobj/%.o) $(CPPSRC:%.cpp=skybootRobj/%.o)
 
 #ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.s=.lst) $(ADEFS)
 CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
@@ -309,6 +298,8 @@ $(OBJDIR)/%.o : %.s
 
 clean:
 	-rm -f $(OBJS)
+	-rm -f $(ROBJS)
+	-rm -f $(XOBJS)
 	-rm -f $(FULL_PRJ).elf
 	-rm -f $(FULL_PRJ).map
 	-rm -f $(FULL_PRJ).hex

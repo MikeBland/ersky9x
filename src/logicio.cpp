@@ -116,7 +116,6 @@ void configure_pins( uint32_t pins, uint16_t config )
 }
 #endif
 
-#ifndef BOOT
 
 #ifdef PCBX9D
 void configure_pins( uint32_t pins, uint16_t config )
@@ -166,7 +165,6 @@ void configure_pins( uint32_t pins, uint16_t config )
 #endif
 
 
-#endif
 
 #ifdef PCBSKY
 	
@@ -475,6 +473,7 @@ uint32_t read_trims()
 #endif
 
 #ifdef BOOT
+#ifdef PCBSKY
 #ifdef REVB
 extern "C" uint32_t initReadTrims( void ) ;
 
@@ -493,8 +492,8 @@ uint32_t initReadTrims( void )
 	return read_trims() ;
 }
 #endif // REVB
-
-#endif
+#endif // PCBSKY
+#endif // BOOT
 
 
 #ifndef BOOT
@@ -557,7 +556,8 @@ extern uint32_t keyState(EnumKeys enuk)
   }
   return 0;
 }
-#endif
+#endif // PCBSKY
+#endif // ndef BOOT
 
 
 #ifdef PCBX9D
@@ -569,6 +569,7 @@ void init_keys()
 	configure_pins( 0x008C, PIN_INPUT | PIN_PULLUP | PIN_PORTD ) ;
 }
 
+#ifndef BOOT
 void init_trims()
 {
 // Trims 
@@ -577,6 +578,7 @@ void init_trims()
 	configure_pins( 0x0078, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
 	configure_pins( 0x200E, PIN_INPUT | PIN_PULLUP | PIN_PORTC ) ;
 }
+#endif // ndef BOOT
 
 // Reqd. bit 6 LEFT, 5 RIGHT, 4 UP, 3 DOWN 2 EXIT 1 MENU
 uint32_t read_keys()
@@ -621,6 +623,7 @@ uint32_t read_keys()
 	return y ;
 }
 
+#ifndef BOOT
 uint32_t read_trims()
 {
 	uint32_t trims ;
@@ -827,6 +830,4 @@ uint32_t switchPosition( uint32_t swtch )
 
 #endif
 #endif  // ndef BOOT
-
-
 

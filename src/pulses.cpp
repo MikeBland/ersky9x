@@ -305,8 +305,8 @@ void dsmBindResponse( uint8_t mode, int8_t channels )
 	uint8_t dsm_mode_response ;
 //	Dsm_9xr_channels = channels ;
 	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
-	channels -= 8 ;
-	channels /= 2 ;
+//	channels -= 8 ;
+//	channels /= 2 ;
 	if ( ( g_model.ppmNCH != channels ) || ( g_model.dsmMode != ( dsm_mode_response | 0x80 ) ) )
 	{
 		g_model.ppmNCH = channels ;
@@ -360,7 +360,7 @@ void setupPulsesDsm2(uint8_t chns)
 		else
 		{
 			flags &= 0x7F ;
-			channels = g_model.ppmNCH*2 + 8 ;
+			channels = g_model.ppmNCH ;
 		}
 			 
 		if ( (dsmDat[0]&BindBit) && (!keyState(SW_Trainer) ) )

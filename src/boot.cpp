@@ -1,31 +1,49 @@
-/* ----------------------------------------------------------------------------
- *         ATMEL Microcontroller Software Support
- * ----------------------------------------------------------------------------
- * Copyright (c) 2011, Atmel Corporation
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * - Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the disclaimer below.
- *
- * Atmel's name may not be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * DISCLAIMER: THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ----------------------------------------------------------------------------
- */
+/****************************************************************************
+*  Copyright (c) 2014 by Michael Blandford. All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*
+*  1. Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*  2. Redistributions in binary form must reproduce the above copyright
+*     notice, this list of conditions and the following disclaimer in the
+*     documentation and/or other materials provided with the distribution.
+*  3. Neither the name of the author nor the names of its contributors may
+*     be used to endorse or promote products derived from this software
+*     without specific prior written permission.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+*  THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+*  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+*  AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+*  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+*  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+*  SUCH DAMAGE.
+*
+****************************************************************************
+* Other Authors:
+ * - Andre Bernet
+ * - Bertrand Songis
+ * - Bryan J. Rentoul (Gruvin)
+ * - Cameron Weeks
+ * - Erez Raviv
+ * - Jean-Pierre Parisy
+ * - Karl Szmutny
+ * - Michal Hlavinka
+ * - Pat Mackenzie
+ * - Philip Moss
+ * - Rob Thomson
+ * - Romolo Manfredini
+ * - Thomas Husterer
+*
+****************************************************************************/
 
 
 /*----------------------------------------------------------------------------
@@ -35,29 +53,70 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef PCBSKY
 #include "AT91SAM3S4.h"
-#include "..\src\core_cm3.h"
-#include "..\src\lcd.h"
-#include "..\src\ersky9x.h"
-#include "..\src\lcd.h"
-#include "..\src\ff.h"
-#include "..\src\diskio.h"
-#include "..\src\drivers.h"
-#include "..\src\myeeprom.h"
+#include "core_cm3.h"
+#endif
 
+#ifdef PCBX9D
+#include "x9d\stm32f2xx.h"
+//#include "x9d\stm32f2xx_gpio.h"
+//#include "x9d\stm32f2xx_rcc.h"
+//#include "x9d\stm32f2xx_usart.h"
+#include "x9d\stm32f2xx_flash.h"
+#include "X9D\i2c_ee.h"
+#include "x9d\hal.h"
+
+extern "C" {
+#include "x9d\usb_dcd_int.h"
+#include "x9d\usb_bsp.h"
+#include "x9d\usbd_desc.h"
+#include "x9d\usbd_msc_core.h"
+#include "x9d\usbd_usr.h"
+//#include "stm32f2xx_dbgmcu.h"
+}
+
+#endif
+
+#include "lcd.h"
+#include "ersky9x.h"
+#include "lcd.h"
+#include "ff.h"
+#include "diskio.h"
+#include "drivers.h"
+#include "myeeprom.h"
+#include "timers.h"
+#include "logicio.h"
+
+#ifdef PCBSKY
 extern void usbMassStorage( void ) ;
+#endif
+
+#ifdef PCBSKY
+#define BOOT_KEY_UP			KEY_UP
+#define BOOT_KEY_DOWN		KEY_DOWN
+#define BOOT_KEY_LEFT		KEY_LEFT
+#define BOOT_KEY_RIGHT	KEY_RIGHT
+#define BOOT_KEY_MENU		KEY_MENU
+#define BOOT_KEY_EXIT		KEY_EXIT
+#endif
+
+#ifdef PCBX9D
+#define BOOT_KEY_UP			KEY_MENU
+#define BOOT_KEY_DOWN		KEY_RIGHT
+#define BOOT_KEY_LEFT		KEY_LEFT
+#define BOOT_KEY_RIGHT	KEY_EXIT
+#define BOOT_KEY_MENU		KEY_UP
+#define BOOT_KEY_EXIT		KEY_DOWN
+#endif
 
 /*----------------------------------------------------------------------------
  *        Local variables
  *----------------------------------------------------------------------------*/
 
+#ifdef PCBSKY
 EEGeneral g_eeGeneral ;
-
-uint32_t Block_buffer[1024] ;
-uint8_t Eblock_buffer[4096] ;
-uint8_t Eblock_current[4096] ;		// For erased checking
-int32_t EblockAddress ;
-UINT BlockCount ;
+#endif
 
 uint32_t FirmwareSize ;
 
@@ -82,35 +141,30 @@ uint32_t Valid ;
 
 uint32_t FlashSize ;
 
-uint8_t Spi_tx_buf[24] ;
-uint8_t Spi_rx_buf[24] ;
-uint32_t Spi_init_done = 0 ;
 
-uint32_t EepromBlocked = 1 ;
 uint32_t FlashBlocked = 1 ;
 uint32_t LockBits ;
 
 //uint32_t EeWriteCount ;
 //uint32_t EeEraseCount ;
 
-uint32_t  eeprom_write_one( uint8_t byte, uint8_t count ) ;
-uint32_t eeprom_read_status( void ) ;
-void eeprom_write_enable( void ) ;
-void eeprom_wait_busy( void ) ;
-uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uint32_t count ) ;
-void init_spi( void ) ;
-uint32_t unprotect_eeprom( void ) ;
-uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count ) ;
-void AT25D_Read( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset) ;
-void AT25D_Write( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset ) ;
-uint32_t AT25D_EraseBlock( uint32_t memoryOffset ) ;
-void writeBlock( void ) ;
+uint32_t Block_buffer[1024] ;
+UINT BlockCount ;
+
+#ifdef PCBSKY
+extern int32_t EblockAddress ;
+#endif
+extern uint32_t EepromBlocked ;
+
+extern void init_spi( void ) ;
+extern void writeBlock( void ) ;
 
 
 /*----------------------------------------------------------------------------
  *         Global functions
  *----------------------------------------------------------------------------*/
 
+#ifdef PCBSKY
 // Starts TIMER0 at full speed (MCK/2) for delay timing
 // @ 36MHz this is 18MHz
 // This was 6 MHz, we may need to slow it to TIMER_CLOCK2 (MCK/8=4.5 MHz)
@@ -143,92 +197,59 @@ void delay2ms()
 		// Wait
 	}
 }
+#endif
 
-
-#define _TBLDEF 1
-static
-const WCHAR Tbl[] = {	/*  CP437(0x80-0xFF) to Unicode conversion table */
-	0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7,
-	0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, 0x00C4, 0x00C5,
-	0x00C9, 0x00E6, 0x00C6, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9,
-	0x00FF, 0x00D6, 0x00DC, 0x00A2, 0x00A3, 0x00A5, 0x20A7, 0x0192,
-	0x00E1, 0x00ED, 0x00F3, 0x00FA, 0x00F1, 0x00D1, 0x00AA, 0x00BA,
-	0x00BF, 0x2310, 0x00AC, 0x00BD, 0x00BC, 0x00A1, 0x00AB, 0x00BB,
-	0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556,
-	0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510,
-	0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F,
-	0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
-	0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B,
-	0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580,
-	0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4,
-	0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229,
-	0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248,
-	0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0
-};
-
-
-WCHAR ff_convert (	/* Converted character, Returns zero on error */
-	WCHAR	chr,	/* Character code to be converted */
-	UINT	dir		/* 0: Unicode to OEMCP, 1: OEMCP to Unicode */
-)
+static bool usbPlugged(void)
 {
-	WCHAR c;
-
-
-	if (chr < 0x80) {	/* ASCII */
-		c = chr;
-
-	} else {
-		if (dir) {		/* OEMCP to Unicode */
-			c = (chr >= 0x100) ? 0 : Tbl[chr - 0x80];
-
-		} else {		/* Unicode to OEMCP */
-			for (c = 0; c < 0x80; c++) {
-				if (chr == Tbl[c]) break;
-			}
-			c = (c + 0x80) & 0xFF;
-		}
-	}
-
-	return c;
+#ifdef PCBSKY
+	return PIOC->PIO_PDSR & 0x02000000 ;
+#endif
+	
+#ifdef PCBX9D
+	return GPIOA->IDR & 0x0200 ;
+#endif
 }
 
+#ifdef PCBX9D
 
-WCHAR ff_wtoupper (	/* Upper converted character */
-	WCHAR chr		/* Input character */
-)
+extern "C" {
+USB_OTG_CORE_HANDLE USB_OTG_dev;
+
+void OTG_FS_IRQHandler(void)
 {
-	static const WCHAR tbl_lower[] = { 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0xA1, 0x00A2, 0x00A3, 0x00A5, 0x00AC, 0x00AF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0x0FF, 0x101, 0x103, 0x105, 0x107, 0x109, 0x10B, 0x10D, 0x10F, 0x111, 0x113, 0x115, 0x117, 0x119, 0x11B, 0x11D, 0x11F, 0x121, 0x123, 0x125, 0x127, 0x129, 0x12B, 0x12D, 0x12F, 0x131, 0x133, 0x135, 0x137, 0x13A, 0x13C, 0x13E, 0x140, 0x142, 0x144, 0x146, 0x148, 0x14B, 0x14D, 0x14F, 0x151, 0x153, 0x155, 0x157, 0x159, 0x15B, 0x15D, 0x15F, 0x161, 0x163, 0x165, 0x167, 0x169, 0x16B, 0x16D, 0x16F, 0x171, 0x173, 0x175, 0x177, 0x17A, 0x17C, 0x17E, 0x192, 0x3B1, 0x3B2, 0x3B3, 0x3B4, 0x3B5, 0x3B6, 0x3B7, 0x3B8, 0x3B9, 0x3BA, 0x3BB, 0x3BC, 0x3BD, 0x3BE, 0x3BF, 0x3C0, 0x3C1, 0x3C3, 0x3C4, 0x3C5, 0x3C6, 0x3C7, 0x3C8, 0x3C9, 0x3CA, 0x430, 0x431, 0x432, 0x433, 0x434, 0x435, 0x436, 0x437, 0x438, 0x439, 0x43A, 0x43B, 0x43C, 0x43D, 0x43E, 0x43F, 0x440, 0x441, 0x442, 0x443, 0x444, 0x445, 0x446, 0x447, 0x448, 0x449, 0x44A, 0x44B, 0x44C, 0x44D, 0x44E, 0x44F, 0x451, 0x452, 0x453, 0x454, 0x455, 0x456, 0x457, 0x458, 0x459, 0x45A, 0x45B, 0x45C, 0x45E, 0x45F, 0x2170, 0x2171, 0x2172, 0x2173, 0x2174, 0x2175, 0x2176, 0x2177, 0x2178, 0x2179, 0x217A, 0x217B, 0x217C, 0x217D, 0x217E, 0x217F, 0xFF41, 0xFF42, 0xFF43, 0xFF44, 0xFF45, 0xFF46, 0xFF47, 0xFF48, 0xFF49, 0xFF4A, 0xFF4B, 0xFF4C, 0xFF4D, 0xFF4E, 0xFF4F, 0xFF50, 0xFF51, 0xFF52, 0xFF53, 0xFF54, 0xFF55, 0xFF56, 0xFF57, 0xFF58, 0xFF59, 0xFF5A, 0 };
-	static const WCHAR tbl_upper[] = { 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x21, 0xFFE0, 0xFFE1, 0xFFE5, 0xFFE2, 0xFFE3, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0x178, 0x100, 0x102, 0x104, 0x106, 0x108, 0x10A, 0x10C, 0x10E, 0x110, 0x112, 0x114, 0x116, 0x118, 0x11A, 0x11C, 0x11E, 0x120, 0x122, 0x124, 0x126, 0x128, 0x12A, 0x12C, 0x12E, 0x130, 0x132, 0x134, 0x136, 0x139, 0x13B, 0x13D, 0x13F, 0x141, 0x143, 0x145, 0x147, 0x14A, 0x14C, 0x14E, 0x150, 0x152, 0x154, 0x156, 0x158, 0x15A, 0x15C, 0x15E, 0x160, 0x162, 0x164, 0x166, 0x168, 0x16A, 0x16C, 0x16E, 0x170, 0x172, 0x174, 0x176, 0x179, 0x17B, 0x17D, 0x191, 0x391, 0x392, 0x393, 0x394, 0x395, 0x396, 0x397, 0x398, 0x399, 0x39A, 0x39B, 0x39C, 0x39D, 0x39E, 0x39F, 0x3A0, 0x3A1, 0x3A3, 0x3A4, 0x3A5, 0x3A6, 0x3A7, 0x3A8, 0x3A9, 0x3AA, 0x410, 0x411, 0x412, 0x413, 0x414, 0x415, 0x416, 0x417, 0x418, 0x419, 0x41A, 0x41B, 0x41C, 0x41D, 0x41E, 0x41F, 0x420, 0x421, 0x422, 0x423, 0x424, 0x425, 0x426, 0x427, 0x428, 0x429, 0x42A, 0x42B, 0x42C, 0x42D, 0x42E, 0x42F, 0x401, 0x402, 0x403, 0x404, 0x405, 0x406, 0x407, 0x408, 0x409, 0x40A, 0x40B, 0x40C, 0x40E, 0x40F, 0x2160, 0x2161, 0x2162, 0x2163, 0x2164, 0x2165, 0x2166, 0x2167, 0x2168, 0x2169, 0x216A, 0x216B, 0x216C, 0x216D, 0x216E, 0x216F, 0xFF21, 0xFF22, 0xFF23, 0xFF24, 0xFF25, 0xFF26, 0xFF27, 0xFF28, 0xFF29, 0xFF2A, 0xFF2B, 0xFF2C, 0xFF2D, 0xFF2E, 0xFF2F, 0xFF30, 0xFF31, 0xFF32, 0xFF33, 0xFF34, 0xFF35, 0xFF36, 0xFF37, 0xFF38, 0xFF39, 0xFF3A, 0 };
-	int i;
-
-
-	for (i = 0; tbl_lower[i] && chr != tbl_lower[i]; i++) ;
-
-	return tbl_lower[i] ? tbl_upper[i] : chr;
+  USBD_OTG_ISR_Handler (&USB_OTG_dev);
+}
 }
 
-
-// Test for EEPROM file
-uint32_t isEepromStart( uint8_t *p )
+static void usbInit()
 {
-	uint32_t csum ;
-	uint32_t size = 7 ;
+  USB_OTG_BSP_Init(&USB_OTG_dev);
+}
 
-	csum = 0 ;
-	while( size )
+static void usbStart()
+{
+  USBD_Init(&USB_OTG_dev, USB_OTG_FS_CORE_ID, &USR_desc, &USBD_MSC_cb, &USR_cb);
+}
+
+uint32_t isFirmwareStart( uint32_t *block )
+{
+	if ( ( block[0] & 0xFFFC0000 ) != 0x20000000 )
 	{
-		csum += *p++ ;
-		size -= 1 ;
+		return 0 ;
 	}
-	if ( csum == *p )
+	if ( ( block[1] & 0xFFF00000 ) != 0x08000000 )
 	{
-		return 1 ;
+		return 0 ;
 	}
-	return 0 ;	
+	if ( ( block[2] & 0xFFF00000 ) != 0x08000000 )
+	{
+		return 0 ;
+	}
+	return 1 ;	
 }
+#endif
 
-
+#ifdef PCBSKY
 uint32_t isFirmwareStart( uint32_t *block )
 {
 	if ( ( block[0] & 0xFFFE3000 ) != 0x20000000 )
@@ -245,8 +266,10 @@ uint32_t isFirmwareStart( uint32_t *block )
 	}
 	return 1 ;	
 }
+#endif
 
 
+#ifdef PCBSKY
 
 uint32_t (*IAP_Function)(uint32_t, uint32_t) ;
 
@@ -328,7 +351,7 @@ void clearLockBits()
 		__enable_irq() ;
 	} 
 }
-
+#endif
 
 void interrupt10ms()
 {
@@ -336,6 +359,7 @@ void interrupt10ms()
  	per10ms() ;
 }
 
+#ifdef PCBSKY
 void init10msTimer()
 {
   register Tc *ptc ;
@@ -370,6 +394,182 @@ extern "C" void TC2_IRQHandler()
 	interrupt10ms() ;
 	
 }
+#endif
+
+#ifdef PCBX9D
+void init10msTimer()
+{
+	// Timer14
+	RCC->APB1ENR |= RCC_APB1ENR_TIM14EN ;		// Enable clock
+	TIM14->ARR = 9999 ;	// 10mS
+	TIM14->PSC = (Peri1_frequency*Timer_mult1) / 1000000 - 1 ;		// 1uS from 12MHz
+	TIM14->CCER = 0 ;	
+	TIM14->CCMR1 = 0 ;
+	TIM14->EGR = 0 ;
+	TIM14->CR1 = 5 ;
+	TIM14->DIER |= 1 ;
+	NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
+}
+
+extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
+{
+	TIM14->SR &= ~TIM_SR_UIF ;
+	interrupt10ms() ;
+}
+
+void init_hw_timer()
+{
+	// Timer13
+	RCC->APB1ENR |= RCC_APB1ENR_TIM13EN ;		// Enable clock
+	TIM13->ARR = 65535 ;
+	TIM13->PSC = (Peri1_frequency*Timer_mult1) / 10000000 - 1 ;		// 0.1uS from 12MHz
+	TIM13->CCER = 0 ;	
+	TIM13->CCMR1 = 0 ;
+	TIM13->EGR = 0 ;
+	TIM13->CR1 = 1 ;
+}
+
+
+// delay in units of 0.1 uS up to 6.5535 mS
+void hw_delay( uint16_t time )
+{
+	TIM13->CNT = 0 ;
+	TIM13->EGR = 1 ;		// Re-start counter
+	while ( TIM13->CNT < time )
+	{
+		// wait
+	}
+}
+
+//After reset, write is not allowed in the Flash control register (FLASH_CR) to protect the
+//Flash memory against possible unwanted operations due, for example, to electric
+//disturbances. The following sequence is used to unlock this register:
+//1. Write KEY1 = 0x45670123 in the Flash key register (FLASH_KEYR)
+//2. Write KEY2 = 0xCDEF89AB in the Flash key register (FLASH_KEYR)
+//Any wrong sequence will return a bus error and lock up the FLASH_CR register until the
+//next reset.
+//The FLASH_CR register can be locked again by software by setting the LOCK bit in the
+//FLASH_CR register.
+void unlockFlash()
+{
+	FLASH->KEYR = 0x45670123 ;
+	FLASH->KEYR = 0xCDEF89AB ;
+}
+
+void waitFlashIdle()
+{
+	while (FLASH->SR & FLASH_FLAG_BSY)
+	{
+	 	wdt_reset() ;
+	}
+}
+
+#define SECTOR_MASK               ((uint32_t)0xFFFFFF07)
+
+void eraseSector( uint32_t sector )
+{
+	waitFlashIdle() ;
+
+  FLASH->CR &= CR_PSIZE_MASK;
+  FLASH->CR |= FLASH_PSIZE_WORD ;
+  FLASH->CR &= SECTOR_MASK;
+  FLASH->CR |= FLASH_CR_SER | (sector<<3) ;
+  FLASH->CR |= FLASH_CR_STRT;
+    
+  /* Wait for operation to be completed */
+	waitFlashIdle() ;
+    
+  /* if the erase operation is completed, disable the SER Bit */
+  FLASH->CR &= (~FLASH_CR_SER);
+  FLASH->CR &= SECTOR_MASK; 
+}
+
+uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
+{
+	uint32_t i ;
+//	uint32_t flash_status = 0;
+	//	uint32_t EFCIndex = 0; // 0:EEFC0, 1: EEFC1
+	/* Initialize the function pointer (retrieve function address from NMI vector) */
+
+	if ( (uint32_t) address == 0x08008000 )
+	{
+		if ( isFirmwareStart( buffer) )
+		{
+			FlashBlocked = 0 ;
+		}
+		else
+		{
+			FlashBlocked = 1 ;
+		}
+	}
+
+	if ( FlashBlocked )
+	{
+		return 1 ;
+	}
+
+	if ( (uint32_t) address == 0x08008000 )
+	{
+		eraseSector( 2 ) ;
+	}
+	if ( (uint32_t) address == 0x0800C000 )
+	{
+		eraseSector( 3 ) ;
+	}
+	if ( (uint32_t) address == 0x08010000 )
+	{
+		eraseSector( 4 ) ;
+	}
+	if ( (uint32_t) address == 0x08020000 )
+	{
+		eraseSector( 5 ) ;
+	}
+	if ( (uint32_t) address == 0x08040000 )
+	{
+		eraseSector( 6 ) ;
+	}
+	if ( (uint32_t) address == 0x08060000 )
+	{
+		eraseSector( 7 ) ;
+	}
+
+	// Now program the 256 bytes
+	 
+//	i = IAP_Function( 0, flash_cmd ) ;
+
+  for (i = 0 ; i < 64 ; i += 1 )
+  {
+    /* Device voltage range supposed to be [2.7V to 3.6V], the operation will
+       be done by word */ 
+    
+	  // Wait for last operation to be completed
+		waitFlashIdle() ;
+  
+    FLASH->CR &= CR_PSIZE_MASK;
+    FLASH->CR |= FLASH_PSIZE_WORD;
+    FLASH->CR |= FLASH_CR_PG;
+  
+    *address = *buffer ;
+        
+    /* Wait for operation to be completed */
+		waitFlashIdle() ;
+    FLASH->CR &= (~FLASH_CR_PG);
+		 
+		 /* Check the written value */
+    if ( *address != *buffer )
+    {
+      /* Flash content doesn't match SRAM content */
+      return 2 ;
+    }
+    /* Increment FLASH destination address */
+    address += 1 ;
+		buffer += 1 ;
+  }
+  return 0 ;
+}
+
+#endif
+
 
 uint8_t *cpystr( uint8_t *dest, uint8_t *source )
 {
@@ -494,7 +694,7 @@ uint8_t flashFile( uint32_t index )
 	  lcd_puts_Pleft( 3*FH,"NOT A VALID FIRMWARE") ;
 	  lcd_puts_Pleft( 6*FH,"\007[EXIT]") ;
 		uint8_t event = getEvent() ;
-		if ( event == EVT_KEY_LONG(KEY_EXIT) )
+		if ( event == EVT_KEY_LONG(BOOT_KEY_EXIT) )
 		{
 			return 3 ;
 		}
@@ -506,19 +706,9 @@ uint8_t flashFile( uint32_t index )
   lcd_puts_Pleft( 6*FH,"\003[MENU]\013[EXIT]") ;
 
 	
-//lcd_outhex4( 20, 7*FH, Block_buffer[0] ) ;
-//lcd_outhex4( 0, 7*FH, Block_buffer[0] >> 16 ) ;
-//lcd_outhex4( 60, 7*FH, Block_buffer[1] ) ;
-//lcd_outhex4( 40, 7*FH, Block_buffer[1] >> 16 ) ;
-
-//lcd_outhex4( 80, 7*FH, FirmwareSize ) ;
-//lcd_outhex4( 60, 7*FH, FirmwareSize >> 16 ) ;
-				 
-//	refreshDisplay() ;
-	
 	uint8_t event = getEvent() ;
 
-	if ( event == EVT_KEY_LONG(KEY_MENU) )
+	if ( event == EVT_KEY_LONG(BOOT_KEY_MENU) )
 	{
 		fr = openFirmwareFile( index ) ;
 		FirmwareSize = FileSize[index] ; 
@@ -528,7 +718,7 @@ uint8_t flashFile( uint32_t index )
 		}
 		return 2 ;
 	}
-	if ( event == EVT_KEY_LONG(KEY_EXIT) )
+	if ( event == EVT_KEY_LONG(BOOT_KEY_EXIT) )
 	{
 		return 1 ;
 	}
@@ -544,6 +734,9 @@ int main()
 {
 	uint32_t i ;
   uint8_t index = 0 ;
+#ifdef PCBX9D
+  uint8_t TenCount = 2 ;
+#endif			
   uint8_t maxhsize = 21 ;
 	FRESULT fr ;
 	uint32_t state = 0 ;
@@ -553,31 +746,86 @@ int main()
 	uint32_t firmwareAddress = 0x00400000 ;
 	uint32_t firmwareWritten = 0 ;
 
-	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
+#ifdef PCBX9D
+	lcd_init() ;
+	wdt_reset() ;
+	lcd_clear() ;
+	lcd_puts_Pleft( 0, "Boot Loader" ) ;
+	refreshDisplay() ;
+	wdt_reset() ;
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN ; 		// Enable portA clock
+#endif
 
+#ifdef PCBSKY
+	MATRIX->CCFG_SYSIO |= 0x000000F0L ;		// Disable syspins, enable B4,5,6,7
+#endif
+
+#ifdef PCBSKY
 	init_SDcard() ;
 	PIOC->PIO_PER = PIO_PC25 ;		// Enable bit C25 (USB-detect)
-
 	start_timer0() ;
-	
+#endif
+
+#ifdef PCBX9D	 
+	init_keys() ;
+//	init_trims() ;
+	I2C_EE_Init() ;
+	init_hw_timer()	;
+#endif
+
 	__enable_irq() ;
 	init10msTimer() ;
+
+#ifdef PCBSKY
 	EblockAddress = -1 ;
 	init_spi() ;
+#endif
 
+#ifdef PCBSKY
 	uint32_t chip_id = CHIPID->CHIPID_CIDR ;
 
 	FlashSize = ( (chip_id >> 8 ) & 0x000F ) == 9 ? 256 : 512 ; 
+#endif
 
+#ifdef PCBX9D
+	FlashSize = 512 ;
+#endif
+
+#ifdef PCBSKY
 	LockBits = readLockBits() ;
 	if ( LockBits )
 	{
 		clearLockBits() ;
 	}
+#endif
+
+#ifdef PCBX9D
+	// SD card detect pin
+	configure_pins( GPIO_Pin_CP, PIN_PORTD | PIN_INPUT | PIN_PULLUP ) ;
+//	lcd_puts_Pleft( 24, "0" ) ;
+//	refreshDisplay() ;
+//	wdt_reset() ;
+	disk_initialize( 0 ) ;
+//	lcd_puts_Pleft( 32, "1" ) ;
+//	refreshDisplay() ;
+//	wdt_reset() ;
+	sdInit() ;
+//	lcd_puts_Pleft( 40, "2" ) ;
+//	refreshDisplay() ;
+//	wdt_reset() ;
+	unlockFlash() ;
+
+  usbInit() ;
+  usbStart() ;
+#endif
 
 	for(;;)
 	{
+#ifdef PCBSKY
     usbMassStorage() ;
+#endif
+		
+		wdt_reset() ;
 
 		if ( Tenms )
 		{
@@ -587,13 +835,19 @@ int main()
 			{
 				if ( --EE_timer  == 0)
 				{
+#ifdef PCBSKY
 					writeBlock() ;
+#endif
 				}
 			}
 
 			Tenms = 0 ;
 			lcd_clear() ;
 			lcd_puts_Pleft( 0, "Boot Loader" ) ;
+
+//static uint32_t xc = 0 ;
+//			lcd_outhex4( 0, 8, ++xc ) ;
+//			lcd_outhex4( 0, 16, GPIOA->IDR ) ;
 			
 			if ( sd_card_ready() )
 			{
@@ -606,22 +860,26 @@ int main()
 //				lcd_putc( 120, 8, cleared + '0' ) ;
 //				lcd_outhex4( 0, 8, LockBits ) ;
 
-				if ( PIOC->PIO_PDSR & 0x02000000 )
+#define PIN_FS_VBUS                     GPIO_Pin_9  //PA.09
+
+				if ( usbPlugged() )
 				{
 					state = 10 ;
 				}
-		 
+				
 				if ( state == 10 )
 				{
 					lcd_puts_Pleft( 3*FH, "\010BUSY" ) ;
-					if ( (PIOC->PIO_PDSR & 0x02000000 ) == 0 )
+					if ( usbPlugged() == 0 )
 					{
 						state = 0 ;
 					}
+#ifdef PCBSKY
 					lcd_putc( 0, 6*FH, 'F' ) ;
 					lcd_putc( 6, 6*FH, '0' + FlashBlocked ) ;
 					lcd_putc( 0, 7*FH, 'E' ) ;
 					lcd_putc( 6, 7*FH, '0' + EepromBlocked ) ;
+#endif
 				}
 
 
@@ -702,7 +960,7 @@ int main()
 					{
 						uint8_t event = getEvent() ;
 
-						if ( ( event == EVT_KEY_REPT(KEY_DOWN) ) || event == EVT_KEY_FIRST(KEY_DOWN) )
+						if ( ( event == EVT_KEY_REPT(BOOT_KEY_DOWN) ) || event == EVT_KEY_FIRST(BOOT_KEY_DOWN) )
 						{
 							if ( vpos < limit-1 )
 							{
@@ -717,7 +975,7 @@ int main()
 								}
 							}
 						}
-						if ( ( event == EVT_KEY_REPT(KEY_UP)) || ( event == EVT_KEY_FIRST(KEY_UP) ) )
+						if ( ( event == EVT_KEY_REPT(BOOT_KEY_UP)) || ( event == EVT_KEY_FIRST(BOOT_KEY_UP) ) )
 						{
 							if ( vpos > 0 )
 							{
@@ -732,21 +990,21 @@ int main()
 								}
 							}
 						}
-						if ( ( event == EVT_KEY_REPT(KEY_RIGHT)) || ( event == EVT_KEY_FIRST(KEY_RIGHT) ) )
+						if ( ( event == EVT_KEY_REPT(BOOT_KEY_RIGHT)) || ( event == EVT_KEY_FIRST(BOOT_KEY_RIGHT) ) )
 						{
 							if ( hpos + 21 < maxhsize )
 							{
 								hpos += 1 ;								
 							}
 						}
-						if ( ( event == EVT_KEY_REPT(KEY_LEFT)) || ( event == EVT_KEY_FIRST(KEY_LEFT) ) )
+						if ( ( event == EVT_KEY_REPT(BOOT_KEY_LEFT)) || ( event == EVT_KEY_FIRST(BOOT_KEY_LEFT) ) )
 						{
 							if ( hpos )
 							{
 								hpos -= 1 ;								
 							}
 						}
-						if ( event == EVT_KEY_LONG(KEY_MENU) )
+						if ( event == EVT_KEY_LONG(BOOT_KEY_MENU) )
 						{
 							// Select file to flash
 							state = 4 ;
@@ -765,7 +1023,12 @@ int main()
 					}
 					if ( i == 2 )
 					{
+#ifdef PCBSKY
 						firmwareAddress = 0x00408000 ;
+#endif
+#ifdef PCBX9D
+						firmwareAddress = 0x08008000 ;
+#endif
 						firmwareWritten = 0 ;
 						state = 5 ;		 // confirmed
 					}
@@ -817,7 +1080,7 @@ int main()
 				{
 					uint8_t event = getEvent() ;
 					lcd_puts_Pleft( 3*FH, "Flashing Complete" ) ;
-					if ( event == EVT_KEY_LONG(KEY_EXIT) )
+					if ( event == EVT_KEY_LONG(BOOT_KEY_EXIT) )
 					{
 						state = 3 ;
 					}
@@ -825,14 +1088,27 @@ int main()
 			}
 //			lcd_putc( 120, 0, '0' + state ) ;
 
+#ifdef PCBX9D
+			if ( --TenCount == 0 )
+			{
+				TenCount = 2 ;
+#endif			
 			refreshDisplay() ;
+#ifdef PCBX9D
+			}
+#endif			
 			if ( PowerUpDelay < 20 )	// 200 mS
 			{
 				PowerUpDelay += 1 ;
 			}
 			else
 			{
+#ifdef PCBSKY
 				sd_poll_10mS() ;
+#endif			
+#ifdef PCBX9D
+				sdPoll10ms() ;
+#endif			
 			}
 		}
 	}
@@ -840,507 +1116,4 @@ int main()
 
   return 0;
 }
-
-
-
-uint32_t eeprom_write_one( uint8_t byte, uint8_t count )
-{
-	register Spi *spiptr ;
-	register uint32_t result ;
-	
-	spiptr = SPI ;
-	spiptr->SPI_CR = 1 ;								// Enable
-	(void) spiptr->SPI_RDR ;		// Dump any rx data
-	
-	spiptr->SPI_TDR = byte ;
-
-	result = 0 ; 
-	while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-	{
-		// wait for received
-		if ( ++result > 10000 )
-		{
-			break ;				
-		}
-	}
-	if ( count == 0 )
-	{
-		spiptr->SPI_CR = 2 ;								// Disable
-		return spiptr->SPI_RDR ;
-	}
-	(void) spiptr->SPI_RDR ;		// Dump the rx data
-	spiptr->SPI_TDR = 0 ;
-	result = 0 ; 
-	while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-	{
-		// wait for received
-		if ( ++result > 10000 )
-		{
-			break ;				
-		}
-	}
-	spiptr->SPI_CR = 2 ;								// Disable
-	return spiptr->SPI_RDR ;
-}
-
-
-uint32_t eeprom_read_status()
-{
-	return eeprom_write_one( 5, 1 ) ;
-}
-
-
-void eeprom_write_enable()
-{
-	eeprom_write_one( 6, 0 ) ;
-}
-
-void eeprom_wait_busy()
-{
-	register uint32_t x ;
-	register uint32_t y ;
-	
-	y = 0 ;
-	do
-	{
-		y += 1 ;
-		if ( y > 1000000 )
-		{
-			break ;			
-		}
-		x = eeprom_read_status() ;
-	} while ( x & 1 ) ;
-  
-}
-
-uint32_t spi_operation( register uint8_t *tx, register uint8_t *rx, register uint32_t count )
-{
-	register Spi *spiptr ;
-	register uint32_t result ;
-
-//  PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-
-	result = 0 ; 
-	spiptr = SPI ;
-	spiptr->SPI_CR = 1 ;								// Enable
-	(void) spiptr->SPI_RDR ;		// Dump any rx data
-	while( count )
-	{
-		result = 0 ;
-		while( ( spiptr->SPI_SR & SPI_SR_TXEMPTY ) == 0 )
-		{
-			// wait
-			if ( ++result > 10000 )
-			{
-				result = 0xFFFF ;
-				break ;				
-			}
-		}
-		if ( result > 10000 )
-		{
-			break ;
-		}
-//		if ( count == 1 )
-//		{
-//			spiptr->SPI_CR = SPI_CR_LASTXFER ;		// LastXfer bit
-//		}
-		spiptr->SPI_TDR = *tx++ ;
-		result = 0 ;
-		while( ( spiptr->SPI_SR & SPI_SR_RDRF ) == 0 )
-		{
-			// wait for received
-			if ( ++result > 10000 )
-			{
-				result = 0x2FFFF ;
-				break ;				
-			}
-		}
-		if ( result > 10000 )
-		{
-			break ;
-		}
-		*rx++ = spiptr->SPI_RDR ;
-		count -= 1 ;
-	}
-	if ( result <= 10000 )
-	{
-		result = 0 ;
-	}
-	spiptr->SPI_CR = 2 ;								// Disable
-
-// Power save
-//  PMC->PMC_PCER0 &= ~0x00200000L ;		// Disable peripheral clock to SPI
-
-	return result ;
-}
-
-uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, register uint8_t *rx, register uint32_t comlen, register uint32_t count )
-{
-	register Spi *spiptr ;
-//	register uint32_t result ;
-	register uint32_t condition ;
-	static uint8_t discard_rx_command[4] ;
-
-//  PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-
-//	Spi_complete = 0 ;
-	if ( comlen > 4 )
-	{
-//		Spi_complete = 1 ;
-		return 0x4FFFF ;		
-	}
-	condition = SPI_SR_TXEMPTY ;
-	spiptr = SPI ;
-	spiptr->SPI_CR = 1 ;				// Enable
-	(void) spiptr->SPI_RDR ;		// Dump any rx data
-	(void) spiptr->SPI_SR ;			// Clear error flags
-	spiptr->SPI_RPR = (uint32_t)discard_rx_command ;
-	spiptr->SPI_RCR = comlen ;
-	if ( rx )
-	{
-		spiptr->SPI_RNPR = (uint32_t)rx ;
-		spiptr->SPI_RNCR = count ;
-		condition = SPI_SR_RXBUFF ;
-	}
-	spiptr->SPI_TPR = (uint32_t)command ;
-	spiptr->SPI_TCR = comlen ;
-	if ( tx )
-	{
-		spiptr->SPI_TNPR = (uint32_t)tx ;
-	}
-	else
-	{
-		spiptr->SPI_TNPR = (uint32_t)rx ;
-	}
-	spiptr->SPI_TNCR = count ;
-
-	spiptr->SPI_PTCR = SPI_PTCR_RXTEN | SPI_PTCR_TXTEN ;	// Start transfers
-
-	// Wait for things to get started, avoids early interrupt
-	for ( count = 0 ; count < 1000 ; count += 1 )
-	{
-		if ( ( spiptr->SPI_SR & SPI_SR_TXEMPTY ) == 0 )
-		{
-			break ;			
-		}
-	}
-	
-	count = 0 ;
-	while( ( spiptr->SPI_SR & condition ) == 0 )
-	{
-		if ( ++count > 1000000 )
-		{
-			break ;			
-		}
-	}
-	
-	spiptr->SPI_CR = 2 ;				// Disable
-	(void) spiptr->SPI_RDR ;		// Dump any rx data
-	(void) spiptr->SPI_SR ;			// Clear error flags
-	spiptr->SPI_PTCR = SPI_PTCR_RXTDIS | SPI_PTCR_TXTDIS ;	// Stop tramsfers
-
-	if ( count > 1000000 )
-	{
-		return 1 ;
-	}
-	return 0 ;
-}
-
-
-uint32_t unprotect_eeprom()
-{
- 	register uint8_t *p ;
-
-	eeprom_write_enable() ;
-		
-	p = Spi_tx_buf ;
-	*p = 0x39 ;		// Unprotect sector command
-	*(p+1) = 0 ;
-	*(p+2) = 0 ;
-	*(p+3) = 0 ;		// 3 bytes address
-
-	return spi_operation( p, Spi_rx_buf, 4 ) ;
-}
-
-
-
-
-
-
-void init_spi()
-{
-	register Pio *pioptr ;
-	register Spi *spiptr ;
-	register uint32_t timer ;
-	register uint8_t *p ;
-	uint8_t spi_buf[4] ;
-
-	if ( !Spi_init_done)
-	{
-  	PMC->PMC_PCER0 |= 0x00200000L ;		// Enable peripheral clock to SPI
-  	/* Configure PIO */
-		pioptr = PIOA ;
-  	pioptr->PIO_ABCDSR[0] &= ~0x00007800 ;	// Peripheral A bits 14,13,12,11
-  	pioptr->PIO_ABCDSR[1] &= ~0x00007800 ;	// Peripheral A
-  	pioptr->PIO_PDR = 0x00007800 ;					// Assign to peripheral
-	
-		spiptr = SPI ;
-		timer = ( 64000000 / 3000000 ) << 8 ;
-		spiptr->SPI_MR = 0x14000011 ;				// 0001 0100 0000 0000 0000 0000 0001 0001 Master
-		spiptr->SPI_CSR[0] = 0x01180009 | timer ;		// 0000 0001 0001 1000 xxxx xxxx 0000 1001
-	//	NVIC_EnableIRQ(SPI_IRQn) ;
-
-		p = spi_buf ;
-		
-	//	*p = 0x39 ;		// Unprotect sector command
-	//	*(p+1) = 0 ;
-	//	*(p+2) = 0 ;
-	//	*(p+3) = 0 ;		// 3 bytes address
-
-	//	spi_operation( p, spi_buf, 4 ) ;
-	
-		eeprom_write_enable() ;
-
-		*p = 1 ;		// Write status register command
-		*(p+1) = 0 ;
-		spi_operation( p, spi_buf, 2 ) ;
-		Spi_init_done = 1 ;
-	}
-
-}
-
-
-void AT25D_Read( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset)
-{
-	register uint8_t *p ;
-	
-	p = Spi_tx_buf ;
-	*p = 3 ;		// Read command
-	*(p+1) = memoryOffset >> 16 ;
-	*(p+2) = memoryOffset >> 8 ;
-	*(p+3) = memoryOffset ;		// 3 bytes address
-	
-	spi_PDC_action( p, 0, BufferAddr, 4, size ) ;
-}
-
-
-uint32_t ee32_read_512( uint32_t sector, uint8_t *buffer )
-{
-	AT25D_Read( buffer, 512, sector * 512 ) ;
-	return 1 ;
-}
-
-void AT25D_Write( uint8_t *BufferAddr, uint32_t size, uint32_t memoryOffset )
-{
-	register uint8_t *p ;
-	
-	eeprom_write_enable() ;
-	
-	p = Spi_tx_buf ;
-	*p = 2 ;		// Write command
-	*(p+1) = memoryOffset >> 16 ;
-	*(p+2) = memoryOffset >> 8 ;
-	*(p+3) = memoryOffset ;		// 3 bytes address
-		 
-	spi_PDC_action( p, BufferAddr, 0, 4, size ) ;
-
-	eeprom_wait_busy() ;
-
-}
-
-uint32_t eeprom_block_erased( register uint8_t *p)
-{
-	register uint32_t x ;
-	register uint32_t result ;
-
-	result = 1 ;
-
-	for ( x = 0 ; x < 4096 ; x += 1 )
-	{
-		if ( *p++ != 0xFF )
-		{
-			result = 0 ;			
-			break ;
-		}		
-	}
-	return result ;
-}
-
-uint32_t eeprom_page_erased( register uint8_t *p)
-{
-	register uint32_t x ;
-	register uint32_t result ;
-
-	result = 1 ;
-
-	for ( x = 0 ; x < 256 ; x += 1 )
-	{
-		if ( *p++ != 0xFF )
-		{
-			result = 0 ;			
-			break ;
-		}		
-	}
-	return result ;
-}
-
-void writeBlock()
-{
-	uint32_t x ;
-	uint32_t address ;
-	uint32_t i ;
-	uint8_t *s ;
-	
-	x = eeprom_block_erased( Eblock_current ) ;		// EEPROM block blanked?
-	if ( x == 0 )
-	{
-		AT25D_EraseBlock( EblockAddress ) ;
-    memset( Eblock_current, 0xFF, 4096 ) ;		// Now erased
-	}
-			
-	s = Eblock_buffer ;
-	address = EblockAddress ;
-	for ( i = 0 ; i < 16 ; i += 1 )		// pages in block
-	{
-		x = eeprom_page_erased( s ) ;
-		if ( x == 0 )				// Not blank
-		{
-//EeWriteCount += 1 ;
-   		AT25D_Write( s, 256, address ) ;
-		}						
-		s += 256 ;
-		address += 256 ;
-	}
-	EblockAddress = -1 ;
-	EE_timer = 0 ;
-}
-
-
-void readBlock( uint32_t block_address )
-{
-  AT25D_Read( Eblock_buffer, 4096, block_address ) ;	// read block to write to
-  memcpy( Eblock_current, Eblock_buffer, 4096 ) ;			// Copy for erase checking
-
-	EblockAddress = block_address ;
-}
-			 
-uint32_t ee32_write( const uint8_t *buffer, uint32_t sector, uint32_t count )
-{
-	// EEPROM write
-	uint32_t startMemoryOffset ;
-	uint32_t memoryOffset ;
-	uint32_t bytesToWrite ;
-  uint8_t *pBuffer ;
-	int32_t block_address ;
-
-	if ( sector == 0 )
-	{
-		if ( isEepromStart( (uint8_t *) buffer ) )
-		{
-			EepromBlocked = 0 ;
-		}
-		else
-		{
-			EepromBlocked = 1 ;
-		}
-	}
-
-	if ( EepromBlocked )
-	{
-		return 1 ;
-	}
-
-	startMemoryOffset = sector ;
-	startMemoryOffset *= 512 ;		// Byte address into EEPROM
-  memoryOffset      = startMemoryOffset;
-
-	bytesToWrite = count * 512 ;
-				
-	unprotect_eeprom() ;
-
-  pBuffer = (uint8_t *) buffer ;
-
-	block_address = memoryOffset &0xFFFFF000 ;		// 4k boundary
-
-	if ( EblockAddress != -1 )
-	{
-		// Ram copy is dirty
-		if ( EblockAddress != block_address )
-		{
-			// flush buffer
-			writeBlock() ;
-		}
-	}
-
-	// Now check for pre-read
-	if ( EblockAddress != block_address )
-	{
-		readBlock( block_address ) ;
-		
-//		// Check to see if it is blank
-//		x = eeprom_block_erased( Eblock_buffer ) ;
-//		if ( x == 0 )
-//		{
-//			AT25D_EraseBlock( block_address ) ;
-//		}
-	}
-
-	while (bytesToWrite)
-	{
-		uint32_t bytes_to_copy ;
-		uint32_t i ;
-		uint8_t *s ;
-		uint8_t *dest ;
-
-		if ( EblockAddress != block_address )
-		{
-			readBlock( block_address ) ;
-		}
-
-		dest = Eblock_buffer + (memoryOffset & 0x0FFF ) ;
-		s = pBuffer ;
-		bytes_to_copy = 4096 - ( memoryOffset - block_address ) ;
-		if ( bytes_to_copy > bytesToWrite )
-		{
-			bytes_to_copy = bytesToWrite ;
-		}
-		for ( i = 0 ; i < bytes_to_copy ; i += 1 )
-		{
-			*dest++ = *s++ ;						
-		}
-		memoryOffset += bytes_to_copy ;
-		bytesToWrite -= bytes_to_copy ;
-		 
-		if ( dest > &Eblock_buffer[4095] )
-		{
-			// copied data past end
-			writeBlock() ;
-		}
-		else
-		{
-			EE_timer = 30 ;		// Write dirty block in 0.3 secs
-		}
-	}
-	return 1 ;
-}
-
-uint32_t AT25D_EraseBlock( uint32_t memoryOffset )
-{
-	register uint8_t *p ;
-	register uint32_t x ;
-
-//	EeEraseCount += 1 ;
-	 
-	eeprom_write_enable() ;
-	p = Spi_tx_buf ;
-	*p = 0x20 ;		// Block Erase command
-	*(p+1) = memoryOffset >> 16 ;
-	*(p+2) = memoryOffset >> 8 ;
-	*(p+3) = memoryOffset ;		// 3 bytes address
-	x = spi_operation( p, Spi_rx_buf, 4 ) ;
-
-	eeprom_wait_busy() ;
-	return x ;
-}
-
 

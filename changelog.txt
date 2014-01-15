@@ -10,6 +10,14 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 15-Jan-2014  MPB (r198)
+bootloader for X9D (Taranis)
+Handle DSMX module channel count better
+Hopefully add N/S/E/W to GPS display
+Fix spurious switch warning when button pressed on splash screen
+X9D set VTOR correctly
+
+******************************************
 CHANGELOG: 09-Jan-2014  MPB (r197)
 Remove beeper options - not used
 Code for a DSM module on the 9XR-PRO, with telemetry, including new telemetry screen

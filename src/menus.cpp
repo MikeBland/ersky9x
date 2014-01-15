@@ -127,6 +127,7 @@ int8_t phyStick[4] ;
 #define TEL_ITEM_GHDG		34
 
 
+
 // TSSI set to zero on no telemetry data
 //const char *Str_telemItems = PSTR(STR_TELEM_ITEMS) ;
 const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
@@ -3828,7 +3829,7 @@ if(t_pgOfs<subN) {
     for (uint8_t i=0 ; i<7 ; i += 1 )
 		{
       lcd_putc( 11*FW+i*(2*FW), y, 'A'+i ) ;
-			lcd_putc( 12*FW+i*(2*FW), y, HW_SWITCHARROW_STR[states & 0x03] ) ;
+			lcd_putc( 12*FW+i*(2*FW), y, PSTR(HW_SWITCHARROW_STR)[states & 0x03] ) ;
       states >>= 2 ;
     }
     if(sub==subN)
@@ -3888,8 +3889,23 @@ if(t_pgOfs<subN) {
 			uint8_t x ;
 		  lcd_puts_Pleft( y, PSTR(STR_21_USEC) );
 			x = 10*FW ;
-      lcd_putsAttIdx(  x, y, PSTR(STR_PPMCHANNELS),(g_model.ppmNCH+2),(sub==subN && subSub==1  ? (s_editMode ? BLINK : INVERS):0));
-      lcd_outdezAtt(  x+7*FW-1, y,  (g_model.ppmDelay*50)+300, (sub==subN && subSub==2 ? (s_editMode ? BLINK : INVERS):0));
+			if ( g_model.ppmNCH > 4 )
+			{
+				g_model.ppmNCH = 0 ;		// Correct if wrong from DSM
+			}
+			uint8_t channels = g_model.ppmNCH * 2 + 8 ;
+//			if ( (protocol == PROTO_DSM2) && ( g_model.sub_protocol == DSM_9XR ) )
+//			{
+//				channels = g_model.ppmNCH ;
+//			}
+			uint8_t attr = LEFT ;
+			if ( (sub==subN) && ( subSub==1 ) )
+			{
+				attr |= (s_editMode ? BLINK : INVERS) ;
+			}
+			lcd_outdezAtt(  x, y, channels, attr ) ;
+  		lcd_putsAtt( Lcd_lastPos, y, PSTR( STR_PPMCHANNELS ), attr ) ;
+			lcd_outdezAtt(  x+7*FW-1, y,  (g_model.ppmDelay*50)+300, (sub==subN && subSub==2 ? (s_editMode ? BLINK : INVERS):0));
     }
     else if ( ( protocol == PROTO_PXX) || ( protocol == PROTO_DSM2) )
     {
@@ -6341,13 +6357,13 @@ void switchDisplay( uint8_t j, uint8_t a )
 	{
 		if ( i < 8 )
 		{
-			lcd_putsAttIdx((2+j*15)*FW-2, y, HW_SWITCHES_STR, i, 0 ) ;
+			lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(HW_SWITCHES_STR), i, 0 ) ;
 			uint32_t pos = switchPosition( i ) ;
-			lcd_putc((4+j*15)*FW-2, y, HW_SWITCHARROW_STR[pos] ) ;
+			lcd_putc((4+j*15)*FW-2, y, PSTR(HW_SWITCHARROW_STR)[pos] ) ;
 		}
 		else
 		{
-			lcd_putsAttIdx((2+j*15)*FW-2, y, SWITCHES_STR, i+(22-8), getSwitch(i+(22-8+1), 0) ? INVERS : 0 ) ;
+			lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), i+(22-8), getSwitch(i+(22-8+1), 0) ? INVERS : 0 ) ;
 		}
 	}
 #endif
@@ -6799,10 +6815,12 @@ void menuProc0(uint8_t event)
                 lcd_outdezNAtt(8*FW, 2*FH, FrskyHubData[FR_GPS_LAT], LEADING0 | blink, -5);
                 lcd_putc(8*FW, 2*FH, '.') ;
                 lcd_outdezNAtt(12*FW, 2*FH, FrskyHubData[FR_GPS_LATd], LEADING0 | blink, -4);
+								lcd_putcAtt( 16*FW, 2*FH, FrskyHubData[FR_LAT_N_S], blink ) ;
                 lcd_puts_Pleft( 3*FH, PSTR(STR_LON_EQ)) ;
                 lcd_outdezNAtt(8*FW, 3*FH, FrskyHubData[FR_GPS_LONG], LEADING0 | blink, -5);
                 lcd_putc(8*FW, 3*FH, '.') ;
                 lcd_outdezNAtt(12*FW, 3*FH, FrskyHubData[FR_GPS_LONGd], LEADING0 | blink, -4);
+								lcd_putcAtt( 16*FW, 3*FH, FrskyHubData[FR_LONG_E_W], blink ) ;
                 lcd_puts_Pleft( 4*FH, PSTR(STR_ALT_MAX)) ;
                 lcd_outdezAtt(20*FW, 4*FH, FrskyHubMaxMin.hubMax[FR_GPS_ALT], 0);
                 lcd_outdez(20*FW, 3*FH, FrskyHubData[FR_COURSE] );
