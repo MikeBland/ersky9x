@@ -10,6 +10,16 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 25-Jan-2014  MPB (r199)
+Improve bootloader build
+Add "maintenance mode"
+Fix logging bug
+Add Rx voltage to telemetry (SPort only)
+Fix COM2 bug with DJT
+Language specific chars for X9D
+Improve makefile
+
+******************************************
 CHANGELOG: 15-Jan-2014  MPB (r198)
 bootloader for X9D (Taranis)
 Handle DSMX module channel count better
