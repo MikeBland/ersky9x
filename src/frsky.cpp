@@ -144,6 +144,7 @@ static uint8_t numPktBytes = 0;
 #define frskyDataXOR     3
 
 static uint8_t dataState = frskyDataIdle ;
+static uint8_t A1Received = 0 ;
 
 uint8_t DsmManCode[4] ;
 uint16_t DsmABLRFH[6] ;
@@ -863,9 +864,13 @@ void processSportPacket()
 
 				case 2 :
 		      frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
+					A1Received = 1 ;
 				break ;
 				case 4 :		// Battery from X8R
-		      frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
+					if ( A1Received == 0 )
+					{
+		      	frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
+					}
 					store_hub_data( FR_RXV, value ) ;
 				break ;
   		    
@@ -1087,7 +1092,14 @@ void frsky_receive_byte( uint8_t data )
 #ifdef PCBSKY
 void frskyTransmitBuffer( uint32_t size )
 {
-	txPdcUsart( frskyTxBuffer, size ) ;
+	if ( g_model.frskyComPort == 0 )
+	{	
+		txPdcUsart( frskyTxBuffer, size ) ;
+	}
+	else
+	{
+		txCom2Uart( frskyTxBuffer, size ) ;
+	}
 }
 #endif
 
@@ -1462,6 +1474,7 @@ void check_frsky()
 		if ( --frskyStreaming == 0 )
 		{
  			FrskyHubData[FR_TXRSI_COPY] = 0 ;
+			A1Received = 0 ;
 		}
 	}
   if (frskyUsrStreaming > 0) frskyUsrStreaming--;

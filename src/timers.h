@@ -20,8 +20,8 @@ void init5msTimer( void ) ;
 void stop5msTimer( void ) ;
 
 #ifdef PCBSKY
-extern void start_timer0( void ) ;
-extern void stop_timer0( void ) ;
+extern void init_hw_timer( void ) ;
+//extern void stop_timer0( void ) ;
 extern void init_pwm( void ) ;
 #endif
 

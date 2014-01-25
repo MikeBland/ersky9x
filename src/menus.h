@@ -133,5 +133,9 @@ extern void menuProcModelSelect(uint8_t event) ;
 extern void perOut( int16_t *chanOut, uint8_t att ) ;
 extern void menuProcGlobals(uint8_t event) ;
 
+extern void menuUp1(uint8_t event) ;
+extern void menuUpdate(uint8_t event) ;
+
+
 
 #endif

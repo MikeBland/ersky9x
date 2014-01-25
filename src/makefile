@@ -183,8 +183,8 @@ SRC  = x9d/system_stm32f2xx.c \
 CPPSRC = x9d.cpp \
          x9d/lcd_driver.cpp \
          x9d/aspi.cpp \
-         x9d/diskio.cpp \
          x9d/sound.cpp \
+         x9d/diskio.cpp \
          x9d/power.cpp \
          x9d/pulses_driver.cpp \
          x9d/watchdog.cpp \
@@ -210,6 +210,7 @@ CPPSRC = x9d.cpp \
 			fr.cpp \
 			se.cpp \
 			loadboot.cpp \
+			maintenance.cpp \
 		   lcd.cpp
 
 #         massstorage.cpp \
@@ -238,11 +239,12 @@ SRC  = core_cm3.c \
 
 CPPSRC = stamp.cpp \
          drivers.cpp \
-         diskio.cpp \
          sdcard_driver.cpp \
          ff.cpp \
          gtime.cpp \
-         sound.cpp \
+         sky/sound.cpp \
+         sky/diskio.cpp \
+         sky/power.cpp \
          lcd.cpp \
          debug.cpp \
          file.cpp \
@@ -261,6 +263,7 @@ CPPSRC = stamp.cpp \
 			fr.cpp \
 			se.cpp \
 			loadboot.cpp \
+			maintenance.cpp \
 			logs.cpp
 
 #         massstorage.cpp \
@@ -290,7 +293,6 @@ OPT = -Os
 # End of user defines
 ##############################################################################################
 
-
 INCDIR  = $(patsubst %,-I%,$(DINCDIR) $(UINCDIR))
 LIBDIR  = $(patsubst %,-L%,$(DLIBDIR) $(ULIBDIR))
 
@@ -300,8 +302,25 @@ else
 DEFS    = $(DDEFS) $(UDEFS) -DRUN_FROM_FLASH=1
 endif
 
-
 ADEFS   = $(DADEFS) $(UADEFS)
+
+# Generate the (raw) object files lists
+AXOBJS    = $(ASRC:%.s=%.o)
+CXOBJS    = $(SRC:%.c=%.o)
+CPPXOBJS  = $(CPPSRC:%.cpp=%.o)
+
+# Remove directory info from the object files lists
+AOBJS    = $(patsubst %,$(OBJDIR)/%,$(notdir $(AXOBJS) ))
+COBJS    = $(patsubst %,$(OBJDIR)/%,$(notdir $(CXOBJS) ))
+CPPOBJS  = $(patsubst %,$(OBJDIR)/%,$(notdir $(CPPXOBJS) ))
+DIRS = $(sort $(dir $(AXOBJS) $(CXOBJS) $(CPPXOBJS) ) )
+
+# Search path for sources
+VPATH = $(DIRS)
+
+# Generates the dependancy files lists
+INCLUDES = $(AOBJS:.o=.o.d) $(COBJS:.o=.o.d) $(CPPOBJS:.o=.o.d)
+
 OBJS    = $(ASRC:%.s=$(OBJDIR)/%.o) $(SRC:%.c=$(OBJDIR)/%.o) $(CPPSRC:%.cpp=$(OBJDIR)/%.o)
 LIBS    = $(DLIBS) $(ULIBS)
 MCFLAGS = -mcpu=$(MCU)
@@ -310,9 +329,9 @@ XOBJS = $(ASRC:%.s=x9dobj/%.o) $(SRC:%.c=x9dobj/%.o) $(CPPSRC:%.cpp=x9dobj/%.o)
 ROBJS = $(ASRC:%.s=skyRobj/%.o) $(SRC:%.c=skyRob/%.o) $(CPPSRC:%.cpp=skyRobj/%.o)
 
 #ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(<:.s=.lst) $(ADEFS)
-CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm -Wa,-ahlms=$(<:.c=.lst) $(DEFS)
+CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm $(DEFS)
 LDFLAGS = $(MCFLAGS) -mthumb -nostartfiles -T$(LDSCRIPT) -Wl,-Map=$(FULL_PRJ).map,--cref,--no-warn-mismatch $(LIBDIR)
-CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm -Wa,-ahlms=$(<:.cpp=.lst) $(DEFS)
+CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm $(DEFS)
 
 CPPFLAGS += $(CPPDEFS)
 CPFLAGS += $(CPPDEFS)
@@ -354,14 +373,16 @@ ifeq ($(DEBUG), 1)
 endif
 
 # Generate dependency information
-CPFLAGS += -MD -MP -MF .dep/$(@F).d
-CPPFLAGS += -MD -MP -MF .dep/$(@F).d
+CPFLAGS += -MD -MP -MF $(OBJDIR)/$(@F).d
+CPPFLAGS += -MD -MP -MF $(OBJDIR)/$(@F).d
+#CPFLAGS += -MD -MP -MF .dep/$(@F).d
+#CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 
 #
 # makefile rules
 #
 
-all: size_before stamp $(OBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
+all: size_before stamp $(AOBJS) $(COBJS) $(CPPOBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
 
 size_before:
 #	arm-none-eabi-size $(FULL_PRJ).elf
@@ -376,7 +397,7 @@ stamp:
 	@echo
 #ifeq ($(STAMP), 1)
 	@echo "Generate Version-stamp:"
-	-rm -f $(OBJDIR)/stamp.o
+#	-rm -f $(OBJDIR)/stamp.o
 	@echo "//Automatically generated file - do not edit" > stamp-ersky9x.h
 	@echo "#define DATE_STR \"`date +%d.%m.%Y`\"" >> stamp-ersky9x.h
 	@echo "#define TIME_STR \"`date +%H:%M:%S`\"" >> stamp-ersky9x.h
@@ -391,17 +412,25 @@ stamp:
 #	@cat stamp-ersky9x.h
 #endif
 
-$(OBJDIR)/%.o : %.cpp
+#$(OBJDIR)/%.o : %.cpp
+#	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@
+$(CPPOBJS) : $(OBJDIR)/%.o : %.cpp
 	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@
 
-$(OBJDIR)/%.o : %.c
+#$(OBJDIR)/%.o : %.c
+#	$(CC) -c $(CPFLAGS) -I . $(INCDIR) $< -o $@
+$(COBJS) : $(OBJDIR)/%.o : %.c
 	$(CC) -c $(CPFLAGS) -I . $(INCDIR) $< -o $@
 
-$(OBJDIR)/%.o : %.s
+#$(OBJDIR)/%.o : %.s
+#	$(AS) -c $(ASFLAGS) $< -o $@
+$(AOBJS) : $(OBJDIR)/%.o : %.s
 	$(AS) -c $(ASFLAGS) $< -o $@
 
-%elf: $(OBJS)
-	$(CC) $(OBJS) $(LDFLAGS) $(LIBS) -o $@
+#%elf: $(OBJS)
+#	$(CC) $(OBJS) $(LDFLAGS) $(LIBS) -o $@
+%elf: $(AOBJS) $(COBJS) $(CPPOBJS) 
+	$(CC) $(AOBJS) $(COBJS) $(CPPOBJS) $(LDFLAGS) $(LIBS) -o $@
   
 # Create extended listing file from ELF output file.
 %.lss: %.elf
@@ -414,9 +443,9 @@ $(OBJDIR)/%.o : %.s
 	$(BINX) $< $@
 
 clean:
-	-rm -f $(OBJS)
-	-rm -f $(ROBJS)
-	-rm -f $(XOBJS)
+	-rm -f x9dobj/*.*
+	-rm -f skyobj/*.*
+	-rm -f skyRobj/*.*
 	-rm -f $(FULL_PRJ).elf
 	-rm -f $(FULL_PRJ).map
 	-rm -f $(FULL_PRJ).hex
@@ -430,6 +459,8 @@ clean:
 # 
 # Include the dependency files, should be the last of the makefile
 #
--include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)
+#-include $(shell mkdir .dep 2>/dev/null) $(wildcard .dep/*)
+# Add in all the dependancy files
+-include $(INCLUDES)
 
 # *** EOF ***

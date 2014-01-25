@@ -54,7 +54,6 @@
 // Timer1 used for DAC output timing
 // Timer5 is currently UNUSED
 
-#ifndef BOOT
 #ifdef PCBSKY
 volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 #endif
@@ -82,8 +81,6 @@ struct t_fifo32 BtRx_fifo ;
 struct t_fifo32 Telemetry_fifo ;
 #endif
 
-#endif  // ndef BOOT
-
 volatile uint32_t Spi_complete ;
 
 void putEvent( register uint8_t evt) ;
@@ -92,7 +89,6 @@ uint8_t getEvent( void ) ;
 void pauseEvents(uint8_t event) ;
 void killEvents(uint8_t event) ;
 
-#ifndef BOOT
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
 void uputs( register char *string ) ;
@@ -141,8 +137,6 @@ void disable_ssc( void ) ;
 
 #define BT_USART       UART1
 #define BT_ID          ID_UART1
-
-#endif
 
 static uint8_t s_evt;
 void putEvent( register uint8_t evt)
@@ -250,23 +244,19 @@ void killEvents(uint8_t event)
 
 volatile uint8_t  g_blinkTmr10ms;
 
-#ifndef BOOT
 volatile uint16_t g_tmr10ms;
 extern uint8_t StickScrollTimer ;
-#endif
 
 void per10ms()
 {
 	register uint32_t i ;
 
-#ifndef BOOT
   g_tmr10ms++;
   if (WatchdogTimeout)
 	{
     WatchdogTimeout -= 1;
     wdt_reset();  // Retrigger hardware watchdog
   }
-#endif
 
   g_blinkTmr10ms++;
   uint8_t enuk = KEY_MENU;
@@ -317,13 +307,11 @@ void per10ms()
   {
 		uint8_t value = in & (1<<i) ;
 #ifdef PCBSKY
-#ifndef BOOT
 #if !defined(SIMU)
 		if ( value )
 		{
 			StickScrollTimer = STICK_SCROLL_TIMEOUT ;
 		}
-#endif
 #endif
 #endif // PCBSKY
     //INP_B_KEY_MEN 1  .. INP_B_KEY_LFT 6
@@ -331,7 +319,6 @@ void per10ms()
     ++enuk;
   }
 
-#ifndef BOOT
 //  static const uint8_t crossTrim[]={
 //    1<<INP_D_TRM_LH_DWN,
 //    1<<INP_D_TRM_LH_UP,
@@ -367,13 +354,8 @@ void per10ms()
 #ifdef PCBX9D
 	sdPoll10ms() ;
 #endif
-#endif  // ndef BOOT
 
 }
-
-
-
-#ifndef BOOT
 
 
 void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
@@ -679,9 +661,6 @@ uint32_t spi_PDC_action( register uint8_t *command, register uint8_t *tx, regist
 //#endif
 
 
-#ifndef BOOT
-
-
 /**
  * Configures a UART peripheral with the specified parameters.
  *
@@ -956,6 +935,22 @@ uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 #endif
 		pUsart->US_TNCR = size ;
 		pUsart->US_PTCR = US_PTCR_TXTEN ;
+		return 1 ;
+	}
+	return 0 ;
+}
+  
+uint32_t txCom2Uart( uint8_t *buffer, uint32_t size )
+{
+	Uart *pUart=CONSOLE_USART ;
+
+	if ( pUart->UART_TNCR == 0 )
+	{
+#ifndef SIMU
+	  pUart->UART_TNPR = (uint32_t)buffer ;
+#endif
+		pUart->UART_TNCR = size ;
+		pUart->UART_PTCR = US_PTCR_TXTEN ;
 		return 1 ;
 	}
 	return 0 ;
@@ -1443,7 +1438,6 @@ void disable_ssc()
 }
 
 #endif
-#endif
 
 #ifdef PCBX9D
 void x9dConsoleInit()
@@ -1601,4 +1595,3 @@ void hex_digit_send( unsigned char c )
 
 #endif
 
-#endif  // ndef BOOT

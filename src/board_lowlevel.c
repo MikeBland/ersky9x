@@ -186,7 +186,6 @@ static uint32_t BOARD_ConfigurePmc(void)
 	return 36000000L ;		// Master_frequency
 }
 
-#ifndef BOOT
 void revert_osc()
 {
   register uint32_t timeout = 0 ;
@@ -208,15 +207,14 @@ void revert_osc()
 	pmcptr->CKGR_PLLAR = 1 << 29 ;		// Stop PLLA
 
 }
-#endif
 
 #ifdef BOOT
 
 #ifdef REVB
 extern void sam_bootx( void ) ;
 extern void dispUSB( void ) ;
-extern uint32_t initReadTrims( void ) ;
-extern void dispBOOT(uint32_t x) ;
+extern uint32_t init
+ReadTrims( void ) ;
 extern void run_application( void ) ;
 
 static void lowLevelUsbCheck( void )
@@ -246,7 +244,6 @@ static void lowLevelUsbCheck( void )
 		run_application() ;
 //		loadAndRunBoot() ;
 	}
-	dispBOOT(PIOB->PIO_PDSR) ;
 }
 #endif
 #endif

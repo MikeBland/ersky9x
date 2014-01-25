@@ -78,7 +78,7 @@ extern const uint8_t *ExtraBigFont ;
 
 extern uint8_t plotType ;
 
-extern void lcd_putc(uint8_t x,uint8_t y,const char c ) ;
+extern uint8_t lcd_putc(uint8_t x,uint8_t y,const char c ) ;
 extern uint8_t lcd_putcAtt( uint8_t x, uint8_t y, const char c, uint8_t mode ) ;
 extern void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_t att) ;
 extern void lcd_putsnAtt(uint8_t x,uint8_t y,const char * s,uint8_t len,uint8_t mode) ;
@@ -91,7 +91,7 @@ extern void lcd_puts_Pleft( uint8_t y, const char *s ) ;
 extern void lcd_puts_P( uint8_t x, uint8_t y, const char *s ) ;
 extern void lcd_outdez( uint8_t x, uint8_t y, int16_t val ) ;
 extern void lcd_outdezAtt( uint8_t x, uint8_t y, int16_t val, uint8_t mode ) ;
-extern void lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len ) ;
+extern uint8_t lcd_outdezNAtt( uint8_t x, uint8_t y, int32_t val, uint8_t mode, int8_t len ) ;
 
 extern void lcd_hbar( uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t percent ) ;
 extern void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h ) ;
@@ -105,6 +105,7 @@ extern void lcd_init( void ) ;
 extern void lcdSetRefVolt(uint8_t val) ;
 extern void lcdSendCtl(uint8_t val) ;
 extern void refreshDisplay( void ) ;
+extern void lcdSetContrast( void ) ;
 
 extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;

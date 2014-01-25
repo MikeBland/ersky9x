@@ -2028,7 +2028,6 @@ FRESULT f_mount (
 }
 
 
-#ifndef BOOT
 /*---------------------------------------------------------*/
 /* User Provided Date/Time Function for FatFs module       */
 /*---------------------------------------------------------*/
@@ -2052,7 +2051,6 @@ uint32_t o9x_get_fattime(void)
     | ((uint32_t)t.tm_min << 5)
     | ((uint32_t)t.tm_sec >> 1);
 }
-#endif
 
 /*-----------------------------------------------------------------------*/
 /* Open or Create a File                                                 */

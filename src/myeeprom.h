@@ -509,6 +509,7 @@ PACK(typedef struct te_ModelData {
 	int8_t		rssiOrange:6 ;
 	uint8_t		enRssiRed:2 ;
 	int8_t		rssiRed:6 ;
+	uint8_t		rxVratio ;
 //	uint8_t		spare24:6 ;
 //	uint8_t   curentSource ;
 //	uint8_t   altSource ;

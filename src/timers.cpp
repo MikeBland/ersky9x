@@ -94,7 +94,7 @@ void stop5msTimer( void )
 // Starts TIMER0 at full speed (MCK/2) for delay timing
 // @ 36MHz this is 18MHz
 // This was 6 MHz, we may need to slow it to TIMER_CLOCK2 (MCK/8=4.5 MHz)
-void start_timer0()
+void init_hw_timer()
 {
   register Tc *ptc ;
 
@@ -110,10 +110,10 @@ void start_timer0()
 	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 }
 
-void stop_timer0( void )
-{
-	TC0->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;		// Disable clock
-}
+//void stop_timer0( void )
+//{
+//	TC0->TC_CHANNEL[0].TC_CCR = TC_CCR0_CLKDIS ;		// Disable clock
+//}
 
 // PWM used for PPM generation, and LED Backlight
 // Output pin PB5 not used, PA17 used as PWMH3 peripheral C

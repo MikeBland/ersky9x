@@ -191,17 +191,13 @@ void usbMassStorage()
 
   	if ( active == false )
 		{
-#ifndef BOOT			
 			CoSchedLock() ;
 			if ( Voice.VoiceLock == 0 )
 			{
 				Voice.VoiceLock = 1 ;
-#endif
 				active = true ;
-#ifndef BOOT			
 			}
   		CoSchedUnlock() ;
-#endif
 		}
   	if ( active )
 		{
@@ -220,9 +216,7 @@ void usbMassStorage()
   	if ( active )
 		{
   		active = false ;
-#ifndef BOOT			
 			Voice.VoiceLock = 0 ;
-#endif
 		}
 		
     msdReadTotal = 0;

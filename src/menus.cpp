@@ -46,6 +46,7 @@
 #ifdef PCBX9D
 #include "x9d\eeprom_rlc.h"
 #endif
+#include "ff.h"
 
 union t_xmem Xmem ;
 
@@ -142,7 +143,7 @@ const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 
 // TXRSSI is always considered valid as it is forced to zero on loss of telemetry
 // Values are 0 - always valid, 1 - need telemetry, 2 - need hub
-const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2  } ;
+const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2  } ;
 
 int8_t edit_dr_switch( uint8_t x, uint8_t y, int8_t drswitch, uint8_t attr, uint8_t edit, uint8_t event ) ;
 
@@ -496,6 +497,13 @@ uint8_t putsTelemetryChannel(uint8_t x, uint8_t y, int8_t channel, int16_t val, 
 			displayed = 1 ;
     break ;
 
+		case FR_RXV:
+  		unit = 'v' ;
+			att |= PREC1 ;
+			val *= g_model.rxVratio ;
+			val /= 255 ;
+    break ;
+
     case FR_TEMP1:
     case FR_TEMP2:
 			unit = 'C' ;
@@ -741,6 +749,7 @@ void menuProcTemplates(uint8_t event);
 void menuProcTelemetry(uint8_t event) ;
 void menuProcTelemetry2(uint8_t event) ;
 void menuProcDate(uint8_t event) ;
+
 
 uint8_t getMixerCount( void ) ;
 bool reachMixerCountLimit( void ) ;
@@ -1633,7 +1642,7 @@ uint8_t hyphinvMenuItem_m( uint8_t event, uint8_t value, uint8_t y, const char *
 #ifdef FRSKY
 void menuProcTelemetry(uint8_t event)
 {
-    MENU(PSTR(STR_TELEMETRY), menuTabModel, e_Telemetry, 10, {0, 1, 1, 2, 2, 1, 2/*, 2*/});
+    MENU(PSTR(STR_TELEMETRY), menuTabModel, e_Telemetry, 11, {0, 1, 1, 2, 2, 1, 2,2,1,1,0});
 
 uint8_t  sub   = mstate2.m_posVert;
 uint8_t subSub = mstate2.m_posHorz;
@@ -1772,6 +1781,17 @@ uint8_t subN = 1;
   if( attr) { CHECK_INCDEC_H_MODELVAR( event, b, 0, 1 ) ; g_model.enRssiRed = 1-b ; }
 
 	subN++; y+=FH;
+ 
+	attr = (sub==subN) ? (s_editMode ? BLINK : INVERS) : 0 ;
+  lcd_puts_Pleft(y, XPSTR( "Rx Voltage") ) ;
+	lcd_outdezAtt( 16*FW, y, g_model.rxVratio, attr|PREC1 ) ;
+  lcd_putc(Lcd_lastPos, y, 'v' ) ;
+	lcd_outdezAtt( 21*FW, y, FrskyHubData[FR_RXV] * g_model.rxVratio / 255, PREC1 ) ;
+	if( attr) { g_model.rxVratio = checkIncDec16(event, g_model.rxVratio, 0, 255, EE_MODEL ) ; }
+
+	subN++; y+=FH;
+
+ 
  }
 }
 
@@ -1803,6 +1823,9 @@ void menuProcTelemetry2(uint8_t event)
       if(s_editMode)
          FrskyAlarmSendState |= 0x30 ;	 // update Fr-Sky module when edit mode exited
     break ;
+		case EVT_ENTRY :
+  		FrskyAlarmSendState |= 0x40 ;		// Get RSSI/TSSI alarms
+		break ;
 	}
 	blink = s_editMode ? BLINK : INVERS ;
 	
@@ -4055,8 +4078,10 @@ if(t_pgOfs<subN)
 
 	if(t_pgOfs<subN)
 	{
+		uint8_t attr = (sub==subN) ? INVERS : 0 ;
 		lcd_puts_Pleft( y, PSTR(STR_PPM2_CHANNELS));
-		lcd_putsAttIdx( 16*FW , y, PSTR(STR_PPMCHANNELS),(g_model.ppm2NCH+2), (sub==subN) ? INVERS : 0 ) ;
+		lcd_outdezAtt(  16*FW, y, (g_model.ppm2NCH*2+8), attr ) ;
+  	lcd_putsAtt( Lcd_lastPos, y, PSTR( STR_PPMCHANNELS ), attr ) ;
   	if(sub==subN)	CHECK_INCDEC_H_MODELVAR( event, g_model.ppm2NCH, -2, 4 ) ;
 	  if((y+=FH)>7*FH) return ;
  	} subN += 1 ;
@@ -7459,7 +7484,9 @@ void perOut(int16_t *chanOut, uint8_t att)
             swTog = !swon ;
             swon = true;
             uint8_t k = md->srcRaw-1;
-            v = anas[k]; //Switch is on. MAX=FULL=512 or value.
+//						if (k == MIX_3POS+MAX_GVARS) v = chans[md->destCh-1] ;
+//						else v = anas[k]; //Switch is on. MAX=FULL=512 or value.
+						v = anas[k]; //Switch is on. MAX=FULL=512 or value.
             if(k>=CHOUT_BASE && (k<i)) v = chans[k]; // if we've already calculated the value - take it instead // anas[i+CHOUT_BASE] = chans[i]
             if(md->mixWarn) mixWarning |= 1<<(md->mixWarn-1); // Mix warning
             if ( md->enableFmTrim )

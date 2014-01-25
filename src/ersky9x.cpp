@@ -305,8 +305,8 @@ uint8_t AlarmCheckFlag = 0 ;
 //uint8_t CsCheckFlag = 0 ;
 uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
-uint8_t LogTimer = 0 ;
-uint8_t FileDisable = 0 ;
+//uint8_t LogTimer = 0 ;
+//uint8_t FileDisable = 0 ;
 int16_t  CsTimer[NUM_SKYCSW] ;
 
 //const char *Str_Switches = PSTR(SWITCHES_STR) ;
@@ -496,6 +496,54 @@ void setBtBaudrate( uint32_t index )
 #endif
 
 
+void update_mode(void* pdata)
+{
+	g_menuStack[0] = menuUpdate ;
+	g_menuStack[1] = menuUp1 ;	// this is so the first instance of [MENU LONG] doesn't freak out!
+  while (1)
+	{
+		if ( ( check_soft_power() == POWER_OFF )/* || ( goto_usb ) */ )		// power now off
+		{
+			soft_power_off() ;		// Only turn power off if necessary
+		}
+
+	  static uint16_t lastTMR;
+		uint16_t t10ms ;
+		t10ms = get_tmr10ms() ;
+  	tick10ms = ((uint16_t)(t10ms - lastTMR)) != 0 ;
+	  lastTMR = t10ms ;
+
+		if(!tick10ms) continue ; //make sure the rest happen only every 10ms.
+
+	  uint8_t evt=getEvent();
+
+//	check_backlight() ;
+
+    lcd_clear() ;
+		if ( EnterMenu )
+		{
+			evt = EnterMenu ;
+			EnterMenu = 0 ;
+		}
+		g_menuStack[g_menuStackPtr](evt);
+    refreshDisplay();
+		
+		wdt_reset();
+
+		if ( Tenms )
+		{
+			Tenms = 0 ;
+		}
+#ifndef SIMU
+		sd_poll_10mS() ;
+#endif
+
+#ifndef SIMU
+		CoTickDelay(1) ;					// 2mS for now
+#endif
+	}
+}
+
 int main( void )
 {
 #ifdef PCBSKY
@@ -541,18 +589,18 @@ int main( void )
 		// USB not the power source
 		WDT->WDT_MR = 0x3FFF207F ;				// Enable watchdog 0.5 Secs
 	}
-#ifdef REVX
-	if ( pioptr->PIO_PDSR & 0x02000000 )
-	{
-		lcd_init() ;
-		lcd_clear() ;
-		lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
-		lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
-		lcd_putcAtt( 72, 24, 'C', DBLSIZE ) ;
-		refreshDisplay() ;
-		sam_boot() ;
-	}
-#endif
+//#ifdef REVX
+//	if ( pioptr->PIO_PDSR & 0x02000000 )
+//	{
+//		lcd_init() ;
+//		lcd_clear() ;
+//		lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
+//		lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
+//		lcd_putcAtt( 72, 24, 'C', DBLSIZE ) ;
+//		refreshDisplay() ;
+//		sam_boot() ;
+//	}
+//#endif
 
 #ifdef REVB	
 #else	
@@ -584,12 +632,7 @@ int main( void )
 
 	init5msTimer() ;
 	
-#ifdef PCBSKY
-	start_timer0() ;
-#endif
-#ifdef PCBX9D
 	init_hw_timer() ;
-#endif
 	init_adc() ;
 
 #ifdef PCBSKY
@@ -597,6 +640,15 @@ int main( void )
 #ifndef SIMU
 	init_SDcard() ;
 #endif
+#endif
+
+#ifdef PCBX9D
+	// SD card detect pin
+	configure_pins( GPIO_Pin_CP, PIN_PORTD | PIN_INPUT | PIN_PULLUP ) ;
+	
+//  sdInit() ;
+	disk_initialize( 0 ) ;
+	sdInit() ;
 #endif
 
 	__enable_irq() ;
@@ -608,8 +660,6 @@ int main( void )
 #endif
 
 	g_menuStack[0] =  menuProc0 ;
-
-	start_sound() ;
 
 #ifdef PCBX9D
 	init_trims() ;
@@ -635,12 +685,31 @@ int main( void )
 
 	eeReadAll() ;
 	setLanguage() ;
+#ifdef PCBSKY
+	lcdSetContrast() ;
+#endif
+
+	// At this point, check for "maintenance mode"
+	if ( read_trims() == 0x81 )
+	{
+		// Do maintenance mode
+#ifndef SIMU
+		CoInitOS();
+
+		MainTask = CoCreateTask( update_mode,NULL,5,&main_stk[MAIN_STACK_SIZE-1],MAIN_STACK_SIZE);
+		CoStartOS();
+		while(1) ;
+#endif
+	
+	}
 
   resetTimer();
 	if ( g_eeGeneral.unexpectedShutdown )
 	{
 		unexpectedShutdown = 1 ;
 	}
+
+	start_sound() ;
 
 #ifdef PCBSKY
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
@@ -729,13 +798,6 @@ int main( void )
 	init_trainer_ppm() ;
 
 	init_trainer_capture() ;
-
-	// SD card detect pin
-	configure_pins( GPIO_Pin_CP, PIN_PORTD | PIN_INPUT | PIN_PULLUP ) ;
-	
-//  sdInit() ;
-	disk_initialize( 0 ) ;
-	sdInit() ;
 
 	rtcInit() ;
 #endif
@@ -1045,11 +1107,19 @@ extern void closeLogs( void ) ;
 uint8_t LogsRunning = 0 ;
 void log_task(void* pdata)
 {
+  uint16_t tgtime = get_tmr10ms() + 100 ;		// 1 sec
+	
 	while(1)
 	{
 		// This needs to be a bit more accurate than
 		// just a delay to get the correct logging rate
-		CoTickDelay(500) ;					// 1S
+		do
+		{
+			CoTickDelay(5) ;					// 10mS
+		} while(tgtime > get_tmr10ms()) ;
+//		LogTimer = 0 ;
+  	tgtime += 100 ;
+
 		if ( g_model.logSwitch )
 		{
 			if ( getSwitch( g_model.logSwitch, 0, 0 ) )
@@ -1246,7 +1316,7 @@ void main_loop(void* pdata)
 //	lcd_clear() ;
 //	lcd_putcAtt( 48, 24, 'U', DBLSIZE ) ;
 //	lcd_putcAtt( 60, 24, 'S', DBLSIZE ) ;
-//	lcd_putcAtt( 72, 24, 'D', DBLSIZE ) ;
+//	lcd_putcAtt( 72, 24, 'B', DBLSIZE ) ;
 //	refreshDisplay() ;
 
 //	// This might be replaced by a software reset
@@ -3626,50 +3696,6 @@ void pushMenu(MenuFuncP newMenu)
 	EnterMenu = EVT_ENTRY ;
   g_menuStack[++g_menuStackPtr] = newMenu ;
 }
-
-
-#ifdef PCBSKY 
-void init_soft_power()
-{
-	// Configure RF_power (PC17)
-	configure_pins( PIO_PC17, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_NO_PULLUP | PIN_PULLDOWN ) ;
-	
-	configure_pins( PIO_PA8, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
-}
-
-
-// Returns zero if power is switched off
-//  1 if power switch is on
-//  2 if power switch off, trainer power on
-uint32_t check_soft_power()
-{
-#ifdef SIMU
-  return POWER_ON;
-#endif
-#ifdef REVB	
-	if ( PIOC->PIO_PDSR & PIO_PC17 )		// Power on
-	{
-		return POWER_ON ;
-	}
-
-	if ( PIOA->PIO_PDSR & PIO_PA8 )		// Trainer plugged in
-	{
-		return POWER_TRAINER ;
-	}
-#endif
-	return POWER_OFF ;	
-}
-
-
-// turn off soft power
-void soft_power_off()
-{
-#ifdef REVB
-	
-	configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
-#endif
-}
-#endif
 
 uint8_t *cpystr( uint8_t *dest, uint8_t *source )
 {
