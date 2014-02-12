@@ -109,6 +109,11 @@ static MState2 mstate2; \
 static const uint8_t mstate_tab[] = __VA_ARGS__; \
 mstate2.check(event,0,NULL,0,mstate_tab,DIM(mstate_tab)-1,lines_count-1)
 
+#define SUBMENU_NOTITLE(lines_count, ...) \
+static MState2 mstate2; \
+static const uint8_t mstate_tab[] = __VA_ARGS__; \
+mstate2.check(event,0,NULL,0,mstate_tab,DIM(mstate_tab)-1,lines_count-1)
+
 
 #define SIMPLE_SUBMENU_NOTITLE(lines_count) \
 static MState2 mstate2; \
@@ -130,11 +135,13 @@ extern void menuProcStatistic(uint8_t event) ;
 extern void menuProcBattery(uint8_t event) ;
 extern void menuProc0(uint8_t event) ;
 extern void menuProcModelSelect(uint8_t event) ;
+extern void perOutPhase( int16_t *chanOut, uint8_t att ) ;
 extern void perOut( int16_t *chanOut, uint8_t att ) ;
 extern void menuProcGlobals(uint8_t event) ;
 
 extern void menuUp1(uint8_t event) ;
 extern void menuUpdate(uint8_t event) ;
+//extern void inactivityCheck( void ) ;
 
 
 

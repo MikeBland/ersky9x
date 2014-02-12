@@ -192,7 +192,6 @@ CPPSRC = x9d.cpp \
          x9d/rtc_driver.cpp \
          x9d/eeprom_rlc.cpp \
 			stamp.cpp \
-         gtime.cpp \
          templates.cpp \
          drivers.cpp \
          timers.cpp \
@@ -213,6 +212,7 @@ CPPSRC = x9d.cpp \
 			maintenance.cpp \
 		   lcd.cpp
 
+#         gtime.cpp \
 #         massstorage.cpp \
 #         x9d/usbd_usr.cpp \
 #         x9d/usbd_storage_msd.cpp \
@@ -241,7 +241,6 @@ CPPSRC = stamp.cpp \
          drivers.cpp \
          sdcard_driver.cpp \
          ff.cpp \
-         gtime.cpp \
          sky/sound.cpp \
          sky/diskio.cpp \
          sky/power.cpp \
@@ -266,6 +265,7 @@ CPPSRC = stamp.cpp \
 			maintenance.cpp \
 			logs.cpp
 
+#         gtime.cpp \
 #         massstorage.cpp \
 
 # List ASM source files here

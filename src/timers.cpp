@@ -82,12 +82,12 @@ extern "C" void TC2_IRQHandler()
 }
 
 
-void stop5msTimer( void )
-{
-	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
-	NVIC_DisableIRQ(TC2_IRQn) ;
-  PMC->PMC_PCDR0 |= 0x02000000L ;		// Disable peripheral clock to TC2
-}
+//void stop5msTimer( void )
+//{
+//	TC0->TC_CHANNEL[2].TC_CCR = TC_CCR0_CLKDIS ;
+//	NVIC_DisableIRQ(TC2_IRQn) ;
+//  PMC->PMC_PCDR0 |= 0x02000000L ;		// Disable peripheral clock to TC2
+//}
 
 
 
@@ -223,12 +223,12 @@ void init5msTimer()
 	NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
 }
 
-void stop5msTimer( void )
-{
-	TIM14->CR1 = 0 ;	// stop timer
-	NVIC_DisableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
-	RCC->APB1ENR &= ~RCC_APB1ENR_TIM14EN ;		// Disable clock
-}
+//void stop5msTimer( void )
+//{
+//	TIM14->CR1 = 0 ;	// stop timer
+//	NVIC_DisableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
+//	RCC->APB1ENR &= ~RCC_APB1ENR_TIM14EN ;		// Disable clock
+//}
 
 extern "C" void TIM8_TRG_COM_TIM14_IRQHandler()
 {

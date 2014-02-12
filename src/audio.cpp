@@ -558,111 +558,127 @@ void voice_task(void* pdata)
 						x = FileData[34] + ( FileData[35] << 8 ) ;		// sample size
 						w8or16 = x ;
 						x = FileData[24] + ( FileData[25] << 8 ) ;		// sample rate
-						if ( FileData[39] == 'a' )
-						{
-							size = FileData[40] + ( FileData[41] << 8 ) + ( FileData[42] << 16 ) ;		// data size
-							offset = 44 ;
-						}
-						else
-						{
-							size = FileData[62] + ( FileData[63] << 8 ) + ( FileData[64] << 16 ) ;		// data size
-							offset = 66 ;
-						}
+//						if ( FileData[39] == 'a' )
+//						{
+//							size = FileData[40] + ( FileData[41] << 8 ) + ( FileData[42] << 16 ) ;		// data size
+//							offset = 44 ;
+//						}
+//						else
+//						{
+//							size = FileData[62] + ( FileData[63] << 8 ) + ( FileData[64] << 16 ) ;		// data size
+//							offset = 66 ;
+//						}
 
-						size -= 512-offset ;
-						if ( w8or16 == 8 )
+						offset = 39 ;
+						while ( FileData[offset] != 'a' )
 						{
-							wavU8Convert( &FileData[offset], VoiceBuffer[0].data, 512-offset ) ;
-							VoiceBuffer[0].count = 512-offset ;
+							size = FileData[offset+1] + ( FileData[offset+2] << 8 ) + ( FileData[offset+3] << 16 ) ;		// data size
+							offset += 8 + size ;
+							if ( offset > 300 )
+							{
+								break ;
+							}
 						}
-						else if ( w8or16 == 16 )
+						if ( offset <= 300 )
 						{
-							wavU16Convert( (uint16_t*)&FileData[offset], VoiceBuffer[0].data, 512-offset/2 ) ;
-							VoiceBuffer[0].count = 512-offset/2 ;
-							size -= 512 ;
-						}
-						else
-						{
-							w8or16 = 0 ;		// can't convert
-						}
-				
-						if ( w8or16 )
-						{
-							uint32_t amount ;
-							VoiceBuffer[0].frequency = x ;		// sample rate
-
+							size = FileData[offset+1] + ( FileData[offset+2] << 8 ) + ( FileData[offset+3] << 16 ) ;		// data size
+							offset += 5 ;
+						
+							size -= 512-offset ;
 							if ( w8or16 == 8 )
 							{
-								wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
+								wavU8Convert( &FileData[offset], VoiceBuffer[0].data, 512-offset ) ;
+								VoiceBuffer[0].count = 512-offset ;
+							}
+							else if ( w8or16 == 16 )
+							{
+								wavU16Convert( (uint16_t*)&FileData[offset], VoiceBuffer[0].data, 512-offset/2 ) ;
+								VoiceBuffer[0].count = 512-offset/2 ;
 								size -= 512 ;
 							}
 							else
 							{
-								fr = f_read( &Vfile, (uint8_t *)FileData, 1024, &nread ) ;
-								wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].data, 512 ) ;
-								size -= nread ;
+								w8or16 = 0 ;		// can't convert
 							}
-							VoiceBuffer[1].count = 512 ;
-							VoiceBuffer[1].frequency = 0 ;
-					
-							amount = (w8or16 == 8) ? 512 : 1024 ;
+				
+							if ( w8or16 )
+							{
+								uint32_t amount ;
+								VoiceBuffer[0].frequency = x ;		// sample rate
 
-							fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
-							if ( w8or16 == 8 )
-							{
-								wavU8Convert( &FileData[0], VoiceBuffer[2].data, 512 ) ;
-							}
-							else
-							{
-								wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[2].data, 512 ) ;
-							}
-							size -= nread ;
-							VoiceBuffer[2].count = 512 ;
-							VoiceBuffer[2].frequency = 0 ;
-							startVoice( 3 ) ;
-							for(x = 0;;)
-							{
-								if ( size < amount )
-								{
-									amount = size ;								
-								}
-								fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
-								size -= nread ;
-								if ( nread == 0 )
-								{
-									break ;
-								}
-	  						while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
-								{
-									CoTickDelay(1) ;					// 2mS for now
-								}
-								if ( AudioVoiceUnderrun )
-								{
-										// We weren't quick enough
-									AudioVoiceUnderrun = 0 ;
-									break ;
-								}
 								if ( w8or16 == 8 )
 								{
-									wavU8Convert( &FileData[0], VoiceBuffer[x].data, nread ) ;
+									wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
+									size -= 512 ;
 								}
 								else
 								{
-									nread /= 2 ;
-									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].data, nread ) ;
+									fr = f_read( &Vfile, (uint8_t *)FileData, 1024, &nread ) ;
+									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].data, 512 ) ;
+									size -= nread ;
 								}
-								VoiceBuffer[x].count = nread ;
-								VoiceBuffer[x].frequency = 0 ;
-								appendVoice( x ) ;					// index of next buffer
-								v_index = x ;		// Last buffer sent
-								x += 1 ;
-								if ( x > 2 )
+								VoiceBuffer[1].count = 512 ;
+								VoiceBuffer[1].frequency = 0 ;
+					
+								amount = (w8or16 == 8) ? 512 : 1024 ;
+
+								fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
+								if ( w8or16 == 8 )
 								{
-									x = 0 ;							
+									wavU8Convert( &FileData[0], VoiceBuffer[2].data, 512 ) ;
 								}
-								if ( (int32_t)size <= 0 )
+								else
 								{
-									break ;								
+									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[2].data, 512 ) ;
+								}
+								size -= nread ;
+								VoiceBuffer[2].count = 512 ;
+								VoiceBuffer[2].frequency = 0 ;
+								startVoice( 3 ) ;
+								for(x = 0;;)
+								{
+									if ( size < amount )
+									{
+										amount = size ;								
+									}
+									fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
+									size -= nread ;
+									if ( nread == 0 )
+									{
+										break ;
+									}
+	  							while ( ( VoiceBuffer[x].flags & VF_SENT ) == 0 )
+									{
+										CoTickDelay(1) ;					// 2mS for now
+									}
+									if ( AudioVoiceUnderrun )
+									{
+											// We weren't quick enough
+										AudioVoiceUnderrun = 0 ;
+										break ;
+									}
+									if ( w8or16 == 8 )
+									{
+										wavU8Convert( &FileData[0], VoiceBuffer[x].data, nread ) ;
+									}
+									else
+									{
+										nread /= 2 ;
+										wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].data, nread ) ;
+									}
+									VoiceBuffer[x].count = nread ;
+									VoiceBuffer[x].frequency = 0 ;
+									appendVoice( x ) ;					// index of next buffer
+									v_index = x ;		// Last buffer sent
+									x += 1 ;
+									if ( x > 2 )
+									{
+										x = 0 ;							
+									}
+									if ( (int32_t)size <= 0 )
+									{
+										break ;								
+									}
 								}
 							}
 						}
@@ -678,7 +694,7 @@ void voice_task(void* pdata)
 							}
 						}
 					}
-					else
+					else if (fr != FR_NO_FILE)			// There is no file to open
 					{
 						SDlastError = fr ;
 						SdMounted = mounted = 0 ;

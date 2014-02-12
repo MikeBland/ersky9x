@@ -47,7 +47,7 @@
 / Function and Buffer Configurations
 /----------------------------------------------------------------------------*/
 
-#define	_FS_TINY	1		/* 0:Normal or 1:Tiny */
+#define	_FS_TINY	0		/* 0:Normal or 1:Tiny */
 /* When _FS_TINY is set to 1, FatFs uses the sector buffer in the file system
 /  object instead of the sector buffer in the individual file object for file
 /  data transfer. This reduces memory consumption 512 bytes each file object. */
@@ -199,9 +199,10 @@
 /* Include a header file here to define sync object types on the O/S */
 /* #include <windows.h>, <ucos_ii.h.h>, <semphr.h> or ohters. */
 
-#define _FS_REENTRANT	0		/* 0:Disable or 1:Enable */
+#define _FS_REENTRANT	1		/* 0:Disable or 1:Enable */
 #define _FS_TIMEOUT		1000	/* Timeout period in unit of time ticks */
-#define	_SYNC_t			HANDLE	/* O/S dependent type of sync object. e.g. HANDLE, OS_EVENT*, ID and etc.. */
+#define _SYNC_t               unsigned char /*OS_MutexID*/       /* O/S dependent type of sync object. e.g. HANDLE, OS_EVENT*, ID and etc.. */
+//#define	_SYNC_t			HANDLE	/* O/S dependent type of sync object. e.g. HANDLE, OS_EVENT*, ID and etc.. */
 
 /* The _FS_REENTRANT option switches the reentrancy of the FatFs module.
 /

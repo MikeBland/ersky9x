@@ -2234,9 +2234,19 @@ int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
   return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
 }
 
+int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max)
+{
+  return checkIncDec(event,i_val,0,i_max,EE_MODEL);
+}
+
 int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
 {
   return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
+}
+
+int8_t checkIncDec_hg0(uint8_t event, int8_t i_val, int8_t i_max)
+{
+  return checkIncDec(event,i_val,0,i_max,EE_GENERAL);
 }
 
 int8_t *TrimPtr[4] = 
@@ -2312,7 +2322,7 @@ void perMain( uint32_t no_menu )
 	{
 		MixerCount += 1 ;		
 		uint16_t t1 = getTmr2MHz() ;
-		perOut(g_chans512, 0);
+		perOutPhase(g_chans512, 0);
 		t1 = getTmr2MHz() - t1 ;
 		g_timeMixer = t1 ;
 	}
@@ -2922,7 +2932,7 @@ void getADC_filt()
 uint32_t getFlightPhase()
 {
 	uint32_t i ;
-  for ( i = 0 ; i < MAX_PHASES ; i += 1 )
+  for ( i = 0 ; i < MAX_MODES ; i += 1 )
 	{
     PhaseData *phase = &g_model.phaseData[i];
     if ( phase->swtch && getSwitch( phase->swtch, 0 ) )
@@ -2947,7 +2957,7 @@ int16_t getRawTrimValue( uint8_t phase, uint8_t idx )
 
 uint32_t getTrimFlightPhase( uint8_t phase, uint8_t idx )
 {
-  for ( uint32_t i=0 ; i<MAX_PHASES ; i += 1 )
+  for ( uint32_t i=0 ; i<MAX_MODES ; i += 1 )
 	{
     if (phase == 0) return 0;
     int16_t trim = getRawTrimValue( phase, idx ) ;

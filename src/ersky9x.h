@@ -557,12 +557,20 @@ int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint
 int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 int8_t checkIncDec_vm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
+int8_t checkIncDec_hg0(uint8_t event, int8_t i_val, int8_t i_max);
+int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max);
 
 #define CHECK_INCDEC_H_GENVAR( event, var, min, max)     \
     var = checkIncDec_hg(event,var,min,max)
 
+#define CHECK_INCDEC_H_GENVAR_0( event, var, max)     \
+    var = checkIncDec_hg0( event, var, max )
+
 #define CHECK_INCDEC_H_MODELVAR( event, var, min, max)     \
     var = checkIncDec_hm(event,var,min,max)
+
+#define CHECK_INCDEC_H_MODELVAR_0(  event, var, max)     \
+    var = checkIncDec_hm0( event, var,max)
 
 #define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
   var = checkIncDec(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
@@ -647,6 +655,8 @@ void    popMenu(bool uppermost=false);
 
 #define NO_TRAINER 0x01
 #define NO_INPUT   0x02
+#define FADE_FIRST	0x20
+#define FADE_LAST		0x40
 
 // Timeout, in seconds, stick scroll remains active
 #define STICK_SCROLL_TIMEOUT		5

@@ -140,7 +140,7 @@ extern uint32_t sdMounted( void ) ;
   filename[len+2] = '0' + qr.rem;
   filename[len+1] = '0' + qr.quot;
   filename[len+5] = '-';
-  qr = div( Time.month+1, 10);
+  qr = div( Time.month, 10);
   filename[len+7] = '0' + qr.rem;
   filename[len+6] = '0' + qr.quot;
   filename[len+8] = '-';

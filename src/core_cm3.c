@@ -802,24 +802,24 @@ uint32_t __STREXW(uint32_t value, uint32_t *addr)
 }
 
 
-void sam_boot()
-{
-	revert_osc() ;
+//void sam_boot()
+//{
+//	revert_osc() ;
 	
-  __ASM(" mov.w	r1, #8388608");
-  __ASM(" movw	r0, #60680");
-  __ASM(" movt	r0, #57344");
-  __ASM(" str	r1, [r0, #0]");		// Set the VTOR
+//  __ASM(" mov.w	r1, #8388608");
+//  __ASM(" movw	r0, #60680");
+//  __ASM(" movt	r0, #57344");
+//  __ASM(" str	r1, [r0, #0]");		// Set the VTOR
 	 
-  __ASM("mov.w	r3, #0");
-  __ASM("movt		r3, #128");
-  __ASM("ldr	r0, [r3, #0]");
-  __ASM("msr msp, r0");
-  __ASM("ldr	r0, [r3, #4]");
-  __ASM("mov.w	r3, #1");
-  __ASM("orr		r0, r3");
-  __ASM("bx r0");
-}
+//  __ASM("mov.w	r3, #0");
+//  __ASM("movt		r3, #128");
+//  __ASM("ldr	r0, [r3, #0]");
+//  __ASM("msr msp, r0");
+//  __ASM("ldr	r0, [r3, #4]");
+//  __ASM("mov.w	r3, #1");
+//  __ASM("orr		r0, r3");
+//  __ASM("bx r0");
+//}
 
 
 #elif (defined (__TASKING__)) /*------------------ TASKING Compiler ---------------------*/

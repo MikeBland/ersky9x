@@ -10,6 +10,21 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 12-Feb-2014  MPB (r201)
+Fix COM port bug
+Improve voice file header handling
+Add file system interlocking
+Add THIS mix source
+Fix Instatrim problems
+Fix mix copy/move bugs
+Add Flight Mode control of mixes
+Add Flight Mode fading
+Add Flight Mode names
+Remove MOVE/COPY/DELETE when selecting empty model slot
+Minor logging improvements
+Add more SPort telemetry items (A3/A4/RPM)
+
+******************************************
 CHANGELOG: 25-Jan-2014  MPB (r199)
 Improve bootloader build
 Add "maintenance mode"

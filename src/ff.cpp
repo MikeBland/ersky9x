@@ -121,6 +121,7 @@
 #include "ff.h"			/* FatFs configurations and declarations */
 #include "diskio.h"		/* Declarations of low level disk I/O functions */
 #include "gtime.h"
+#include "ersky9x.h"
 
 /*--------------------------------------------------------------------------
 
@@ -2036,12 +2037,21 @@ FRESULT f_mount (
 /* the system does not support a real time clock.          */
 /* This is not required in read-only configuration.        */
 
-gtime_t g_unixTime; // Global date/time register, incremented each second in per10ms()
+//gtime_t g_unixTime; // Global date/time register, incremented each second in per10ms()
 
 uint32_t o9x_get_fattime(void)
 {
   struct gtm t;
-  filltm(&g_unixTime, &t); // create a struct tm date/time structure from global unix time stamp
+//  filltm(&g_unixTime, &t); // create a struct tm date/time structure from global unix time stamp
+
+	t.tm_sec = Time.second ;
+	t.tm_min = Time.minute ;
+	t.tm_hour = Time.hour ;
+	t.tm_mday = Time.date ;
+	t.tm_mon = Time.month - 1 ;
+	int16_t yr = Time.year ;
+	yr -= 2028 ;
+	t.tm_year = yr ;
 
   /* Pack date and time into a DWORD variable */
   return    ((DWORD)(t.tm_year - 80) << 25)

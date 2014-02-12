@@ -50,6 +50,8 @@ extern void delay2ms() ;
 #include "diskio.h"
 #include "board.h"
 #include "debug.h"
+#include "ffconf.h"
+#include "ff.h"
 // States for initialising card
 #define SD_ST_EMPTY             0
 #define SD_ST_INIT1             1
@@ -79,6 +81,41 @@ uint32_t Cmd_A41_resp ;
 uint32_t SpeedAllowed ;
 
 uint32_t Sd_retries ;
+
+/*-----------------------------------------------------------------------*/
+/* Lock / unlock functions                                               */
+/*-----------------------------------------------------------------------*/
+
+static _SYNC_t s_sync ;
+static uint8_t s_sync_set ;
+
+int ff_cre_syncobj (BYTE vol, _SYNC_t *mutex)
+{
+	if ( s_sync_set == 0 )
+	{
+  	s_sync = CoCreateMutex();
+		s_sync_set = 1 ;
+	}
+  *mutex = s_sync ;
+  return 1;
+}
+
+int ff_req_grant (_SYNC_t mutex)
+{
+  CoEnterMutexSection(mutex);
+  return 1;
+}
+
+void ff_rel_grant (_SYNC_t mutex)
+{
+  CoLeaveMutexSection(mutex);
+}
+
+int ff_del_syncobj (_SYNC_t mutex)
+{
+  return 1;
+}
+
 
 /**
  * Configure the  MCI SDCBUS in the MCI_SDCR register. Only two modes available
@@ -749,9 +786,6 @@ Now decide what the card can do!
 
 */
 
-
-#include "ff.h"
-#include "diskio.h"
 
 /* FAT sub-type boundaries */
 /* Note that the FAT spec by Microsoft says 4085 but Windows works with 4087! */

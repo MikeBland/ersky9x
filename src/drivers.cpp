@@ -99,7 +99,7 @@ uint16_t rxBtuart( void ) ;
 
 uint32_t keyState( enum EnumKeys enuk) ;
 void init_spi( void ) ;
-void end_spi( void ) ;
+//void end_spi( void ) ;
 uint32_t eeprom_read_status( void ) ;
 uint32_t  eeprom_write_one( uint8_t byte, uint8_t count ) ;
 void eeprom_write_enable( void ) ;
@@ -466,12 +466,12 @@ void init_spi()
 }
 
 
-void end_spi()
-{
-	SPI->SPI_CR = 2 ;								// Disable
-	SPI->SPI_IDR = 0x07FF ;					// All interrupts off
-	NVIC_DisableIRQ(SPI_IRQn) ;
-}
+//void end_spi()
+//{
+//	SPI->SPI_CR = 2 ;								// Disable
+//	SPI->SPI_IDR = 0x07FF ;					// All interrupts off
+//	NVIC_DisableIRQ(SPI_IRQn) ;
+//}
 
 extern "C" void SPI_IRQHandler()
 {
@@ -706,11 +706,11 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
-void UART_Stop()
-{
-  CONSOLE_USART->UART_IDR = UART_IDR_RXRDY ;
-	NVIC_DisableIRQ(UART0_IRQn) ;
-}
+//void UART_Stop()
+//{
+//  CONSOLE_USART->UART_IDR = UART_IDR_RXRDY ;
+//	NVIC_DisableIRQ(UART0_IRQn) ;
+//}
 
 
 extern "C" void UART0_IRQHandler()
@@ -759,11 +759,11 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
-void Bt_UART_Stop()
-{
-  BT_USART->UART_IDR = UART_IDR_RXRDY ;
-	NVIC_DisableIRQ(UART1_IRQn) ;
-}
+//void Bt_UART_Stop()
+//{
+//  BT_USART->UART_IDR = UART_IDR_RXRDY ;
+//	NVIC_DisableIRQ(UART1_IRQn) ;
+//}
 
 
 // USART0 configuration, we will use this for FrSky etc

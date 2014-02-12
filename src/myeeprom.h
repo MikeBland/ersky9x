@@ -74,7 +74,7 @@
 
 #define MAX_GVARS 7
 
-#define MAX_PHASES		6
+#define MAX_MODES		6
 
 #ifndef PACK
 #define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
@@ -349,7 +349,8 @@ PACK(typedef struct te_MixData {
   uint8_t enableFmTrim:1;
   uint8_t differential:1 ;
   int8_t  sOffset;
-  uint8_t  res[4];
+	uint8_t modeControl ;
+  uint8_t  res[3];
 }) SKYMixData;
 
 PACK(typedef struct te_CSwData { // Custom Switches data
@@ -479,7 +480,7 @@ PACK(typedef struct te_ModelData {
 // Add 6 bytes for custom telemetry screen
 	uint8_t		customDisplayIndex[6] ;
   FunctionData   functionData[NUM_FSW];
-	PhaseData phaseData[MAX_PHASES] ;
+	PhaseData phaseData[MAX_MODES] ;
 	GvarData	gvars[MAX_GVARS] ;
 	uint8_t   numBlades ;					// RPM scaling
 	uint8_t		startChannel ;			// for main output 0 = ch1

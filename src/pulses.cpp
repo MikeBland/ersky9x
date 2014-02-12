@@ -157,16 +157,16 @@ void disable_main_ppm()
 	
 }
 
-void disable_ppm2()
-{
-	register Pio *pioptr ;
+//void disable_ppm2()
+//{
+//	register Pio *pioptr ;
 	
-	pioptr = PIOC ;
-	pioptr->PIO_PER = PIO_PC17 ;						// Assign A17 to PIO
+//	pioptr = PIOC ;
+//	pioptr->PIO_PER = PIO_PC17 ;						// Assign A17 to PIO
 
-	PWM->PWM_IDR1 = PWM_IDR1_CHID1 ;
-	NVIC_DisableIRQ(PWM_IRQn) ;
-}
+//	PWM->PWM_IDR1 = PWM_IDR1_CHID1 ;
+//	NVIC_DisableIRQ(PWM_IRQn) ;
+//}
 
 
 #ifndef SIMU

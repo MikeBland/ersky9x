@@ -59,7 +59,7 @@
 
 extern void init_main_ppm( uint32_t period, uint32_t out_enable ) ;
 extern void disable_main_ppm( void ) ;
-extern void disable_ppm2( void ) ;
+//extern void disable_ppm2( void ) ;
 extern void perOut( int16_t *chanOut, uint8_t att ) ;
 extern void startPulses( void ) ;
 extern void setupPulses( void ) ;

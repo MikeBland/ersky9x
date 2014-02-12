@@ -190,11 +190,11 @@ uint16_t rxuart( void ) ;
 
 #ifdef PCBSKY
 extern "C" void TC2_IRQHandler( void ) ;
-#ifdef SIMU
-#define sam_boot()
-#else
-extern "C" void sam_boot( void ) ;
-#endif
+//#ifdef SIMU
+//#define sam_boot()
+//#else
+//extern "C" void sam_boot( void ) ;
+//#endif
 #ifdef	DEBUG
 void handle_serial( void* pdata ) ;
 #endif
@@ -1107,7 +1107,7 @@ extern void closeLogs( void ) ;
 uint8_t LogsRunning = 0 ;
 void log_task(void* pdata)
 {
-  uint16_t tgtime = get_tmr10ms() + 100 ;		// 1 sec
+  uint16_t tgtime = get_tmr10ms() ;		// 1 sec
 	
 	while(1)
 	{
@@ -1116,7 +1116,7 @@ void log_task(void* pdata)
 		do
 		{
 			CoTickDelay(5) ;					// 10mS
-		} while(tgtime > get_tmr10ms()) ;
+		} while( (uint16_t)(get_tmr10ms() - tgtime ) < 100 ) ;
 //		LogTimer = 0 ;
   	tgtime += 100 ;
 
@@ -2220,9 +2220,19 @@ int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
   return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
 }
 
+int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max)
+{
+  return checkIncDec(event,i_val,0,i_max,EE_MODEL);
+}
+
 int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
 {
   return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
+}
+
+int8_t checkIncDec_hg0(uint8_t event, int8_t i_val, int8_t i_max)
+{
+  return checkIncDec(event,i_val,0,i_max,EE_GENERAL);
 }
 
 int8_t *TrimPtr[4] = 
@@ -2287,7 +2297,7 @@ void perMain( uint32_t no_menu )
 
 	{
 		uint16_t t1 = getTmr2MHz() ;
-		perOut(g_chans512, 0);
+		perOutPhase(g_chans512, 0);
 		t1 = getTmr2MHz() - t1 ;
 		g_timeMixer = t1 ;
 	}
@@ -2895,7 +2905,7 @@ void getADC_filt()
 uint32_t getFlightPhase()
 {
 	uint32_t i ;
-  for ( i = 0 ; i < MAX_PHASES ; i += 1 )
+  for ( i = 0 ; i < MAX_MODES ; i += 1 )
 	{
     PhaseData *phase = &g_model.phaseData[i];
     if ( phase->swtch && getSwitch( phase->swtch, 0 ) )
@@ -2920,7 +2930,7 @@ int16_t getRawTrimValue( uint8_t phase, uint8_t idx )
 
 uint32_t getTrimFlightPhase( uint8_t phase, uint8_t idx )
 {
-  for ( uint32_t i=0 ; i<MAX_PHASES ; i += 1 )
+  for ( uint32_t i=0 ; i<MAX_MODES ; i += 1 )
 	{
     if (phase == 0) return 0;
     int16_t trim = getRawTrimValue( phase, idx ) ;
@@ -2953,6 +2963,12 @@ void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim)
 	}
 	if ( phase )
 	{
+    if(trim < -125 || trim > 125)
+//    if(trim < -500 || trim > 500)
+		{
+			trim = ( trim > 0 ) ? 125 : -125 ;
+//			trim = ( trim > 0 ) ? 500 : -500 ; For later addition
+		}	
   	g_model.phaseData[phase-1].trim[idx] = trim ;
 	}
 	else
@@ -3057,7 +3073,7 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 	if ( att & MIX_SOURCE )
 	{
 #if GVARS
-		chanLimit += MAX_GVARS + 1 ;
+		chanLimit += MAX_GVARS + 1 + 1 ;
 #else
 		chanLimit += 1 ;
 #endif
@@ -3124,7 +3140,7 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 		{
   		tm -= TMR_VAROFS - 7 ;
       lcd_putsAttIdx(  x, y, PSTR( CURV_STR), tm, attr ) ;
-			if ( tm < 9 )
+			if ( tm < 9 + 7 )	// Allow for 7 offset above
 			{
 				x -= FW ;		
 			}
@@ -3583,7 +3599,7 @@ void checkSwitches()
   {
     warningStates &= ~SWP_IL5; // turn all off, make sure only one is on
     warningStates |=  SWP_ID0B;
-		g_model.modelswitchWarningStates = (warningStates << 1) | 1 ;
+		g_model.modelswitchWarningStates = (warningStates << 1) ;
   }
 #endif
 	

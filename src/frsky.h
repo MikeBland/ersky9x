@@ -62,11 +62,13 @@
 #define FR_VOLTS			38
 #define FR_VSPD				39
 #define FR_RXV				40
-#define FR_TRASH			41	// Used for invalid id
+#define FR_A3					41
+#define FR_A4					42
+#define FR_TRASH			43	// Used for invalid id
 
 #define FR_SPORT_ALT	0xFF
 
-#define HUBDATALENGTH 42
+#define HUBDATALENGTH 44
 #define HUBMINMAXLEN	9
 #define HUBOFFSETLEN	7			// Items with an offset field
 

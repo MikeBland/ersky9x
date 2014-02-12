@@ -136,6 +136,7 @@ uint8_t FrskyBattCells=0;
 uint16_t Frsky_Amp_hour_prescale ;
 
 uint8_t FrskyTelemetryType ;
+uint8_t FrskyComPort ;
 static uint8_t numPktBytes = 0;
 // Receive buffer state machine state defs
 #define frskyDataIdle    0
@@ -245,7 +246,15 @@ void store_hub_data( uint8_t index, uint16_t value )
 
 		if ( index == FR_CURRENT )			// FAS current
 		{
-			FrskyHubData[index] -= g_model.FASoffset ;			
+			if ( value > g_model.FASoffset )
+			{
+				value -= g_model.FASoffset ;
+			}
+			else
+			{
+				value = 0 ;
+			}
+			FrskyHubData[index] = value ;
 		}
 
 		if ( index < HUBMINMAXLEN )
@@ -943,6 +952,18 @@ void processSportPacket()
 				case VFAS_ID_8 :
 					store_hub_data( FR_VOLTS, value / 10 ) ;
 				break ;
+				
+				case RPM_ID_8 :
+					store_hub_data( FR_RPM, value ) ;
+				break ;
+
+				case A3_ID_8 :
+					store_hub_data( FR_A3, value ) ;
+				break ;
+
+				case A4_ID_8 :
+					store_hub_data( FR_A4, value ) ;
+				break ;
 			}
 		}
 	}
@@ -1268,6 +1289,7 @@ void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
 void FRSKY_Init( uint8_t brate )
 {
 	
+	FrskyComPort = g_model.frskyComPort ;
 	FrskyTelemetryType = brate ;
 #ifdef PCBSKY
 	
@@ -1422,7 +1444,8 @@ void check_frsky()
 		telemetryType = 2 ;
 	}
 #endif
-	if ( telemetryType != FrskyTelemetryType )
+	if ( ( telemetryType != FrskyTelemetryType )
+			 || ( FrskyComPort != g_model.frskyComPort ) )
 	{
 #ifdef PCBSKY
 		FRSKY_Init( telemetryType ) ;	

@@ -58,7 +58,7 @@ void start_dactimer( void ) ;
 void init_dac( void ) ;
 extern "C" void DAC_IRQHandler( void ) ;
 void disp_mem( register uint32_t address ) ;
-void end_sound( void ) ;
+//void end_sound( void ) ;
 void tone_start( register uint32_t time ) ;
 void tone_stop( void ) ;
 void init_twi( void ) ;
@@ -161,6 +161,7 @@ void start_sound()
 	start_dactimer() ;
 	init_dac() ;
 	init_twi() ;
+	setVolume( 2 ) ;
 
 	pioptr = PIOA ;
 #ifdef REVB
@@ -375,7 +376,7 @@ extern "C" void DAC_IRQHandler()
 			DACC->DACC_IER = DACC_IER_TXBUFE ;
 			AudioVoiceUnderrun = 1 ;		// For debug
 		}
-		else
+		else if ( VoiceCount > 1 )
 		{
 			DACC->DACC_TNCR = PtrVoiceBuffer[1]->count / 2 ;		// words, 100 16 bit values
 			DACC->DACC_TNPR = (uint32_t) PtrVoiceBuffer[1]->data ;
@@ -397,16 +398,16 @@ extern "C" void DAC_IRQHandler()
 #endif
 
 
-void end_sound()
-{
-	DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Kill interrupt
-	DACC->DACC_IDR = DACC_IDR_TXBUFE ;	// Kill interrupt
-	NVIC_DisableIRQ(DACC_IRQn) ;
-	TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
-	NVIC_DisableIRQ(TWI0_IRQn) ;
-	PMC->PMC_PCER0 &= ~0x00080000L ;		// Disable peripheral clock to TWI0
-  PMC->PMC_PCER0 &= ~0x40000000L ;		// Disable peripheral clock to DAC
-}
+//void end_sound()
+//{
+//	DACC->DACC_IDR = DACC_IDR_ENDTX ;		// Kill interrupt
+//	DACC->DACC_IDR = DACC_IDR_TXBUFE ;	// Kill interrupt
+//	NVIC_DisableIRQ(DACC_IRQn) ;
+//	TWI0->TWI_IDR = TWI_IDR_TXCOMP ;
+//	NVIC_DisableIRQ(TWI0_IRQn) ;
+//	PMC->PMC_PCER0 &= ~0x00080000L ;		// Disable peripheral clock to TWI0
+//  PMC->PMC_PCER0 &= ~0x40000000L ;		// Disable peripheral clock to DAC
+//}
 
 #ifdef REVX
 void audioOn( void )
@@ -633,7 +634,6 @@ void init_twi()
 	TWI0->TWI_CR = TWI_CR_MSEN | TWI_CR_SVDIS ;		// Master mode enable
 	TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
 	NVIC_EnableIRQ(TWI0_IRQn) ;
-	setVolume( 2 ) ;
 }
 
 static int8_t Volume_required ;
