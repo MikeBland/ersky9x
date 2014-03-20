@@ -922,6 +922,8 @@ DSTATUS disk_status ( BYTE drv /* Physical drive number (0) */ )
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
 
+uint16_t ReadCounter ;
+
 DRESULT disk_read (
                                    BYTE drv,                    /* Physical drive nmuber (0) */
                                    BYTE *buff,                  /* Pointer to the data buffer to store read data */
@@ -961,6 +963,7 @@ DRESULT disk_read (
 
     do {
       result = sd_read_block( sector, ( uint32_t *)buff ) ;
+ReadCounter += 1 ;
       if (result) {
         sector += 1 ;
         buff += 512 ;
@@ -1007,6 +1010,8 @@ DRESULT disk_write (
 
     do {
       result = sd_write_block( sector, ( uint32_t *)buff ) ;
+extern uint16_t WriteCounter ;
+WriteCounter += 1 ;
       if (result) {
         sector += 1 ;
         buff += 512 ;

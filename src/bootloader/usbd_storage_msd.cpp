@@ -175,6 +175,27 @@ int8_t STORAGE_GetCapacity (uint8_t lun, uint32_t *block_num, uint32_t *block_si
   return 0;
 }
 
+uint8_t lunReady[2] ;
+
+void usbPluggedIn( uint16_t allowSD )
+{
+	if ( allowSD )
+	{
+		if ( lunReady[0] == 0 )
+		{
+  		lunReady[0] = 1 ;
+		}
+	}
+	else
+	{
+  	lunReady[0] = 0 ;
+	}
+	if ( lunReady[1] == 0 )
+	{
+ 		lunReady[1] = 1 ;
+	}
+}
+
 /**
   * @brief  check whether the medium is ready
   * @param  lun : logical unit number
@@ -182,11 +203,21 @@ int8_t STORAGE_GetCapacity (uint8_t lun, uint32_t *block_num, uint32_t *block_si
   */
 int8_t  STORAGE_IsReady (uint8_t lun)
 { 
-  if (lun == 1) {
-    return 0;
+  if (lun == 1)
+	{
+		if ( lunReady[1] == 0 )
+		{
+			return -1 ;
+		}
+    return 0 ;
   }
-  else {
-    return !socket_is_empty() ? 0 : -1;
+  else
+	{
+		if ( lunReady[0] == 0 )
+		{
+			return -1 ;
+		}
+		return !socket_is_empty() ? 0 : -1;
   }
 }
 

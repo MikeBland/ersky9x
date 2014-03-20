@@ -432,8 +432,12 @@ void SCSI_SenseCode(uint8_t lun, uint8_t sKey, uint8_t ASC)
 * @param  params: Command parameters
 * @retval status
 */
+
+uint8_t StartStopCounter ;
+
 static int8_t SCSI_StartStopUnit(uint8_t lun, uint8_t *params)
 {
+	StartStopCounter += 1 ;
   MSC_BOT_DataLen = 0;
   return 0;
 }

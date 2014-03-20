@@ -188,6 +188,7 @@ struct t_eeprom_buffer
 	{
 		EEGeneral general_data ;
 		ModelData model_data ;
+		SKYModelData sky_model_data ;
 		uint32_t words[ EEPROM_BUFFER_SIZE ] ;
 	} data ;	
 } Eeprom_buffer ;
@@ -551,11 +552,14 @@ void ee32WaitLoadModel(uint8_t id)
 	ee32LoadModel( id ) ;		// Now get the model
 }
 
+extern void closeLogs( void ) ;
 
 void ee32LoadModel(uint8_t id)
 {
 	uint16_t size ;
 	uint8_t version = 255 ;
+
+  closeLogs() ;
 
     if(id<MAX_MODELS)
     {
@@ -665,6 +669,13 @@ void ee32LoadModel(uint8_t id)
 					}
 				}
 			}
+		}
+		ExpoData texpoData[4] ;
+    memmove( &texpoData, &g_model.expoData, sizeof(texpoData) ) ;
+		for (uint8_t i = 0 ; i < 4 ; i += 1 )
+		{
+			uint8_t dest = modeFixValue( i ) - 1 ;
+    	memmove( &g_model.expoData[dest], &texpoData[i], sizeof(texpoData[0]) ) ;
 		}
 		alert(PSTR(STR_CHK_MIX_SRC));
 		g_model.modelVersion = 2 ;
@@ -1181,30 +1192,201 @@ void setModelFilename( uint8_t *filename, uint8_t modelIndex )
 	
 	bptr = cpystr( filename, (uint8_t *)"/MODELS/" ) ;
   memcpy( bptr, Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
+	bptr += sizeof(g_model.name) - 1 ;
 	for ( i = 0 ; i < sizeof(g_model.name) ; i += 1 )
 	{
-		if ( *bptr && (*bptr != ' ' ) )
+		if ( *bptr && ( *bptr != ' ' ) )
 		{
-			bptr += 1 ;			
+			break ;
+		}
+		else
+		{
+			bptr -= 1 ;
+		}
+	}
+	bptr += 1 ;
+	if ( i >= sizeof(g_model.name) )
+	{
+		*bptr++ = 'x' ;
+	}
+	cpystr( bptr, (uint8_t *)".eepm" ) ;		// ".eepm"
+}
+
+static const uint8_t base64digits[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" ;
+
+// write XML file
+FRESULT writeXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *totalWritten )
+{
+  UINT written ;
+  UINT total = 0 ;
+	uint32_t i ;
+	FRESULT result ;
+  uint8_t bytes[104] ;
+
+  result = f_write( archiveFile, (BYTE *)"<!DOCTYPE ERSKY9X_EEPROM_FILE>\n<ERSKY9X_EEPROM_FILE>\n <MODEL_DATA number=\0420\042>\n  <Version>", 89, &written ) ;
+	total += written ;
+// MDVERS (2)
+  bytes[0] = MDSKYVERS + '0' ;
+  bytes[1] = 0 ;
+  result = f_write( archiveFile, bytes, 1, &written) ;
+	total += written ;
+  result = f_write( archiveFile, (BYTE *)"</Version>\n  <Name>", 19, &written) ;
+	total += written ;
+  result = f_write( archiveFile, (BYTE *)Eeprom_buffer.data.model_data.name, sizeof(g_model.name), &written) ;
+	total += written ;
+  result = f_write( archiveFile, (BYTE *)"</Name>\n  <Data><![CDATA[", 25, &written) ;
+	total += written ;
+
+// Send base 64 here
+	i = 0 ;
+	while ( size > 2 )
+	{
+		bytes[i++] = base64digits[data[0] >> 2];
+ 		bytes[i++] = base64digits[((data[0] << 4) & 0x30) | (data[1] >> 4)];
+		bytes[i++] = base64digits[((data[1] << 2) & 0x3c) | (data[2] >> 6)];
+		bytes[i++] = base64digits[data[2] & 0x3f];
+		data += 3 ;
+		size -= 3 ;
+		if ( i >= 100 )
+		{
+		  result = f_write( archiveFile, bytes, 100, &written) ;
+			total += written ;
+			i = 0 ;
+		}
+	}
+
+	uint8_t fragment ;
+	if ( size )
+	{
+		bytes[i++] = base64digits[data[0] >> 2] ;
+		fragment = (data[0] << 4) & 0x30 ;
+		if ( --size )
+		{
+ 			fragment |= data[1] >> 4 ;
+			bytes[i++] = base64digits[fragment];
+		}
+		bytes[i++] = ( size == 2 ) ? base64digits[(data[1] << 2) & 0x3c] : '=' ;
+		bytes[i++] = '=' ;
+		result = f_write( archiveFile, bytes, i, &written) ;
+		total += written ;
+	}
+  result = f_write( archiveFile, (BYTE *)"]]></Data>\n </MODEL_DATA>\n</ERSKY9X_EEPROM_FILE>\n", 49, &written) ;
+	total += written ;
+	*totalWritten = total ;
+ return result ;
+}
+
+uint8_t xmlDecode( uint8_t value )
+{
+	if ( value >= 'A' )
+	{
+		if ( value <= 'Z' )
+		{
+			return value - 'A' ;
+		}
+		return value - ( 'a' - 26 ) ;		// 'a'-'z'		
+	}
+	else
+	{
+		if ( value >= '0' )
+		{
+			return value + 4 ;
+		}
+		if ( value == '+' )
+		{
+			return 62 ;
+		}
+		else if ( value == '/' )
+		{
+			return 63 ;
+		}
+		else
+		{
+			return 255 ;		// '='
+		}
+	}
+}
+
+
+int32_t readXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *totalRead )
+{
+  UINT nread ;
+  UINT total = 0 ;
+	uint32_t i ;
+	uint32_t j ;
+	FRESULT result ;
+	uint8_t stream[4] ;
+  uint8_t bytes[104] ;
+
+	result = f_read( archiveFile,  bytes, 100, &nread ) ;
+	total += nread ;
+	if ( strncmp( (const char *)&bytes[10], "ERSKY9X_", 8 ) )
+	{
+		return -1 ;		// Invalid file
+	}
+	result = f_read( archiveFile,  bytes, 100, &nread ) ;
+	total += nread ;
+	// Search for "CDATA[" starting at offset 30
+	for ( i = 30 ; i < 50 ; i += 1 )
+	{
+		if ( !strncmp( (const char *)&bytes[i], "CDATA[", 6 ) )
+		{
+			break ;
+		}
+	}
+	if ( i >= 50 )
+	{
+		return -1 ;		// Invalid file
+	}
+	i += 6 ;	// Index of base64 data
+	j = 0 ;
+	while ( size )
+	{
+		if ( i >= nread )
+		{
+			result = f_read( archiveFile,  bytes, 100, &nread ) ;
+			total += nread ;
+			i = 0 ;
+		}
+		if ( i < nread )
+		{
+			stream[j++] = xmlDecode( bytes[i++] ) ;
 		}
 		else
 		{
 			break ;
 		}
+		if ( j >= 4 )
+		{
+		  *data++ = ( stream[0] << 2) | (stream[1] >> 4) ;
+			size -= 1 ;
+			if ( stream[2] != 255 )
+			{
+		  	*data++ = ((stream[1] << 4) & 0xf0) | (stream[2] >> 2);
+				size -= 1 ;
+			}
+			if ( stream[3] != 255 )
+			{
+  			*data++ = ((stream[2] << 6) & 0xc0) | stream[3] ;
+				size -= 1 ;
+			}
+			j = 0 ;
+		}
 	}
-	cpystr( bptr, (uint8_t *)".MOD" ) ;
-	
+	*totalRead = total ;
+	return result ; 
 }
 
 
 const char *ee32BackupModel( uint8_t modelIndex )
 {
-	uint8_t filename[50] ;
+//	uint8_t filename[50] ;
   uint16_t size ;
 	FRESULT result ;
   DIR archiveFolder ;
   FIL archiveFile ;
   UINT written ;
+	uint8_t filename[50] ;
 
 
 	// Check for SD avaliable
@@ -1227,7 +1409,7 @@ const char *ee32BackupModel( uint8_t modelIndex )
 #endif
 	}
 
-  read32_eeprom_data( (File_system[modelIndex].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.model_data, size, 0 ) ;
+  read32_eeprom_data( (File_system[modelIndex].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.sky_model_data, size, 0 ) ;
 
 	// Build filename
 	setModelFilename( filename, modelIndex ) ;
@@ -1238,6 +1420,7 @@ const char *ee32BackupModel( uint8_t modelIndex )
 	{
     if (result == FR_NO_PATH)
 		{
+			WatchdogTimeout = 200 ;		// 2 seconds
       result = f_mkdir("/MODELS") ;
     	if (result != FR_OK)
 			{
@@ -1246,15 +1429,17 @@ const char *ee32BackupModel( uint8_t modelIndex )
 		}
   }
 	
-  result = f_open( &archiveFile, (TCHAR *)filename, FA_CREATE_ALWAYS | FA_WRITE) ;
+  result = f_open( &archiveFile, (TCHAR *)filename, FA_OPEN_ALWAYS | FA_CREATE_ALWAYS | FA_WRITE) ;
   if (result != FR_OK)
 	{
    	return "CREATE ERROR" ;
   }
 
-  result = f_write(&archiveFile, (uint8_t *)&Eeprom_buffer.data.model_data, size, &written) ;
-  f_close(&archiveFile) ;
-  if (result != FR_OK || written != size)
+//  result = f_write(&archiveFile, (uint8_t *)&Eeprom_buffer.data.sky_model_data, size, &written) ;
+	result = writeXMLfile( &archiveFile, (uint8_t *)&Eeprom_buffer.data.sky_model_data, size, &written) ;
+  
+	f_close(&archiveFile) ;
+  if (result != FR_OK ) //	|| written != size)
 	{
     return "WRITE ERROR" ;
   }
@@ -1262,5 +1447,61 @@ const char *ee32BackupModel( uint8_t modelIndex )
   return "MODEL SAVED" ;
 }
 
+const char *ee32RestoreModel( uint8_t modelIndex, char *filename )
+{
+	uint8_t *bptr ;
+  FIL archiveFile ;
+  UINT nread ;
+	FRESULT result ;
+	int32_t answer ;
+	uint8_t fname[50] ;
+	
+	bptr = cpystr( fname, (uint8_t *)"/MODELS/" ) ;
+	cpystr( bptr, (uint8_t *)filename ) ;
+
+	while (ee32_check_finished() == 0)
+	{	// wait
+#ifndef SIMU
+		if ( General_timer )
+		{
+			General_timer = 1 ;		// Make these happen soon
+		}
+		if ( Model_timer )
+		{
+			Model_timer = 1 ;
+		}
+		CoTickDelay(1) ;					// 2mS for now
+#endif
+	}
+  
+	result = f_open( &archiveFile, (TCHAR *)filename, FA_READ) ;
+  if (result != FR_OK)
+	{
+   	return "OPEN ERROR" ;
+  }
+
+	memset(( uint8_t *)&Eeprom_buffer.data.sky_model_data, 0, sizeof(g_model));
+	
+	answer = readXMLfile( &archiveFile,  ( uint8_t *)&Eeprom_buffer.data.sky_model_data, sizeof(Eeprom_buffer.data.sky_model_data), &nread ) ;
+	
+	if ( answer == -1 )
+	{
+		return "BAD FILE" ;
+	}
+	result = (FRESULT) answer ;
+	if (result != FR_OK)
+	{
+		return "READ ERROR" ;
+	}
+	// Can we validate the data here?
+  Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.sky_model_data ;		// Get data from here
+  Eeprom32_data_size = sizeof(g_model) ;																	// This much
+  Eeprom32_file_index = modelIndex ;																							// This file system entry
+  Eeprom32_process_state = E32_BLANKCHECK ;
+  ee32WaitFinished() ;
+	ee32_read_model_names() ;		// Update
+
+  return "MODEL RESTORED" ;
+}
 
 

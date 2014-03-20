@@ -30,7 +30,7 @@
 #define EVT_KEY_MASK             0x0f
 
 
-#define NUM_KEYS 6
+#define NUM_KEYS 7
 
 #ifdef PCBSKY
 enum EnumKeys {
@@ -39,7 +39,8 @@ enum EnumKeys {
     KEY_DOWN ,
     KEY_UP  ,
     KEY_RIGHT ,
-    KEY_LEFT
+    KEY_LEFT,
+		KEY_TRN
 } ;
 #endif
 
@@ -50,7 +51,8 @@ enum EnumKeys {
     KEY_ENTER ,
     KEY_PAGE ,
     KEY_PLUS ,
-    KEY_MINUS
+    KEY_MINUS,
+		KEY_TRN
 } ;
 #endif
 

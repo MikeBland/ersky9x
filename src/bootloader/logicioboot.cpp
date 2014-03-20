@@ -389,6 +389,19 @@ uint32_t initReadTrims( void )
 }
 #endif // PCBSKY
 
+#ifdef PCBSKY
+
+uint32_t readTrainerSwitch( void )
+{
+	if ( PIOC->PIO_PDSR & 0x00000100 )
+	{
+		return 1 ;
+	}
+	return 0 ;
+}
+
+#endif // PCBSKY
+
 #ifdef PCBX9D
 void init_keys()
 {
@@ -439,6 +452,15 @@ uint32_t read_keys()
 //		y |= 0x02 << KEY_RIGHT ;		// RIGHT
 	}
 	return y ;
+}
+
+uint32_t readTrainerSwitch( void )
+{
+	if ( GPIOE->IDR & PIN_SW_H )
+	{
+		return 0 ;
+	}
+	return 1 ;
 }
 
 // 

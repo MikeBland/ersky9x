@@ -690,6 +690,8 @@ int8_t SD_ReadSectors(uint8_t *buff, uint32_t sector, uint32_t count)
   return 0;
 }
 
+uint16_t ReadCounter ;
+
 DRESULT disk_read (
         BYTE drv,                       /* Physical drive number (0) */
         BYTE *buff,                     /* Pointer to the data buffer to store read data */
@@ -703,6 +705,7 @@ DRESULT disk_read (
         if (!(CardType & CT_BLOCK)) sector *= 512;      /* Convert to byte address if needed */
 
         if (count == 1) {       /* Single block read */
+ReadCounter += 1 ;
                 if (send_cmd(CMD17, sector) == 0)       { /* READ_SINGLE_BLOCK */
                         if (rcvr_datablock(buff, 512)) {
                                 count = 0;
@@ -716,6 +719,7 @@ DRESULT disk_read (
                                         break;
                                 }
                                 buff += 512;
+ReadCounter += 1 ;
                         } while (--count);
                         send_cmd(CMD12, 0);                             /* STOP_TRANSMISSION */
                 }

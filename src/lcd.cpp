@@ -831,14 +831,14 @@ void lcd_init()
 	pioptr->PIO_OWER = 0x000000FFL ;		// Allow write to ls 8 bits in ODSR
 #endif // REVB
 	
-	pioptr->PIO_CODR = LCD_RES ;		// Reset LCD
 	TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
-	while ( TC0->TC_CHANNEL[0].TC_CV < 200 )		// >10 uS, Value depends on MCK/2 (used 18MHz)
+	pioptr->PIO_CODR = LCD_RES ;		// Reset LCD
+	while ( TC0->TC_CHANNEL[0].TC_CV < 500 )		// >10 uS, Value depends on MCK/2 (used 18MHz)
 	{
 		// Wait
 	}
-	pioptr->PIO_SODR = LCD_RES ;		// Remove LCD reset
 	TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
+	pioptr->PIO_SODR = LCD_RES ;		// Remove LCD reset
 	while ( TC0->TC_CHANNEL[0].TC_CV < 27000 )	// 1500 uS, Value depends on MCK/2 (used 18MHz)
 	{
 		// Wait

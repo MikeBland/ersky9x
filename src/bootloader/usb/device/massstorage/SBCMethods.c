@@ -1431,7 +1431,7 @@ unsigned char SBC_GetCommandInformation(void          *command,
 
     //------------------------------------
     case SBC_PREVENT_ALLOW_MEDIUM_REMOVAL:
-    case 0x1B:
+    case SBC_START_STOP:
     //------------------------------------
         (*type) = MSDD_NO_TRANSFER;
         break;
@@ -1591,7 +1591,6 @@ unsigned char SBC_ProcessCommand(MSDLun               *lun,
 
     //------------------------------------
     case SBC_PREVENT_ALLOW_MEDIUM_REMOVAL:
-    case 0x1B:
     //------------------------------------
         TRACE_INFO_WP("PrevAllowRem ");
 
@@ -1600,6 +1599,22 @@ unsigned char SBC_ProcessCommand(MSDLun               *lun,
                     MSDD_STATUS_PARAMETER : MSDD_STATUS_SUCCESS;
         result = MSDD_STATUS_SUCCESS;
         break;
+    case SBC_START_STOP:
+        TRACE_INFO_WP("StartStop ");
+
+        result = command->startStopCmd.startStop ;
+				if ( result == 0 )
+				{
+					lun->status = LUN_EJECTED ;
+				}
+				else
+				{
+					lun->status = LUN_CHANGED ;
+				}
+				result = MSDD_STATUS_SUCCESS;
+
+    break;
+
 
   #if 0
     //------------------------------------

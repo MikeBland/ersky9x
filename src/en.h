@@ -72,7 +72,7 @@
 // ********
 #define ISTR_LIMITS		     "LIMITS"
 #define ISTR_EE_LOW_MEM     "EEPROM low mem"
-#define ISTR_ALERT		       "ALERT"
+#define ISTR_ALERT		      " ALERT"
 #define ISTR_THR_NOT_IDLE   "Throttle not idle"
 #define ISTR_RST_THROTTLE   "Reset throttle"
 #define ISTR_PRESS_KEY_SKIP "Press any key to skip"
@@ -120,10 +120,10 @@
 // menus.cpp
 // ***********
 #ifdef PCBSKY
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #ifdef PCBX9D
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #define ISTR_TELEM_SHORT    "\004----TIM1TIM2BATTGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV             "GV"
@@ -267,7 +267,8 @@
 #define ISTR_ELE_DIRECTION  "ELE Direction"
 #define ISTR_AIL_DIRECTION  "AIL Direction"
 #define ISTR_COL_DIRECTION  "COL Direction"
-#define ISTR_MODEL_POPUP    "SELECT\0COPY\0MOVE\0DELETE"
+//#define ISTR_MODEL_POPUP    "SELECT\0COPY\0MOVE\0DELETE"
+#define ISTR_MODEL_POPUP    "SELECT\0COPY\0MOVE\0DELETE\0BACKUP\0RESTORE"
 #define ISTR_MODELSEL       "MODELSEL"
 // ISTR_11_FREE after \011 max 4 chars
 #define ISTR_11_FREE        "\011free"

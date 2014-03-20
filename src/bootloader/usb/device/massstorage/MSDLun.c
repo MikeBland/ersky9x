@@ -36,7 +36,7 @@
 #include "debug.h"
 #include <usb/device/core/USBD.h>
 
-#include "usb/device/massstorage/MSDDriver.h"
+#include "MSDDriver.h"
 
 
 //------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ static SBCInquiryData inquiryData = {
     SBC_PERIPHERAL_DEVICE_CONNECTED,// Peripheral device is connected
     0x00,                           // Reserved bits
     0x01,                           // Media is removable
-    SBC_SPC_VERSION_4,              // SPC-4 supported
+    0x02,//SBC_SPC_VERSION_4,              // SPC-4 supported
     0x2,                            // Response data format, must be 0x2
     0,                              // Hierarchical addressing not supported
     0,                              // ACA not supported
@@ -83,17 +83,17 @@ static SBCInquiryData inquiryData = {
      'S','t','o','r','a','g','e',' ',
      'M','S','D'},
     {'0','.','0','1'},
-    {'M','a','s','s',' ',
-     'S','t','o','r','a','g','e',' ',
-     'E','x','a','m','p','l','e'},
-    0x00,                           // Unused features
-    0x00,                           // Reserved bits
-    {SBC_VERSION_DESCRIPTOR_SBC_3}, // SBC-3 compliant device
-    {0, 0, 0, 0, 0,
-     0, 0, 0, 0, 0,
-     0, 0, 0, 0, 0,
-     0, 0, 0, 0, 0,
-     0, 0} // Reserved
+//    {'M','a','s','s',' ',
+//     'S','t','o','r','a','g','e',' ',
+//     'E','x','a','m','p','l','e'},
+//    0x00,                           // Unused features
+//    0x00,                           // Reserved bits
+//    {SBC_VERSION_DESCRIPTOR_SBC_3}, // SBC-3 compliant device
+//    {0, 0, 0, 0, 0,
+//     0, 0, 0, 0, 0,
+//     0, 0, 0, 0, 0,
+//     0, 0, 0, 0, 0,
+//     0, 0} // Reserved
 };
 
 //------------------------------------------------------------------------------

@@ -170,7 +170,11 @@ void init_pwm()
 																		// MCK/32 / timer = 10000Hz for CLKB
 	
 	// PWM0 for LED backlight
+#ifdef REVX
 	pwmptr->PWM_CH_NUM[0].PWM_CMR = 0x0000000C ;	// CLKB
+#else
+	pwmptr->PWM_CH_NUM[0].PWM_CMR = 0x0000000B ;	// MCK/1024
+#endif
 	pwmptr->PWM_CH_NUM[0].PWM_CPDR = 100 ;			// Period
 	pwmptr->PWM_CH_NUM[0].PWM_CPDRUPD = 100 ;		// Period
 	pwmptr->PWM_CH_NUM[0].PWM_CDTY = 40 ;				// Duty

@@ -293,6 +293,8 @@ enum EnumKeys {
 
 #define NUM_STICKS	4
 
+#define NUM_SCALERS	8
+
 //#define SWASH_TYPE_STR   "---   ""120   ""120X  ""140   ""90    "
 
 #define SWASH_TYPE_120   1
@@ -436,7 +438,8 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 //extern const char *Str_telemItems ;
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
-#define NUM_TELEM_ITEMS 35
+extern int16_t getValue(uint8_t i) ;
+#define NUM_TELEM_ITEMS 45
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
@@ -462,6 +465,7 @@ inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat 
 }
 
 extern uint32_t Current_used ;
+extern uint16_t Current_current ;
 extern uint16_t Current_max ;
 extern uint16_t MAh_used ;
 extern uint16_t Run_time ;
@@ -605,12 +609,12 @@ void resetTimer();
 extern void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2) ;
 extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
 extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
-extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 extern void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att) ;
 extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
 extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type ) ;
 extern const char *get_switches_string( void ) ;
+void putsDblSizeName( uint8_t y ) ;
 
 extern void interrupt5ms() ;
 
@@ -758,6 +762,12 @@ void rtcInit( void ) ;
 
 extern void setVolume( uint8_t value ) ;
 extern uint8_t HoldVolume ;
+
+#define	ALERT_TYPE	0
+#define MESS_TYPE		1
+
+extern const char *AlertMessage ;
+extern uint8_t AlertType ;
 
 #ifdef PCBX9D
 #define INTERNAL_MODULE 0

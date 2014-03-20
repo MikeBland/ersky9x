@@ -141,10 +141,10 @@ v.xx.01-german
 // menus.cpp
 // ***********
 #ifdef PCBSKY
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2H\302heGH\302hGGesT1= T2= UPM TANKMah1Mah2CvltAkkuAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2H\302heGH\302hGGesT1= T2= UPM TANKMah1Mah2CvltAkkuAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #ifdef PCBX9D
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2H\303heGH\303hGGesT1= T2= UPM TANKMah1Mah2CvltAkkuAmpsMah CtotFasVBesXBesYBesZVGesGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2H\303heGH\303hGGesT1= T2= UPM TANKMah1Mah2CvltAkkuAmpsMah CtotFasVBesXBesYBesZVGesGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #define ISTR_TELEM_SHORT    "\004----TIM1TIM2AKKUGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV             "GV"
@@ -288,7 +288,7 @@ v.xx.01-german
 #define ISTR_ELE_DIRECTION  "H\302H Richtung"
 #define ISTR_AIL_DIRECTION  "QUE Richtung"
 #define ISTR_COL_DIRECTION  "KOL Richtung" //Kollektive
-#define ISTR_MODEL_POPUP    "BEARBEI\0KOPIER\0BEWEGE\0L\302SCHE"
+#define ISTR_MODEL_POPUP    "BEARBEI\0KOPIER\0BEWEGE\0L\302SCHE\0BACKUP\0RESTORE"
 #define ISTR_MODELSEL       "MODELWAHL"
 // ISTR_11_FREE after \011 max 4 chars
 #define ISTR_11_FREE        "\011frei"

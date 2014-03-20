@@ -24,6 +24,7 @@
 #include "drivers.h"
 #include "pulses.h"
 #include "audio.h"
+#include "menus.h"
 #ifdef PCBSKY
 #include "AT91SAM3S4.h"
 #endif
@@ -62,14 +63,14 @@ const uint8_t Fr_indices[] =
 	FR_TEMP2,
 	FR_CELL_V,
 	HUBDATALENGTH-1,HUBDATALENGTH-1,
-	FR_GPS_ALTd,
+	FR_GPS_ALTd,	// 9
 	HUBDATALENGTH-1,HUBDATALENGTH-1,
 	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
 	FR_ALT_BARO | 0x80,
 	FR_GPS_SPEED | 0x80,
 	FR_GPS_LONG | 0x80,
 	FR_GPS_LAT | 0x80,
-	FR_COURSE,
+	FR_COURSE,		// 20
 	FR_GPS_DATMON,
 	FR_GPS_YEAR,
 	FR_GPS_HRMIN,
@@ -77,7 +78,7 @@ const uint8_t Fr_indices[] =
 	FR_GPS_SPEEDd,
 	FR_GPS_LONGd,
 	FR_GPS_LATd,
-	FR_COURSEd,
+	FR_COURSEd,		// 28
 	HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,HUBDATALENGTH-1,
 	FR_ALT_BAROd,
 	FR_LONG_E_W,
@@ -86,11 +87,11 @@ const uint8_t Fr_indices[] =
 	FR_ACCY,
 	FR_ACCZ,
 	FR_VSPD,
-	FR_CURRENT,
+	FR_CURRENT,		// 40
 	FR_V_AMP | 0x80,
 	FR_V_AMPd,
-	HUBDATALENGTH-1,
-	HUBDATALENGTH-1
+	FR_VOLTS,
+	HUBDATALENGTH-1		// 44
 } ;
 
 uint8_t AltitudeDecimals ;
@@ -109,7 +110,7 @@ uint8_t frskyUsrStreaming = 0;
 
 FrskyData frskyTelemetry[4];
 //FrskyData frskyRSSI[2];
-Frsky_current_info Frsky_current[2] ;
+//Frsky_current_info Frsky_current[2] ;
 
 uint8_t frskyRSSIlevel[2] ;
 uint8_t frskyRSSItype[2] ;
@@ -354,6 +355,10 @@ void frsky_proc_user_byte( uint8_t byte )
 						if ( byte == 48 )
 						{
 							byte = FR_VSPD ;		// Move Vario							
+						}
+						if ( byte == 57 )
+						{
+							byte = 43 ;		// Move Oxsensor voltage
 						}
 						if ( byte > sizeof(Fr_indices) )
 						{
@@ -722,7 +727,7 @@ void processFrskyPacket(uint8_t *packet)
 //uint8_t TelemetryDebug[100] ;
 //uint8_t TelDebugCount = 0 ;
 
-uint8_t DsmDebug[17] ;
+//uint8_t DsmDebug[18] ;
 
 void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 {
@@ -732,13 +737,14 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 
 	if ( type && type < 0x20 )
 	{
-   	frskyUsrStreaming = FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid frsky packets are being detected
-  	frskyStreaming = FRSKY_TIMEOUT10ms; // reset counter only if valid frsky packets are being detected
+		
+   	frskyUsrStreaming = FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid packets are being detected
+  	frskyStreaming = FRSKY_TIMEOUT10ms; // reset counter only if valid packets are being detected
 		
 		ivalue = (int16_t) ( (packet[2] << 8 ) | packet[3] ) ;
 		// Telemetry
     frskyTelemetry[2].set(type, FR_RXRSI_COPY );	// RSSI
-		switch ( *packet++ )
+		switch ( *packet )
 		{
 			case DSM_ALT :
 	//2[02] Altitude MSB (Hex)
@@ -755,7 +761,7 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 			break ;
 
 			case DSM_PBOX :
-				FrskyHubData[FR_VOLTS] = ivalue / 10 ;
+				FrskyHubData[FR_VOLTS] = (uint16_t)ivalue / 10 ;
 				ivalue = (int16_t) ( (packet[6] << 8 ) | packet[7] ) ;
  				FrskyHubData[FR_AMP_MAH] = ivalue ;
 			break ;
@@ -776,10 +782,19 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 			case DSM_VTEMP1 :
 			case DSM_VTEMP2 :
 				// RPM
-				FrskyHubData[FR_RPM] = 120000000L / g_model.numBlades / ivalue ;
+				if ( (uint16_t)ivalue == 0xFFFF )
+				{
+					ivalue = 0 ;
+				}
+				else
+				{
+					ivalue = 120000000L / g_model.numBlades / (uint16_t)ivalue ;
+				}
+				FrskyHubData[FR_RPM] = ivalue ;
 				// volts
 				ivalue = (int16_t) ( (packet[4] << 8 ) | packet[5] ) ;
-				FrskyHubData[FR_A2_COPY] = ivalue ;
+//				FrskyHubData[FR_A2_COPY] = ivalue ;
+				FrskyHubData[FR_VOLTS] = (uint16_t)ivalue / 10 ;
 				// temp
 				ivalue = (int16_t) ( (packet[6] << 8 ) | packet[7] ) ;
 				FrskyHubData[FR_TEMP1] = ivalue ;
@@ -787,6 +802,18 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 
 			case DSM_STAT1 :
 			case DSM_STAT2 :
+				
+//		// Debug code
+//	uint8_t *p = packet ;
+//		uint8_t i ;
+//		DsmDebug[0] = byteCount ;
+//		for ( i = 1 ; i < 17 ; i += 1 )
+//		{
+//			DsmDebug[i] = *p++ ;
+//		}
+//		DsmDebug[17] += 1 ;
+//		// End debug code
+				
 				DsmABLRFH[0] = ivalue + 1 ;
 				ivalue = (int16_t) ( (packet[4] << 8 ) | packet[5] ) ;
 				DsmABLRFH[1] = ivalue + 1 ;
@@ -799,21 +826,24 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				ivalue = (int16_t) ( (packet[12] << 8 ) | packet[13] ) ;
 				DsmABLRFH[5] = ivalue + 1 ;
 				ivalue = (int16_t) ( (packet[14] << 8 ) | packet[15] ) ;
-				FrskyHubData[FR_A1_COPY] = ivalue ;
+				uint32_t x = (uint16_t)ivalue ;
+				x *= 128 ;
+				x /= 1155 ;
+				store_hub_data( FR_RXV, x ) ;
 			break ;
 		}
 	}
 	else if ( type == 0x80 )
 	{
 		dsmBindResponse( *packet, *(packet+2) ) ;
-		// Debug code
-		uint8_t i ;
-		DsmDebug[0] = byteCount ;
-		for ( i = 1 ; i < 17 ; i += 1 )
-		{
-			DsmDebug[i] = *packet++ ;
-		}
-		// End debug code
+//		// Debug code
+//		uint8_t i ;
+//		DsmDebug[0] = byteCount ;
+//		for ( i = 1 ; i < 17 ; i += 1 )
+//		{
+//			DsmDebug[i] = *packet++ ;
+//		}
+//		// End debug code
 	}
 	else if ( type == 0xFF )
 	{
@@ -1299,6 +1329,9 @@ void FRSKY_Init( uint8_t brate )
 		{
 			UART2_Configure( 9600, Master_frequency ) ;
 			UART2_timeout_disable() ;
+#ifdef REVX
+			g_model.telemetryRxInvert = 0 ;
+#endif
 		}
 		else
 		{
@@ -1316,6 +1349,9 @@ void FRSKY_Init( uint8_t brate )
 		{
 			UART2_Configure( 57600, Master_frequency ) ;
 			UART2_timeout_disable() ;
+#ifdef REVX
+			g_model.telemetryRxInvert = 0 ;
+#endif
 		}
 		else
 		{
@@ -1329,6 +1365,9 @@ void FRSKY_Init( uint8_t brate )
 		{
 			UART2_Configure( 115200, Master_frequency ) ;
 			UART2_timeout_enable() ;
+#ifdef REVX
+			g_model.telemetryRxInvert = 1 ;
+#endif
 		}
 		else
 		{
@@ -1443,6 +1482,10 @@ void check_frsky()
 	{
 		telemetryType = 2 ;
 	}
+	if ( g_model.DsmTelemetry )
+	{
+		telemetryType = 2 ;
+	}
 #endif
 	if ( ( telemetryType != FrskyTelemetryType )
 			 || ( FrskyComPort != g_model.frskyComPort ) )
@@ -1498,6 +1541,12 @@ void check_frsky()
 		{
  			FrskyHubData[FR_TXRSI_COPY] = 0 ;
 			A1Received = 0 ;
+			if ( telemetryType == 2)		// DSM telemetry
+			{
+   			frskyTelemetry[2].set( 0, FR_RXRSI_COPY );	// RSSI
+ 				FrskyHubData[FR_RXRSI_COPY] = 0 ;
+			}
+			putVoiceQueue( V_NOTELEM ) ;
 		}
 	}
   if (frskyUsrStreaming > 0) frskyUsrStreaming--;
@@ -1507,33 +1556,53 @@ void check_frsky()
     FRSKY10mspoll() ;
   }
 
-  if (frskyStreaming)
-	{
-		for( uint8_t i = 0 ; i < 2 ; i += 1 )
-		{
-  		if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
-  		{
-  		  // value * ratio / 100 gives 10ths of amps
-  		  // add this every 10 ms, when over 3600, we have 1 mAh
-  		  // so subtract 3600 and add 1 to mAh total
-  		  // alternatively, add up the raw value, and use 3600 * 100 / ratio for 1mAh
-			
-				if ( (  Frsky_current[i].Amp_hour_prescale += frskyTelemetry[i].value ) >  Frsky_current[i].Amp_hour_boundary )
-				{
-					Frsky_current[i].Amp_hour_prescale -=  Frsky_current[i].Amp_hour_boundary ;
-					FrskyHubData[FR_A1_MAH+i] += 1 ;
-				}
-  		}	
-		}
-	}
+	// Flight pack mAh
+	if ( g_model.currentSource )
+	{ // We have a source
+		uint16_t current = 0 ;		// in 1/10ths amps
 
-	// FrSky Current sensor (in amps, 1dp)
-	// add this every 10 ms, when over 3600, we have 1 mAh
-	// 
-  if (frskyUsrStreaming)
-	{
+
+		if ( g_model.currentSource <= 2 )	// A1/A2
+		{
+			if ( frskyStreaming )
+			{
+				uint8_t index = FR_A1_COPY+g_model.currentSource-1 ;
+				current = FrskyHubData[index] ;
+				current *= g_model.frsky.channels[index].ratio ; ;
+				current /= 100 ;
+			}
+		}
+		else if ( g_model.currentSource == 3 )	// FASV
+		{
+  		if (frskyUsrStreaming)
+		  {
+				current = FrskyHubData[FR_CURRENT] ;
+			}
+		}
+		else	// Scaler
+		{
+			uint8_t num_decimals ;
+			uint8_t index ;
+			index = g_model.currentSource - 4 ;
+
+			if ( telemItemValid( index + TEL_ITEM_SC1 ) )
+			{
+				current = calc_scaler( index, 0, &num_decimals) ;
+				if ( num_decimals == 0 )
+				{
+					current *= 10 ;
+				}
+				else if ( num_decimals == 2 )
+				{
+					current /= 10 ;
+				}
+			}
+		}
+
 		int16_t ah_temp ;
-		ah_temp = FrskyHubData[FR_CURRENT] ;
+		ah_temp = current ;
+
+
 		if ( ah_temp < 0 )
 		{
 			ah_temp = 0 ;			
@@ -1543,16 +1612,39 @@ void check_frsky()
 		{
 			ah_temp -= 3600 ;
 			int16_t *ptr_hub = &FrskyHubData[FR_AMP_MAH] ;
-//			FORCE_INDIRECT(ptr_hub) ;
 			*ptr_hub += 1 ;
+			FrskyHubData[FR_A1_MAH] += 1 ;
+			FrskyHubData[FR_A2_MAH] += 1 ;
 		}
 		Frsky_Amp_hour_prescale = ah_temp ;
-//		if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
-//		{
-//			Frsky_Amp_hour_prescale -= 3600 ;
-//			FrskyHubData[FR_AMP_MAH] += 1 ;
-//		}
 	}
+
+//	// FrSky Current sensor (in amps, 1dp)
+//	// add this every 10 ms, when over 3600, we have 1 mAh
+//	// 
+//  if (frskyUsrStreaming)
+//	{
+//		int16_t ah_temp ;
+//		ah_temp = FrskyHubData[FR_CURRENT] ;
+//		if ( ah_temp < 0 )
+//		{
+//			ah_temp = 0 ;			
+//		}
+//		ah_temp += Frsky_Amp_hour_prescale ;
+//		if ( ah_temp > 3600 )
+//		{
+//			ah_temp -= 3600 ;
+//			int16_t *ptr_hub = &FrskyHubData[FR_AMP_MAH] ;
+////			FORCE_INDIRECT(ptr_hub) ;
+//			*ptr_hub += 1 ;
+//		}
+//		Frsky_Amp_hour_prescale = ah_temp ;
+////		if ( ( Frsky_Amp_hour_prescale += FrskyHubData[FR_CURRENT] ) > 3600 )
+////		{
+////			Frsky_Amp_hour_prescale -= 3600 ;
+////			FrskyHubData[FR_AMP_MAH] += 1 ;
+////		}
+//	}
 
 	// See if time for alarm checking
 //	if (--FrskyAlarmTimer == 0 )
@@ -1567,10 +1659,10 @@ void FRSKY_setModelAlarms(void)
 {
 	FrskyBattCells = 0 ;
   FrskyAlarmSendState |= 0x0F ;
-#ifndef SIMU
-  Frsky_current[0].Amp_hour_boundary = 360000L/ g_model.frsky.channels[0].ratio ; // <= (!) division per 0!
-	Frsky_current[1].Amp_hour_boundary = 360000L/ g_model.frsky.channels[1].ratio ; // <= (!) division per 0!
-#endif
+//#ifndef SIMU
+//  Frsky_current[0].Amp_hour_boundary = 360000L/ g_model.frsky.channels[0].ratio ; // <= (!) division per 0!
+//	Frsky_current[1].Amp_hour_boundary = 360000L/ g_model.frsky.channels[1].ratio ; // <= (!) division per 0!
+//#endif
 }
 
 struct FrSky_Q_t FrSky_Queue ;

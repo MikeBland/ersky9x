@@ -10,6 +10,22 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 20-Mar-2014  MPB (r202)
+Add oXsensor voltage on telemetry
+DSM telemetry updates
+DSM telemetry auto-configure
+DSM telemetry screen updated
+Add current source option
+Slow voice bug fix
+Add Scalers and A3/A4
+Bootloader fixes for MAC
+Stop logging on model load
+Expo/Dr fix on updating model version
+Backup and restore models to SD card
+Allow 'sticky' throttle with timer THs
+PXX only send 8 channels in D8 mode
+
+******************************************
 CHANGELOG: 12-Feb-2014  MPB (r201)
 Fix COM port bug
 Improve voice file header handling

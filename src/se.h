@@ -128,10 +128,10 @@
 // menus.cpp
 // ***********
 #ifdef PCBSKY
-#define ISTR_TELEM_ITEMS     "\004----A1= A2= RSSITSSITim1Tim2Hjd GhjdGkmhT1= T2= RPM TANKMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVkmhGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV"
+#define ISTR_TELEM_ITEMS     "\004----A1= A2= RSSITSSITim1Tim2Hjd GhjdGkmhT1= T2= RPM TANKMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVkmhGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #ifdef PCBX9D
-#define ISTR_TELEM_ITEMS     "\004----A1= A2= RSSISWR Tim1Tim2Hjd GhjdGkmhT1= T2= RPM TANKMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVkmhGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV"
+#define ISTR_TELEM_ITEMS     "\004----A1= A2= RSSISWR Tim1Tim2Hjd GhjdGkmhT1= T2= RPM TANKMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVkmhGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #endif
 #define ISTR_TELEM_SHORT     "\004----TIM1TIM2BATTGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV              "GV"
@@ -275,7 +275,7 @@
 #define ISTR_ELE_DIRECTION   "HJD-riktning"
 #define ISTR_AIL_DIRECTION   "SKEV-riktning"
 #define ISTR_COL_DIRECTION   "COL-riktning"
-#define ISTR_MODEL_POPUP     "VALJ\0KOPIA\0FLYTTA\0RADERA"
+#define ISTR_MODEL_POPUP     "VALJ\0KOPIA\0FLYTTA\0RADERA\0BACKUP\0RESTORE"
 #define ISTR_MODELSEL        "MODELLVAL"
 // ISTR_11_FREE after \011 max 4 chars
 #define ISTR_11_FREE         "\011kvar"

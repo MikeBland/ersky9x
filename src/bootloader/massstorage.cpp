@@ -54,7 +54,8 @@ extern unsigned char MEDSdcard_Initialize(Media *media, unsigned char mciID);
 #define MSD_BUFFER_SIZE     (12*BLOCK_SIZE)
 
 /** LUN read/write buffer. */
-unsigned char msdBuffer[MSD_BUFFER_SIZE];
+unsigned char msdBuffer1[MSD_BUFFER_SIZE];
+unsigned char msdBuffer2[MSD_BUFFER_SIZE];
 
 unsigned int msdReadTotal=0, msdWriteTotal=0;
 
@@ -173,12 +174,12 @@ void usbMassStorage()
       MEDSdcard_Initialize(&(medias[DRV_SDMMC]), 0);
       EEPROM_Initialize(&(medias[DRV_EEPROM]), 0);
       LUN_Init(&(luns[DRV_SDMMC]), sd_card_ready() ? &(medias[DRV_SDMMC]) : 0 ,
-          msdBuffer, MSD_BUFFER_SIZE,
+          msdBuffer1, MSD_BUFFER_SIZE,
           0, 0, 0, 0,
           MSDCallbacks_Data);
       
 			LUN_Init(&(luns[DRV_EEPROM]), &(medias[DRV_EEPROM]),
-          msdBuffer, MSD_BUFFER_SIZE,
+          msdBuffer2, MSD_BUFFER_SIZE,
           0, 0, 0, 0,
           MSDCallbacks_Data);
       
@@ -229,5 +230,32 @@ void usbMassStorage()
     msdWriteTotal = 0;
   }
 }
+
+uint16_t usbLunStat()
+{
+	return (luns[DRV_SDMMC].status << 8 ) | luns[DRV_EEPROM].status ;
+//	return 1234 ;
+}
+
+void usbPluggedIn( uint16_t allowSD )
+{
+	if ( allowSD )
+	{
+		if ( ( luns[DRV_SDMMC].status == LUN_EJECTED )
+			|| ( luns[DRV_SDMMC].status == LUN_NOT_PRESENT ) )
+		{
+  		luns[DRV_SDMMC].status = LUN_READY ;
+		}
+	}
+	else
+	{
+  	luns[DRV_SDMMC].status = LUN_NOT_PRESENT ;
+	}
+	if ( luns[DRV_EEPROM].status == LUN_EJECTED )
+	{
+  	luns[DRV_EEPROM].status = LUN_READY ;
+	}
+}
+
 
 #endif

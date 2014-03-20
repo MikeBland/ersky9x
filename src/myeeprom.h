@@ -425,6 +425,25 @@ PACK(typedef struct t_gvar {
 //	int8_t gvswitch ;
 }) GvarData ;
 
+
+// Scale a value
+PACK(typedef struct t_scale
+{
+  uint8_t source ;
+	int16_t offset ;
+	uint8_t spare1 ;
+	uint8_t mult ;
+	uint8_t spare2 ;
+	uint8_t div ;
+	uint8_t unit ;
+	uint8_t neg:1 ;
+	uint8_t precision:2 ;
+	uint8_t offsetLast:1 ;
+	uint8_t spare:4 ;
+	uint8_t name[4] ;
+}) ScaleData ;
+
+
 PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
   uint8_t   modelVoice ;		// Index to model name voice (261+value)
@@ -445,8 +464,9 @@ PACK(typedef struct te_ModelData {
 	uint8_t   xnumBlades:2;					// RPM scaling, now elsewhere as uint8_t
 	uint8_t   extendedTrims:1;			// Only applies to phases
   uint8_t   thrExpo:1;            // Enable Throttle Expo
-	uint8_t   frskyComPort:1;
-	uint8_t   spare11:2;
+	uint8_t   frskyComPort:1 ;
+	uint8_t		DsmTelemetry:1 ;
+	uint8_t   spare11:1;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
@@ -512,8 +532,9 @@ PACK(typedef struct te_ModelData {
 	int8_t		rssiRed:6 ;
 	uint8_t		rxVratio ;
 //	uint8_t		spare24:6 ;
-//	uint8_t   curentSource ;
-//	uint8_t   altSource ;
+	uint8_t   currentSource ;
+	uint8_t   altSource ;
+	ScaleData Scalers[NUM_SCALERS] ;
 }) SKYModelData;
 
 

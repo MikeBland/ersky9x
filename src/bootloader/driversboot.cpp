@@ -61,7 +61,7 @@ uint8_t getEvent()
 {
   register uint8_t evt = s_evt;
   s_evt=0;
-  return evt;
+   return evt;
 }
 
 Key keys[NUM_KEYS] ;
@@ -194,7 +194,13 @@ void per10ms()
 	current = lcurrent ;
 #endif
 
-  for( i=1; i<7; i++)
+extern uint32_t readTrainerSwitch( void ) ;
+	if ( readTrainerSwitch() )
+	{
+		in |= 0x80 ;
+	}
+
+  for( i=1; i<8; i++)
   {
 		uint8_t value = in & (1<<i) ;
     //INP_B_KEY_MEN 1  .. INP_B_KEY_LFT 6

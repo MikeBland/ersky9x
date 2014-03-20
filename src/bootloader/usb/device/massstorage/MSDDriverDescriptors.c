@@ -63,7 +63,7 @@
 #define MSDDriverDescriptors_PRODUCTID      0x6129
 #endif
 /// Device release number for the Mass Storage device driver.
-#define MSDDriverDescriptors_RELEASE        0x0100
+#define MSDDriverDescriptors_RELEASE        0x0200
 
 #ifdef HID
 /** Address of the HID interrupt IN endpoint. */

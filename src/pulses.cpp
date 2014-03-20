@@ -863,11 +863,14 @@ void setupPulsesPXX()
     putPcmByte( chan ) ; 			// Checksum lo
     putPcmHead(  ) ;      // sync byte
     putPcmFlush() ;
-		pass = lpass + 1 ;
+		if (g_model.sub_protocol == 1 )		// D8
+		{
+			lpass = 0 ;
+		}
+		else
+		{
+			lpass += 1 ;
+		}
+		pass = lpass ;
 }
-
-
-
-
-
 

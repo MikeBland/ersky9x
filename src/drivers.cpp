@@ -79,6 +79,11 @@ struct t_fifo32 BtRx_fifo ;
 
 #ifdef PCBX9D
 struct t_fifo32 Telemetry_fifo ;
+struct t_SportTx
+{
+	uint8_t *ptr ;
+	uint32_t count ;
+} SportTx ;
 #endif
 
 volatile uint32_t Spi_complete ;
@@ -1173,6 +1178,37 @@ void read_9_adc()
 		x = padc->ADC_LCDR ;		// Clear DRSY flag
 	}
 	// Next bit may be done using the PDC
+// Option on 9XR to increas ADC accuracy
+//#ifdef REVX
+//	int32_t calc = ADC->ADC_CDR1 ;
+//	calc -= 2048 ;
+//	calc *= 18 ;
+//	calc >>= 4 ;
+//	calc += 2048 ;
+//	Analog_values[0] = calc ;
+//	calc = ADC->ADC_CDR2 ;
+//	calc -= 2048 ;
+//	calc *= 18 ;
+//	calc >>= 4 ;
+//	calc += 2048 ;
+//	Analog_values[1] = calc ;
+//	Analog_values[2] = ADC->ADC_CDR3 ;
+//	Analog_values[3] = ADC->ADC_CDR4 ;
+//	Analog_values[4] = ADC->ADC_CDR5 ;
+//	calc = ADC->ADC_CDR9 ;
+//	calc -= 2048 ;
+//	calc *= 21 ;
+//	calc >>= 4 ;
+//	calc += 2048 ;
+//	Analog_values[5] = calc ;
+//	Analog_values[6] = ADC->ADC_CDR13 ;
+//	calc = ADC->ADC_CDR14 ;
+//	calc -= 2048 ;
+//	calc *= 21 ;
+//	calc >>= 4 ;
+//	calc += 2048 ;
+//	Analog_values[7] = calc ;
+//#else	
 	Analog_values[0] = ADC->ADC_CDR1 ;
 	Analog_values[1] = ADC->ADC_CDR2 ;
 	Analog_values[2] = ADC->ADC_CDR3 ;
@@ -1181,6 +1217,7 @@ void read_9_adc()
 	Analog_values[5] = ADC->ADC_CDR9 ;
 	Analog_values[6] = ADC->ADC_CDR13 ;
 	Analog_values[7] = ADC->ADC_CDR14 ;
+//#endif
 #ifdef REVB
 	Analog_values[8] = ADC->ADC_CDR8 ;
 #endif
@@ -1222,6 +1259,8 @@ void read_9_adc()
 #define GAIN_RV	    0x20000000
 #define GAIN_RH	    0x00000008
 
+#define GAIN_CURRENT	    0x00030000
+
 #define OFF_LV			0x00000200
 #define OFF_LH      0x00000004
 #define OFF_RV      0x00004000
@@ -1256,7 +1295,7 @@ void set_stick_gain( uint32_t gains )
 	uint32_t gain ;
 	uint32_t offset ;
 
-	gain = 0 ;
+	gain = GAIN_CURRENT ;
 	offset = 0 ;
 	padc = ADC ;
 
@@ -1458,13 +1497,24 @@ void x9dSPortInit()
 	// Serial configure  
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN ;		// Enable clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
-	GPIOD->MODER = (GPIOD->MODER & 0xFFFFC3FF ) | 0x00002800 ;	// Alternate func.
+	GPIOD->MODER = (GPIOD->MODER & 0xFFFFC0FF ) | 0x00002900 ;	// Alternate func.
 	GPIOD->AFR[0] = (GPIOD->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
 	USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
-	USART2->CR1 = 0x202C ;
+	USART2->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART2->CR2 = 0 ;
 	USART2->CR3 = 0 ;
   NVIC_EnableIRQ(USART2_IRQn);
+	GPIOD->BSRRH = 0x0010 ;		// output disable
+	configure_pins( 0x00000010, PIN_OUTPUT | PIN_PUSHPULL | PIN_OS25 | PIN_PORTD ) ;
+}
+
+
+void x9dSPortTxStart( uint8_t *buffer, uint32_t count )
+{
+	SportTx.ptr = buffer ;
+	SportTx.count = count ;
+	GPIOD->BSRRL = 0x0010 ;		// output enable
+	USART2->CR1 |= USART_CR1_TE ;
 }
 
 #if !defined(SIMU)
@@ -1484,6 +1534,25 @@ extern "C" void USART2_IRQHandler()
 
   status = USART2->SR ;
 
+	if ( status & USART_SR_TXE )
+	{
+		if ( SportTx.count )
+		{
+			USART2->DR = *SportTx.ptr++ ;
+			if ( --SportTx.count == 0 )
+			{
+				USART2->CR1 &= ~USART_CR1_TE ;	// Stop Tx interrupt
+				USART2->CR1 |= USART_CR1_TCIE ;	// Enable complete interrupt
+			}
+		}
+	}
+
+	if ( status & USART_SR_TC )
+	{
+		USART2->CR1 &= ~USART_CR1_TCIE ;	// Stop Complete interrupt
+		GPIOD->BSRRH = 0x0010 ;		// output disable
+	}
+
   while (status & (USART_FLAG_RXNE | USART_FLAG_ERRORS))
 	{
     data = USART2->DR;
@@ -1493,7 +1562,7 @@ extern "C" void USART2_IRQHandler()
 			put_fifo32( &Telemetry_fifo, data ) ;
 		}
 		else
-	{
+		{
 			USART_ERRORS += 1 ;
 			if ( status & USART_FLAG_ORE )
 			{

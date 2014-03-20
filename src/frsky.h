@@ -276,11 +276,11 @@ struct FrskyData {
 	void setoffset();
 };
 
-struct Frsky_current_info
-{
-uint16_t Amp_hour_boundary ;
-uint16_t Amp_hour_prescale ;
-} ;
+//struct Frsky_current_info
+//{
+//uint16_t Amp_hour_boundary ;
+//uint16_t Amp_hour_prescale ;
+//} ;
  
 struct FrSky_Q_item_t
 {
@@ -299,7 +299,7 @@ struct FrSky_Q_t
 extern void put_frsky_q( uint8_t index, uint16_t value ) ;
 extern void process_frsky_q( void ) ;
 
-extern Frsky_current_info Frsky_current[2] ;
+//extern Frsky_current_info Frsky_current[2] ;
 
 extern uint8_t AltitudeDecimals ;
 

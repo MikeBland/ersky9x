@@ -79,6 +79,7 @@
 #define AU_MIX_WARNING_3 (32)
 #define AU_VARIO_UP (33)
 #define AU_VARIO_DOWN (34)
+#define AU_LONG_TONE (35)
 
 #define BEEP_QUIET (0)
 #define BEEP_NOKEYS (1)

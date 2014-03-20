@@ -74,6 +74,8 @@ static void MSDD_GetCommandInformation(MSCbw *cbw,
 /// \param  pMsdDriver Pointer to a MSDDriver instance
 /// \return 1 if the command is supported, false otherwise
 //-----------------------------------------------------------------------------
+uint8_t StartStopCounter ;
+
 static unsigned char MSDD_PreProcessCommand(MSDDriver *pMsdDriver)
 {
     unsigned int        hostLength = 0;
@@ -90,7 +92,13 @@ static unsigned char MSDD_PreProcessCommand(MSDDriver *pMsdDriver)
     // Host-side
     MSDD_GetCommandInformation(cbw, &hostLength, &hostType);
 
+		SBCCommand *sbcCommand = (SBCCommand *) cbw->pCommand ;
     // Device-side
+		if ( sbcCommand->bOperationCode == 0x1B )
+		{
+			StartStopCounter += 1 ;
+		}
+
     isCommandSupported = SBC_GetCommandInformation(cbw->pCommand,
                                                    &deviceLength,
                                                    &deviceType,

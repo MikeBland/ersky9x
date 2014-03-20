@@ -349,7 +349,11 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 				case AU_VARIO_DOWN :
 		      playNow(BEEP_DEFAULT_FREQ - 20, 10, 0, 0, 0, -1 ) ;
 		    break ;
-		    
+
+		    case AU_LONG_TONE :
+		      playNow( 40, 200, 0 ) ;
+		    break ;
+					
 		    default:
 		      break;
 	  }
@@ -514,7 +518,7 @@ void voice_task(void* pdata)
 			}
 
 			v_index = Voice.VoiceQueue[Voice.VoiceQueueOutIndex++] ;
-			
+
 			if ( (v_index & 0xFF00) == 0xFF00 )
 			{
 				v_index &= 0x00FF ;
@@ -605,7 +609,7 @@ void voice_task(void* pdata)
 							{
 								uint32_t amount ;
 								VoiceBuffer[0].frequency = x ;		// sample rate
-
+								
 								if ( w8or16 == 8 )
 								{
 									wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
@@ -618,7 +622,7 @@ void voice_task(void* pdata)
 									size -= nread ;
 								}
 								VoiceBuffer[1].count = 512 ;
-								VoiceBuffer[1].frequency = 0 ;
+//								VoiceBuffer[1].frequency = 15998 ;
 					
 								amount = (w8or16 == 8) ? 512 : 1024 ;
 
@@ -633,7 +637,7 @@ void voice_task(void* pdata)
 								}
 								size -= nread ;
 								VoiceBuffer[2].count = 512 ;
-								VoiceBuffer[2].frequency = 0 ;
+//								VoiceBuffer[2].frequency = 15997 ;
 								startVoice( 3 ) ;
 								for(x = 0;;)
 								{
@@ -667,7 +671,7 @@ void voice_task(void* pdata)
 										wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].data, nread ) ;
 									}
 									VoiceBuffer[x].count = nread ;
-									VoiceBuffer[x].frequency = 0 ;
+//									VoiceBuffer[x].frequency = 15996 ;
 									appendVoice( x ) ;					// index of next buffer
 									v_index = x ;		// Last buffer sent
 									x += 1 ;

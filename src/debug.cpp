@@ -32,7 +32,7 @@
 *
 ****************************************************************************/
 
-
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -608,7 +608,7 @@ void generalDefault() ;
 			uputs( (char *)VERSION ) ;
 			crlf() ;
 		}
-
+		
 #ifdef PCBX9D
 		if ( rxchar == '+' )
 		{

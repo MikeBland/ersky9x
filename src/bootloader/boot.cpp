@@ -90,6 +90,10 @@ const uint8_t Version[] =
 
 __attribute__ ((section(".text"), used))
 
+extern void usbPluggedIn( uint16_t allowSD ) ;
+#ifdef PCBSKY
+extern uint16_t usbLunStat() ;
+#endif
 
 #ifdef PCBSKY
 extern void usbMassStorage( void ) ;
@@ -140,7 +144,9 @@ uint32_t FirmwareSize ;
 uint32_t Master_frequency ;
 volatile uint8_t  Tenms ;
 uint8_t EE_timer ;
-
+uint8_t USBcounter ;
+uint8_t SDcardDisabled ;
+volatile uint16_t BlinkCounter ;
 extern uint32_t sd_card_ready( void ) ;
 
 TCHAR FlashFilename[60] ;
@@ -377,6 +383,7 @@ void clearLockBits()
 
 void interrupt10ms()
 {
+	BlinkCounter += 7 ;
 	Tenms |= 1 ;			// 10 mS has passed
  	per10ms() ;
 }
@@ -622,15 +629,15 @@ FRESULT readBinDir( DIR *dj, FILINFO *fno )
 		{
 			loop = 1 ;
 		}
-		if ( ( fno->lfname[len+1] != 'b' ) && ( fno->lfname[len+1] != 'B' ) )
+		if ( ( fno->lfname[len+1] & ~0x20 ) != 'B' )
 		{
 			loop = 1 ;
 		}
-		if ( ( fno->lfname[len+2] != 'i' ) && ( fno->lfname[len+2] != 'I' ) )
+		if ( ( fno->lfname[len+2] & ~0x20 ) != 'I' )
 		{
 			loop = 1 ;
 		}
-		if ( ( fno->lfname[len+3] != 'n' ) && ( fno->lfname[len+3] != 'N' ) )
+		if ( ( fno->lfname[len+3] & ~0x20 ) != 'N' )
 		{
 			loop = 1 ;
 		}
@@ -750,6 +757,10 @@ uint8_t flashFile( uint32_t index )
 extern Key keys[] ;
 
 static uint32_t PowerUpDelay ;
+
+uint16_t statuses ;
+
+uint16_t WriteCounter ;
 
 int main()
 {
@@ -875,11 +886,29 @@ extern uint8_t OptrexDisplay ;
 			lcd_puts_Pleft( 0, "Boot Loader V ." ) ;
 			lcd_putc( 13*FW, 0, Version[4] ) ;
 			lcd_putc( 15*FW-2, 0, Version[5] ) ;
+//extern uint8_t StartStopCounter ;
+//extern uint16_t ReadCounter ;
+//	lcd_outhex4( 0, FH, StartStopCounter ) ;
+//	lcd_outhex4( 25, FH, ReadCounter ) ;
+//	lcd_outhex4( 50, FH, statuses ) ;
+//	lcd_outhex4( 75, FH, WriteCounter ) ;
+	if ( SDcardDisabled )
+	{
+		if ( BlinkCounter & 512 )
+		{
+			lcd_puts_Pleft( FH, "SD Card OFF" ) ;
+		}
+	}
+
 #endif
 #ifdef PCBX9D
 			lcd_puts_Pleft( 0, "\006Boot Loader V ." ) ;
 			lcd_putc( 19*FW, 0, Version[4] ) ;
 			lcd_putc( 21*FW-2, 0, Version[5] ) ;
+//extern uint8_t StartStopCounter ;
+//extern uint16_t ReadCounter ;
+//	lcd_outhex4( 0, FH, StartStopCounter ) ;
+//	lcd_outhex4( 25, FH, ReadCounter ) ;
 #endif
 
 			if ( sd_card_ready() )
@@ -891,18 +920,26 @@ extern uint8_t OptrexDisplay ;
 				lcd_puts_P( 22*FW-1, 0, "Ready" ) ;
 #endif
 
-				if ( usbPlugged() )
+#ifdef PCBSKY
+				statuses = usbLunStat() ;
+#endif
+
+				if ( state != ST_USB )
 				{
-					state = ST_USB ;
+					if ( usbPlugged() )
+					{
+						state = ST_USB ;
+						usbPluggedIn( !SDcardDisabled ) ;
+					}
 				}
 				
 				if ( state == ST_USB )
 				{
 #ifdef PCBSKY
-					lcd_puts_Pleft( 3*FH, "\010BUSY" ) ;
+					lcd_puts_Pleft( 3*FH, "\004Connecting.." ) ;
 #endif
 #ifdef PCBX9D
-					lcd_puts_Pleft( 3*FH, "\016BUSY" ) ;
+					lcd_puts_Pleft( 3*FH, "\012Connecting.." ) ;
 #endif
 					if ( usbPlugged() == 0 )
 					{
@@ -997,7 +1034,11 @@ extern uint8_t OptrexDisplay ;
 					}
 					{
 						uint8_t event = getEvent() ;
-
+						if ( event == EVT_KEY_FIRST( KEY_TRN ) )
+						{
+							SDcardDisabled = SDcardDisabled ? 0 : 1;
+						}
+						
 						if ( ( event == EVT_KEY_REPT(BOOT_KEY_DOWN) ) || event == EVT_KEY_FIRST(BOOT_KEY_DOWN) )
 						{
 							if ( vpos < limit-1 )

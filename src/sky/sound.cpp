@@ -138,18 +138,18 @@ uint16_t Sine_values[] =
 // 633, 779, 936,1105,1282,1467,1657,1851
 //} ;
 
-const uint16_t PianoTones[] =
-{
-  28,   29,   31,   33,   35,   37,   39,   41,   44,   46,
-  49,   52,   55,   58,   62,   65,   69,   73,   78,   82,
-  87,   92,   98,  104,  110,  117,  123,  131,  139,  147,
- 156,  165,  175,  185,  196,  208,  220,  233,  247,  262, // d#, E, F, f#, G, g#, A, a#, B, C(middle)
- 277,  294,  311,  330,  349,  370,  392,  415,  440,  466, // c#, D, d#, E, F, f#, G, g#, A, a#
- 494,  523,  554,  587,  622,  659,  698,  740,  784,  831, // B, C, c#, D, d#, E, F, f#, G, g#
- 880,  932,  988, 1047, 1109, 1175, 1245, 1319, 1397, 1480,
-1568, 1661, 1760, 1865, 1976, 2093, 2217, 2349, 2489, 2637,
-2794, 2960, 3136, 3322, 3520 ,3729, 3951, 4186
-} ;
+//const uint16_t PianoTones[] =
+//{
+//  28,   29,   31,   33,   35,   37,   39,   41,   44,   46,
+//  49,   52,   55,   58,   62,   65,   69,   73,   78,   82,
+//  87,   92,   98,  104,  110,  117,  123,  131,  139,  147,
+// 156,  165,  175,  185,  196,  208,  220,  233,  247,  262, // d#, E, F, f#, G, g#, A, a#, B, C(middle)
+// 277,  294,  311,  330,  349,  370,  392,  415,  440,  466, // c#, D, d#, E, F, f#, G, g#, A, a#
+// 494,  523,  554,  587,  622,  659,  698,  740,  784,  831, // B, C, c#, D, d#, E, F, f#, G, g#
+// 880,  932,  988, 1047, 1109, 1175, 1245, 1319, 1397, 1480,
+//1568, 1661, 1760, 1865, 1976, 2093, 2217, 2349, 2489, 2637,
+//2794, 2960, 3136, 3322, 3520 ,3729, 3951, 4186
+//} ;
 
 
 // Sound routines
@@ -213,7 +213,6 @@ void buzzer_sound( uint8_t time )
  #endif
 }
 
-
 void set_frequency( uint32_t frequency )
 {
   register Tc *ptc ;
@@ -228,6 +227,7 @@ void set_frequency( uint32_t frequency )
 	{
 		timer = 2 ;		
 	}
+
 	ptc = TC0 ;		// Tc block 0 (TC0-2)
 	ptc->TC_CHANNEL[1].TC_CCR = TC_CCR0_CLKDIS ;		// Stop clock
 	ptc->TC_CHANNEL[1].TC_RC = timer ;			// 100 000 Hz
@@ -368,18 +368,25 @@ extern "C" void DAC_IRQHandler()
 			DACC->DACC_IDR = DACC_IDR_TXBUFE ;
 			Sound_g.VoiceActive = 0 ;
 		}
-
-		VoiceCount -= 1 ;
-		if ( VoiceCount == 0 )		// Run out of buffers
+		else
 		{
-			DACC->DACC_IDR = DACC_IDR_ENDTX ;
-			DACC->DACC_IER = DACC_IER_TXBUFE ;
-			AudioVoiceUnderrun = 1 ;		// For debug
-		}
-		else if ( VoiceCount > 1 )
-		{
-			DACC->DACC_TNCR = PtrVoiceBuffer[1]->count / 2 ;		// words, 100 16 bit values
-			DACC->DACC_TNPR = (uint32_t) PtrVoiceBuffer[1]->data ;
+			VoiceCount -= 1 ;
+			if ( VoiceCount > 1 )
+			{
+				if ( DACC->DACC_TNCR == 0 )
+				{
+					uint32_t x ;
+					x = DACC->DACC_TNPR = CONVERT_PTR(PtrVoiceBuffer[1]->data) ;
+					DACC->DACC_TNCR = PtrVoiceBuffer[1]->count / 2 ;		// words, 100 16 bit values
+					DACC->DACC_TNPR = x ;		// Goes wrong without this!!!
+				}
+			}
+			else if ( VoiceCount == 0 )		// Run out of buffers
+			{
+				DACC->DACC_IDR = DACC_IDR_ENDTX ;
+				DACC->DACC_IER = DACC_IER_TXBUFE ;
+				AudioVoiceUnderrun = 1 ;		// For debug
+			}
 		}
 	}
 	else
@@ -455,7 +462,7 @@ void sound_5ms()
 				Sound_g.VoiceRequest = 0 ;
 				Sound_g.VoiceActive = 1 ;
 
-				set_frequency( VoiceBuffer[0].frequency ? VoiceBuffer[0].frequency : 16000 ) ;
+				set_frequency( VoiceBuffer[0].frequency ? VoiceBuffer[0].frequency : 15999 ) ;
 #ifndef SIMU
 				dacptr->DACC_TPR = (uint32_t) VoiceBuffer[0].data ;
 				dacptr->DACC_TCR = VoiceBuffer[0].count / 2 ;		// words, 100 16 bit values
@@ -540,6 +547,7 @@ void startVoice( uint32_t count )		// count of filled in buffers
 {
 	AudioVoiceUnderrun = 0 ;
 	VoiceBuffer[0].flags &= ~VF_SENT ;
+
 	PtrVoiceBuffer[0] = &VoiceBuffer[0] ;
 	if ( count > 1 )
 	{
@@ -565,6 +573,7 @@ void appendVoice( uint32_t index )		// index of next buffer
 	{
 		DACC->DACC_TNPR = CONVERT_PTR(VoiceBuffer[index].data);
 		DACC->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+
 	}
 	__enable_irq() ;
 }

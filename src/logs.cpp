@@ -195,8 +195,8 @@ extern uint32_t sdMounted( void ) ;
     }
   }
   f_puts("Time,Valid,RxRSSI,", &g_oLogFile) ;
-  f_puts( FrskyTelemetryType ? "Swr" : "TxRSSI", &g_oLogFile ) ;
-  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH\n", &g_oLogFile);
+  f_puts( FrskyTelemetryType == 1 ? "Swr" : "TxRSSI", &g_oLogFile ) ;
+  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH,TxBat,Vspd\n", &g_oLogFile);
 
   return NULL ;
 }
@@ -276,11 +276,14 @@ void writeLogs()
 			f_printf(&g_oLogFile, "%d.%d,", qr.quot, qr.rem ) ;
 			
 			qr = div( FrskyHubData[FR_VOLTS], 10);
-			f_printf(&g_oLogFile, "%d.%d,%d\n", qr.quot, qr.rem, FrskyHubData[FR_AMP_MAH] ) ;
+			f_printf(&g_oLogFile, "%d.%d,%d,", qr.quot, qr.rem, FrskyHubData[FR_AMP_MAH] ) ;
+
+			qr = div( g_vbat100mV, 10);
+			f_printf(&g_oLogFile, "%d.%d,%d\n", qr.quot, qr.rem, FrskyHubData[FR_VSPD] ) ;
 
 //FR_GPS_SPEED,
 //FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,
-//BATTERY, FR_CELLS_TOT,
+//FR_CELLS_TOT,
 //FR_ACCX, FR_ACCY,	FR_ACCZ, FR_VSPD, FR_WATT
 
 

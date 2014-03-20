@@ -190,11 +190,11 @@ uint16_t rxuart( void ) ;
 
 #ifdef PCBSKY
 extern "C" void TC2_IRQHandler( void ) ;
-#ifdef SIMU
-#define sam_boot()
-#else
-extern "C" void sam_boot( void ) ;
-#endif
+//#ifdef SIMU
+//#define sam_boot()
+//#else
+//extern "C" void sam_boot( void ) ;
+//#endif
 #ifdef	DEBUG
 void handle_serial( void* pdata ) ;
 #endif
@@ -254,6 +254,8 @@ uint8_t  stickMoved = 0 ;
 uint16_t S_anaFilt[NUMBER_ANALOG] ;				// Analog inputs after filtering
 #ifdef PCBSKY
 uint16_t Current_analogue ;
+uint16_t Current_current ;
+uint16_t Current_adjust = 32768 + 16384 ;
 uint16_t Current_max ;
 uint32_t Current_accumulator ;
 uint32_t Current_used ;
@@ -282,8 +284,6 @@ ModelData  g_oldmodel;
 #endif
 SKYModelData  g_model;
 
-const char *AlertMessage ;
-
 //const uint8_t chout_ar[] = { //First number is 0..23 -> template setup,  Second is relevant channel out
 //                                1,2,3,4 , 1,2,4,3 , 1,3,2,4 , 1,3,4,2 , 1,4,2,3 , 1,4,3,2,
 //                                2,1,3,4 , 2,1,4,3 , 2,3,1,4 , 2,3,4,1 , 2,4,1,3 , 2,4,3,1,
@@ -299,14 +299,19 @@ const uint8_t bchout_ar[] = {
 //new audio object
 audioQueue  audio;
 
+#define	ALERT_TYPE	0
+#define MESS_TYPE		1
+
+const char *AlertMessage ;
+uint8_t AlertType ;
 
 uint8_t AlarmTimer = 100 ;		// Units of 10 mS
 uint8_t AlarmCheckFlag = 0 ;
 //uint8_t CsCheckFlag = 0 ;
 uint8_t VoiceTimer = 10 ;		// Units of 10 mS
 uint8_t VoiceCheckFlag = 0 ;
-uint8_t LogTimer = 0 ;
-uint8_t FileDisable = 0 ;
+//uint8_t LogTimer = 0 ;
+//uint8_t FileDisable = 0 ;
 int16_t  CsTimer[NUM_SKYCSW] ;
 
 //const char *Str_Switches = PSTR(SWITCHES_STR) ;
@@ -450,8 +455,8 @@ void clearKeyEvents()
 //			if ( PIOC->PIO_PDSR & 0x02000000 )
 //			{
 				// Detected USB
-				break ;
-			}
+//				break ;
+//			}
 #endif
 			if ( heartbeat_running )
 			{
@@ -667,6 +672,7 @@ int main( void )
 	g_menuStack[0] =  menuProc0 ;
 
 #ifdef PCBX9D
+	start_sound() ;
 	init_trims() ;
 	I2C_EE_Init() ;
 #endif
@@ -694,6 +700,10 @@ int main( void )
 	lcdSetContrast() ;
 #endif
 
+#ifdef PCBSKY
+	init_rotary_encoder() ;
+#endif 
+
 	// At this point, check for "maintenance mode"
 	if ( read_trims() == 0x81 )
 	{
@@ -714,9 +724,8 @@ int main( void )
 		unexpectedShutdown = 1 ;
 	}
 
-	start_sound() ;
-
 #ifdef PCBSKY
+	start_sound() ;
 	setBtBaudrate( g_eeGeneral.bt_baudrate ) ;
 	// Set ADC gains here
 	set_stick_gain( g_eeGeneral.stickGain ) ;
@@ -782,6 +791,23 @@ int main( void )
 		putVoiceQueue( g_model.modelVoice + 260 ) ;
 	}
 
+// Preload battery voltage
+#ifdef PCBSKY
+  int32_t ab = anaIn(7);
+#endif
+#ifdef PCBX9D
+  int32_t ab = anaIn(8);
+#endif
+  ab = ( ab + ab*(g_eeGeneral.vBatCalib)/128 ) * 4191 ;
+#ifdef PCBSKY
+        ab /= 55296  ;
+        g_vbat100mV = ab + 3 ;// Also add on 0.3V for voltage drop across input diode
+#endif
+#ifdef PCBX9D
+        ab /= 57165  ;
+        g_vbat100mV = ab ;
+#endif
+
 #ifdef PCBSKY
 	// Must do this to start PPM2 as well
 	init_main_ppm( 3000, 0 ) ;		// Default for now, initial period 1.5 mS, output off
@@ -807,18 +833,20 @@ int main( void )
 	rtcInit() ;
 #endif
 
-	backlight_set( g_eeGeneral.bright ) ;
-	lcdSetRefVolt(g_eeGeneral.contrast) ;
-	setVolume( g_eeGeneral.volume ) ;
+	heartbeat_running = 1 ;
 
+  if (!g_eeGeneral.unexpectedShutdown)
+	{
+    g_eeGeneral.unexpectedShutdown = 1;
+    STORE_GENERALVARS ;
+  }
 
-	
-	
-
+#ifdef PCBX9D
  	perOut(g_chans512, 0);
 
 	setupPulses(0) ;
 //	init_pxx(0) ;
+#endif
 
 #ifndef SIMU
 
@@ -843,10 +871,6 @@ int main( void )
 	DebugTask = CoCreateTaskEx( handle_serial,NULL,18,&debug_stk[DEBUG_STACK_SIZE-1],DEBUG_STACK_SIZE, 1, FALSE );
 #endif 
 	
-#ifdef PCBSKY
-	init_rotary_encoder() ;
-#endif 
-
 	Main_running = 1 ;
 
 	CoStartOS();
@@ -1117,6 +1141,8 @@ extern void closeLogs( void ) ;
 uint8_t LogsRunning = 0 ;
 void log_task(void* pdata)
 {
+  uint16_t tgtime = get_tmr10ms() ;		// 1 sec
+	
 	while(1)
 	{
 		// This needs to be a bit more accurate than
@@ -1124,16 +1150,9 @@ void log_task(void* pdata)
 		do
 		{
 			CoTickDelay(5) ;					// 10mS
-			if ( FileDisable )
-			{
-				LogTimer = 0 ;					// Stay in loop
-				if ( LogsRunning & 1 )
-				{
-					closeLogs() ;
-				}
-			}
-		} while ( LogTimer == 0 ) ;
-		LogTimer = 0 ;
+		} while( (uint16_t)(get_tmr10ms() - tgtime ) < 100 ) ;
+//		LogTimer = 0 ;
+  	tgtime += 100 ;
 
 		if ( g_model.logSwitch )
 		{
@@ -1210,34 +1229,14 @@ void telem_byte_to_bt( uint8_t data )
 void main_loop(void* pdata)
 {
 
+#ifdef PCBX9D
 	initWatchdog() ;
+#endif
 
   while (1)
 	{
 
-#ifdef PCBSKY
-		if ( UsbTimer < 1000 )		// 2 Seconds
-		{
-			UsbTimer += 1 ;
-			pioptr = PIOC ;
-			if ( pioptr->PIO_PDSR & 0x02000000 )
-			{
-				// Detected USB
-				goto_usb = 1 ;
-			}
-		}
-		else
-		{
-#endif
-#ifndef SIMU
-//     	usbMassStorage() ;
-#endif
-#ifdef PCBSKY
-		}
-#endif
-
 #if defined(REVB) || defined(PCBX9D)
-//		if ( ( check_soft_power() == POWER_OFF ) || ( goto_usb ) )		// power now off
 		if ( ( check_soft_power() == POWER_OFF ) )		// power now off
 		{
 			// Time to switch off
@@ -1261,7 +1260,7 @@ void main_loop(void* pdata)
 
   		g_eeGeneral.unexpectedShutdown = 0;
 #ifdef PCBSKY
-			MAh_used += Current_used/22/36 ;
+			MAh_used += Current_used/3600 ;
 			if ( g_eeGeneral.mAh_used != MAh_used )
 			{
 				g_eeGeneral.mAh_used = MAh_used ;
@@ -1382,9 +1381,6 @@ extern int16_t AltOffset ;
 #endif
 
 //uint16_t Debug_analog[8] ;
-#define	ALERT_TYPE	0
-#define MESS_TYPE		1
-
 static void almess( const char * s, uint8_t type )
 {
 	const char *h ;
@@ -1393,13 +1389,13 @@ static void almess( const char * s, uint8_t type )
 	if ( type == ALERT_TYPE)
 	{
     lcd_puts_P(64-6*FW,7*FH,"press any Key");
-		h = "ALERT" ;
+		h = PSTR(STR_ALERT) ;
 	}
 	else
 	{
-		h = "MESSAGE" ;
+		h = PSTR(STR_MESSAGE) ;
 	}
-  lcd_putsAtt(64-5*FW,0*FH, h,DBLSIZE);
+  lcd_putsAtt(64-7*FW,0*FH, h,DBLSIZE);
   refreshDisplay();
 }
 
@@ -1410,6 +1406,8 @@ uint8_t AlarmTimers[NUM_SKYCHNOUT] ;
 
 void mainSequence( uint32_t no_menu )
 {
+	CalcScaleNest = 0 ;
+
 #ifdef PCBSKY
 	static uint32_t coProTimer = 0 ;
 #endif
@@ -1429,10 +1427,31 @@ void mainSequence( uint32_t no_menu )
 		getADC_single() ;
 	}
 #ifdef PCBSKY
-	Current_analogue = ( Current_analogue * 31 + S_anaFilt[8] ) >> 5 ;
-	if ( Current_analogue > Current_max )
+	uint16_t temp ;
+	temp = Analog_values[8] ;
+	temp = temp - Current_adjust / temp ;
 	{
-		Current_max = Current_analogue ;		
+		uint16_t min_current ;
+		min_current = 21000 / g_vbat100mV + 155 ;
+		temp = temp * (127 + g_eeGeneral.current_calib) * 25 / 4096 ;
+		if ( temp < min_current )
+		{
+			temp = min_current ;
+			if ( Current_adjust > 128 )
+			{
+				Current_adjust -= 128 ;
+			}
+			else
+			{
+				Current_adjust = 0 ;
+			}
+		}
+	}
+	Current_current = ( Current_current * 3 + temp + 2 ) >> 2 ;
+
+	if ( Current_current > Current_max )
+	{
+		Current_max = Current_current ;
 	}
 #endif
 
@@ -1450,7 +1469,7 @@ void mainSequence( uint32_t no_menu )
 		Tenms = 0 ;
 #ifdef PCBSKY
 		ee32_process() ;
-		Current_accumulator += Current_analogue ;
+		Current_accumulator += Current_current ;
 #endif
 #ifdef PCBX9D
 		eePoll() ;
@@ -1470,7 +1489,12 @@ void mainSequence( uint32_t no_menu )
 			MixerCount = 0 ;
 		}
 #ifndef SIMU
+ #ifdef PCBSKY
+		sd_poll_10mS() ;
+#endif
+#ifdef PCBX9D
 		sdPoll10ms() ;
+#endif
 #endif
 
  #ifdef PCBSKY
@@ -1638,30 +1662,16 @@ void mainSequence( uint32_t no_menu )
       else if( level[3] == alarm_yellow) FRSKY_alarmPlay(1,1);
 						
 			// Check for current alarm
-      for (int i=0; i<2; i++)
+			if ( g_model.currentSource )
 			{
-				// To be enhanced by checking the type as well
-       	if (g_model.frsky.channels[i].ratio)
+				if ( g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
 				{
-     		  if ( g_model.frsky.channels[i].type == 3 )		// Current (A)
+					if ( ( FrskyHubData[FR_AMP_MAH] >> 6 ) >= g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
 					{
-						if ( g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
-						{
-    		      if ( ( FrskyHubData[FR_A1_MAH+i] >> 6 ) >= g_model.frskyAlarms.alarmData[0].frskyAlarmLimit )
-							{
-//								if ( g_eeGeneral.speakerMode & 2 )
-//								{
-									putVoiceQueue( V_CAPACITY ) ;
-//								}
-//								else
-//								{
-//									audio.event( g_model.frskyAlarms.alarmData[0].frskyAlarmSound ) ;
-//								}
-							}
-						}
+						putVoiceQueue( V_CAPACITY ) ;
 					}
-       	}
-      }
+				}
+			}
     }
 #endif
 		
@@ -2293,16 +2303,6 @@ uint32_t calcStickScroll( uint32_t index )
 	return value | direction ;
 }
 
-//void ersky9xClose()
-//{
-////  FRSKY_End() ;
-//	FileDisable = 1 ;
-//  g_eeGeneral.unexpectedShutdown = 0 ;
-//  eeDirty( EE_GENERAL ) ;
-//	ee32_check_finished() ;
-//}
-
-
 #ifdef PCBX9D
 bool usbPlugged(void)
 {
@@ -2563,6 +2563,52 @@ void perMain( uint32_t no_menu )
 	check_frsky() ;
 #endif
 
+// Here, if waiting for EEPROM response, don't action menus
+
+	if ( no_menu == 0 )
+	{
+		static uint8_t alertKey ;
+    lcd_clear();
+		if ( AlertMessage )
+		{
+			almess( AlertMessage, AlertType ) ;
+			uint8_t key = keyDown() ;
+			if ( alertKey )
+			{
+				if( key == 0 )
+				{
+					AlertMessage = 0 ;
+				}
+			}
+			else if ( key )
+			{
+				alertKey = 1 ;
+			}
+		}
+		else
+		{
+			alertKey = 0 ;
+    	
+			if ( EnterMenu )
+			{
+				evt = EnterMenu ;
+				EnterMenu = 0 ;
+				audioDefevent(AU_MENUS);
+			}
+			g_menuStack[g_menuStackPtr](evt);
+		}
+#ifdef PCBX9D
+		if ( ( lastTMR & 3 ) == 0 )
+#endif
+		{
+			uint16_t t1 = getTmr2MHz() ;
+  	  refreshDisplay();
+			t1 = getTmr2MHz() - t1 ;
+			g_timeRfsh = t1 ;
+		}
+	}
+
+
 #ifdef PCBSKY
 	if ( check_soft_power() == POWER_TRAINER )		// On trainer power
 	{
@@ -2615,7 +2661,7 @@ void perMain( uint32_t no_menu )
             if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
 					}
 #ifdef PCBSKY
-					else if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(488 + g_eeGeneral.current_calib)/8192/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
+					else if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(126 + g_eeGeneral.current_calib)/1024/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
 					{
             audioVoiceDefevent(AU_TX_BATTERY_LOW, V_BATTERY_LOW);
 					}
@@ -2627,56 +2673,6 @@ void perMain( uint32_t no_menu )
   stickMoved = 0; //reset this flag
 		
 	AUDIO_HEARTBEAT();  // the queue processing
-
-// Finally the menu processing
-// Here, if waiting for EEPROM response, don't action menus
-// On the Taranis, the display refresh takes so long we
-// need more time to keep up with the 10mS scheduling
-  
-
-	if ( no_menu == 0 )
-	{
-		static uint8_t alertKey ;
-    lcd_clear();
-		if ( AlertMessage )
-		{
-			almess( AlertMessage, ALERT_TYPE ) ;
-			uint8_t key = keyDown() ;
-			if ( alertKey )
-			{
-				if( key == 0 )
-				{
-					AlertMessage = 0 ;
-				}
-			}
-			else if ( key )
-			{
-				alertKey = 1 ;
-			}
-		}
-		else
-		{
-			alertKey = 0 ;
-    	
-			if ( EnterMenu )
-			{
-				evt = EnterMenu ;
-				EnterMenu = 0 ;
-				audioDefevent(AU_MENUS);
-			}
-			g_menuStack[g_menuStackPtr](evt);
-		}
-#ifdef PCBX9D
-		if ( ( lastTMR & 3 ) == 0 )
-		{
-			uint16_t t1 = getTmr2MHz() ;
-  	  refreshDisplay();
-			t1 = getTmr2MHz() - t1 ;
-			g_timeRfsh = t1 ;
-		}
-#endif
-	}
-
 
 }
 
@@ -2772,8 +2768,6 @@ void interrupt5ms()
 			__disable_irq() ;
 			VoiceCheckFlag |= 1 ;	// Flag time to check alarms
 			__enable_irq() ;
-			LogTimer = 1 ;
-
 		}
 
 	}
@@ -2808,39 +2802,51 @@ void interrupt5ms()
 // temp1 = average temp1 and temp0
 // temp0 = average new reading and temp0
 
+uint16_t LastAnaIn[9] ;
+
 #ifndef SIMU
 uint16_t anaIn(uint8_t chan)
 {
 #ifdef PCBSKY
   static uint8_t crossAna[]={1,5,7,0,4,6,2,3,8};
   volatile uint16_t *p = &S_anaFilt[crossAna[chan]] ;
-	if ( chan == 8 )
-	{
-		return Current_analogue ;
-	}
 #endif
 #ifdef PCBX9D
   volatile uint16_t *p = &S_anaFilt[chan] ;
 #endif
   uint16_t temp = *p ;
+  int16_t t1 ;
 	if ( chan < 4 )	// A stick
 	{
 		if ( g_eeGeneral.stickReverse & ( 1 << chan ) )
 		{
 			temp = 2048 - temp ;
 		}
+		t1 = temp - LastAnaIn[chan] ;
+		if ( ( t1 == 1 ) || ( t1 == -1 ) )
+		{
+			temp = LastAnaIn[chan] ;
+		}
+		else
+		{
+			LastAnaIn[chan] = temp ;
+		}
 	}
   return temp ;
 }
 #endif
 
+uint16_t g_timeAdc ;
 void getADC_single()
 {
 	register uint32_t x ;
 	uint16_t temp ;
 
 #ifdef PCBSKY
+  uint16_t t0 = getTmr2MHz();
 	read_9_adc() ;
+	t0 = getTmr2MHz() - t0;
+  if ( t0 > g_timeAdc ) g_timeAdc = t0 ;
 #endif
 #ifdef PCBX9D
 		read_adc() ;
@@ -2990,6 +2996,12 @@ void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim)
 	}
 	if ( phase )
 	{
+    if(trim < -125 || trim > 125)
+//    if(trim < -500 || trim > 500)
+		{
+			trim = ( trim > 0 ) ? 125 : -125 ;
+//			trim = ( trim > 0 ) ? 500 : -500 ; For later addition
+		}	
   	g_model.phaseData[phase-1].trim[idx] = trim ;
 	}
 	else
@@ -3091,10 +3103,11 @@ static uint8_t checkTrim(uint8_t event)
 void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 {
 	uint8_t chanLimit = NUM_SKYXCHNRAW ;
-	if ( att & MIX_SOURCE )
+	uint8_t mix = att & MIX_SOURCE ;
+	if ( mix )
 	{
 #if GVARS
-		chanLimit += MAX_GVARS + 1 ;
+		chanLimit += MAX_GVARS + 1 + 1 ;
 #else
 		chanLimit += 1 ;
 #endif
@@ -3115,7 +3128,13 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
     lcd_putsAttIdx(x,y,PSTR(STR_CHANS_RAW),(idx-5),att);
 #endif
 	else
+	{
+		if ( mix )
+		{
+			idx += TEL_ITEM_SC1-(chanLimit-NUM_SKYXCHNRAW) ;
+		}
   	lcd_putsAttIdx(x,y,PSTR(STR_TELEM_ITEMS),(idx-NUM_SKYXCHNRAW),att);
+	}
 }
 
 void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
@@ -3127,7 +3146,9 @@ void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att)
 
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 {
+#ifdef PCBX9D
 	const char *pstr ;
+#endif
   switch(idx1){
     case  0:            lcd_putsAtt(x+FW,y,XPSTR("---"),att);return;
     case  MAX_SKYDRSWITCH: lcd_putsAtt(x+FW,y,PSTR(STR_ON),att);return;
@@ -3191,7 +3212,7 @@ const char *get_switches_string()
 
 
 
-inline int16_t getValue(uint8_t i)
+int16_t getValue(uint8_t i)
 {
   if(i<7) return calibratedStick[i];//-512..512
   if(i<PPM_BASE) return 0 ;
@@ -3381,6 +3402,14 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 
 }
 
+void putsDblSizeName( uint8_t y )
+{
+	for(uint8_t i=0;i<sizeof(g_model.name);i++)
+		lcd_putcAtt(FW*2+i*2*FW-i-2, y, g_model.name[i],DBLSIZE);
+}
+
+
+
 uint16_t switches_states = 0 ;
 
 int8_t getMovedSwitch()
@@ -3493,8 +3522,7 @@ void checkQuickSelect()
     lcd_clear();
     lcd_putsAtt(64-7*FW,0*FH,PSTR(STR_LOADING),DBLSIZE);
 
-    for(uint8_t i=0;i<sizeof(g_model.name);i++)
-      lcd_putcAtt(FW*2+i*2*FW-i-2, 3*FH, g_model.name[i],DBLSIZE);
+		putsDblSizeName( 3*FH ) ;
 
     refreshDisplay();
     clearKeyEvents(); // wait for user to release key
@@ -3516,6 +3544,9 @@ void alert(const char * s, bool defaults)
 {
 	if ( Main_running )
 	{
+#define MESS_TYPE		1
+
+		AlertType = ALERT_TYPE ;
 		AlertMessage = s ;
 		return ;
 	}
