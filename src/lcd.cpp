@@ -739,6 +739,13 @@ void lcd_clear()
 	lcd_img( 130, 2*FH, speaker, 0, 0 ) ;
 extern uint8_t CurrentVolume ;
 	lcd_hbar( 135, 2*FH+1, 24, 6, CurrentVolume*100/23 ) ;
+
+//	lcd_outhex4( 212-X9D_OFFSET+12, 0, GPIOA->IDR ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 8, GPIOB->IDR ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 16, GPIOC->IDR ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 24, GPIOD->IDR ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 32, GPIOE->IDR ) ;
+
 #endif // PCBX9D
 }
 

@@ -61,7 +61,7 @@ uint32_t check_soft_power()
 void soft_power_off()
 {
 #ifdef REVB	
-  configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
+  configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP | PIN_PULLDOWN ) ;
 #endif
 }
 

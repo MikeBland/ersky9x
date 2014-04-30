@@ -100,7 +100,7 @@ void uputs( register char *string ) ;
 uint16_t rxuart( void ) ;
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmitBt( uint8_t c ) ;
-uint16_t rxBtuart( void ) ;
+int32_t rxBtuart( void ) ;
 
 uint32_t keyState( enum EnumKeys enuk) ;
 void init_spi( void ) ;
@@ -1103,7 +1103,7 @@ void txmitBt( uint8_t c )
   pUart->UART_THR=c ;
 }
 
-uint16_t rxBtuart()
+int32_t rxBtuart()
 {
 	return get_fifo32( &BtRx_fifo ) ;
 }
@@ -1339,7 +1339,7 @@ void start_timer3()
 	ptc->TC_BCR = 0 ;			// No sync
 	ptc->TC_BMR = 2 ;
 	ptc->TC_CHANNEL[0].TC_CMR = 0x00000000 ;	// Capture mode
-	ptc->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, b fall
+	ptc->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, B fall
 	ptc->TC_CHANNEL[0].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 
 	configure_pins( PIO_PC23, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_B | PIN_PORTC | PIN_PULLUP ) ;
@@ -1390,6 +1390,47 @@ void start_ppm_capture()
 //}
 
 
+#ifdef SERIAL_TRAINER
+// 9600 baud, bit time 104.16uS
+#define BIT_TIME_9600		1042
+// 100000 baud, bit time 10uS (SBUS)
+#define BIT_TIME_100K		100
+
+// States in LineState
+#define LINE_IDLE			0
+#define LINE_ACTIVE		1
+
+// Options in CaptureMode
+#define CAP_PPM				0
+#define CAP_SERIAL		1
+
+uint8_t LineState ;
+uint8_t CaptureMode ;
+uint16_t BitTime ;
+uint16_t HtoLtime ;
+uint16_t LtoHtime ;
+
+
+void setCaptureMode(uint32_t mode)
+{
+	CaptureMode = mode ;
+
+	if ( mode = CAP_SERIAL )
+	{
+		LineState = LINE_IDLE ;
+		BitTime = BIT_TIME_9600 ;
+		TC1->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, B fall
+		// Or for inverted operation:
+//		TC1->TC_CHANNEL[0].TC_CMR = 0x00060005 ;	// 0000 0000 0000 0110 0000 0000 0000 0101, XC0, A fall, B rise
+	}
+	else
+	{
+		TC1->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, B fall
+	}
+}
+
+#endif
+
 // Timer3 used for PPM_IN pulse width capture. Counter running at 16MHz / 8 = 2MHz
 // equating to one count every half microisecond. (2 counts = 1us). Control channel
 // count delta values thus can range from about 1600 to 4400 counts (800us to 2200us),
@@ -1403,10 +1444,60 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
   uint16_t capture ;
   static uint16_t lastCapt ;
   uint16_t val ;
-	
+
+#ifdef SERIAL_TRAINER
+	uint32_t status ;
+	if ( CaptureMode == CAP_SERIAL )
+	{
+		if ( ( status = TC1->TC_CHANNEL[0].TC_SR ) & TC_SR_LDRBS )
+		{	// H->L edge
+			capture = TC1->TC_CHANNEL[0].TC_RB ;
+			if ( LineState == LINE_IDLE )
+			{
+				LineState = LINE_ACTIVE ;
+				TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRBS ;		// No int on falling edge
+				TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;		// Int on rising edge
+				TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCSS ;		// No compare interrupt
+		  }
+			else
+			{
+				uint32_t time ;
+				capture -= LtoHtime ;
+				time = capture ;
+				time *= 5 ;			// To units of 0.1uS
+				// Put in queue - TrainerSerial
+			}
+		}
+		else if ( status & TC_SR_LDRAS )
+		{	// L->H edge
+			capture = TC1->TC_CHANNEL[0].TC_RA ;
+			TC1->TC_CHANNEL[0].TC_RC = capture + (BitTime * 10) ;
+			uint32_t time ;
+			capture -= HtoLtime ;
+			time = capture ;
+			time *= 5 ;			// To units of 0.1uS
+			// Put in queue - TrainerSerial
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_CPCSS ;		// Compare interrupt
+		}
+		else
+		{ // Compare interrupt
+			uint32_t time ;
+			time = TC1->TC_CHANNEL[0].TC_RC - LtoHtime ;
+			time *= 5 ;
+			// Put in queue - TrainerSerial
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCSS ;		// No compare interrupt
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
+			LineState = LINE_IDLE ;
+		}
+		return ;
+	}
+
+#endif	 
 	capture = TC1->TC_CHANNEL[0].TC_RA ;
 	(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
-  
 
   val = (uint16_t)(capture - lastCapt) / 2 ;
   lastCapt = capture;
@@ -1459,8 +1550,15 @@ void init_ssc( uint16_t baudrate )
 	sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
 	sscptr->SSC_CR = SSC_CR_TXEN ;
 
-	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
-
+	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_PULLUP ) ;
+	if ( baudrate )
+	{
+		PIOA->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+	}
+	else
+	{
+		PIOA->PIO_MDER = PIO_PA17 ;						// Open Drain O/p in A17
+	}
 }
 
 void disable_ssc()
@@ -1487,25 +1585,33 @@ void x9dConsoleInit()
 	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
 	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
 	USART3->BRR = 0x061A ;		// 97.625 divider => 9600 baud
-	USART3->CR1 = 0x200C ;
+	USART3->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART3->CR2 = 0 ;
 	USART3->CR3 = 0 ;
+  NVIC_EnableIRQ(USART3_IRQn) ;
 }
 
-void x9dSPortInit()
+void x9dSPortInit( uint32_t baudRate )
 {
 	// Serial configure  
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN ;		// Enable clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
+	GPIOD->BSRRH = 0x0010 ;		// output disable
+	configure_pins( 0x00000010, PIN_OUTPUT | PIN_PUSHPULL | PIN_OS25 | PIN_PORTD ) ;
 	GPIOD->MODER = (GPIOD->MODER & 0xFFFFC0FF ) | 0x00002900 ;	// Alternate func.
 	GPIOD->AFR[0] = (GPIOD->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
-	USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
+	if ( baudRate == 0 )
+	{
+		USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
+	}
+	else
+	{
+		USART2->BRR = 0x061A ;		// 97.625 divider => 9600 baud
+	}
 	USART2->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART2->CR2 = 0 ;
 	USART2->CR3 = 0 ;
   NVIC_EnableIRQ(USART2_IRQn);
-	GPIOD->BSRRH = 0x0010 ;		// output disable
-	configure_pins( 0x00000010, PIN_OUTPUT | PIN_PUSHPULL | PIN_OS25 | PIN_PORTD ) ;
 }
 
 
@@ -1603,12 +1709,19 @@ void txmit( uint8_t c )
 
 uint16_t rxuart()
 {
-  if (USART3->SR & USART_SR_RXNE)
-	{
-		return USART3->DR ;
-	}
-	return 0xFFFF ;
+//  if (USART3->SR & USART_SR_RXNE)
+//	{
+//		return USART3->DR ;
+//	}
+//	return 0xFFFF ;
+	return get_fifo32( &Console_fifo ) ;
 }
+
+extern "C" void USART3_IRQHandler()
+{
+	put_fifo32( &Console_fifo, USART3->DR ) ;	
+}
+
 
 void uputs( register char *string )
 {

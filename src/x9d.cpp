@@ -116,10 +116,17 @@ const uint8_t splashdata[] = { 'S','P','S',0,
 
 #include "debug.h"
 
+//#ifdef PCBSKY
+//uint8_t BtReceived[16] ;
+//uint32_t BtRxIndex = 0 ;
+//#endif
+
 t_time Time ;
 
 uint8_t unexpectedShutdown = 0;
 uint8_t SdMounted = 0;
+
+uint8_t Last_switch[NUM_SKYCSW] ;
 
 //#define TRUE	1
 //#define FALSE	0
@@ -1030,6 +1037,16 @@ uint32_t changeBtBaudrate( uint32_t baudIndex )
 	}
 }
 
+#ifdef PCBSKY
+void processBtRx( int32_t x )
+{
+//	BtReceived[BtRxIndex] = x ;
+//	if ( ++BtRxIndex > 15 )
+//	{
+//		BtRxIndex = 0 ;
+//	}
+}
+#endif
 
 /*
 Commands to BT module
@@ -1130,6 +1147,12 @@ void bt_task(void* pdata)
 			bt_send_buffer() ;
 		}
 //		txmitBt( 'X' ) ;		// Send an X to Bluetooth every second for testing
+#ifdef PCBSKY
+		while( ( x = rxBtuart() ) != -1 )
+		{
+			processBtRx( x ) ;
+		}
+#endif
 	}
 }
 #endif	// PCBSKY
@@ -1670,6 +1693,11 @@ void mainSequence( uint32_t no_menu )
 					{
 						putVoiceQueue( V_CAPACITY ) ;
 					}
+					uint32_t value ;
+					value = g_model.frskyAlarms.alarmData[0].frskyAlarmLimit ;
+					value <<= 6 ;
+					value = 100 - ( FrskyHubData[FR_AMP_MAH] * 100 / value ) ;
+					FrskyHubData[FR_FUEL] = value ;
 				}
 			}
     }
@@ -1725,6 +1753,13 @@ void mainSequence( uint32_t no_menu )
 									voice_telem_item( sd->opt.ss.val ) ;
 								}
 							break ;
+						}
+					}
+					else if ( ( periodCounter & 3 ) == 0 )		// Every 4 seconds
+					{
+						if(getSwitch( sd->opt.ss.swtch,0))
+						{
+							putVoiceQueue( sd->opt.ss.val + 128 ) ;
 						}
 					}
 				}
@@ -1906,6 +1941,42 @@ void mainSequence( uint32_t no_menu )
 						}	
 					}
 					CsTimer[i] = y ;
+				}
+				if ( cs.func == CS_LATCH )
+				{
+		      if (getSwitch( cs.v1, 0, 0) )
+					{
+						Last_switch[i] = 1 ;
+					}
+					else
+					{
+			      if (getSwitch( cs.v2, 0, 0) )
+						{
+							Last_switch[i] = 0 ;
+						}
+					}
+				}
+				if ( cs.func == CS_FLIP )
+				{
+		      if (getSwitch( cs.v1, 0, 0) )
+					{
+						if ( ( Last_switch[i] & 2 ) == 0 )
+						{
+							// Clock it!
+			      	if (getSwitch( cs.v2, 0, 0) )
+							{
+								Last_switch[i] = 3 ;
+							}
+							else
+							{
+								Last_switch[i] = 2 ;
+							}
+						}
+					}
+					else
+					{
+						Last_switch[i] &= ~2 ;
+					}
 				}
 			}
 		}
@@ -2661,7 +2732,7 @@ void perMain( uint32_t no_menu )
             if (g_eeGeneral.flashBeep) g_LightOffCounter = FLASH_DURATION;
 					}
 #ifdef PCBSKY
-					else if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used*(126 + g_eeGeneral.current_calib)/1024/36 ) / 500 >= g_eeGeneral.mAh_alarm ) )
+					else if ( ( g_eeGeneral.mAh_alarm ) && ( ( MAh_used + Current_used/3600 ) / 500 >= g_eeGeneral.mAh_alarm ) )
 					{
             audioVoiceDefevent(AU_TX_BATTERY_LOW, V_BATTERY_LOW);
 					}
@@ -3158,6 +3229,19 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 	{
   	lcd_putcAtt(x,y, '!',att);
 	}
+#ifdef PCBSKY
+	int8_t z ;
+	z = idx1 ;
+	if ( z < 0 )
+	{
+		z = -idx1 ;			
+	}
+	z -= 1 ;
+//		z *= 3 ;
+  lcd_putsAttIdx(x+FW,y,PSTR(SWITCHES_STR),z,att) ;
+#endif
+
+#ifdef PCBX9D
 	pstr = get_switches_string()+3*(abs(idx1)-1) ;
   lcd_putsnAtt(x+FW,y,pstr,3,att);
 	if ( att & CONDENSED )
@@ -3166,6 +3250,7 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 		att &= ~CONDENSED ;
   	lcd_putcAtt(x+3*FW-1, y,*pstr,att);
 	}
+#endif
 }
 
 //Type 1-trigA, 2-trigB, 0 best for display
@@ -3182,7 +3267,12 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 		{
   		tm -= TMR_VAROFS - 7 ;
       lcd_putsAttIdx(  x, y, PSTR( CURV_STR), tm, attr ) ;
+#ifdef PCBSKY
+			if ( tm < 9 + 7 )	// Allow for 7 offset above
+#endif
+#ifdef PCBX9D
 			if ( tm < 9 )
+#endif
 			{
 				x -= FW ;		
 			}
@@ -3236,14 +3326,18 @@ int16_t getValue(uint8_t i)
 
 
 
-bool Last_switch[NUM_SKYCSW] ;
 
 bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 {
   bool ret_value ;
   uint8_t cs_index ;
+  cs_index = abs(swtch)-(MAX_SKYDRSWITCH-NUM_SKYCSW);
   
-	if(level>5) return false ; //prevent recursive loop going too deep
+  if ( level>4 )
+  {
+    ret_value = Last_switch[cs_index] & 1 ;
+    return swtch>0 ? ret_value : !ret_value ;
+  }
 
   switch(swtch){
     case  0:            return  nc;
@@ -3266,15 +3360,8 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   //input -> 1..4 -> sticks,  5..8 pots
   //MAX,FULL - disregard
   //ppm
-  cs_index = abs(swtch)-(MAX_SKYDRSWITCH-NUM_SKYCSW);
   SKYCSwData &cs = g_model.customSw[cs_index];
   if(!cs.func) return false;
-
-  if ( level>4 )
-  {
-    ret_value = Last_switch[cs_index] ;
-    return swtch>0 ? ret_value : !ret_value ;
-  }
 
   int8_t a = cs.v1;
   int8_t b = cs.v2;
@@ -3355,15 +3442,19 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   case (CS_LESS):
       ret_value = (x<y);
       break;
-  case (CS_EGREATER):
-      ret_value = (x>=y);
-      break;
-  case (CS_ELESS):
-      ret_value = (x<=y);
-      break;
+//  case (CS_EGREATER):
+//      ret_value = (x>=y);
+//      break;
+//  case (CS_ELESS):
+//      ret_value = (x<=y);
+//      break;
   case (CS_TIME):
       ret_value = CsTimer[cs_index] >= 0 ;
       break;
+  case (CS_LATCH) :
+  case (CS_FLIP) :
+    ret_value = Last_switch[cs_index] & 1 ;
+  break ;
   default:
       ret_value = false;
       break;
@@ -3397,7 +3488,10 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
       ret_value = getSwitch( x, 0, level+1) ;
 		}
 	}
-	Last_switch[cs_index] = ret_value ;
+	if ( cs.func < CS_LATCH )
+	{
+		Last_switch[cs_index] = ret_value ;
+	}
 	return swtch>0 ? ret_value : !ret_value ;
 
 }
@@ -3409,8 +3503,12 @@ void putsDblSizeName( uint8_t y )
 }
 
 
-
+#ifdef PCBSKY
+static uint8_t switches_states = 0 ;
+#endif
+#ifdef PCBX9D
 uint16_t switches_states = 0 ;
+#endif
 
 int8_t getMovedSwitch()
 {
@@ -3661,20 +3759,20 @@ uint8_t getCurrentSwitchStates()
 
 void checkSwitches()
 {
-	uint8_t warningStates ; 
+	uint16_t warningStates ;
 	
 	warningStates = g_model.modelswitchWarningStates ;
   
-	if(( warningStates & 1) == 0) return ; // if warning is on
+	if( warningStates & 1 ) return ; // if warning is on
 	warningStates >>= 1 ;
 
 #ifdef PCBSKY
-  uint8_t x = warningStates & SWP_IL5;
+	uint8_t x = warningStates & SWP_IL5;
   if(x==SWP_IL1 || x==SWP_IL2 || x==SWP_IL3 || x==SWP_IL4 || x==SWP_IL5) //illegal states for ID0/1/2
   {
-      warningStates &= ~SWP_IL5; // turn all off, make sure only one is on
-      warningStates |=  SWP_ID0B;
-			g_eeGeneral.switchWarningStates = warningStates ;
+    warningStates &= ~SWP_IL5; // turn all off, make sure only one is on
+    warningStates |=  SWP_ID0B;
+		g_model.modelswitchWarningStates = (warningStates << 1) ;
   }
 #endif
 	
@@ -3685,6 +3783,27 @@ void checkSwitches()
   {
 #ifdef PCBSKY
     uint16_t i = getCurrentSwitchStates() ;
+
+		if ( first )
+		{
+ 			clearKeyEvents();
+			first = 0 ;
+		}
+
+#ifdef PCBSKY
+    if( (i==warningStates) || (keyDown())) // check state against settings
+    {
+        return;  //wait for key release
+    }
+#endif
+
+#ifdef PCBX9D
+// To Do
+		if ( keyDown() )
+		{
+			return ;
+		}
+#endif
 
         //show the difference between i and switch?
         //show just the offending switches.
@@ -3736,26 +3855,6 @@ void checkSwitches()
 #endif
         refreshDisplay();
 
-				if ( first )
-				{
-    			clearKeyEvents();
-					first = 0 ;
-				}
-
-#ifdef PCBSKY
-    if( (i==warningStates) || (keyDown())) // check state against settings
-    {
-        return;  //wait for key release
-    }
-#endif
-
-#ifdef PCBX9D
-// To Do
-		if ( keyDown() )
-		{
-			return ;
-		}
-#endif
 
     wdt_reset();
 
@@ -3804,50 +3903,6 @@ void pushMenu(MenuFuncP newMenu)
 	EnterMenu = EVT_ENTRY ;
   g_menuStack[++g_menuStackPtr] = newMenu ;
 }
-
-
-#ifdef PCBSKY 
-void init_soft_power()
-{
-	// Configure RF_power (PC17)
-	configure_pins( PIO_PC17, PIN_ENABLE | PIN_INPUT | PIN_PORTC | PIN_NO_PULLUP | PIN_PULLDOWN ) ;
-	
-	configure_pins( PIO_PA8, PIN_ENABLE | PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
-}
-
-
-// Returns zero if power is switched off
-//  1 if power switch is on
-//  2 if power switch off, trainer power on
-uint32_t check_soft_power()
-{
-#ifdef SIMU
-  return POWER_ON;
-#endif
-#ifdef REVB	
-	if ( PIOC->PIO_PDSR & PIO_PC17 )		// Power on
-	{
-		return POWER_ON ;
-	}
-
-	if ( PIOA->PIO_PDSR & PIO_PA8 )		// Trainer plugged in
-	{
-		return POWER_TRAINER ;
-	}
-#endif
-	return POWER_OFF ;	
-}
-
-
-// turn off soft power
-void soft_power_off()
-{
-#ifdef REVB
-	
-	configure_pins( PIO_PA8, PIN_ENABLE | PIN_OUTPUT | PIN_LOW | PIN_PORTA | PIN_NO_PULLUP ) ;
-#endif
-}
-#endif
 
 uint8_t *cpystr( uint8_t *dest, uint8_t *source )
 {

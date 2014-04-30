@@ -52,6 +52,8 @@ extern "C" {
 #define STORAGE_LUN_NBR    2
 #define BLOCKSIZE          512
 
+uint32_t EepromBlocked = 1 ;
+
 /* USB Mass storage Standard Inquiry Data */
 const unsigned char STORAGE_Inquirydata[] = {//36
   
@@ -492,7 +494,7 @@ const FATDirEntry_t g_DIRroot[16] =
     },
     {
 #ifdef PCBTARANIS
-        { 'T', 'A', 'R', 'A', 'N', 'I', 'S', ' '},
+        { 'E', 'E', 'P', 'R', 'O', 'M', ' ', ' '},
         { 'B', 'I', 'N'},
 #else
         { 'E', 'R', 'S', 'K', 'Y', '9', 'X', ' '},
@@ -741,7 +743,7 @@ int32_t fat12Read( uint8_t *buffer, uint16_t sector, uint16_t count )
 		{
       eeprom_read_block (buffer, (sector-3)*BLOCKSIZE, BLOCKSIZE);
     }
-		else if ( sector < 1155 )
+		else if ( sector < 1091 )
 		{
 			uint32_t address ;
 			address = sector - 67 ;
@@ -794,10 +796,22 @@ int32_t fat12Write(const uint8_t *buffer, uint16_t sector, uint32_t count )
 		{ 
   		while (count)
 			{
-  		  if (offset == 0 && sector == 3 &&/*test->version==EEFS_VERS && */ isValidEepromStart( buffer ) )
+  		  if (offset == 0 && sector == 3 )
 				{
-//      TRACE("EEPROM start found in sector %d", sector);
-  		    offset = sector;
+					if ( isValidEepromStart( buffer ) )
+					{
+	//      TRACE("EEPROM start found in sector %d", sector);
+  			    offset = sector;
+						EepromBlocked = 0 ;
+					}
+					else
+					{
+						EepromBlocked = 1 ;
+					}
+				}
+				if ( EepromBlocked )
+				{
+					return 1 ;
   		  }
   		  if (offset && sector >= offset && (sector-offset) < EESIZE/BLOCKSIZE)
 				{
@@ -813,7 +827,7 @@ int32_t fat12Write(const uint8_t *buffer, uint16_t sector, uint32_t count )
   		  }
   		}
  		}
- 		else if ( sector < 1155 )
+ 		else if ( sector < 1091 )
  		{
  			// firmware
 			uint32_t address ;
@@ -828,7 +842,7 @@ int32_t fat12Write(const uint8_t *buffer, uint16_t sector, uint32_t count )
 				{
 					if ( address >= 0x08008000 )		// Protect bootloader
 					{
-						if ( address < (0x08000000 + (512*1024) - 256) )		// in range
+						if ( address <= (0x08000000 + (512*1024) - 256) )		// in range
 						{
 							program( (uint32_t *)address, (uint32_t *) buffer ) ;	// size is 256 bytes
 						}

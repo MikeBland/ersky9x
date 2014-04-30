@@ -32,6 +32,8 @@
 #include "core_cm3.h"
 #endif
 #include "lcd.h"
+#include "ff.h"
+#include "maintenance.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -219,6 +221,12 @@ void store_hub_data( uint8_t index, uint16_t value )
 		FrskyHubData[FR_ALT_BARO] = value ;
 	}
 	
+	if ( index == FR_SPORT_GALT )
+	{
+		index = FR_GPS_ALT ;         // For max and min
+		FrskyHubData[FR_GPS_ALT] = value ;
+	}
+
 	if ( index < HUBDATALENGTH )
 	{
     if ( !g_model.FrSkyGpsAlt )         
@@ -797,7 +805,7 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				FrskyHubData[FR_VOLTS] = (uint16_t)ivalue / 10 ;
 				// temp
 				ivalue = (int16_t) ( (packet[6] << 8 ) | packet[7] ) ;
-				FrskyHubData[FR_TEMP1] = ivalue ;
+				FrskyHubData[FR_TEMP1] = (ivalue-32)*5/9 ;
 			break ;
 
 			case DSM_STAT1 :
@@ -994,6 +1002,37 @@ void processSportPacket()
 				case A4_ID_8 :
 					store_hub_data( FR_A4, value ) ;
 				break ;
+
+				case T1_ID_8 :
+					store_hub_data( FR_TEMP1, value ) ;
+				break ;
+				
+				case T2_ID_8 :
+					store_hub_data( FR_TEMP2, value ) ;
+				break ;
+
+				case ACCX_ID_8 :
+					store_hub_data( FR_ACCX, value ) ;
+				break ;
+					
+				case ACCY_ID_8 :
+					store_hub_data( FR_ACCY, value ) ;
+				break ;
+				
+				case ACCZ_ID_8 :
+					store_hub_data( FR_ACCZ, value ) ;
+				break ;
+
+				case FUEL_ID_8 :
+					store_hub_data( FR_FUEL, value ) ;
+				break ;
+
+				case GPS_ALT_ID_8 :
+					value = (int32_t)value / 10 ;
+					store_hub_data( FR_SPORT_GALT, value ) ;
+				break ;
+				 
+
 			}
 		}
 	}
@@ -1361,24 +1400,31 @@ void FRSKY_Init( uint8_t brate )
 #ifdef REVX
 	else
 	{
-		if ( g_model.frskyComPort == 0 )
-		{
+		FrskyComPort = g_model.frskyComPort = 0 ;
+//		if ( g_model.frskyComPort == 0 )
+//		{
 			UART2_Configure( 115200, Master_frequency ) ;
 			UART2_timeout_enable() ;
-#ifdef REVX
 			g_model.telemetryRxInvert = 1 ;
-#endif
-		}
-		else
-		{
-			UART_Configure( 115200, Master_frequency ) ;
-		}
+//		}
+//		else
+//		{
+//			UART_Configure( 115200, Master_frequency ) ;
+//		}
 	}
 #endif
   // clear frsky variables
 #endif
+
 #ifdef PCBX9D
-	x9dSPortInit() ;
+	if ( brate == 0 )
+	{
+		x9dSPortInit( 1 ) ;
+	}
+	else
+	{
+		x9dSPortInit( 0 ) ;
+	}
 #endif
 
   memset(frskyAlarms, 0, sizeof(frskyAlarms));
@@ -1475,7 +1521,18 @@ void check_frsky()
   // Used to detect presence of valid FrSky telemetry packets inside the
   // last FRSKY_TIMEOUT10ms 10ms intervals
 //Debug_frsky1 += 1 ;
-	uint8_t telemetryType = g_model.protocol == PROTO_PXX ;
+	uint8_t telemetryType ;
+#ifdef PCBSKY
+	telemetryType = g_model.protocol == PROTO_PXX ;
+#endif
+#ifdef PCBX9D
+	telemetryType = g_model.protocol == PROTO_PXX ;
+	if ( g_model.protocol == PROTO_OFF )
+	{
+		telemetryType = g_model.xprotocol == PROTO_PXX ;
+	}
+#endif
+
 #ifdef REVX
 
 	if ( (g_model.protocol == PROTO_DSM2) && ( g_model.sub_protocol == DSM_9XR ) )
@@ -1487,14 +1544,17 @@ void check_frsky()
 		telemetryType = 2 ;
 	}
 #endif
+#ifdef PCBSKY
 	if ( ( telemetryType != FrskyTelemetryType )
 			 || ( FrskyComPort != g_model.frskyComPort ) )
-	{
-#ifdef PCBSKY
-		FRSKY_Init( telemetryType ) ;	
 #endif
+#ifdef PCBX9D
+	if ( telemetryType != FrskyTelemetryType )
+#endif
+	{
+		FRSKY_Init( telemetryType ) ;	
 	}
-	
+
 #ifdef PCBSKY
 	if ( g_model.frskyComPort == 0 )
 	{
@@ -1519,18 +1579,32 @@ void check_frsky()
 			processDsmPacket( frskyRxBuffer, numPktBytes ) ;
 		}
 	}
-
-
 #endif
 
 #ifdef PCBX9D
 	{
 		uint16_t rxchar ;
-		while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
+		if ( g_model.frskyComPort == 0 )
 		{
-//Debug_frsky2 += 1 ;
-			
-			frsky_receive_byte( rxchar ) ;
+			while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
+			{
+	//Debug_frsky2 += 1 ;
+				if ( MaintenanceRunning )
+				{
+					maintenance_receive_byte( rxchar ) ;
+				}
+				else
+				{
+					frsky_receive_byte( rxchar ) ;
+				}
+			}
+		}
+		else
+		{
+			while ( ( rxchar = rxuart() ) != 0xFFFF )
+			{
+				frsky_receive_byte( rxchar ) ;
+			}
 		}
 	}
 #endif

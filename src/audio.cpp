@@ -40,10 +40,12 @@
 extern uint8_t CurrentVolume ;
 
 
-#ifdef PCBX9D
-#define hapticOn( x )
-#define hapticOff( x )
-#endif
+//#ifdef PCBX9D
+//#ifdef REVPLUS
+//#define hapticOn( x )
+//#define hapticOff( x )
+//#endif
+//#endif
 
 //#define SPEAKER_OFF  PORTE &= ~(1 << OUT_E_BUZZER) // speaker output 'low'
 
@@ -118,7 +120,11 @@ void audioQueue::heartbeat()
 		// fired from here.  end result is haptic events run for mix of 2 seconds?
 		
 		if (toneHaptic){
+#ifdef REVPLUS		
+	    		hapticOn(((g_eeGeneral.hapticStrength+5)) * 10); 
+#else			
 	    		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
+#endif 
 	    		hapticMinRun = HAPTIC_SPINUP;
 		}    
   }
@@ -281,10 +287,10 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 	        playASAP(0,20,10,1,1);
 	        break;
 	      case AU_HAPTIC2:
-	        playASAP(0,20,10,2,1);
+	        playASAP(0,15,20,2,1);
 	        break;
 	      case AU_HAPTIC3:
-	        playASAP(0,20,10,3,1);
+	        playASAP(0,15,20,3,1);
 	        break;
 		    case AU_ERROR:
 		      playNow(BEEP_DEFAULT_FREQ, 40, 1, 0, 1);
@@ -343,11 +349,11 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		      break;
 				
 				case AU_VARIO_UP :
-		      playNow(BEEP_DEFAULT_FREQ + 20, 10, 0, 0, 0, 1 ) ;
+		      playNow(BEEP_DEFAULT_FREQ + 15+f, 10, 0, 0, 0, 1 ) ;
 		    break ;
 		    
 				case AU_VARIO_DOWN :
-		      playNow(BEEP_DEFAULT_FREQ - 20, 10, 0, 0, 0, -1 ) ;
+		      playNow(BEEP_DEFAULT_FREQ - 15-f, 10, 0, 0, 0, -1 ) ;
 		    break ;
 
 		    case AU_LONG_TONE :

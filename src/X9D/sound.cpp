@@ -49,6 +49,7 @@
 #include "..\logicio.h"
 #include "..\timers.h"
 #include "i2c_ee.h"
+#include "hal.h"
 
 
 void start_sound( void ) ;
@@ -507,29 +508,22 @@ void setVolume( register uint8_t volume )
 #endif
 }
 
+#ifndef REVPLUS
+void initHaptic()
+{
+	configure_pins( GPIO_Pin_HAPTIC, PIN_OUTPUT | PIN_PUSHPULL | PIN_OS25 | PIN_PORTC ) ;
+	GPIOHAPTIC->BSRRH = GPIO_Pin_HAPTIC ;
+}
 
-
-//void hapticOff()
-//{
-//	PWM->PWM_DIS = PWM_DIS_CHID2 ;						// Disable channel 2
-//	PWM->PWM_OOV &= ~0x00040000 ;	// Force low
-//	PWM->PWM_OSS |= 0x00040000 ;	// Force low
-//}
+void hapticOff()
+{
+	GPIOHAPTIC->BSRRH = GPIO_Pin_HAPTIC ;
+}
 
 // pwmPercent 0-100
-//void hapticOn( uint32_t pwmPercent )
-//{
-//	register Pwm *pwmptr ;
-
-//	pwmptr = PWM ;
-
-//	if ( pwmPercent > 100 )
-//	{
-//		pwmPercent = 100 ;		
-//	}
-//	pwmptr->PWM_CH_NUM[2].PWM_CDTYUPD = pwmPercent ;		// Duty
-//	pwmptr->PWM_ENA = PWM_ENA_CHID2 ;						// Enable channel 2
-//	pwmptr->PWM_OSC = 0x00040000 ;	// Enable output
-//}
-
+void hapticOn( uint32_t pwmPercent )
+{
+	GPIOHAPTIC->BSRRL = GPIO_Pin_HAPTIC ;
+}
+#endif
 

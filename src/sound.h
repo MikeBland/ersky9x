@@ -104,6 +104,10 @@ void appendVoice( uint32_t index ) ;		// index of next buffer
 extern void wavU8Convert( uint8_t *src, uint16_t *dest , uint32_t count ) ;
 extern void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count ) ;
 
+#ifdef PCBX9D
+void initHaptic() ;
+#endif
+
 #ifdef REVX
 extern void audioOn( void ) ;
 extern void audioOff( void ) ;

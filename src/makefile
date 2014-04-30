@@ -27,7 +27,11 @@ BINX = $(CP) -O binary
 
 # Object files directory
 ifeq ($(PCB), X9D)
- OBJDIR = x9dobj
+ ifeq ($(REVPLUS), 1)
+  OBJDIR = x9dpobj
+ else
+  OBJDIR = x9dobj
+ endif
 else
  ifeq ($(REVX), 1)
   OBJDIR = skyRobj
@@ -73,7 +77,11 @@ endif
 # 
 # Define project name and Ram/Flash mode here
 ifeq ($(PCB), X9D)
+ ifeq ($(REVPLUS), 1)
+PROJECT        = x9dp
+ else
 PROJECT        = x9d
+ endif
 else
  ifeq ($(REVX), 1)
   PROJECT      = ersky9xr
@@ -180,7 +188,7 @@ SRC  = x9d/system_stm32f2xx.c \
 
 
 
-CPPSRC = x9d.cpp \
+CPPSRC = ersky9x.cpp \
          x9d/lcd_driver.cpp \
          x9d/aspi.cpp \
          x9d/sound.cpp \
@@ -364,6 +372,11 @@ ifeq ($(PHASES), 1)
  CPPDEFS += -DPHASES
 endif
 
+# If Taranis+
+ifeq ($(REVPLUS), 1)
+ CPPDEFS += -DREVPLUS
+endif
+
 CPPDEFS += -DFRSKY
 CPPDEFS += -DCPUARM
 
@@ -444,6 +457,7 @@ $(AOBJS) : $(OBJDIR)/%.o : %.s
 
 clean:
 	-rm -f x9dobj/*.*
+	-rm -f x9dpobj/*.*
 	-rm -f skyobj/*.*
 	-rm -f skyRobj/*.*
 	-rm -f $(FULL_PRJ).elf

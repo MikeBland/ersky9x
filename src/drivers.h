@@ -18,6 +18,14 @@ struct t_serial_tx
 	volatile uint16_t ready ;
 } ;
 
+struct t_serial_fifo64
+{
+	uint32_t fifo[64] ;
+	uint32_t in ;
+	uint32_t out ;
+	volatile uint32_t count ;
+} ;
+
 extern void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte ) ;
 extern int32_t get_fifo32( struct t_fifo32 *pfifo ) ;
 
@@ -58,7 +66,7 @@ extern void txmit2nd( uint8_t c ) ;
 extern uint16_t rx2nduart( void ) ;
 extern void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void txmitBt( uint8_t c ) ;
-extern uint16_t rxBtuart( void ) ;
+extern int32_t rxBtuart( void ) ;
 
 extern void poll2ndUsart10mS( void ) ;
 //extern void charProcess( uint8_t byte ) ;
@@ -99,7 +107,7 @@ void end_ppm_capture( void ) ;
 
 extern void disable_ssc( void ) ;
 
-extern void x9dSPortInit() ;
+extern void x9dSPortInit( uint32_t baudRate ) ;
 
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 

@@ -91,10 +91,18 @@ __attribute__ ((section(".bootrodata"), used))
 
 const uint8_t BootCode[] = {
 #ifdef PCBTARANIS
- #include "bootloader/bootflashT.lbm"
+  #ifdef REVPLUS
+   #include "bootloader/bootflashTp.lbm"
+	#else
+   #include "bootloader/bootflashT.lbm"
+	#endif
 #else
  #ifdef PCBX9D
-  #include "bootloader/bootflashX.lbm"
+  #ifdef REVPLUS
+   #include "bootloader/bootflashXp.lbm"
+  #else
+   #include "bootloader/bootflashX.lbm"
+  #endif
  #else
   #ifdef REVX
    #include "bootloader/bootflash8.lbm"

@@ -197,12 +197,10 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
-#if PCBSKY		
 		while ( g_model.frskyComPort )		// Leave the port alone!
 		{
 			CoTickDelay(50) ;					// 100mS for now
 		}
-#endif
 		
 #if PCBSKY		
 		if ( SoundCheck )
@@ -217,6 +215,14 @@ void handle_serial(void* pdata)
 		while ( ( rxchar = rxuart() ) == 0xFFFF )
 		{
 			CoTickDelay(5) ;					// 10mS for now
+			if ( g_model.frskyComPort )		// Leave the port alone!
+			{
+				break ;
+			}
+		}
+		if ( g_model.frskyComPort )		// Leave the port alone!
+		{
+			continue ;
 		}
 		// Got a char, what to do with it?
 

@@ -55,6 +55,8 @@
 #define ORTX_AUTO_MODE		0x40 //- auto DSM2/DSMX
 #define ORTX_BIND_FLAG		0x80
 
+extern void module_output_low( void ) ;
+extern void module_output_active( void ) ;
 
 
 extern void init_main_ppm( uint32_t period, uint32_t out_enable ) ;

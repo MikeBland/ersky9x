@@ -112,7 +112,11 @@ extern void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att) ;
 extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 
 #ifdef PCBX9D
+#ifdef REVPLUS
+extern void backlight_set( uint16_t brightness, uint16_t w_or_b ) ;
+#else
 extern void backlight_set( uint16_t brightness ) ;
+#endif
 #endif
 
 #define BLINK_ON_PHASE (g_blinkTmr10ms & (1<<6))

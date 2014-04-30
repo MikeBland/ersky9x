@@ -84,7 +84,11 @@ extern const char * const Swedish[] ;
 
 
 #ifdef PCBX9D
- #define NUMBER_ANALOG		9
+ #ifdef REVPLUS
+  #define NUMBER_ANALOG		10
+ #else
+  #define NUMBER_ANALOG		9
+ #endif
 #else
 #ifdef REVX
 #define NUMBER_ANALOG		10
@@ -178,16 +182,19 @@ enum EnumKeys {
 #define CS_NEQUAL    9
 #define CS_GREATER   10
 #define CS_LESS      11
-#define CS_EGREATER  12
-#define CS_ELESS     13
+#define CS_LATCH		 12
+#define CS_FLIP			 13
 #define CS_TIME	     14
+#define CS_EXEQUAL   15	// V~=offset
 #define CS_MAXF      14  //max function
 
 #define CS_VOFS       0
 #define CS_VBOOL      1
 #define CS_VCOMP      2
 #define CS_TIMER			3
-#define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((x)<CS_EQUAL ? CS_VBOOL : ((x)<CS_TIME ? CS_VCOMP : CS_TIMER)))
+
+uint8_t CS_STATE( uint8_t x) ;
+//#define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((((x)<CS_EQUAL) || ((x)==CS_LATCH) || ((x)==CS_FLIP)) ? CS_VBOOL : ((x)<CS_TIME ? CS_VCOMP : CS_TIMER)))
 
 #ifdef PCBSKY
 #define SW_BASE      SW_ThrCt
@@ -391,6 +398,7 @@ extern uint8_t Ee_lock ;
 #define PROTO_DSM2       2
 #define PROT_MAX         2
 #define PROTO_PPM16			 3		// No longer needed
+#define PROTO_OFF		     15		// For X9D
 #define PROT_STR_LEN     6
 #define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX9XR-DSM  "
 #define DSM2_STR_LEN   9
@@ -410,6 +418,7 @@ extern uint8_t Ee_lock ;
 
 
 extern uint8_t pxxFlag;
+extern uint8_t pxxFlag_x ;
 extern uint8_t stickMoved;
 
 #define FLASH_DURATION 50
@@ -504,8 +513,15 @@ extern uint8_t convert_mode_helper(uint8_t x) ;
 #ifdef PCBX9D
 extern void backlight_on( void ) ;
 extern void backlight_off( void ) ;
+#ifdef REVPLUS
+extern void backlight_w_on( void ) ;
+extern void backlight_w_off( void ) ;
+#define BACKLIGHT_ON        backlight_on();backlight_w_on()
+#define BACKLIGHT_OFF       backlight_off();backlight_w_off()
+#else
 #define BACKLIGHT_ON        backlight_on()
 #define BACKLIGHT_OFF       backlight_off()
+#endif
 #endif
 
 // Options for mainSequence()

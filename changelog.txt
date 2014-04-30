@@ -10,6 +10,33 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 30-Apr-2014  MPB (r203)
+X9D handle DJT telemetry
+X9D allow SPort port in maintenance mode
+Vario tones frequency changes
+X9D bootloader handle SH for disable SD card
+X9D bootloader MAC support
+Add custom switch LATCH and Flip-Flop
+CUrve editing, PRESET now at bottom
+Scalers as vario source
+X9D switches bug fixes
+Scalers as GVAR source
+X9D external module additions
+X9D extra pot (slider) fixes
+Check for resetting telemetry values in custom display
+Trim centre telltales
+Fix mix delay bug
+Use consumed mAh as fuel value
+9XRPRO - convert temperature to degC
+All add more SPort IDs
+X9D/+ add haptic
+X9D+ support both backlights
+X9D+ support changed LCD control signals
+Fix number of voice switches with 8 additional switches
+PPM open drain driver
+9XRPRO - increase DSMX range check power level
+
+******************************************
 CHANGELOG: 20-Mar-2014  MPB (r202)
 Add oXsensor voltage on telemetry
 DSM telemetry updates

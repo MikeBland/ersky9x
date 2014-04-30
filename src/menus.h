@@ -101,6 +101,10 @@ static MState2 mstate2; \
 static const uint8_t mstate_tab[] = __VA_ARGS__; \
 event = mstate2.check(event,menu,tab,DIM(tab),mstate_tab,DIM(mstate_tab)-1,lines_count-1)
 
+#define VARMENU(title, tab, menu, lines_count, cols ) \
+TITLE(title); \
+static MState2 mstate2; \
+event = mstate2.check(event,menu,tab,DIM(tab),cols,0,lines_count-1)
 
 
 #define SUBMENU(title, lines_count, ...) \

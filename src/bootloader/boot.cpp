@@ -85,7 +85,7 @@ extern "C" {
 __attribute__ ((section(".version"), used))
 const uint8_t Version[] =
 {
-	'B', 'O', 'O', 'T', '1', '0'
+	'B', 'O', 'O', 'T', '1', '1'
 } ;
 
 __attribute__ ((section(".text"), used))
@@ -534,6 +534,12 @@ uint32_t program( uint32_t *address, uint32_t *buffer )	// size is 256 bytes
 		return 1 ;
 	}
 
+	if ( (uint32_t) address < 0x08008000 )
+	{
+		FlashBlocked = 1 ;
+		return 1 ;
+	}
+
 	if ( (uint32_t) address == 0x08008000 )
 	{
 		eraseSector( 2 ) ;
@@ -703,7 +709,7 @@ uint8_t flashFile( uint32_t index )
 		fr = openFirmwareFile( index ) ;
 		fr = f_close( &FlashFile ) ;
 		
-		Valid = 1 ;
+		Valid = (BlockCount == 4096 ) ? 1 : 2 ;
 		if ( isFirmwareStart( Block_buffer ) == 0 )
 		{
 			Valid = 2 ;
@@ -817,6 +823,7 @@ extern uint8_t OptrexDisplay ;
 
 #ifdef PCBX9D	 
 	init_keys() ;
+	setup_switches() ;
 	I2C_EE_Init() ;
 	init_hw_timer()	;
 #endif
@@ -892,13 +899,6 @@ extern uint8_t OptrexDisplay ;
 //	lcd_outhex4( 25, FH, ReadCounter ) ;
 //	lcd_outhex4( 50, FH, statuses ) ;
 //	lcd_outhex4( 75, FH, WriteCounter ) ;
-	if ( SDcardDisabled )
-	{
-		if ( BlinkCounter & 512 )
-		{
-			lcd_puts_Pleft( FH, "SD Card OFF" ) ;
-		}
-	}
 
 #endif
 #ifdef PCBX9D
@@ -909,7 +909,16 @@ extern uint8_t OptrexDisplay ;
 //extern uint16_t ReadCounter ;
 //	lcd_outhex4( 0, FH, StartStopCounter ) ;
 //	lcd_outhex4( 25, FH, ReadCounter ) ;
+			
 #endif
+	
+			if ( SDcardDisabled )
+			{
+				if ( BlinkCounter & 512 )
+				{
+					lcd_puts_Pleft( FH, "SD Card OFF" ) ;
+				}
+			}
 
 			if ( sd_card_ready() )
 			{
@@ -1173,7 +1182,7 @@ extern uint8_t OptrexDisplay ;
 #ifdef PCBX9D
 			if ( --TenCount == 0 )
 			{
-				TenCount = 2 ;
+				TenCount = 4 ;
 #endif			
 			refreshDisplay() ;
 #ifdef PCBX9D

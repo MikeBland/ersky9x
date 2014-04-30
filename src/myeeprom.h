@@ -38,7 +38,7 @@
 #define MDVERS_e119 10
 #define MDVERS      11
 
-#define MDSKYVERS   2
+#define MDSKYVERS   3
 
 #define	NUM_VOICE		8
 
@@ -149,12 +149,17 @@ PACK(typedef struct t_EEGeneral {
 	uint8_t		rotaryDivisor ;
 	uint8_t   crosstrim:1;
 	uint8_t   spare9:7;
-	int8_t   rtcCal ;
+	int8_t    rtcCal ;
   int16_t   x9dcalibMid ;			// X9D
   int16_t   x9dcalibSpanNeg ;	// X9D
   int16_t   x9dcalibSpanPos ;	// X9D
 	uint8_t		stickReverse ;
 	uint8_t		language ;
+	uint8_t 	bright_white ;			// backlight(white) for PLUS
+  int16_t   x9dPcalibMid ;			// X9D for PLUS
+  int16_t   x9dPcalibSpanNeg ;	// X9D for PLUS
+  int16_t   x9dPcalibSpanPos ;	// X9D for PLUS
+
 }) EEGeneral;
 
 
@@ -486,7 +491,7 @@ PACK(typedef struct te_ModelData {
   int8_t    trim[4];
   int8_t    curves5[MAX_CURVE5][5];
   int8_t    curves9[MAX_CURVE9][9];
-  int8_t    curvexy[18];
+  int8_t    curvexy[18];			// Currently unused
   SKYCSwData   customSw[NUM_SKYCSW];
 //  uint8_t   rxnum;
   uint8_t   frSkyVoltThreshold ;
@@ -499,7 +504,7 @@ PACK(typedef struct te_ModelData {
 	FrSkyAlarmData frskyAlarms ;
 // Add 6 bytes for custom telemetry screen
 	uint8_t		customDisplayIndex[6] ;
-  FunctionData   functionData[NUM_FSW];
+  FunctionData   functionData[NUM_FSW];			// Currently unused
 	PhaseData phaseData[MAX_MODES] ;
 	GvarData	gvars[MAX_GVARS] ;
 	uint8_t   numBlades ;					// RPM scaling

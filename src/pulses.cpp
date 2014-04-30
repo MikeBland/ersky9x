@@ -90,9 +90,27 @@ volatile uint32_t Pulses2_index = 0 ;		// Modified in interrupt routine
 
 static uint8_t pass ;		// For PXX and DSM-9XR
 
-void init_main_ppm( uint32_t period, uint32_t out_enable )
+void module_output_low()
+{
+	configure_pins( PIO_PA17, PIN_OUTPUT | PIN_PORTA | PIN_PULLUP | PIN_ODRAIN | PIN_LOW ) ;
+}
+
+void module_output_active()
 {
 	register Pio *pioptr ;
+	
+	pioptr = PIOA ;
+	pioptr->PIO_ABCDSR[0] &= ~PIO_PA17 ;		// Peripheral C
+ 	pioptr->PIO_ABCDSR[1] |= PIO_PA17 ;			// Peripheral C
+	pioptr->PIO_PDR = PIO_PA17 ;						// Disable bit A17 Assign to peripheral
+	pioptr->PIO_MDER = PIO_PA17 ;						// Open Drain O/p in A17
+//	pioptr->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+	pioptr->PIO_PUER = PIO_PA17 ;						// With pull up
+}
+
+
+void init_main_ppm( uint32_t period, uint32_t out_enable )
+{
 	register Pwm *pwmptr ;
 	
   perOut(g_chans512, 0) ;
@@ -100,10 +118,7 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 
 	if ( out_enable )
 	{
-		pioptr = PIOA ;
-		pioptr->PIO_ABCDSR[0] &= ~PIO_PA17 ;		// Peripheral C
-  	pioptr->PIO_ABCDSR[1] |= PIO_PA17 ;			// Peripheral C
-		pioptr->PIO_PDR = PIO_PA17 ;						// Disable bit A17 Assign to peripheral
+		module_output_active() ;
 	}
 
 	pwmptr = PWM ;
@@ -380,7 +395,7 @@ void setupPulsesDsm2(uint8_t chns)
 
 			// Need to choose dsmx/dsm2 as well
   		sendByteDsm2( flags ) ;
-  		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 0: 7 ) ;		// 
+  		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ;		// 
   		sendByteDsm2( channels ) ;			// Max channels
   		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
 			pass = 1 ;

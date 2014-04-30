@@ -67,6 +67,7 @@
 #define FR_TRASH			43	// Used for invalid id
 
 #define FR_SPORT_ALT	0xFF
+#define FR_SPORT_GALT	0xFE
 
 #define HUBDATALENGTH 44
 #define HUBMINMAXLEN	9

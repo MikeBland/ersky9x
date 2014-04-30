@@ -101,6 +101,8 @@
 #define PIN_PORTC				0x080
 #define PIN_LOW					0x000
 #define PIN_HIGH				0x100
+#define	PIN_PUSHPULL		0x0000
+#define	PIN_ODRAIN			0x8000
 #endif
 
 

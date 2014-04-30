@@ -108,11 +108,11 @@ v.xx.01-german
 #define ISTR_MSTACK_OFLOW   "mStack oflow"
 
 #ifdef PCBSKY
-#define ISTR_CHANS_GV	     "\004P1  P2  P3  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 THIS"
+#define ISTR_CHANS_GV	     "\004P1  P2  P3  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 THISSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #define ISTR_CHANS_RAW	   "\004P1  P2  P3  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS"
 #endif
 #ifdef PCBX9D
-#define ISTR_CHANS_GV	     "\004P1  P2  SL  SR  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 THIS"
+#define ISTR_CHANS_GV	     "\004P1  P2  SL  SR  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POSGV1 GV2 GV3 GV4 GV5 GV6 GV7 THISSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #define ISTR_CHANS_RAW	   "\004P1  P2  SL  SR  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH243POS"
 #endif
 #define ISTR_CH	           "CH"
@@ -182,11 +182,16 @@ v.xx.01-german
 #define ISTR_CUSTOM_DISP    "Ind. Bildschirm"
 #define ISTR_FAS_OFFSET     "FAS Offset" // FrSky Amperage Sensor (FAS-100) Offset
 #define ISTR_VARIO_SRC      "Vario: Quelle" // Variometerquelle
-#define ISTR_VSPD_A2        "\004----VGesA2  " // VGeschwindigkeit
+#define ISTR_VSPD_A2        "\004----VGesA2  SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 " // VGeschwindigkeit
 #define ISTR_2SWITCH        "\002Schalter"
 #define ISTR_2SENSITIVITY   "\002Empfindlichkt"
 #define ISTR_GLOBAL_VARS    "GLOBALE VARS"
-#define ISTR_GV_SOURCE      "\003---StmHtmGtmQtmRENSEIH\302HGASQUEP1 P2 P3 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24" // xtm=Trim for channel "x" REN=Rotary Encoder  ... = Variablennamen
+#ifdef PCBSKY
+#define ISTR_GV_SOURCE      "\003---StmHtmGtmQtmRENSEIH\302HGASQUEP1 P2 P3 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 " // xtm=Trim for channel "x" REN=Rotary Encoder  ... = Variablennamen
+#endif
+#ifdef PCBX9D
+#define ISTR_GV_SOURCE      "\003---StmHtmGtmQtmRENSEIH\302HGASQUEP1 P2 SL SR c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 " // xtm=Trim for channel "x" REN=Rotary Encoder  ... = Variablennamen
+#endif
 #define ISTR_TEMPLATES      "VORLAGEN"
 #define ISTR_CHAN_ORDER     "Kanal Reihenfolge"
 #define ISTR_SP_RETA        " SHGQ" // Seitenleitwerk=Rud Höhenleitwerk=Ele Gas=Thr Querruder=Ail
@@ -262,11 +267,11 @@ v.xx.01-german
 // ISTR_23_US after \023 max 2 chars
 #define ISTR_23_US          "\023uS"
 // ISTR_PPMFRAME_MSEC before \015 max 9 chars, after max 4 chars
-#define ISTR_PPMFRAME_MSEC  "PPM FrLen\015mSek" // Puls Pausen Modulation
-#define ISTR_SEND_RX_NUM    "Send Em Nummer [MENU]"
-#define ISTR_DSM_TYPE       "DSM Typ" 
-#define ISTR_PPM_1ST_CHAN   "PPM 1. Kanal"
-#define ISTR_SHIFT_SEL      "Signalart" // Signalart
+#define ISTR_PPMFRAME_MSEC  " PPM FrLen\015mSek" // Puls Pausen Modulation
+#define ISTR_SEND_RX_NUM    " Send Em Nummer [MENU]"
+#define ISTR_DSM_TYPE       " DSM Typ" 
+#define ISTR_PPM_1ST_CHAN   " 1. Kanal"
+#define ISTR_SHIFT_SEL      " Signalart" // Signalart
 // ISTR_POS_NEG indexed 3 chars each
 #define ISTR_POS_NEG        "\003POSNEG"
 #define ISTR_E_LIMITS       "E. Grenze" //Erweiterte Grenze
@@ -364,7 +369,7 @@ v.xx.01-german
 // c17-c24 added for timer mode A display
 #define ICURV_STR					 "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 // CSWITCH_STR indexed 7 chars each
-#define ICSWITCH_STR        "\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsUND    ODER   XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""v1>=v2 ""v1<=v2 ZeitAus"
+#define ICSWITCH_STR        "\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsUND    ODER   XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop ZeitAusv\140=ofs"
 
 #define ISWASH_TYPE_STR     "\006---   ""120   ""120X  ""140   ""90    "
 
@@ -422,8 +427,8 @@ v.xx.01-german
 #define ISTR_STICK_LH_GAIN  "Stick LH Anstieg"
 #define ISTR_STICK_RV_GAIN  "Stick RV Anstieg"
 #define ISTR_STICK_RH_GAIN  "Stick RH Anstieg"
-#define ISTR_BIND					  "Binden"
-#define ISTR_RANGE					"RWeite Test"
+#define ISTR_BIND					  " Binden"
+#define ISTR_RANGE					" RWeite Test"
 
 #define ISTR_ALRMS_OFF			"Alarme inaktiv"
 #define ISTR_OLD_EEPROM			" EEPROM ist veraltet   TESTE EINSTELL/KALIB"

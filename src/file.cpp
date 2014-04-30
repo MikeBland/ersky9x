@@ -683,12 +683,29 @@ void ee32LoadModel(uint8_t id)
 	}
 #endif
 
+		if ( g_model.modelVersion < 3 )
+		{
+			for (uint8_t i = 0 ; i < NUM_SKYCSW ; i += 1 )
+			{
+	    	SKYCSwData *cs = &g_model.customSw[i];
+				if ( cs->func == CS_LATCH )
+				{
+					cs->func = CS_GREATER ;
+				}
+				if ( cs->func == CS_FLIP )
+				{
+					cs->func = CS_LESS ;
+				}
+			}
+			g_model.modelVersion = 3 ;
+		}
+
 
 #ifdef FRSKY
   FrskyAlarmSendState |= 0x40 ;		// Get RSSI Alarms
         FRSKY_setModelAlarms();
 #endif
-    }
+  }
 
 #ifdef REVX
 	if ( g_model.telemetryRxInvert )

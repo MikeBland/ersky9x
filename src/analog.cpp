@@ -49,6 +49,7 @@
 #define SLIDE_L		14
 #define SLIDE_R		15
 #define BATTERY		10
+#define POT_3			12
 
 // Sample time should exceed 1uS
 #define SAMPTIME	2		// sample time = 15 cycles
@@ -58,7 +59,7 @@ volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 void init_adc()
 {
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN ;			// Enable clock
-	RCC->AHB1ENR |= RCC_AHB1Periph_GPIOADC ;	// Enable ports A&C clocks
+	RCC->AHB1ENR |= RCC_AHB1Periph_GPIOADC ;	// Enable ports A&C clocks (and B for REVPLUS)
 	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	configure_pins( PIN_STK_J1 | PIN_STK_J2 | PIN_STK_J3 | PIN_STK_J4 |
 									PIN_FLP_J1 , PIN_ANALOG | PIN_PORTA ) ;
@@ -69,7 +70,11 @@ void init_adc()
 	ADC1->CR1 = ADC_CR1_SCAN ;
 	ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_DMA | ADC_CR2_DDS ;
 	ADC1->SQR1 = (NUMBER_ANALOG-1) << 20 ;		// NUMBER_ANALOG Channels
+#ifdef REVPLUS
+	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) + (POT_3<<15) ;
+#else
 	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) ;
+#endif
 	ADC1->SQR3 = STICK_LH + (STICK_LV<<5) + (STICK_RV<<10) + (STICK_RH<<15) + (POT_L<<20) + (POT_R<<25) ;
 	ADC1->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
 								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) ;
