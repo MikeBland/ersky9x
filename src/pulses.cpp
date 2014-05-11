@@ -397,7 +397,8 @@ void setupPulsesDsm2(uint8_t chns)
   		sendByteDsm2( flags ) ;
   		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ;		// 
   		sendByteDsm2( channels ) ;			// Max channels
-  		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
+//  		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
+  		sendByteDsm2( 1 ) ;		// 'Model Match' disabled
 			pass = 1 ;
 		}
 		else
