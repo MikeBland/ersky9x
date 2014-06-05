@@ -16,6 +16,7 @@
 #include "x9d\stm32f2xx_rcc.h"
 #include "x9d\hal.h"
 #include "x9d\aspi.h"
+#include "logicio.h"
 
 #define __no_operation     __NOP
 
@@ -132,5 +133,59 @@ u16 spiRegAccess(u8 addrByte, u8 writeValue)
 }
 
 */
+
+#ifdef REVPLUS
+// New hardware SPI driver for LCD
+void initLcdSpi()
+{
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_RST, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_NCS, ENABLE);
+	
+  RCC->APB1ENR |= RCC_APB1ENR_SPI3EN ;    // Enable clock
+	// APB1 clock / 2 = 133nS per clock
+	SPI3->CR1 = SPI_CR1_BIDIOE | SPI_CR1_SPE | SPI_CR1_MSTR | SPI_CR1_CPOL ;
+	SPI3->CR2 = 0 ;
+
+	configure_pins( PIN_LCD_NCS, PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+	configure_pins( PIN_LCD_RST, PIN_OUTPUT | PIN_PORTD | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+	configure_pins( PIN_LCD_A0,  PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+	configure_pins( PIN_LCD_MOSI|PIN_LCD_CLK, PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS50 | PIN_NO_PULLUP | PIN_PER_6 | PIN_PERIPHERAL ) ;
+}
+
+void xAspiCmd(uint8_t Command_Byte)
+{
+	while ( SPI3->SR & SPI_SR_TXE )
+	{
+		// wait
+	}
+  LCD_A0_LOW() ;
+  LCD_NCS_LOW() ;  
+	SPI3->DR = Command_Byte ;
+	while ( SPI3->SR & SPI_SR_TXE )
+	{
+		// wait
+	}
+  LCD_NCS_HIGH() ;
+}
+
+void xAspiData(uint8_t Para_data)
+{
+	while ( SPI3->SR & SPI_SR_TXE )
+	{
+		// wait
+	}
+  LCD_A0_HIGH() ;
+  LCD_NCS_LOW() ;  
+	SPI3->DR = Para_data ;
+	while ( SPI3->SR & SPI_SR_TXE )
+	{
+		// wait
+	}
+  LCD_NCS_HIGH() ;
+}
+
+
+#endif
 
 

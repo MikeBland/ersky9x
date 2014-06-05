@@ -176,7 +176,12 @@ void configure_pins( uint32_t pins, uint16_t config )
 
 
 #ifdef PCBSKY
-	
+
+void initExtraInput()
+{
+	configure_pins( 0x00004000, PIN_ENABLE | PIN_INPUT | PIN_PORTB | PIN_PULLUP ) ;
+}
+	 
 void init_keys()
 {
 	register Pio *pioptr ;
@@ -483,7 +488,179 @@ uint32_t read_trims()
 
 
 #ifdef PCBSKY
-extern uint32_t keyState(EnumKeys enuk)
+
+uint32_t hwKeyState( uint8_t key )
+{
+	register uint32_t a ;
+	register uint32_t c ;
+
+  CPU_UINT xxx = 0 ;
+  if( key > HSW_MAX )  return 0 ;
+
+	a = PIOA->PIO_PDSR ;
+	c = PIOC->PIO_PDSR ;
+	switch(key)
+	{
+#ifdef REVB
+    case HSW_ElevDR : xxx = c & 0x80000000 ;	// ELE_DR   PC31
+#else 
+    case HSW_ElevDR : xxx = a & 0x00000100 ;	// ELE_DR   PA8
+#endif 
+    break ;
+    
+    case HSW_AileDR : xxx = a & 0x00000004 ;	// AIL-DR  PA2
+    break ;
+
+    case HSW_RuddDR : xxx = a & 0x00008000 ;	// RUD_DR   PA15
+    break ;
+      //     INP_G_ID1 INP_E_ID2
+      // id0    0        1
+      // id1    1        1
+      // id2    1        0
+    case HSW_ID0    : xxx = ~c & 0x00004000 ;	// SW_IDL1     PC14
+    break ;
+    case HSW_ID1    : xxx = (c & 0x00004000) ; if ( xxx ) xxx = (PIOC->PIO_PDSR & 0x00000800);
+    break ;
+    case HSW_ID2    : xxx = ~c & 0x00000800 ;	// SW_IDL2     PC11
+    break ;
+
+    
+		case HSW_Gear   : xxx = c & 0x00010000 ;	// SW_GEAR     PC16
+    break ;
+
+#ifdef REVB
+    case HSW_ThrCt  : xxx = c & 0x00100000 ;	// SW_TCUT     PC20
+#else 
+    case HSW_ThrCt  : xxx = a & 0x10000000 ;	// SW_TCUT     PA28
+#endif 
+    break ;
+
+    case HSW_Trainer: xxx = c & 0x00000100 ;	// SW-TRAIN    PC8
+    break ;
+		
+		case HSW_Ele3pos0 :
+			xxx = Analog_values[9] < 490 ;
+    break ;
+
+		case HSW_Ele3pos1 :
+			xxx = Analog_values[9] > 1500 ;
+    break ;
+
+		case HSW_Ele3pos2 :
+			xxx = ( Analog_values[9] <= 1500 ) && ( Analog_values[9] >= 490 ) ;
+    break ;
+
+		case HSW_Rud3pos0 :
+			xxx = ~a & 0x00008000 ;	// RUD_DR   PA15
+    break ;
+
+		case HSW_Rud3pos1 :
+			xxx = (a & 0x00008000) ; if ( xxx ) xxx = (c & 0x80000000) ;
+    break ;
+
+		case HSW_Rud3pos2 :
+			xxx = ~c & 0x80000000 ;	// ELE_DR   PC31
+    break ;
+
+		case HSW_Ail3pos0 :
+			xxx = ~a & 0x00000004 ;	// AIL-DR  PA2
+    break ;
+
+		case HSW_Ail3pos1 :
+			xxx = (a & 0x00000004) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
+    break ;
+
+		case HSW_Ail3pos2 :
+			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
+    break ;
+
+		case HSW_Gear3pos0 :
+			xxx = ~c & 0x00010000 ;	// SW_GEAR     PC16
+    break ;
+
+		case HSW_Gear3pos1 :
+			xxx = (c & 0x00010000) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
+    break ;
+
+		case HSW_Gear3pos2 :
+			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
+    break ;
+
+		case HSW_Ele6pos0 :
+			xxx = Analog_values[9] > 0x7E0 ;
+    break ;
+			
+		case HSW_Ele6pos1 :
+			xxx = ( Analog_values[9] <= 0x7E0 ) && ( Analog_values[9] >= 0x7A8 ) ;
+    break ;
+			
+		case HSW_Ele6pos2 :
+			xxx = ( Analog_values[9] <= 0x7A8 ) && ( Analog_values[9] >= 0x770 ) ;
+    break ;
+			
+		case HSW_Ele6pos3 :
+			xxx = ( Analog_values[9] <= 0x770 ) && ( Analog_values[9] >= 0x340 ) ;
+    break ;
+			
+		case HSW_Ele6pos4 :
+			xxx = ( Analog_values[9] <= 0x340 ) && ( Analog_values[9] >= 0x070 ) ;
+    break ;
+			
+		case HSW_Ele6pos5 :
+			xxx = Analog_values[9] < 0x070 ;
+    break ;
+			
+
+    default:
+    break ;
+		
+  }
+
+  if ( xxx )
+  {
+    return 1 ;
+  }
+  return 0;
+	
+}
+
+// Returns 0, 1 or 2 (or 3,4,5) for ^ - or v (or 6pos)
+uint32_t switchPosition( uint32_t swtch )
+{
+	if ( hwKeyState( swtch ) )
+	{
+		return 0 ;
+	}
+	swtch += 1 ;
+	if ( hwKeyState( swtch ) )
+	{
+		return 1 ;			
+	}
+	if ( swtch == HSW_Ele6pos1 )
+	{
+		swtch += 2 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 3 ;
+		}
+		swtch += 1 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 4 ;
+		}
+		swtch += 1 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 5 ;
+		}
+	}
+	return 2 ;
+}
+
+
+
+
+uint32_t keyState(EnumKeys enuk)
 {
 	register uint32_t a ;
 	register uint32_t c ;

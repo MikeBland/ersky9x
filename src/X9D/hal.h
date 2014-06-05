@@ -314,9 +314,9 @@
 
 #if (PERI1_FREQUENCY<40000000)
 //#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_2 // - for SPI1 and half-speed APB2: 30MHz/2 =15MHZ < 20MHZ
-#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_4 // - for SPI1 and half-speed APB2: 30MHz/2 =15MHZ < 20MHZ
+#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_2 // - for SPI2 and half-speed APB1: 15MHz/2 = 7.5MHZ < 20MHZ
 #else
-#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_4 // - for SPI1 and full-speed APB2: 60MHz/4 =15MHZ < 20MHZ
+#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_2 // - for SPI1 and full-speed APB2: 60MHz/4 =15MHZ < 20MHZ
 #endif
 
 // Selectable

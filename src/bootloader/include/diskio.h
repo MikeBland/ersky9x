@@ -83,7 +83,7 @@ extern "C" {
 #endif
 DRESULT disk_read (BYTE, BYTE*, DWORD, BYTE);
 DRESULT disk_write (BYTE, const BYTE*, DWORD, BYTE);
-DRESULT disk_ioctl (BYTE, BYTE, BYTE*);
+DRESULT disk_ioctl (BYTE, BYTE, void*);
 #ifdef __cplusplus
 }
 #endif

@@ -296,9 +296,16 @@ void put_serial_bit( uint8_t bit )
 	}
 }
 
+uint8_t DsmPass1[10] ;
+uint32_t DsmPassIndex ;
+
 #define BITLEN_DSM2 (8*2) //125000 Baud => 8uS per bit
 void sendByteDsm2(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
+	if ( DsmPassIndex < 10 )
+	{
+		DsmPass1[DsmPassIndex++] = b ;
+	}
 	put_serial_bit( 0 ) ;		// Start bit
   for( uint8_t i=0; i<8; i++)	 // 8 data Bits
 	{
@@ -322,7 +329,7 @@ void dsmBindResponse( uint8_t mode, int8_t channels )
 	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
 //	channels -= 8 ;
 //	channels /= 2 ;
-	if ( ( g_model.ppmNCH != channels ) || ( g_model.dsmMode != ( dsm_mode_response | 0x80 ) ) )
+	if ( ( g_model.ppmNCH != channels ) || ( (g_model.dsmMode & 0x7F) != dsm_mode_response ) )
 	{
 		g_model.ppmNCH = channels ;
 		g_model.dsmMode = dsm_mode_response | 0x80 ;
@@ -382,7 +389,7 @@ void setupPulsesDsm2(uint8_t chns)
 		{
 			dsmDat[0] &= ~BindBit	;
 		}
-  	 
+		
 		sendByteDsm2( 0xAA );
 		if ( pass == 0 )
 		{
@@ -404,6 +411,7 @@ void setupPulsesDsm2(uint8_t chns)
 		else
 		{
 			uint8_t startChan = g_model.startChannel ;
+			DsmPassIndex = 0 ;
 			if ( pass == 2 )
 			{
 				startChan += 7 ;

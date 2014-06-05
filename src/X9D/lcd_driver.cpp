@@ -22,8 +22,8 @@
 #include "logicio.h"
 #include "myeeprom.h"
 
-#define	WriteData(x)	 AspiData(x)
-#define	WriteCommand(x)	 AspiCmd(x)
+//#define	WriteData(x)	 AspiData(x)
+//#define	WriteCommand(x)	 AspiCmd(x)
 #define CONTRAST_OFS 12
 
 #define __no_operation     __NOP
@@ -33,12 +33,57 @@ extern uint8_t DisplayBuf[] ;
 
 void Set_Address(uint8_t x, uint8_t y)
 {
-  WriteCommand(x&0x0F);	//Set Column Address LSB CA[3:0]
-  WriteCommand((x>>4)|0x10);	//Set Column Address MSB CA[7:4]
-    
-  WriteCommand((y&0x0F)|0x60);	//Set Row Address LSB RA [3:0]
-  WriteCommand(((y>>4)&0x0F)|0x70);    //Set Row Address MSB RA [7:4]
+  AspiCmd(x&0x0F);	//Set Column Address LSB CA[3:0]
+  AspiCmd((x>>4)|0x10);	//Set Column Address MSB CA[7:4]
+  
+  AspiCmd((y&0x0F)|0x60);	//Set Row Address LSB RA [3:0]
+  AspiCmd(((y>>4)&0x0F)|0x70);    //Set Row Address MSB RA [7:4]
 }
+
+#ifdef REVPLUS
+void xrefreshDisplay()
+{
+  for (uint32_t y=0; y<DISPLAY_H; y++)
+	{
+    uint8_t *p = &DisplayBuf[(y>>3)*DISPLAY_W];
+    uint8_t mask = (1 << (y%8));
+		
+		GPIO_TypeDef *gpiod = GPIOC ;
+    
+		Set_Address(0, y);
+    AspiCmd(0xAF);
+    
+		gpiod->BSRRL = PIN_LCD_A0 ;			// A0 high
+    GPIOA->BSRRH = PIN_LCD_NCS ;		// CS low
+
+		for (uint32_t x=0; x<DISPLAY_W; x+=2)
+		{
+      uint32_t data ;
+			data = 0 ;
+			if ( p[x] & mask )
+			{
+				data = 0xF0 ;
+			}
+			if (p[x+1] & mask )
+			{
+				data += 0x0F ;
+			}	
+			while ( SPI3->SR & SPI_SR_TXE )
+			{
+				// wait
+			}
+			SPI3->DR = data ;
+		}
+		while ( SPI3->SR & SPI_SR_TXE )
+		{
+			// wait
+		}
+    GPIOA->BSRRL = PIN_LCD_NCS ;		// CS high
+		gpiod->BSRRL = PIN_LCD_A0 ;
+  }
+	
+}
+#endif
 
 void refreshDisplay()
 {  
@@ -52,7 +97,8 @@ void refreshDisplay()
 #else
 		GPIO_TypeDef *gpiod = GPIOD ;
 #endif
-    
+		uint32_t *bsrr = (uint32_t *)&gpiod->BSRRL ;
+
 		Set_Address(0, y);
     AspiCmd(0xAF);
     
@@ -93,7 +139,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -104,7 +150,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -115,7 +161,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -126,7 +172,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -137,7 +183,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -148,7 +194,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -159,7 +205,7 @@ void refreshDisplay()
         }
 				else
 				{
-					*(uint32_t *)&gpiod->BSRRL = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
+					*bsrr = (PIN_LCD_MOSI<<16) | PIN_LCD_CLK ;
 				}
 				__no_operation() ;
 				gpiod->BSRRH = PIN_LCD_CLK ;		// Clock low
@@ -173,7 +219,7 @@ void refreshDisplay()
     gpiod->BSRRL = PIN_LCD_NCS ;		// CS high
 #endif
 		gpiod->BSRRL = PIN_LCD_A0 ;
-    WriteData(0);
+    AspiData(0);
   }
 }
 
@@ -242,7 +288,7 @@ static void LCD_BL_Config()
 
   RCC->APB1ENR |= RCC_APB1ENR_TIM4EN ;    // Enable clock
 	TIM4->ARR = 100 ;
-	TIM4->PSC = (Peri2_frequency*Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
+	TIM4->PSC = (Peri1_frequency*Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
 	TIM4->CCMR1 = TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2 ;	// PWM
 	TIM4->CCMR2 = TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2 ;	// PWM
 	TIM4->CCER = TIM_CCER_CC4E | TIM_CCER_CC2E ;

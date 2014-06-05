@@ -107,10 +107,12 @@
 
 
 extern void configure_pins( uint32_t pins, uint16_t config ) ;
+extern void initExtraInput( void ) ;
 extern void init_keys( void ) ;
 extern uint32_t read_keys( void ) ;
 extern uint32_t read_trims( void ) ;
 extern uint32_t keyState( enum EnumKeys enuk) ;
+extern uint32_t hwKeyState( uint8_t key ) ;
 extern void init_trims( void ) ;
 extern void setup_switches( void ) ;
 extern void config_free_pins( void ) ;
@@ -119,7 +121,5 @@ extern void config_free_pins( void ) ;
 #define GPIO_SetBits( port, bits ) (port->BSRRL = bits)
 #define GPIO_ReadInputDataBit( port, bit) ( (port->IDR & bit) ? Bit_SET : Bit_RESET)
 
-#ifdef PCBX9D
 uint32_t switchPosition( uint32_t swtch ) ;
-#endif
 

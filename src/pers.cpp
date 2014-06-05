@@ -72,6 +72,15 @@ void modelDefault(uint8_t id)
 	g_model.trimInc = 2 ;
 
   applyTemplate(0); //default 4 channel template
+
+	// Set all mode trims to be copies of FM0
+	for ( uint32_t i = 0 ; i < MAX_MODES ; i += 1 )
+	{
+		g_model.phaseData[i].trim[0] = TRIM_EXTENDED_MAX + 1 ;
+		g_model.phaseData[i].trim[1] = TRIM_EXTENDED_MAX + 1 ;
+		g_model.phaseData[i].trim[2] = TRIM_EXTENDED_MAX + 1 ;
+		g_model.phaseData[i].trim[3] = TRIM_EXTENDED_MAX + 1 ;
+	}
 }
 
 bool eeDuplicateModel(uint8_t id)
@@ -116,6 +125,19 @@ void eeReadAll()
 	else
 	{
   	ee32LoadModel(g_eeGeneral.currModel);
+	}
+
+	// Now update the trainer values if necessary.
+  uint32_t i ;
+	for ( i = 0 ; i < 4 ; i += 1 )
+	{
+		if ( g_eeGeneral.trainer.mix[i].swtch != -16 )
+		{
+			g_eeGeneral.exTrainer[i].swtch = g_eeGeneral.trainer.mix[i].swtch ;
+			g_eeGeneral.exTrainer[i].studWeight = g_eeGeneral.trainer.mix[i].studWeight * 13 / 4 ;
+			g_eeGeneral.trainer.mix[i].swtch = -16 ;
+			STORE_GENERALVARS ;
+		}
 	}
 }
 

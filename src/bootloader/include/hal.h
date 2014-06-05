@@ -241,7 +241,7 @@
 // SD---spi2
 #define SPI_SD                          SPI2
 #define GPIO_AF_SD                      GPIO_AF_SPI2
-#define RCC_AHB1Periph_GPIO_CS          RCC_AHB1Periph_GPIOB
+#define RCC_AHB1Periph_GPIO_SD          RCC_AHB1Periph_GPIOB
 #define GPIO_SPI_SD                     GPIOB
 #define GPIO_Pin_SPI_SD_CS              GPIO_Pin_12 //PB.12
 #define GPIO_Pin_SPI_SD_SCK             GPIO_Pin_13 //PB.13
@@ -260,6 +260,7 @@
 #define GPIO_Pin_WP                     GPIO_Pin_8  //PD.08
 #define GPIO_Pin_CP                     GPIO_Pin_9  //PD.09
 #define GPIO_CTL_SD                     GPIOD
+#define RCC_AHB1Periph_DMA_SD						RCC_AHB1Periph_DMA1
 
 // Audio----I2S3-----SPI3
 #define CODEC_MCLK_DISABLED
@@ -312,13 +313,15 @@
 #define SOCKET_WP_CONNECTED             (0)
 #define SOCKET_CP_CONNECTED             (0)
 
-#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_4 // - for SPI1 and half-speed APB2: 30MHz/4 =15MHZ < 20MHZ
+#define SPI_BaudRatePrescaler_SPI_SD    SPI_BaudRatePrescaler_2 // - for SPI1 and half-speed APB2: 30MHz/4 =15MHZ < 20MHZ
 
 // Selectable
 // DMA
-#define DMA_Channel_SPI_SD_RX           DMA1_Channel2
-#define DMA_Channel_SPI_SD_TX           DMA1_Channel3
-#define DMA_FLAG_SPI_SD_TC_RX           DMA1_FLAG_TC2
-#define DMA_FLAG_SPI_SD_TC_TX           DMA1_FLAG_TC3
+#define DMA_Channel_SPI_SD_RX    	DMA1_Stream3
+#define DMA_Channel_SPI_SD_TX    	DMA1_Stream4
+#define DMA_FLAG_SPI_SD_TC_RX    	DMA_FLAG_TCIF3
+#define DMA_FLAG_SPI_SD_TC_TX    	DMA_FLAG_TCIF4
+#define DMA_Channel_SPI2_TX		DMA_Channel_0
+#define DMA_Channel_SPI2_RX		DMA_Channel_0
 
 #endif

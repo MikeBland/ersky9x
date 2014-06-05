@@ -395,7 +395,7 @@ CPPFLAGS += -MD -MP -MF $(OBJDIR)/$(@F).d
 # makefile rules
 #
 
-all: size_before stamp $(AOBJS) $(COBJS) $(CPPOBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).lss $(FULL_PRJ).bin size
+all: size_before stamp $(AOBJS) $(COBJS) $(CPPOBJS) $(FULL_PRJ).elf $(FULL_PRJ).hex $(FULL_PRJ).bin $(FULL_PRJ).lss size
 
 size_before:
 #	arm-none-eabi-size $(FULL_PRJ).elf

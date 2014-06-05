@@ -85,7 +85,7 @@ extern "C" {
 __attribute__ ((section(".version"), used))
 const uint8_t Version[] =
 {
-	'B', 'O', 'O', 'T', '1', '1'
+	'B', 'O', 'O', 'T', '1', '2'
 } ;
 
 __attribute__ ((section(".text"), used))

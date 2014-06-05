@@ -33,7 +33,11 @@ extern struct t_serial_tx Bt_tx ;
 extern uint32_t txPdcBt( struct t_serial_tx *data ) ;
 extern void end_bt_tx_interrupt() ;
 
+#ifdef REVX
 extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+#else
+extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+#endif
 extern uint16_t Temperature ;		// Raw temp reading
 extern uint16_t Max_temperature ;
 
@@ -108,6 +112,7 @@ void end_ppm_capture( void ) ;
 extern void disable_ssc( void ) ;
 
 extern void x9dSPortInit( uint32_t baudRate ) ;
+extern void x9dSPortTxStart( uint8_t *buffer, uint32_t count ) ;
 
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 

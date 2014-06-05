@@ -152,6 +152,8 @@ static uint8_t A1Received = 0 ;
 
 uint8_t DsmManCode[4] ;
 uint16_t DsmABLRFH[6] ;
+uint32_t LastDsmfades ;
+uint16_t LastDsmFH[2] ;
 
 #if defined(VARIO)
 stuct t_vario VarioData ;
@@ -181,6 +183,22 @@ void store_hub_data( uint8_t index, uint16_t value ) ;
 
 void store_indexed_hub_data( uint8_t index, uint16_t value )
 {
+	if ( index > 57 )
+	{
+		index -= 17 ;		// Move voltage-amp sensors							
+	}									// 58->41, 59->42
+	if ( index == 48 )
+	{
+		index = 39 ;	//FR_VSPD ;		// Move Vario							
+	}
+	if ( index == 57 )
+	{
+		index = 43 ;	//FR_VOLTS ;		// Move Oxsensor voltage
+	}
+	if ( index > sizeof(Fr_indices) )
+	{
+		index = 0 ;	// Use a discard item							
+	}
   index = Fr_indices[index] & 0x7F ;
 	store_hub_data( index, value ) ;
 }
@@ -356,22 +374,6 @@ void frsky_proc_user_byte( uint8_t byte )
 					}
   	      if ( Frsky_user_state == 1 )
 					{
-						if ( byte > 57 )
-						{
-							byte -= 17 ;		// Move voltage-amp sensors							
-						}
-						if ( byte == 48 )
-						{
-							byte = FR_VSPD ;		// Move Vario							
-						}
-						if ( byte == 57 )
-						{
-							byte = 43 ;		// Move Oxsensor voltage
-						}
-						if ( byte > sizeof(Fr_indices) )
-						{
-							byte = 0 ;	// Use a discard item							
-						}
 					  Frsky_user_id	= byte ;
 						Frsky_user_state = 2 ;
 					}
@@ -735,7 +737,7 @@ void processFrskyPacket(uint8_t *packet)
 //uint8_t TelemetryDebug[100] ;
 //uint8_t TelDebugCount = 0 ;
 
-//uint8_t DsmDebug[18] ;
+uint8_t DsmDebug[18] ;
 
 void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 {
@@ -836,7 +838,7 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				ivalue = (int16_t) ( (packet[14] << 8 ) | packet[15] ) ;
 				uint32_t x = (uint16_t)ivalue ;
 				x *= 128 ;
-				x /= 1155 ;
+				x /= 717 ;		// was 1155 ;
 				store_hub_data( FR_RXV, x ) ;
 			break ;
 		}
@@ -844,14 +846,14 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 	else if ( type == 0x80 )
 	{
 		dsmBindResponse( *packet, *(packet+2) ) ;
-//		// Debug code
-//		uint8_t i ;
-//		DsmDebug[0] = byteCount ;
-//		for ( i = 1 ; i < 17 ; i += 1 )
-//		{
-//			DsmDebug[i] = *packet++ ;
-//		}
-//		// End debug code
+		// Debug code
+		uint8_t i ;
+		DsmDebug[0] = byteCount ;
+		for ( i = 1 ; i < 17 ; i += 1 )
+		{
+			DsmDebug[i] = *packet++ ;
+		}
+		// End debug code
 	}
 	else if ( type == 0xFF )
 	{
@@ -886,13 +888,18 @@ void processSportPacket()
 	uint8_t *packet = frskyRxBuffer ;
   uint8_t  prim   = packet[1];
 //  uint16_t appId  = *((uint16_t *)(packet+2)) ;
-	
+
+	if ( MaintenanceRunning )
+	{
+		maintenance_receive_packet( packet ) ;	// Uses different chksum
+		return ;
+	}
+	 
   if ( !checkSportPacket() )
 	{
     return;
 	}
   
-
 	if ( prim == DATA_FRAME )
 	{
 		
@@ -906,17 +913,17 @@ void processSportPacket()
 			switch ( packet[2] )
 			{
 				case 1 :
-      		frskyTelemetry[2].set(value, FR_RXRSI_COPY );	//FrskyHubData[] =  frskyTelemetry[2].value ;
+  	    	frskyTelemetry[2].set(value, FR_RXRSI_COPY );	//FrskyHubData[] =  frskyTelemetry[2].value ;
 				break ;
 
 				case 2 :
-		      frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
+			    frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
 					A1Received = 1 ;
 				break ;
 				case 4 :		// Battery from X8R
 					if ( A1Received == 0 )
 					{
-		      	frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
+			      frskyTelemetry[0].set(value, FR_A1_COPY ); //FrskyHubData[] =  frskyTelemetry[0].value ;
 					}
 					store_hub_data( FR_RXV, value ) ;
 				break ;
@@ -932,7 +939,7 @@ void processSportPacket()
 		}
 		else if ( packet[3] == 0 )
 		{ // old sensors
-      frskyUsrStreaming = 255 ; //FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid frsky packets are being detected
+  	  frskyUsrStreaming = 255 ; //FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid frsky packets are being detected
 			frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
 			uint16_t value = (*((uint16_t *)(packet+4))) ;
 			store_indexed_hub_data( packet[2], value ) ;
@@ -940,7 +947,7 @@ void processSportPacket()
 		else
 		{ // new sensors
 			frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
-      frskyUsrStreaming = 255 ; //FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid frsky packets are being detected
+  	  frskyUsrStreaming = 255 ; //FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid frsky packets are being detected
 			uint8_t id = (packet[3] << 4) | ( packet[2] >> 4 ) ;
 			uint32_t value = (*((uint32_t *)(packet+4))) ;
 //			SportId = id ;
@@ -969,7 +976,7 @@ void processSportPacket()
 
 				case CELLS_ID_8 :
 				{
-        	uint8_t battnumber = value ;
+  	      uint8_t battnumber = value ;
 					uint16_t cell ;
   				FrskyBattCells = battnumber >> 4 ;
 					battnumber &= 0x0F ;
@@ -1028,10 +1035,46 @@ void processSportPacket()
 				break ;
 
 				case GPS_ALT_ID_8 :
-					value = (int32_t)value / 10 ;
+					value = (int32_t)value / 100 ;
 					store_hub_data( FR_SPORT_GALT, value ) ;
 				break ;
 				 
+				case GPS_LA_LO_ID_8 :
+				{	
+//					Bits 31-30 00 = LAT min/10000 N
+//					Bits 31-30 01 = LAT min/10000 S
+//					Bits 31-30 10 = LON min/10000 E
+//					Bits 31-30 11 = LON min/10000 W
+					uint32_t code = value >> 30 ;
+					value &= 0x3FFFFFFF ;
+					uint16_t bp ;
+					uint16_t ap ;
+					uint32_t temp ;
+					temp = value / 10000 ;
+					bp = (temp/ 60 * 100) + (temp % 60) ;
+		      ap = value % 10000;
+					if ( code & 2 )	// Long
+					{
+						store_hub_data( FR_GPS_LONG, bp ) ;
+						store_hub_data( FR_GPS_LONGd, ap ) ;
+						store_hub_data( FR_LONG_E_W, ( code & 1 ) ? 'W' : 'E' ) ;
+					}
+					else
+					{
+						store_hub_data( FR_GPS_LAT, bp ) ;
+						store_hub_data( FR_GPS_LATd, ap ) ;
+						store_hub_data( FR_LAT_N_S, ( code & 1 ) ? 'S' : 'N' ) ;
+					}
+				}
+				break ;
+				
+				case GPS_HDG_ID_8 :
+					store_hub_data( FR_COURSE, value / 100 ) ;
+				break ;
+
+				case GPS_SPEED_ID_8 :
+					store_hub_data( FR_GPS_SPEED, value/1000 ) ;
+				break ;
 
 			}
 		}
@@ -1468,10 +1511,10 @@ void FrskyData::set(uint8_t value, uint8_t copy)
 	averaging_total += value ;
 	uint8_t count = 16 ;
 	uint8_t shift = 4 ;
-	if ( FrskyTelemetryType )
+	if ( FrskyTelemetryType == 1 )	// SPORT
 	{
-		 count = 2 ;
-		 shift = 1 ;
+		count = 2 ;
+		shift = 1 ;
 	}
 	if ( ++averageCount >= count )
 	{
@@ -1589,14 +1632,7 @@ void check_frsky()
 			while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
 			{
 	//Debug_frsky2 += 1 ;
-				if ( MaintenanceRunning )
-				{
-					maintenance_receive_byte( rxchar ) ;
-				}
-				else
-				{
-					frsky_receive_byte( rxchar ) ;
-				}
+				frsky_receive_byte( rxchar ) ;
 			}
 		}
 		else

@@ -82,8 +82,8 @@
 
 PACK(typedef struct t_TrainerMix {
   uint8_t srcChn:3; //0-7 = ch1-8
-  int8_t  swtch:5;
-  int8_t  studWeight:6;
+  int8_t  swtch:5;			// Now moved to exTrainerMix
+  int8_t  studWeight:6; // Now moved to exTrainerMix
   uint8_t mode:2;   //off,add-mode,subst-mode
 }) TrainerMix; //
  
@@ -91,6 +91,12 @@ PACK(typedef struct t_TrainerData {
   int16_t        calib[4];
   TrainerMix     mix[4];
 }) TrainerData;
+
+PACK(typedef struct t_exTrainerMix {
+  int8_t  swtch ;
+  int8_t  studWeight ;
+}) exTrainerMix; //
+
 
 PACK(typedef struct t_EEGeneral {
   uint8_t   myVers;
@@ -159,7 +165,9 @@ PACK(typedef struct t_EEGeneral {
   int16_t   x9dPcalibMid ;			// X9D for PLUS
   int16_t   x9dPcalibSpanNeg ;	// X9D for PLUS
   int16_t   x9dPcalibSpanPos ;	// X9D for PLUS
-
+	uint8_t		switchMapping ;			// 'PRO / SKY
+	int8_t		switchTest ;				// 'PRO / SKY
+	exTrainerMix exTrainer[4] ;
 }) EEGeneral;
 
 
@@ -355,7 +363,8 @@ PACK(typedef struct te_MixData {
   uint8_t differential:1 ;
   int8_t  sOffset;
 	uint8_t modeControl ;
-  uint8_t  res[3];
+  uint8_t switchSource ;
+  uint8_t res[2] ;
 }) SKYMixData;
 
 PACK(typedef struct te_CSwData { // Custom Switches data
@@ -378,7 +387,7 @@ PACK(typedef struct te_SafetySwData { // Safety Switches data
 		} ss ;
 		struct vs
 		{
-  		uint8_t vswtch ;
+  		int8_t vswtch ;
 			uint8_t vmode ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs, Varibl
     	uint8_t vval;
 			uint8_t vres ;
@@ -401,8 +410,8 @@ PACK(typedef struct te_FrSkyData {
 }) SKYFrSkyData;
 
 PACK(typedef struct te_swVoice {
-  uint8_t  swtch ;
-	uint8_t mode ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs
+  int8_t  swtch ;
+	uint8_t mode ; // ON, OFF, BOTH, 15Secs, 30Secs, 60Secs, Varibl
   uint8_t  val ;
   uint8_t vres ;
 }) voiceSwData ;
@@ -448,10 +457,35 @@ PACK(typedef struct t_scale
 	uint8_t name[4] ;
 }) ScaleData ;
 
+// DSM link monitoring
+PACK(typedef struct t_dsmLink
+{
+  uint8_t sourceWarn ;
+	uint8_t levelWarn ;
+  uint8_t sourceCritical;
+	uint8_t levelCritical ;
+}) DsmLinkData ;
+
+PACK(typedef struct t_voiceAlarm
+{
+  uint8_t source ;
+	uint8_t func;
+  int8_t  swtch ;
+	uint8_t rate ;
+	uint8_t fnameType:2 ;
+	uint8_t spare1:6 ;
+  uint8_t  offset ;		//offset
+	union
+	{
+		int16_t vfile ;
+		uint8_t name[6] ;
+	} file ;
+}) VoiceAlarmData ;
+
 
 PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
-  uint8_t   modelVoice ;		// Index to model name voice (261+value)
+  uint8_t   modelVoice ;		// Index to model name voice (260+value)
   uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
   uint8_t   telemetryRxInvert:1 ;	// was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
@@ -540,6 +574,7 @@ PACK(typedef struct te_ModelData {
 	uint8_t   currentSource ;
 	uint8_t   altSource ;
 	ScaleData Scalers[NUM_SCALERS] ;
+	DsmLinkData dsmLinkData ; 
 }) SKYModelData;
 
 

@@ -41,10 +41,12 @@
 #include "frsky.h"
 #include "string.h"
 #include <stdlib.h>
+#include "menus.h"
 
 #define NULL 0
 
 extern int16_t AltOffset ;
+extern uint16_t LogTimer ;
 
 FIL g_oLogFile = {0};
 const char *g_logError = NULL ;
@@ -194,9 +196,13 @@ extern uint32_t sdMounted( void ) ;
       return "SD CARD ERROR" ; // SDCARD_ERROR(result) ;
     }
   }
-  f_puts("Time,Valid,RxRSSI,", &g_oLogFile) ;
+  f_puts("Time,Elapsed,Valid,RxRSSI,", &g_oLogFile) ;
   f_puts( FrskyTelemetryType == 1 ? "Swr" : "TxRSSI", &g_oLogFile ) ;
-  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH,TxBat,Vspd\n", &g_oLogFile);
+  if ( g_model.DsmTelemetry )
+	{
+		f_puts(",Fades,Holds", &g_oLogFile) ;
+	}
+  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH,TxBat,Vspd,RxV,Lat,Long,Fuel,SC1\n", &g_oLogFile);
 
   return NULL ;
 }
@@ -242,14 +248,20 @@ void writeLogs()
 //#else
 //      f_printf(&g_oLogFile, "%d,", tmr10ms);
 //#endif
-
-
+			qr = div( LogTimer, 60 ) ;
+			uint16_t secs = qr.rem ;
+			qr = div( qr.quot, 60 ) ;
+      f_printf(&g_oLogFile, "%d:%02d:%02d,", qr.quot, qr.rem, secs ) ;	// Elapsed log time
 
 //#if defined(FRSKY_SPORT)
 //      f_printf(&g_oLogFile, "%d,%d,", frskyData.rssi[1].value, frskyData.rssi[0].value);
 //#elif defined(FRSKY)
       f_printf(&g_oLogFile, "%d,%d,%d,", frskyStreaming, FrskyHubData[FR_RXRSI_COPY], FrskyHubData[FR_TXRSI_COPY]) ;
-
+			if ( g_model.DsmTelemetry )
+			{
+				f_printf(&g_oLogFile, "%d,%d,", DsmABLRFH[4],DsmABLRFH[5] ) ;
+			}
+			
 			int16_t value ;
 			uint8_t dps ;
 			value = logAxScale( 0, &dps ) ;
@@ -279,7 +291,31 @@ void writeLogs()
 			f_printf(&g_oLogFile, "%d.%d,%d,", qr.quot, qr.rem, FrskyHubData[FR_AMP_MAH] ) ;
 
 			qr = div( g_vbat100mV, 10);
-			f_printf(&g_oLogFile, "%d.%d,%d\n", qr.quot, qr.rem, FrskyHubData[FR_VSPD] ) ;
+			f_printf(&g_oLogFile, "%d.%d,%d,", qr.quot, qr.rem, FrskyHubData[FR_VSPD] ) ;
+			value = FrskyHubData[FR_RXV] * g_model.rxVratio / 255 ;
+			qr = div( value, 10);
+			f_printf(&g_oLogFile, "%d.%d,", qr.quot, qr.rem ) ;
+			f_printf(&g_oLogFile, "%d.%04d%c,%d.%04d%c,", FrskyHubData[FR_GPS_LAT],FrskyHubData[FR_GPS_LATd],FrskyHubData[FR_LAT_N_S],FrskyHubData[FR_GPS_LONG],FrskyHubData[FR_GPS_LONGd],FrskyHubData[FR_LONG_E_W] ) ;
+			f_printf(&g_oLogFile, "%d,", FrskyHubData[FR_FUEL] ) ;
+
+			//SC1
+			uint8_t unit = 0 ;
+			uint8_t num_decimals = 0 ;
+			value = calc_scaler( 0, &unit, &num_decimals ) ;
+			if ( num_decimals == 0 )
+			{
+				num_decimals = 1 ;
+			}
+			else if ( num_decimals == 1 )
+			{
+				num_decimals = 10 ;
+			}
+			else
+			{
+				num_decimals = 100 ;
+			}
+			qr = div( value, num_decimals ) ;
+			f_printf(&g_oLogFile, "%d.%d\n", qr.quot, qr.rem ) ;
 
 //FR_GPS_SPEED,
 //FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,

@@ -339,6 +339,8 @@ struct t_hub_max_min
 } ;
 
 extern uint16_t DsmABLRFH[] ;
+extern uint32_t LastDsmfades ;
+extern uint16_t LastDsmFH[] ;
 
 extern struct t_hub_max_min FrskyHubMaxMin ;
 

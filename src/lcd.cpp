@@ -808,7 +808,11 @@ void lcd_init()
 //	pioptr->PIO_CODR = LCD_A0 ;
 //	pioptr->PIO_OER = LCD_A0 ;		// Set bit 7 output
 	pioptr = PIOC ;
-	
+
+#ifndef REVX
+	pioptr->PIO_MDER = LCD_RnW ;		// Open drain
+#endif
+	 
 #ifdef REVX
 	pioptr->PIO_PER = PIO_PC27 | PIO_PC12 | 0xFF ;		// Enable bits 27,26,13,12,7-0
 #else

@@ -95,7 +95,7 @@ extern const char * const Swedish[] ;
 #define CURRENT_ANALOG	8
 #else
  #ifdef REVB
- #define NUMBER_ANALOG		9
+ #define NUMBER_ANALOG		10
  #define CURRENT_ANALOG	8
  #else
  #define NUMBER_ANALOG	8
@@ -161,6 +161,85 @@ enum EnumKeys {
   SW_SH2
 #endif
 };
+
+// Hardware switch mappings:
+#ifdef PCBSKY
+#define HSW_ThrCt			1
+#define HSW_RuddDR		2
+#define HSW_ElevDR		3
+#define HSW_ID0				4
+#define HSW_ID1				5
+#define HSW_ID2				6
+#define HSW_AileDR		7
+#define HSW_Gear			8
+#define HSW_Trainer		9
+//#define HSW_Thr3pos0	35
+//#define HSW_Thr3pos1	36
+//#define HSW_Thr3pos2	37
+//#define HSW_Rud3pos0	38
+//#define HSW_Rud3pos1	39
+//#define HSW_Rud3pos2	40
+//#define HSW_Ele3pos0	41
+//#define HSW_Ele3pos1	42
+//#define HSW_Ele3pos2	43
+//#define HSW_Ail3pos0	44
+//#define HSW_Ail3pos1	45
+//#define HSW_Ail3pos2	46
+//#define HSW_Gear3pos0	47
+//#define HSW_Gear3pos1	48
+//#define HSW_Gear3pos2	49
+//#define HSW_Ele6pos0	50
+//#define HSW_Ele6pos1	51
+//#define HSW_Ele6pos2	52
+//#define HSW_Ele6pos3	53
+//#define HSW_Ele6pos4	54
+//#define HSW_Ele6pos5	55
+//#define HSW_MAX				55
+
+
+#define HSW_Thr3pos0	45	// Skip some values because of safety switch values
+#define HSW_Thr3pos1	46
+#define HSW_Thr3pos2	47
+#define HSW_Rud3pos0	48
+#define HSW_Rud3pos1	49
+#define HSW_Rud3pos2	50
+#define HSW_Ele3pos0	51
+#define HSW_Ele3pos1	52
+#define HSW_Ele3pos2	53
+#define HSW_Ail3pos0	54
+#define HSW_Ail3pos1	55
+#define HSW_Ail3pos2	56
+#define HSW_Gear3pos0	57
+#define HSW_Gear3pos1	58
+#define HSW_Gear3pos2	59
+#define HSW_Ele6pos0	60
+#define HSW_Ele6pos1	61
+#define HSW_Ele6pos2	62
+#define HSW_Ele6pos3	63
+#define HSW_Ele6pos4	64
+#define HSW_Ele6pos5	65
+#define HSW_MAX				65
+
+
+
+//Bitfield for hardware switch mapping
+#define	USE_THR_3POS	0x01
+#define	USE_RUD_3POS	0x02
+#define	USE_ELE_3POS	0x04
+#define	USE_ELE_6POS	0x08
+#define	USE_AIL_3POS	0x10
+#define	USE_GEA_3POS	0x20
+
+//extern uint8_t switchMap[] ;
+//extern uint8_t switchUnMap[] ;
+void createSwitchMapping( void ) ;
+int8_t switchUnMap( int8_t x ) ;
+int8_t switchMap( int8_t x ) ;
+uint16_t oneSwitchText( uint8_t swtch, uint16_t state ) ;
+extern uint8_t Sw3PosList[] ;
+extern uint8_t Sw3PosCount[] ;
+#endif
+extern uint8_t MaxSwitchIndex ;		// For ON and OFF
 
 // c17-c24 added for timer mode A display
 //#define CURV_STR "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
@@ -574,6 +653,7 @@ extern uint8_t s_editMode;     //global editmode
 
 int16_t checkIncDec16(uint8_t event, int16_t i_pval, int16_t i_min, int16_t i_max, uint8_t i_flags);
 int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
+int8_t checkIncDecSwitch(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
 int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 int8_t checkIncDec_vm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
 int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
@@ -593,15 +673,16 @@ int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max);
     var = checkIncDec_hm0( event, var,max)
 
 #define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
-  var = checkIncDec(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
+  var = checkIncDecSwitch(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
 
 #define CHECK_INCDEC_GENERALSWITCH( event, var, min, max) \
-  var = checkIncDec(event,var,min,max,EE_GENERAL|INCDEC_SWITCH)
+  var = checkIncDecSwitch(event,var,min,max,EE_GENERAL|INCDEC_SWITCH)
 
 
 extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_SKYCHNOUT];
 //extern uint8_t eeprom[4096] ;
+extern uint8_t BtAsPpm ;
 
 uint8_t char2idx(char c);
 char idx2char(uint8_t idx);
@@ -702,7 +783,7 @@ extern void voice_telem_item( int8_t index ) ;
 extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
 extern int16_t m_to_ft( int16_t metres ) ;
 
-uint8_t getCurrentSwitchStates( void ) ;
+uint16_t getCurrentSwitchStates( void ) ;
 
 extern uint32_t check_soft_power( void ) ;
 extern uint32_t getFlightPhase( void ) ; 
@@ -771,6 +852,13 @@ extern uint8_t SdMounted ;
 #include "x9d/stm32f2xx.h"
 #include "x9d\rtc.h"
 #include "x9d\stm32f2xx_rtc.h"
+
+#define MASTER_FREQUENCY 60000000
+#define PERI1_FREQUENCY 15000000
+#define PERI2_FREQUENCY 30000000
+#define TIMER_MULT1			2
+#define TIMER_MULT2			2
+
 void rtcSetTime( t_time *t ) ;
 void rtc_gettime( t_time *t ) ;
 void rtcInit( void ) ;

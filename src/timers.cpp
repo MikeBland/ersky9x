@@ -842,6 +842,15 @@ void setupPulsesPXX(uint8_t module)
   	putPcmByte( chan ) ; 			// Checksum lo
   	putPcmHead(  ) ;      // sync byte
   	putPcmFlush() ;
+		if (g_model.sub_protocol == 1 )		// D8
+		{
+			lpass = 0 ;
+		}
+		else
+		{
+			lpass += 1 ;
+		}
+		pass = lpass ;
 	}  
 	else
 	{
@@ -897,6 +906,15 @@ void setupPulsesPXX(uint8_t module)
   	putPcmByte_x( chan ) ; 			// Checksum lo
   	putPcmHead_x(  ) ;      // sync byte
   	putPcmFlush_x() ;
+		if (g_model.xsub_protocol == 1 )		// D8
+		{
+			lpass = 0 ;
+		}
+		else
+		{
+			lpass += 1 ;
+		}
+		pass_x = lpass ;
 		
 	}
 

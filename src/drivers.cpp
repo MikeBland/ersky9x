@@ -55,7 +55,11 @@
 // Timer5 is currently UNUSED
 
 #ifdef PCBSKY
+#ifdef REVX
 volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+#else
+volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+#endif
 #endif
 uint16_t Temperature ;				// Raw temp reading
 uint16_t Max_temperature ;		// Max raw temp reading
@@ -1158,10 +1162,16 @@ void read_9_adc()
 	register Adc *padc ;
 	register uint32_t y ;
 	register uint32_t x ;
+	static uint16_t timer = 0 ;
 
 //	PMC->PMC_PCER0 |= 0x20000000L ;		// Enable peripheral clock to ADC
 
 	padc = ADC ;
+#ifdef REVB
+#ifndef REVX
+	padc->ADC_CHER = 0x00000400 ;  // channel 10 on
+#endif
+#endif
 	y = padc->ADC_ISR ;		// Clear EOC flags
 	for ( y = NUMBER_ANALOG+1 ; --y > 0 ; )		// Include temp sensor
 	{
@@ -1177,6 +1187,11 @@ void read_9_adc()
 		}
 		x = padc->ADC_LCDR ;		// Clear DRSY flag
 	}
+#ifdef REVB
+#ifndef REVX
+	padc->ADC_CHDR = 0x00000400 ;  // channel 10 off
+#endif
+#endif
 	// Next bit may be done using the PDC
 // Option on 9XR to increas ADC accuracy
 //#ifdef REVX
@@ -1220,6 +1235,28 @@ void read_9_adc()
 //#endif
 #ifdef REVB
 	Analog_values[8] = ADC->ADC_CDR8 ;
+//#ifdef REVX
+	x = ADC->ADC_CDR10 ;
+	y = Analog_values[9] ;
+	int32_t diff = x - y ;
+	if ( diff < 0 )
+	{
+		diff = -diff ;
+	}
+	if ( diff > 10 )
+	{
+		if ( ( ( g_tmr10ms - timer ) & 0x0000FFFF ) > 3 )
+		{
+			timer = g_tmr10ms ;
+			Analog_values[9] = x ;
+		}
+	}
+	else
+	{
+		timer = g_tmr10ms ;
+		Analog_values[9] = x ;
+	}
+//#endif
 #endif
 	Temperature = ( Temperature * 7 + ADC->ADC_CDR15 ) >> 3 ;	// Filter it
 	if ( Temperature > Max_temperature )
@@ -1266,6 +1303,8 @@ void read_9_adc()
 #define OFF_RV      0x00004000
 #define OFF_RH      0x00000002
 
+// 9xR-PRO needs AD10 for extra 3-pos switch
+
 void init_adc()
 {
 	register Adc *padc ;
@@ -1278,7 +1317,11 @@ void init_adc()
 	padc->ADC_MR = 0x3FB60000 | timer ;  // 0011 1111 1011 0110 xxxx xxxx 0000 0000
 	padc->ADC_ACR = ADC_ACR_TSON ;			// Turn on temp sensor
 #ifdef REVB
+#ifdef REVX
+	padc->ADC_CHER = 0x0000E73E ;  // channels 1,2,3,4,5,8,9,10,13,14,15
+#else
 	padc->ADC_CHER = 0x0000E33E ;  // channels 1,2,3,4,5,8,9,13,14,15
+#endif
 #else
 	padc->ADC_CHER = 0x0000E23E ;  // channels 1,2,3,4,5,9,13,14,15
 #endif
@@ -1400,6 +1443,11 @@ void start_ppm_capture()
 #define LINE_IDLE			0
 #define LINE_ACTIVE		1
 
+// States in BitState
+#define BIT_IDLE			0
+#define BIT_ACTIVE		1
+#define BIT_FRAMING		2
+
 // Options in CaptureMode
 #define CAP_PPM				0
 #define CAP_SERIAL		1
@@ -1409,6 +1457,48 @@ uint8_t CaptureMode ;
 uint16_t BitTime ;
 uint16_t HtoLtime ;
 uint16_t LtoHtime ;
+
+uint8_t BitState ;
+uint8_t BitCount ;
+uint8_t Byte ;
+
+void putCaptureTime( uint32_t time, uint32_t value )
+{
+	time += BitTime/2 ;
+	time /= BitTime ;		// Now number of bits
+	if ( BitState == BIT_IDLE )
+	{ // Starting, value should be 0
+		BitState = BIT_ACTIVE ;
+		BitCount = 0 ;
+		if ( count > 1 )
+		{
+			Byte >>= count-1 ;
+			BitCount = count-1 ;
+		}
+	}
+	else
+	{
+		if ( value )
+		{
+			while ( count )
+			{
+				if ( BitCount >= 8 )
+				{ // Got a byte
+					
+				}
+				else
+				{
+					Byte >>= 1 ;
+					Byte |= 0x80 ;
+					count -= 1 ;
+					BitCount += 1 ;
+				}
+			}
+		}
+	}
+}
+
+
 
 
 void setCaptureMode(uint32_t mode)
@@ -1465,7 +1555,7 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 				capture -= LtoHtime ;
 				time = capture ;
 				time *= 5 ;			// To units of 0.1uS
-				// Put in queue - TrainerSerial
+				putCaptureTime( time, 1 ) ;
 			}
 		}
 		else if ( status & TC_SR_LDRAS )
@@ -1476,7 +1566,7 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 			capture -= HtoLtime ;
 			time = capture ;
 			time *= 5 ;			// To units of 0.1uS
-			// Put in queue - TrainerSerial
+			putCaptureTime( time, 0 ) ;
 			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
 			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
 			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_CPCSS ;		// Compare interrupt
@@ -1486,7 +1576,7 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
 			uint32_t time ;
 			time = TC1->TC_CHANNEL[0].TC_RC - LtoHtime ;
 			time *= 5 ;
-			// Put in queue - TrainerSerial
+			putCaptureTime( time, 1 ) ;
 			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCSS ;		// No compare interrupt
 			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
 			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
