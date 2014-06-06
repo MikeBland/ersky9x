@@ -2133,7 +2133,22 @@ void mainSequence( uint32_t no_menu )
 			}
 		}
 
-
+		// Now also check for resetting timers
+		if ( g_model.timer1RstSw )
+		{
+			if ( getSwitch( g_model.timer1RstSw, 0, 0) )
+			{
+				resetTimer1() ;
+			}
+		}
+		
+		if ( g_model.timer2RstSw )
+		{
+			if ( getSwitch( g_model.timer2RstSw, 0, 0) )
+			{
+				resetTimer2() ;
+			}
+		}
 
 		VoiceCheckFlag = 0 ;
 
@@ -2736,7 +2751,8 @@ void perMain( uint32_t no_menu )
 		requiredVolume = HoldVolume ;
 	}
 
-	if ( g_menuStack[g_menuStackPtr] == menuProc0)
+	uint8_t option = g_menuStack[g_menuStackPtr] == menuProc0 ;
+	if ( option )
 	{
 		if ( Rotary_diff )
 		{
@@ -2756,7 +2772,10 @@ void perMain( uint32_t no_menu )
 			}
 			Rotary_diff = 0 ;
 		}
-			
+	}
+
+	if ( g_eeGeneral.disablePotScroll || option )
+	{			 
 		if ( g_model.anaVolume )	// Only check if on main screen
 		{
 			static uint16_t oldVolValue ;

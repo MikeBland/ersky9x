@@ -697,7 +697,8 @@ extern void alert(const char * s, bool defaults=false);
 extern void message(const char * s);
 
 void resetTimer();
-
+void resetTimer1( void ) ;
+void resetTimer2( void ) ;
 
 //extern uint8_t Timer2_running ;
 //extern uint16_t Timer2 ;

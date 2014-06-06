@@ -4355,9 +4355,9 @@ void menuProcModel(uint8_t event)
 	uint8_t need_bind_range = 0 ;
 
 #ifdef PCBX9D
-	uint8_t dataItems = 32 ;
+	uint8_t dataItems = 34 ;
 #else
-	uint8_t dataItems = 29 ;
+	uint8_t dataItems = 31 ;
 #endif
 	if (g_model.protocol == PROTO_PXX)
 	{
@@ -4571,6 +4571,27 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
     	CHECK_INCDEC_H_MODELVAR_0(event,ptm->tmrDir,1);
     }
 		lcd_putsAttIdx(  10*FW, y, PSTR(STR_COUNT_DOWN_UP),ptm->tmrDir,attr);
+    if((y+=FH)>7*FH) return;
+	}subN++;
+
+	if(t_pgOfs<subN)
+	{
+    lcd_puts_Pleft( y, XPSTR("Reset Switch"));
+    uint8_t attr = 0 ;
+		if(sub==subN)
+		{
+			attr = InverseBlink ;
+		}
+		int8_t sw = timer ? g_model.timer2RstSw : g_model.timer1RstSw ;
+		sw = edit_dr_switch( 15*FW, y, sw, attr, attr, event ) ;
+		if ( timer )
+		{
+			g_model.timer2RstSw = sw ;
+		}
+		else
+		{
+			g_model.timer1RstSw = sw ;
+		}
     if((y+=FH)>7*FH) return;
 	}subN++;
 }
@@ -5948,8 +5969,6 @@ void menuProcDiagAna(uint8_t event)
 		}
   }
 
-  lcd_outhex4( 17*FW, 0*FH,Analog_values[9]);
-	
 #ifdef PCBX9D
 #ifdef REVPLUS
   lcd_putc( 18*FW, 2*FH, 'A' ) ;
@@ -7988,18 +8007,27 @@ void menuProcStatistic(uint8_t event)
 
 }
 
+void resetTimer1()
+{
+  s_timer[0].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
+  s_timeCumAbs=0;
+  s_timer[0].s_timeCumThr=0;
+  s_timer[0].s_timeCumSw=0;
+  s_timer[0].s_timeCum16ThrP=0;
+	last_tmr0 = g_model.timer[0].tmrVal ;
+}
+void resetTimer2()
+{
+  s_timer[1].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
+  s_timer[1].s_timeCumThr=0;
+  s_timer[1].s_timeCumSw=0;
+  s_timer[1].s_timeCum16ThrP=0;
+}
+
 void resetTimer()
 {
-    s_timer[0].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
-    s_timeCumAbs=0;
-    s_timer[0].s_timeCumThr=0;
-    s_timer[0].s_timeCumSw=0;
-    s_timer[0].s_timeCum16ThrP=0;
-		last_tmr0 = g_model.timer[0].tmrVal ;
-    s_timer[1].s_timerState = TMR_OFF; //is changed to RUNNING dep from mode
-    s_timer[1].s_timeCumThr=0;
-    s_timer[1].s_timeCumSw=0;
-    s_timer[1].s_timeCum16ThrP=0;
+	resetTimer1() ;
+	resetTimer2() ;
 }
 
 extern int8_t *TrimPtr[4] ;

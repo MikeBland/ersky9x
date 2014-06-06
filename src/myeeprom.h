@@ -575,6 +575,8 @@ PACK(typedef struct te_ModelData {
 	uint8_t   altSource ;
 	ScaleData Scalers[NUM_SCALERS] ;
 	DsmLinkData dsmLinkData ; 
+	int8_t timer1RstSw ;
+	int8_t timer2RstSw ;
 }) SKYModelData;
 
 
