@@ -103,7 +103,7 @@ const int8_t TelemIndex[] = { FR_A1_COPY, FR_A2_COPY,
 // Values are 0 - always valid, 1 - need telemetry, 2 - need hub
 const uint8_t TelemValid[] = { 1, 1, 1, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 2, 0, 2, 0, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3  } ;
 
-int8_t edit_dr_switch( uint8_t x, uint8_t y, int8_t drswitch, uint8_t attr, uint8_t edit, uint8_t event ) ;
+int8_t edit_dr_switch( uint8_t x, uint8_t y, int8_t drswitch, uint8_t attr, uint8_t flags, uint8_t event ) ;
 
 
 int16_t m_to_ft( int16_t metres )
@@ -1040,6 +1040,60 @@ void MState2::check_submenu_simple(uint8_t event, uint8_t maxrow)
 {
     check_simple(event, 0, 0, 0, maxrow);
 }
+
+#define EDIT_DR_SWITCH_EDIT		0x01
+#define EDIT_DR_SWITCH_MOMENT	0x02
+
+int8_t edit_dr_switch( uint8_t x, uint8_t y, int8_t drswitch, uint8_t attr, uint8_t flags, uint8_t event )
+{
+	if ( flags & EDIT_DR_SWITCH_MOMENT )
+	{
+		putsMomentDrSwitches( x, y, drswitch, attr ) ;
+	}
+	else
+	{
+		putsDrSwitches( x,  y, drswitch, attr ) ;
+	}
+	if(flags & EDIT_DR_SWITCH_EDIT)
+	{
+		if ( flags & EDIT_DR_SWITCH_MOMENT )
+		{
+#if PCBSKY
+			int16_t value = drswitch ;
+			if ( value < -HSW_MAX )
+			{
+				value += 256 ;
+			}
+			if ( value > HSW_MAX )
+			{
+				value = switchUnMap( value - HSW_MAX ) + MaxSwitchIndex - 1 ;
+			}
+			else
+			{
+				value = switchUnMap( drswitch ) ;
+			}
+      CHECK_INCDEC_H_MODELVAR( event, value ,(1-MaxSwitchIndex),(-2+2*MaxSwitchIndex));
+			if ( value >= MaxSwitchIndex )
+			{
+				drswitch = switchMap( value - MaxSwitchIndex + 1 ) + HSW_MAX ;
+			}
+			else
+			{
+				drswitch = switchMap( value ) ;
+			}
+#endif
+#if PCBX9D
+      CHECK_INCDEC_MODELSWITCH( event, drswitch ,(1-MAX_SKYDRSWITCH),(-2+2*MAX_SKYDRSWITCH));
+#endif
+		}
+		else
+		{
+			CHECK_INCDEC_MODELSWITCH( event, drswitch, -MaxSwitchIndex, MaxSwitchIndex) ;
+		}
+	}
+	return drswitch ;
+}
+
 
 void DisplayScreenIndex(uint8_t index, uint8_t count, uint8_t attr)
 {
@@ -2163,7 +2217,7 @@ void menuProcTelemetry2(uint8_t event)
 				
 				case 1 :
 					lcd_puts_Pleft( y, PSTR(STR_2SWITCH) ) ;
-					g_model.varioData.swtch = edit_dr_switch( 15*FW, y, g_model.varioData.swtch, attr, attr, event ) ;
+					g_model.varioData.swtch = edit_dr_switch( 15*FW, y, g_model.varioData.swtch, attr, attr ? EDIT_DR_SWITCH_EDIT : 0, event ) ;
 				break ;
 
 				case 2 :
@@ -2182,7 +2236,7 @@ void menuProcTelemetry2(uint8_t event)
 
 				case 4 :
 					lcd_puts_Pleft( y, PSTR(STR_LOG_SWITCH) ) ;
-					g_model.logSwitch = edit_dr_switch( 15*FW, y, g_model.logSwitch, attr, attr, event ) ;
+					g_model.logSwitch = edit_dr_switch( 15*FW, y, g_model.logSwitch, attr, attr ? EDIT_DR_SWITCH_EDIT : 0, event ) ;
 				break ;
 
 				case 5 :
@@ -2847,13 +2901,6 @@ void insertMix(uint8_t idx, uint8_t copy)
 		}
 		s_currMixIdx = idx ;
 //    eeWaitComplete() ;
-}
-
-int8_t edit_dr_switch( uint8_t x, uint8_t y, int8_t drswitch, uint8_t attr, uint8_t edit, uint8_t event )
-{
-	putsDrSwitches( x,  y, drswitch, attr ) ;
-	if(edit) CHECK_INCDEC_MODELSWITCH( event, drswitch, -MaxSwitchIndex, MaxSwitchIndex) ;
-	return drswitch ;
 }
 
 void put_curve( uint8_t x, uint8_t y, int8_t idx, uint8_t attr )
@@ -3987,7 +4034,7 @@ void editExpoVals(uint8_t event, uint8_t edit, uint8_t x, uint8_t y, uint8_t whi
 		ExpoData *eptr ;
 
 //		doedit = (edit || (P1values.p1valdiff ) ) ;
-		doedit = edit ;
+		doedit = edit ? EDIT_DR_SWITCH_EDIT : 0 ;
 
 		eptr = &g_model.expoData[s_expoChan] ;
     
@@ -4533,29 +4580,35 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
     if(sub==subN)
 		{
    		attr = INVERS ;
-#if PCBSKY
-			int8_t value ;
-			if ( ptm->tmrModeB > HSW_MAX )
-			{
-				value = switchUnMap( ptm->tmrModeB - HSW_MAX ) + MaxSwitchIndex - 1 ;
-			}
-			else
-			{
-				value = switchUnMap( ptm->tmrModeB ) ;
-			}
-      CHECK_INCDEC_H_MODELVAR( event, value ,(1-MaxSwitchIndex),(-2+2*MaxSwitchIndex));
-			if ( value >= MaxSwitchIndex )
-			{
-				ptm->tmrModeB = switchMap( value - MaxSwitchIndex + 1 ) + HSW_MAX ;
-			}
-			else
-			{
-				ptm->tmrModeB = switchMap( value ) ;
-			}
-#endif
-#if PCBX9D
-      CHECK_INCDEC_MODELSWITCH( event,ptm->tmrModeB ,(1-MAX_SKYDRSWITCH),(-2+2*MAX_SKYDRSWITCH));
-#endif
+			uint8_t doedit = attr ? EDIT_DR_SWITCH_MOMENT | EDIT_DR_SWITCH_EDIT : EDIT_DR_SWITCH_MOMENT ;
+			ptm->tmrModeB = edit_dr_switch( 15*FW, y, ptm->tmrModeB, attr, doedit, event ) ;
+//#if PCBSKY
+//			int16_t value = ptm->tmrModeB ;
+//			if ( value < -HSW_MAX )
+//			{
+//				value += 256 ;
+//			}
+//			if ( value > HSW_MAX )
+//			{
+//				value = switchUnMap( value - HSW_MAX ) + MaxSwitchIndex - 1 ;
+//			}
+//			else
+//			{
+//				value = switchUnMap( ptm->tmrModeB ) ;
+//			}
+//      CHECK_INCDEC_H_MODELVAR( event, value ,(1-MaxSwitchIndex),(-2+2*MaxSwitchIndex));
+//			if ( value >= MaxSwitchIndex )
+//			{
+//				ptm->tmrModeB = switchMap( value - MaxSwitchIndex + 1 ) + HSW_MAX ;
+//			}
+//			else
+//			{
+//				ptm->tmrModeB = switchMap( value ) ;
+//			}
+//#endif
+//#if PCBX9D
+//      CHECK_INCDEC_MODELSWITCH( event,ptm->tmrModeB ,(1-MAX_SKYDRSWITCH),(-2+2*MAX_SKYDRSWITCH));
+//#endif
 		}
     putsTmrMode(10*FW,y,attr, timer, 2 ) ;
 
@@ -4582,8 +4635,10 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
 		{
 			attr = InverseBlink ;
 		}
-		int8_t sw = timer ? g_model.timer2RstSw : g_model.timer1RstSw ;
-		sw = edit_dr_switch( 15*FW, y, sw, attr, attr, event ) ;
+
+		int16_t sw = timer ? g_model.timer2RstSw : g_model.timer1RstSw ;
+		uint8_t doedit = attr ? EDIT_DR_SWITCH_MOMENT | EDIT_DR_SWITCH_EDIT : EDIT_DR_SWITCH_MOMENT ;
+		sw = edit_dr_switch( 15*FW, y, sw, attr, doedit, event ) ;
 		if ( timer )
 		{
 			g_model.timer2RstSw = sw ;
@@ -4625,7 +4680,7 @@ if(t_pgOfs<subN) {
     lcd_puts_Pleft(    y, PSTR(STR_TRIM_SWITCH));
     uint8_t attr = 0 ;
     if(sub==subN) { attr = INVERS ; }
-		g_model.trimSw = edit_dr_switch( 9*FW, y, g_model.trimSw, attr, attr, event ) ;
+		g_model.trimSw = edit_dr_switch( 9*FW, y, g_model.trimSw, attr, attr ? EDIT_DR_SWITCH_EDIT : 0, event ) ;
     if((y+=FH)>7*FH) return;
 	} subN++ ;
 	
@@ -5335,7 +5390,7 @@ void menuPhaseOne(uint8_t event)
 		{
       case 0 : // switch
 				lcd_puts_Pleft( y, PSTR(STR_SWITCH) ) ;
-				phase->swtch = edit_dr_switch( 10*FW, y, phase->swtch, attr, attr, event ) ;
+				phase->swtch = edit_dr_switch( 10*FW, y, phase->swtch, attr, attr ? EDIT_DR_SWITCH_EDIT : 0, event ) ;
 			break;
 
       case 1 : // trims
@@ -7227,14 +7282,43 @@ void timer(int16_t throttle_val)
 	int16_t val ;
 	uint8_t timer ;
 	int8_t tma ;
-  int8_t tmb ;
+  int16_t tmb ;
   uint16_t tv ;
   
-  s_cnt++;			// Numver of times val added in
+  s_cnt++;			// Number of times val added in
 	for( timer = 0 ; timer < 2 ; timer += 1 )
 	{
+		uint8_t hold = 0 ;
+		if ( timer == 0 )
+		{
+			if ( g_model.timer1RstSw )
+			{
+				if ( getSwitch( g_model.timer1RstSw, 0, 0) )
+				{
+					resetTimer1() ;
+					hold = 1 ;
+				}
+			}
+		}
+		else
+		{
+			if ( g_model.timer2RstSw )
+			{
+				if ( getSwitch( g_model.timer2RstSw, 0, 0) )
+				{
+					resetTimer2() ;
+					hold = 1 ;
+				}
+			}
+		}
 		tma = g_model.timer[timer].tmrModeA ;
     tmb = g_model.timer[timer].tmrModeB ;
+#ifdef PCBSKY
+		if ( tmb < -HSW_MAX )
+		{
+			tmb += 256 ;
+		}
+#endif
 
 // code for cx%
 		val = throttle_val ;
@@ -7277,7 +7361,7 @@ void timer(int16_t throttle_val)
 			}
 		}
 
-		if ( s_timer[timer].sw_toggled == 0 )
+		if ( ( s_timer[timer].sw_toggled == 0 ) || hold )
 		{
 			val = 0 ;
 		}
@@ -8058,14 +8142,14 @@ void switchDisplay( uint8_t j, uint8_t a )
 			{
 				uint8_t k = HSW_Ele3pos0 ;
 				k += switchPosition(k) ;
-				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-11, 0) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
 				continue ;
 			}
 			if ( g_eeGeneral.switchMapping & USE_ELE_6POS )
 			{
 				uint8_t k = HSW_Ele6pos0 ;
 				k += switchPosition(k) ;
-				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-11, 0) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
 				continue ;
 			}
 		}
@@ -8075,7 +8159,7 @@ void switchDisplay( uint8_t j, uint8_t a )
 			{
 				uint8_t k = HSW_Rud3pos0 ;
 				k += switchPosition(k) ;
-				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-11, 0) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
 				continue ;
 			}
 		}
@@ -8085,7 +8169,7 @@ void switchDisplay( uint8_t j, uint8_t a )
 			{
 				uint8_t k = HSW_Ail3pos0 ;
 				k += switchPosition(k) ;
-				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-11, 0) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
 				continue ;
 			}
 		}
@@ -8095,7 +8179,7 @@ void switchDisplay( uint8_t j, uint8_t a )
 			{
 				uint8_t k = HSW_Gear3pos0 ;
 				k += switchPosition(k) ;
-				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-11, 0) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
 				continue ;
 			}
 		}

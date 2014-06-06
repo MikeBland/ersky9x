@@ -2134,21 +2134,21 @@ void mainSequence( uint32_t no_menu )
 		}
 
 		// Now also check for resetting timers
-		if ( g_model.timer1RstSw )
-		{
-			if ( getSwitch( g_model.timer1RstSw, 0, 0) )
-			{
-				resetTimer1() ;
-			}
-		}
+//		if ( g_model.timer1RstSw )
+//		{
+//			if ( getSwitch( g_model.timer1RstSw, 0, 0) )
+//			{
+//				resetTimer1() ;
+//			}
+//		}
 		
-		if ( g_model.timer2RstSw )
-		{
-			if ( getSwitch( g_model.timer2RstSw, 0, 0) )
-			{
-				resetTimer2() ;
-			}
-		}
+//		if ( g_model.timer2RstSw )
+//		{
+//			if ( getSwitch( g_model.timer2RstSw, 0, 0) )
+//			{
+//				resetTimer2() ;
+//			}
+//		}
 
 		VoiceCheckFlag = 0 ;
 
@@ -3725,6 +3725,36 @@ int8_t switchMap( int8_t x )
 
 #endif
 
+void putsMomentDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)
+{
+  int16_t tm = idx1 ;
+#ifdef PCBSKY
+	if ( tm < -HSW_MAX )
+	{
+		tm += 256 ;
+	}
+#endif
+#ifdef PCBX9D
+  if(abs(tm)>=(MAX_SKYDRSWITCH))	 //momentary on-off
+#endif
+#ifdef PCBSKY
+  if(abs(tm)>(HSW_MAX))	 //momentary on-off
+#endif
+	{
+  	lcd_putcAtt(x+3*FW,  y,'m',att);
+		if ( tm > 0 )
+		{
+#ifdef PCBX9D
+			tm -= MAX_SKYDRSWITCH - 1 ;
+#endif
+#ifdef PCBSKY
+			tm -= HSW_MAX ;
+#endif
+		}
+	}			 
+  putsDrSwitches( x-1*FW, y, tm, att ) ;
+}
+
 void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 {
 #ifdef PCBX9D
@@ -3758,7 +3788,7 @@ void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att)//, bool nc)
 //		z *= 3 ;
 	if ( z > MAX_SKYDRSWITCH )
 	{
-		z -= 10 ;
+		z -= HSW_OFFSET - 1 ;
 	}
   lcd_putsAttIdx(x+FW,y,PSTR(SWITCHES_STR),z,att) ;
 #endif
@@ -3803,26 +3833,33 @@ void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type
 	}
 	if ( ( type == 2 ) || ( ( type == 0 ) && ( tm == 1 ) ) )
 	{
-    tm = g_model.timer[timer].tmrModeB;
-#ifdef PCBX9D
-    if(abs(tm)>=(MAX_SKYDRSWITCH))	 //momentary on-off
-#endif
-#ifdef PCBSKY
-    if(abs(tm)>=(HSW_MAX))	 //momentary on-off
-#endif
-		{
-  	  lcd_putcAtt(x+3*FW,  y,'m',attr);
-			if ( tm > 0 )
-			{
-#ifdef PCBX9D
-				tm -= MAX_SKYDRSWITCH - 1 ;
-#endif
-#ifdef PCBSKY
-				tm -= HSW_MAX ;
-#endif
-			}
-		}			 
-   	putsDrSwitches( x-1*FW, y, tm, attr );
+		putsMomentDrSwitches( x, y, g_model.timer[timer].tmrModeB, attr ) ;
+//    int16_t tm = g_model.timer[timer].tmrModeB;
+//#ifdef PCBSKY
+//		if ( tm < -HSW_MAX )
+//		{
+//			tm += 256 ;
+//		}
+//#endif
+//#ifdef PCBX9D
+//    if(abs(tm)>=(MAX_SKYDRSWITCH))	 //momentary on-off
+//#endif
+//#ifdef PCBSKY
+//    if(abs(tm)>(HSW_MAX))	 //momentary on-off
+//#endif
+//		{
+//  	  lcd_putcAtt(x+3*FW,  y,'m',attr);
+//			if ( tm > 0 )
+//			{
+//#ifdef PCBX9D
+//				tm -= MAX_SKYDRSWITCH - 1 ;
+//#endif
+//#ifdef PCBSKY
+//				tm -= HSW_MAX ;
+//#endif
+//			}
+//		}			 
+//   	putsDrSwitches( x-1*FW, y, tm, attr );
 	}
 }
 
@@ -4413,7 +4450,7 @@ uint16_t oneSwitchText( uint8_t swtch, uint16_t states )
 		case HSW_ThrCt :
 			if ( sm & USE_THR_3POS )
 			{
-				index = HSW_Thr3pos0 - 11 ;
+				index = HSW_Thr3pos0 - HSW_OFFSET ;
 				if ( states & 0x0001 ) index += 1 ;
 				if ( states & 0x0100 ) index += 2 ;
 			}
@@ -4426,7 +4463,7 @@ uint16_t oneSwitchText( uint8_t swtch, uint16_t states )
 		case HSW_RuddDR :
 			if ( sm & USE_RUD_3POS )
 			{
-				index = HSW_Rud3pos0 - 11 ;
+				index = HSW_Rud3pos0 - HSW_OFFSET ;
 				if ( states & 0x0002 ) index += 1 ;
 				if ( states & 0x0200 ) index += 2 ;
 			}
@@ -4439,13 +4476,13 @@ uint16_t oneSwitchText( uint8_t swtch, uint16_t states )
 		case HSW_ElevDR :
 			if ( sm & USE_ELE_3POS )
 			{
-				index = HSW_Ele3pos0 - 11 ;
+				index = HSW_Ele3pos0 - HSW_OFFSET ;
 				if ( states & 0x0004 ) index += 1 ;
 				if ( states & 0x0400 ) index += 2 ;
 			}
 			else if ( sm & USE_ELE_6POS )
 			{
-				index = HSW_Ele6pos0 - 11 ;
+				index = HSW_Ele6pos0 - HSW_OFFSET ;
 				if ( states & 0x0004 ) index += 1 ;
 				if ( states & 0x0400 ) index += 2 ;
 				if ( states & 0x0800 ) index += 4 ;
@@ -4471,7 +4508,7 @@ lcd_outhex4( 25, 3*FH, index ) ;
 		case HSW_AileDR :
 			if ( sm & USE_AIL_3POS )
 			{
-				index = HSW_Ail3pos0 - 11 ;
+				index = HSW_Ail3pos0 - HSW_OFFSET ;
 				if ( states & 0x0040 ) index += 1 ;
 				if ( states & 0x1000 ) index += 2 ;
 			}
@@ -4484,7 +4521,7 @@ lcd_outhex4( 25, 3*FH, index ) ;
 		case HSW_Gear :
 			if ( sm & USE_GEA_3POS )
 			{
-				index = HSW_Gear3pos0 - 11 ;
+				index = HSW_Gear3pos0 - HSW_OFFSET ;
 				if ( states & 0x0080 ) index += 1 ;
 				if ( states & 0x2000 ) index += 2 ;
 			}

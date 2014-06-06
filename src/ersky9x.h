@@ -103,6 +103,16 @@ extern const char * const Swedish[] ;
 #endif
 #endif
 
+//#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
+#define NUM_CSW  12 //number of custom switches
+#define NUM_SKYCSW  24 //number of custom switches
+#ifdef PCBSKY
+#define CSW_INDEX	9	// Index of first custom switch
+#endif
+#ifdef PCBX9D
+#define CSW_INDEX	22	// Index of first custom switch
+#endif
+
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
 
 enum EnumKeys {
@@ -197,29 +207,30 @@ enum EnumKeys {
 //#define HSW_MAX				55
 
 
-#define HSW_Thr3pos0	45	// Skip some values because of safety switch values
-#define HSW_Thr3pos1	46
-#define HSW_Thr3pos2	47
-#define HSW_Rud3pos0	48
-#define HSW_Rud3pos1	49
-#define HSW_Rud3pos2	50
-#define HSW_Ele3pos0	51
-#define HSW_Ele3pos1	52
-#define HSW_Ele3pos2	53
-#define HSW_Ail3pos0	54
-#define HSW_Ail3pos1	55
-#define HSW_Ail3pos2	56
-#define HSW_Gear3pos0	57
-#define HSW_Gear3pos1	58
-#define HSW_Gear3pos2	59
-#define HSW_Ele6pos0	60
-#define HSW_Ele6pos1	61
-#define HSW_Ele6pos2	62
-#define HSW_Ele6pos3	63
-#define HSW_Ele6pos4	64
-#define HSW_Ele6pos5	65
-#define HSW_MAX				65
+#define HSW_Thr3pos0	43	// Skip some values because of safety switch values
+#define HSW_Thr3pos1	44
+#define HSW_Thr3pos2	45
+#define HSW_Rud3pos0	46
+#define HSW_Rud3pos1	47
+#define HSW_Rud3pos2	48
+#define HSW_Ele3pos0	49
+#define HSW_Ele3pos1	50
+#define HSW_Ele3pos2	51
+#define HSW_Ail3pos0	52
+#define HSW_Ail3pos1	53
+#define HSW_Ail3pos2	54
+#define HSW_Gear3pos0	55
+#define HSW_Gear3pos1	56
+#define HSW_Gear3pos2	57
+#define HSW_Ele6pos0	58
+#define HSW_Ele6pos1	59
+#define HSW_Ele6pos2	60
+#define HSW_Ele6pos3	61
+#define HSW_Ele6pos4	62
+#define HSW_Ele6pos5	63
+#define HSW_MAX				63
 
+#define HSW_OFFSET ( HSW_Thr3pos0 - ( HSW_Trainer + NUM_SKYCSW + 1 ) )
 
 
 //Bitfield for hardware switch mapping
@@ -317,17 +328,6 @@ uint8_t CS_STATE( uint8_t x) ;
 #define SWP_IL3 (SWP_ID0B | SWP_ID2B)
 #define SWP_IL4 (SWP_ID1B | SWP_ID2B)
 #define SWP_IL5 (SWP_ID0B | SWP_ID1B | SWP_ID2B)
-
-//#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
-#define NUM_CSW  12 //number of custom switches
-#define NUM_SKYCSW  24 //number of custom switches
-#ifdef PCBSKY
-#define CSW_INDEX	9	// Index of first custom switch
-#endif
-#ifdef PCBX9D
-#define CSW_INDEX	22	// Index of first custom switch
-#endif
-
 
 #define NUM_KEYS BTN_RE+1
 #define TRM_BASE TRM_LH_DWN
@@ -710,6 +710,7 @@ extern void putsVBat(uint8_t x,uint8_t y,uint8_t att) ;
 extern void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att) ;
 extern void putsChn(uint8_t x,uint8_t y,uint8_t idx1,uint8_t att) ;
 extern void putsDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ; //, bool nc) ;
+extern void putsMomentDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ;
 extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type ) ;
 extern const char *get_switches_string( void ) ;
 void putsDblSizeName( uint8_t y ) ;
