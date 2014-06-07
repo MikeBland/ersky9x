@@ -4507,8 +4507,9 @@ static uint8_t columns = 0 ;
 			if (event == EVT_KEY_FIRST(KEY_MENU) )
 			{
 				putVoiceQueue( g_model.modelVoice + 260 ) ;
+	  	  s_editMode = 0 ;
 			}
-			attr = INVERS ;
+			attr = InverseBlink ;
       CHECK_INCDEC_H_MODELVAR_0( event,g_model.modelVoice ,49 ) ;
 		}
     lcd_outdezAtt(  15*FW-2, y, (int16_t)g_model.modelVoice + 260 ,attr);
@@ -4566,7 +4567,7 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
 		uint8_t attr = 0 ;
     if(sub==subN)
     {
-   		attr = INVERS ;
+   		attr = InverseBlink ;
       CHECK_INCDEC_H_MODELVAR_0( event,ptm->tmrModeA ,(1+2+24));
 		}
     putsTmrMode(10*FW,y,attr, timer, 1 ) ;
@@ -4579,9 +4580,10 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
     uint8_t attr = 0 ;
     if(sub==subN)
 		{
-   		attr = INVERS ;
-			uint8_t doedit = attr ? EDIT_DR_SWITCH_MOMENT | EDIT_DR_SWITCH_EDIT : EDIT_DR_SWITCH_MOMENT ;
-			ptm->tmrModeB = edit_dr_switch( 15*FW, y, ptm->tmrModeB, attr, doedit, event ) ;
+   		attr = InverseBlink ;
+		}
+		uint8_t doedit = attr ? EDIT_DR_SWITCH_MOMENT | EDIT_DR_SWITCH_EDIT : EDIT_DR_SWITCH_MOMENT ;
+		ptm->tmrModeB = edit_dr_switch( 15*FW, y, ptm->tmrModeB, attr, doedit, event ) ;
 //#if PCBSKY
 //			int16_t value = ptm->tmrModeB ;
 //			if ( value < -HSW_MAX )
@@ -4609,8 +4611,7 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
 //#if PCBX9D
 //      CHECK_INCDEC_MODELSWITCH( event,ptm->tmrModeB ,(1-MAX_SKYDRSWITCH),(-2+2*MAX_SKYDRSWITCH));
 //#endif
-		}
-    putsTmrMode(10*FW,y,attr, timer, 2 ) ;
+//    putsTmrMode(10*FW,y,attr, timer, 2 ) ;
 
     if((y+=FH)>7*FH) return;
   }subN++;
@@ -4620,7 +4621,7 @@ for ( uint8_t timer = 0 ; timer < 2 ; timer += 1 )
     uint8_t attr = 0 ;
 		if(sub==subN)
 		{
-			attr = INVERS ;
+   		attr = InverseBlink ;
     	CHECK_INCDEC_H_MODELVAR_0(event,ptm->tmrDir,1);
     }
 		lcd_putsAttIdx(  10*FW, y, PSTR(STR_COUNT_DOWN_UP),ptm->tmrDir,attr);
@@ -4668,7 +4669,7 @@ if(t_pgOfs<subN) {
     uint8_t attr = 0 ;
 		if(sub==subN)
 		{
-			attr = INVERS ; 
+   		attr = InverseBlink ;
     	CHECK_INCDEC_H_MODELVAR_0(event,g_model.trimInc,4) ;
 		}
     lcd_putsAttIdx(  10*FW, y, PSTR(STR_TRIM_OPTIONS),g_model.trimInc, attr);
@@ -4679,7 +4680,7 @@ if(t_pgOfs<subN) {
 	{
     lcd_puts_Pleft(    y, PSTR(STR_TRIM_SWITCH));
     uint8_t attr = 0 ;
-    if(sub==subN) { attr = INVERS ; }
+    if(sub==subN) { attr = InverseBlink ; }
 		g_model.trimSw = edit_dr_switch( 9*FW, y, g_model.trimSw, attr, attr ? EDIT_DR_SWITCH_EDIT : 0, event ) ;
     if((y+=FH)>7*FH) return;
 	} subN++ ;
@@ -4700,7 +4701,7 @@ if(t_pgOfs<subN) {
 	{
   	uint8_t attr = PREC1 ;
     lcd_puts_Pleft(    y, PSTR(STR_AUTO_LIMITS));
-    if(sub==subN) { attr = INVERS | PREC1 ; CHECK_INCDEC_H_MODELVAR_0( event, g_model.sub_trim_limit, 100 ) ; }
+    if(sub==subN) { attr = InverseBlink | PREC1 ; CHECK_INCDEC_H_MODELVAR_0( event, g_model.sub_trim_limit, 100 ) ; }
     lcd_outdezAtt(  20*FW, y, g_model.sub_trim_limit, attr ) ;
 		if((y+=FH)>7*FH) return;
 	}subN++;
@@ -7288,29 +7289,65 @@ void timer(int16_t throttle_val)
   s_cnt++;			// Number of times val added in
 	for( timer = 0 ; timer < 2 ; timer += 1 )
 	{
-		uint8_t hold = 0 ;
+		uint8_t resetting = 0 ;
 		if ( timer == 0 )
 		{
-			if ( g_model.timer1RstSw )
-			{
-				if ( getSwitch( g_model.timer1RstSw, 0, 0) )
-				{
-					resetTimer1() ;
-					hold = 1 ;
-				}
-			}
+			tmb = g_model.timer1RstSw ;
 		}
 		else
 		{
-			if ( g_model.timer2RstSw )
+			tmb = g_model.timer2RstSw ;
+		}
+		if ( tmb )
+		{
+#ifdef PCBSKY
+			if ( tmb < -HSW_MAX )
 			{
-				if ( getSwitch( g_model.timer2RstSw, 0, 0) )
+				tmb += 256 ;
+			}
+#endif
+#ifdef PCBSKY
+    	if(tmb>=(HSW_MAX))	 // toggeled switch
+#endif
+#ifdef PCBX9D
+    	if(tmb>=(MAX_SKYDRSWITCH-1))	 // toggeled switch
+#endif
+			{
+#ifdef PCBSKY
+    	  uint8_t swPos = getSwitch( tmb-(HSW_MAX), 0 ) ;
+#endif
+#ifdef PCBX9D
+    	  uint8_t swPos = getSwitch( tmb-(MAX_SKYDRSWITCH-1), 0 ) ;
+#endif
+				if ( swPos != s_timer[timer].lastResetSwPos )
 				{
-					resetTimer2() ;
-					hold = 1 ;
+					s_timer[timer].lastResetSwPos = swPos ;
+					if ( swPos )	// Now on
+					{
+						resetting = 1 ;
+					}
+				}
+			}
+			else
+			{
+				if ( getSwitch( tmb, 0, 0) )
+				{
+					resetting = 1 ;
 				}
 			}
 		}
+		if ( resetting )
+		{
+			if ( timer == 0 )
+			{
+				resetTimer1() ;
+			}
+			else
+			{
+				resetTimer2() ;
+			}
+		}
+		
 		tma = g_model.timer[timer].tmrModeA ;
     tmb = g_model.timer[timer].tmrModeB ;
 #ifdef PCBSKY
@@ -7361,7 +7398,7 @@ void timer(int16_t throttle_val)
 			}
 		}
 
-		if ( ( s_timer[timer].sw_toggled == 0 ) || hold )
+		if ( ( s_timer[timer].sw_toggled == 0 ) || resetting )
 		{
 			val = 0 ;
 		}
@@ -7392,7 +7429,10 @@ void timer(int16_t throttle_val)
 			s_time += 100;  // 100*10mS passed
 		}
     if(val) s_timer[timer].s_timeCumThr       += 1;
-    if(s_timer[timer].sw_toggled) s_timer[timer].s_timeCumSw += 1;
+		if ( !resetting )
+		{
+    	if(s_timer[timer].sw_toggled) s_timer[timer].s_timeCumSw += 1;
+		}
     s_timer[timer].s_timeCum16ThrP            += val>>1;	// val/2
 
     tv = s_timer[timer].s_timerVal = g_model.timer[timer].tmrVal ;
@@ -8098,6 +8138,7 @@ void resetTimer1()
   s_timer[0].s_timeCumThr=0;
   s_timer[0].s_timeCumSw=0;
   s_timer[0].s_timeCum16ThrP=0;
+	s_timer[0].s_sum = 0 ;
 	last_tmr0 = g_model.timer[0].tmrVal ;
 }
 void resetTimer2()
@@ -8106,6 +8147,7 @@ void resetTimer2()
   s_timer[1].s_timeCumThr=0;
   s_timer[1].s_timeCumSw=0;
   s_timer[1].s_timeCum16ThrP=0;
+	s_timer[1].s_sum = 0 ;
 }
 
 void resetTimer()

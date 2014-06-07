@@ -207,28 +207,28 @@ enum EnumKeys {
 //#define HSW_MAX				55
 
 
-#define HSW_Thr3pos0	43	// Skip some values because of safety switch values
-#define HSW_Thr3pos1	44
-#define HSW_Thr3pos2	45
-#define HSW_Rud3pos0	46
-#define HSW_Rud3pos1	47
-#define HSW_Rud3pos2	48
-#define HSW_Ele3pos0	49
-#define HSW_Ele3pos1	50
-#define HSW_Ele3pos2	51
-#define HSW_Ail3pos0	52
-#define HSW_Ail3pos1	53
-#define HSW_Ail3pos2	54
-#define HSW_Gear3pos0	55
-#define HSW_Gear3pos1	56
-#define HSW_Gear3pos2	57
-#define HSW_Ele6pos0	58
-#define HSW_Ele6pos1	59
-#define HSW_Ele6pos2	60
-#define HSW_Ele6pos3	61
-#define HSW_Ele6pos4	62
-#define HSW_Ele6pos5	63
-#define HSW_MAX				63
+#define HSW_Thr3pos0	45	// Skip some values because of safety switch values
+#define HSW_Thr3pos1	46
+#define HSW_Thr3pos2	47
+#define HSW_Rud3pos0	48
+#define HSW_Rud3pos1	49
+#define HSW_Rud3pos2	50
+#define HSW_Ele3pos0	51
+#define HSW_Ele3pos1	52
+#define HSW_Ele3pos2	53
+#define HSW_Ail3pos0	54
+#define HSW_Ail3pos1	55
+#define HSW_Ail3pos2	56
+#define HSW_Gear3pos0	57
+#define HSW_Gear3pos1	58
+#define HSW_Gear3pos2	59
+#define HSW_Ele6pos0	60
+#define HSW_Ele6pos1	61
+#define HSW_Ele6pos2	62
+#define HSW_Ele6pos3	63
+#define HSW_Ele6pos4	64
+#define HSW_Ele6pos5	65
+#define HSW_MAX				65
 
 #define HSW_OFFSET ( HSW_Thr3pos0 - ( HSW_Trainer + NUM_SKYCSW + 1 ) )
 
@@ -803,6 +803,7 @@ struct t_timer
 	uint8_t sw_toggled ;
 	uint16_t s_timeCumSw ;  //laufzeit in 1/16 sec
 	uint8_t  s_timerState ;
+	uint8_t lastResetSwPos;
 	uint16_t s_timeCumThr ;  //gewichtete laufzeit in 1/16 sec
 	uint16_t s_timeCum16ThrP ; //gewichtete laufzeit in 1/16 sec
 	int16_t  s_timerVal ;
