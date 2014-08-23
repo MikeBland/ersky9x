@@ -103,8 +103,18 @@ void module_output_active()
 	pioptr->PIO_ABCDSR[0] &= ~PIO_PA17 ;		// Peripheral C
  	pioptr->PIO_ABCDSR[1] |= PIO_PA17 ;			// Peripheral C
 	pioptr->PIO_PDR = PIO_PA17 ;						// Disable bit A17 Assign to peripheral
-	pioptr->PIO_MDER = PIO_PA17 ;						// Open Drain O/p in A17
-//	pioptr->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+#ifdef REVX
+	if ( g_model.ppmOpenDrain )
+	{
+		pioptr->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+	}
+	else
+	{
+		pioptr->PIO_MDER = PIO_PA17 ;						// Open Drain O/p in A17
+	}
+#else
+	pioptr->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+#endif
 	pioptr->PIO_PUER = PIO_PA17 ;						// With pull up
 }
 
@@ -156,6 +166,7 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 #endif
 
 	pwmptr->PWM_IER1 = PWM_IER1_CHID1 ;
+  NVIC_SetPriority(PWM_IRQn, 1);
 	NVIC_EnableIRQ(PWM_IRQn) ;
 
 }
@@ -807,7 +818,8 @@ uint16_t scaleForPXX( uint8_t i )
 {
 	int16_t value ;
 
-#ifdef REVX
+#ifdef DISABLE_PXX_SPORT
+//#ifdef REVX
   value = g_chans512[i] *3 / 4 + 2250 ;
 	return value ;
 #else 
@@ -838,7 +850,8 @@ void setupPulsesPXX()
     putPcmHead(  ) ;  // sync byte
     putPcmByte( g_model.pxxRxNum ) ;
     
-#ifdef REVX
+#ifdef DISABLE_PXX_SPORT
+//#ifdef REVX
 		putPcmByte( pxxFlag ) ;     // First byte of flags
 #else
   	uint8_t flag1;
@@ -853,7 +866,8 @@ void setupPulsesPXX()
 		 putPcmByte( flag1 ) ;     // First byte of flags
 #endif
     putPcmByte( 0 ) ;     // Second byte of flags
-#ifdef REVX
+#ifdef DISABLE_PXX_SPORT
+//#ifdef REVX
     pxxFlag = 0;          // reset flag after send
 #endif
 		uint8_t startChan = g_model.startChannel ;
@@ -879,7 +893,8 @@ void setupPulsesPXX()
 			putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
       putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
     }
-#ifndef REVX
+#ifndef DISABLE_PXX_SPORT
+//#ifndef REVX
 		putPcmByte( 0 ) ;
 #endif
     chan = PcmCrc ;		        // get the crc

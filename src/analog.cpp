@@ -36,6 +36,7 @@
 #endif
 
 #include "ersky9x.h"
+#include "timers.h"
 #include "logicio.h"
 #include "analog.h"
 
@@ -111,16 +112,59 @@ uint32_t read_adc()
 	return ( i < 10000 ) ? 1 : 0 ;
 }
 
+// This to read a single channel for use as a rotary encoder
+// Channel is POT_L (6) or POT_R (8)
+void init_adc2( uint32_t channel )
+{
+	RCC->APB2ENR |= RCC_APB2ENR_ADC2EN ;			// Enable clock
 
+	ADC2->CR1 = ADC_CR1_SCAN | ADC_CR1_EOCIE ;
+	ADC2->SQR1 = (1-1) << 20 ;		// NUMBER_ANALOG Channels
+	ADC2->SQR2 = 0 ;
+	ADC2->SQR3 = channel ;
 
+	ADC2->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
+								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) ;
+	ADC2->SMPR2 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12) 
+								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) + (SAMPTIME<<27) ;
+
+	ADC2->CR2 = ADC_CR2_ADON | ADC_CR2_EXTSEL_3 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTEN_0 ;
+	
+  NVIC_SetPriority(ADC_IRQn, 7);
+	NVIC_EnableIRQ(ADC_IRQn) ;
+
+// TIM5, CC1 event is ADC2 trigger
+	RCC->APB1ENR |= RCC_APB1ENR_TIM5EN ;		// Enable clock
+	TIM5->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM5->ARR = 1999 ;
+	TIM5->CCR1 = 1000 ;
+	TIM5->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 ;
+	TIM5->EGR = TIM_EGR_CC1G ;
+	TIM5->CCER = TIM_CCER_CC1E ;
+	TIM5->CR1 = TIM_CR1_CEN ;
+}
+
+uint16_t RotaryAnalogValue ;
+
+extern "C" void ADC_IRQHandler()
+{
+	uint32_t x ;
+	x = ADC2->DR ;
+	int32_t diff = x - RotaryAnalogValue ;
+	if ( diff < 0 )
+	{
+		diff = -diff ;
+	}
+	RotaryAnalogValue = x ;
+	if ( diff < 20 )
+	{
+		valueprocessAnalogEncoder( x >> 1 ) ;
+	}
+}
 
 // TODO
 void stop_adc()
 {
 }	
-
-
-
-
 
 

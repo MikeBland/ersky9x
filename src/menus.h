@@ -151,6 +151,8 @@ extern int16_t calc_scaler( uint8_t index, uint8_t *unit, uint8_t *num_decimals)
 
 extern uint8_t CalcScaleNest ;
 
+#define V_RTC			-20
+
 #define V_SC1			-19
 #define V_SC2			-18
 #define V_SC3			-17
@@ -219,6 +221,7 @@ extern uint8_t CalcScaleNest ;
 #define TEL_ITEM_SC6		42
 #define TEL_ITEM_SC7		43
 #define TEL_ITEM_SC8		44
+#define TEL_ITEM_RTC		45
 
 
 // units
@@ -230,5 +233,6 @@ extern uint8_t CalcScaleNest ;
 #define U_AMPS			5
 #define	U_METRES		6
 #define	U_WATTS			7
+#define	U_PERCENT		8
 
 #endif

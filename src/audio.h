@@ -103,7 +103,7 @@ class audioQueue
 
     bool busy();
 
-    void event(uint8_t e,uint8_t f=BEEP_DEFAULT_FREQ);
+    void event(uint8_t e,uint8_t f=BEEP_DEFAULT_FREQ, uint8_t hapticOff = 0 ) ;
 
 
 
@@ -209,12 +209,15 @@ struct t_voice
 	uint8_t VoiceQueueOutIndex ;
 	uint8_t VoiceLock ;
 	uint16_t VoiceQueue[VOICE_Q_LENGTH] ;
-
+	uint8_t NamedVoiceQueue[VOICE_Q_LENGTH][VOICE_NAME_SIZE+1] ;
 } ;
 
 extern struct t_voice Voice ;
 
 extern void putVoiceQueue( uint16_t value ) ;
+extern void putNamedVoiceQueue( const char *name, uint16_t value ) ;
+extern void putSystemVoice( uint16_t sname, uint16_t value ) ;
+extern void putUserVoice( char *name, uint16_t value ) ;
 extern void voice_task(void* pdata) ;
 
 
@@ -268,6 +271,9 @@ extern void voice_task(void* pdata) ;
 #define V_RSSI_CRITICAL	71
 #define V_RSSI_WARN			70
 
+#define V_THR_WARN			74
+#define V_SW_WARN				75
+
 #define V_HUNDRED			 100
 #define V_THOUSAND		 110
 
@@ -277,5 +283,61 @@ extern void voice_task(void* pdata) ;
 #endif
 
 
+// Defines for system voice names
+#define	SV_ALERT			 0
+#define	SV_SW_WARN		 1
+#define	SV_TH_WARN		 2
+#define	SV_WARNING     3
+#define	SV_ERROR       4
+#define	SV_FEET        5
+#define	SV_FOOT        6
+#define	SV_MINUS       7
+#define	SV_WELCOME     8
+#define	SV_LIMIT       9
+#define	SV_RPM        10
+#define	SV_FLT_BATT   11
+#define	SV_TX_VOLT    12
+#define	SV_CURRENT    13
+#define	SV_ALTITUDE   14
+#define	SV_POINT      15
+#define	SV_VOLTS      16
+#define	SV_VOLT       17
+#define	SV_MINUTES    18
+#define	SV_MINUTE     19
+#define	SV_PACKVOLT   20
+#define	SV_30SECOND   21
+#define	SV_20SECOND   22
+#define	SV_10SECOND   23
+#define	SV_PERCENT    24
+#define	SV_INACTV     25
+#define	SV_TXBATLOW   26
+#define	SV_DEGREES    27
+#define	SV_DEGREE     28
+#define	SV_RX_VOLT    29
+#define	SV_TEMPERAT   30
+#define	SV_AMPS       31
+#define	SV_AMP        32
+#define	SV_SECONDS    33
+#define	SV_SECOND     34
+#define	SV_DB         35
+#define	SV_METERS     36
+#define	SV_METER      37
+#define	SV_NO_TELEM   38
+#define	SV_RX_V_LOW   39
+#define	SV_TEMPWARN   40
+#define	SV_ALT_WARN   41
+#define	SV_WATT       42
+#define	SV_WATTS      43
+#define	SV_KNOT       44
+#define	SV_KNOTS      45
+#define	SV_MILLIAMP   46
+#define	SV_MILIAMPS   47
+#define	SV_MILAMP_H   48
+#define	SV_MLAMPS_H   49
+#define	SV_RSSI_LOW   50
+#define	SV_RSSICRIT   51
+#define	SV_RX_LOST    52
+#define	SV_CAP_WARN   53
 
-#endif // audio_h
+
+#endif // audio_h     

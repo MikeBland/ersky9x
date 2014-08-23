@@ -42,27 +42,28 @@
 #include "ersky9x.h"
 #include "templates.h"
 #include "myeeprom.h"
+#include "Stringidx.h"
 
-static const char string_1[] = "Simple 4-CH";
-static const char string_2[] = "T-Cut";
-static const char string_3[] = "Sticky T-Cut";
-static const char string_4[] = "V-Tail";
-static const char string_5[] = "Elevon\\Delta";
-static const char string_6[] = "Heli Setup";
-static const char string_7[] = "Gyro Setup";
-static const char string_8[] = "Servo Test";
-static const char string_9[] = "Range Test";
+//static const char string_1[] = "Simple 4-CH";
+//static const char string_2[] = "T-Cut";
+//static const char string_3[] = "Sticky T-Cut";
+//static const char string_4[] = "V-Tail";
+//static const char string_5[] = "Elevon\\Delta";
+//static const char string_6[] = "Heli Setup";
+//static const char string_7[] = "Gyro Setup";
+//static const char string_8[] = "Servo Test";
+//static const char string_9[] = "Range Test";
 
-const char *n_Templates[NUM_TEMPLATES] = {
-    string_1,
-    string_2,
-    string_3,
-    string_4,
-    string_5,
-    string_6,
-    string_7,
-    string_8,
-    string_9
+uint16_t n_Templates[NUM_TEMPLATES] = {
+  STR_T_S_4CHAN   ,
+  STR_T_TCUT      ,
+  STR_T_STICK_TCUT,
+  STR_T_V_TAIL    ,
+  STR_T_ELEVON    ,
+  STR_T_HELI_SETUP,
+  STR_T_GYRO      ,
+  STR_T_SERVO_TEST,
+  STR_T_RANGE_TEST
 };
 
 SKYMixData* setDest(uint8_t dch)

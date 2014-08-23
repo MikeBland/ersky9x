@@ -81,16 +81,16 @@ uint32_t Debug_I2C_event ;
 
 struct t_sound_globals Sound_g ;
 
-struct t_VoiceBuffer VoiceBuffer[3] ;
+struct t_VoiceBuffer VoiceBuffer[NUM_VOICE_BUFFERS] ;
 
-#define SOUND_NONE	0
-#define SOUND_TONE	1
-#define SOUND_VOICE	2
-#define SOUND_STOP	3
+//#define SOUND_NONE	0
+//#define SOUND_TONE	1
+//#define SOUND_VOICE	2
+//#define SOUND_STOP	3
 
-struct t_VoiceBuffer *PtrVoiceBuffer[3] ;
+struct t_VoiceBuffer *PtrVoiceBuffer[NUM_VOICE_BUFFERS] ;
 uint8_t VoiceCount ;
-uint8_t SoundType ;
+//uint8_t SoundType ;
 
 	 
 // Must NOT be in flash, PDC needs a RAM source.
@@ -156,19 +156,23 @@ uint16_t Sine_values[] =
 
 void start_sound()
 {
-	register Pio *pioptr ;
 	
 	start_dactimer() ;
 	init_dac() ;
 	init_twi() ;
 	setVolume( 2 ) ;
 
-	pioptr = PIOA ;
 #ifdef REVB
+#ifndef REVX	
+	register Pio *pioptr ;
+	pioptr = PIOA ;
 	pioptr->PIO_CODR = 0x02000000L ;	// Set bit A25 OFF
 	pioptr->PIO_PER = 0x02000000L ;		// Enable bit A25 (Stock buzzer)
 	pioptr->PIO_OER = 0x02000000L ;		// Set bit A25 as output
+#endif
 #else
+	register Pio *pioptr ;
+	pioptr = PIOA ;
 	pioptr->PIO_CODR = 0x00010000L ;	// Set bit A16 OFF
 	pioptr->PIO_PER = 0x00010000L ;		// Enable bit A16 (Stock buzzer)
 	pioptr->PIO_OER = 0x00010000L ;		// Set bit A16 as output
@@ -269,7 +273,7 @@ void init_dac()
 {
 	register Dacc *dacptr ;
 
-	SoundType = SOUND_NONE ;
+//	SoundType = SOUND_NONE ;
 
   PMC->PMC_PCER0 |= 0x40000000L ;		// Enable peripheral clock to DAC
 	dacptr = DACC ;
@@ -352,21 +356,24 @@ void init_dac()
 //#endif
 
 uint8_t AudioVoiceUnderrun ;
+uint8_t AudioVoiceCountUnderruns ;
 
 #ifndef SIMU
 extern "C" void DAC_IRQHandler()
 {
 // Data for PDC must NOT be in flash, PDC needs a RAM source.
-	if ( Sound_g.VoiceActive )
+	if ( Sound_g.VoiceActive == 1 )
 	{
 		PtrVoiceBuffer[0]->flags |= VF_SENT ;		// Flag sent
 		PtrVoiceBuffer[0] = PtrVoiceBuffer[1] ;
 		PtrVoiceBuffer[1] = PtrVoiceBuffer[2] ;
-
+		 
 		if ( DACC->DACC_ISR & DACC_ISR_TXBUFE )
 		{
 			DACC->DACC_IDR = DACC_IDR_TXBUFE ;
-			Sound_g.VoiceActive = 0 ;
+			VoiceCount = 0 ;
+			AudioVoiceUnderrun = 1 ;		// For debug
+			Sound_g.VoiceActive = 2 ;
 		}
 		else
 		{
@@ -376,20 +383,19 @@ extern "C" void DAC_IRQHandler()
 				if ( DACC->DACC_TNCR == 0 )
 				{
 					uint32_t x ;
-					x = DACC->DACC_TNPR = CONVERT_PTR(PtrVoiceBuffer[1]->data) ;
+					x = DACC->DACC_TNPR = CONVERT_PTR(PtrVoiceBuffer[1]->dataw) ;
 					DACC->DACC_TNCR = PtrVoiceBuffer[1]->count / 2 ;		// words, 100 16 bit values
 					DACC->DACC_TNPR = x ;		// Goes wrong without this!!!
 				}
 			}
-			else if ( VoiceCount == 0 )		// Run out of buffers
+			else if ( VoiceCount == 1 )		// Run out of buffers
 			{
 				DACC->DACC_IDR = DACC_IDR_ENDTX ;
 				DACC->DACC_IER = DACC_IER_TXBUFE ;
-				AudioVoiceUnderrun = 1 ;		// For debug
 			}
 		}
 	}
-	else
+	else if ( Sound_g.VoiceActive == 0 )
 	{
 		DACC->DACC_TNPR = (uint32_t) Sine_values ;
 		DACC->DACC_TNCR = 50 ;	// words, 100 16 bit values
@@ -444,6 +450,7 @@ void sound_5ms()
 	}
 
 	dacptr = DACC ;
+
 	if ( Sound_g.Tone_ms_timer > 0 )
 	{
 		Sound_g.Tone_ms_timer -= 1 ;
@@ -464,11 +471,15 @@ void sound_5ms()
 
 				set_frequency( VoiceBuffer[0].frequency ? VoiceBuffer[0].frequency : 15999 ) ;
 #ifndef SIMU
-				dacptr->DACC_TPR = (uint32_t) VoiceBuffer[0].data ;
+				dacptr->DACC_PTCR = DACC_PTCR_TXTDIS ;
+				dacptr->DACC_TPR = (uint32_t) VoiceBuffer[0].dataw ;
 				dacptr->DACC_TCR = VoiceBuffer[0].count / 2 ;		// words, 100 16 bit values
-			
-				dacptr->DACC_TNPR = (uint32_t) VoiceBuffer[1].data ;
-				dacptr->DACC_TNCR = VoiceBuffer[1].count / 2 ;		// words, 100 16 bit values
+	
+				if ( VoiceCount > 1 )
+				{
+					dacptr->DACC_TNPR = (uint32_t) VoiceBuffer[1].dataw ;
+					dacptr->DACC_TNCR = VoiceBuffer[1].count / 2 ;		// words, 100 16 bit values
+				}
 				dacptr->DACC_PTCR = DACC_PTCR_TXTEN ;
 #endif
 				dacptr->DACC_IER = DACC_IER_ENDTX ;
@@ -545,35 +556,77 @@ void wavU16Convert( uint16_t *src, uint16_t *dest , uint32_t count )
 
 void startVoice( uint32_t count )		// count of filled in buffers
 {
+	uint32_t i ;
 	AudioVoiceUnderrun = 0 ;
 	VoiceBuffer[0].flags &= ~VF_SENT ;
-
 	PtrVoiceBuffer[0] = &VoiceBuffer[0] ;
-	if ( count > 1 )
+	
+	for ( i = 1 ; i < count ; i += 1 )
 	{
-		VoiceBuffer[1].flags &= ~VF_SENT ;
-		PtrVoiceBuffer[1] = &VoiceBuffer[1] ;
+		VoiceBuffer[i].flags &= ~VF_SENT ;
+		PtrVoiceBuffer[i] = &VoiceBuffer[i] ;
 	}
-	if ( count > 2 )
-	{
-		VoiceBuffer[2].flags &= ~VF_SENT ;
-		PtrVoiceBuffer[2] = &VoiceBuffer[2] ;
-	}
+//	if ( count > 1 )
+//	{
+//		VoiceBuffer[1].flags &= ~VF_SENT ;
+//		PtrVoiceBuffer[1] = &VoiceBuffer[1] ;
+//	}
+//	if ( count > 2 )
+//	{
+//		VoiceBuffer[2].flags &= ~VF_SENT ;
+//		PtrVoiceBuffer[2] = &VoiceBuffer[2] ;
+//	}
 	VoiceCount = count ;
 	Sound_g.VoiceRequest = 1 ;
 }
 
+void endVoice()
+{
+	if ( Sound_g.VoiceActive == 2 )
+	{
+		Sound_g.VoiceActive = 0 ;
+	}
+//	else
+//	{
+//		DebugVoice += 1 ;
+//	}
+}
 
 void appendVoice( uint32_t index )		// index of next buffer
 {
+	register Dacc *dacptr ;
+	
 	VoiceBuffer[index].flags &= ~VF_SENT ;
+	dacptr = DACC ;
 	__disable_irq() ;
-	PtrVoiceBuffer[VoiceCount++] = &VoiceBuffer[index] ;
-	if ( VoiceCount == 2 )
-	{
-		DACC->DACC_TNPR = CONVERT_PTR(VoiceBuffer[index].data);
-		DACC->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+	
+//	if ( ( dacptr->DACC_IMR & DACC_IMR_ENDTX ) == 0 )	// underrun
+//	{
+//		dacptr->DACC_IDR = DACC_IDR_TXBUFE ;
+//		dacptr->DACC_IER = DACC_IER_ENDTX ;
+//	}	
 
+	PtrVoiceBuffer[VoiceCount++] = &VoiceBuffer[index] ;
+
+	if ( Sound_g.VoiceActive == 2 )
+	{
+		Sound_g.VoiceActive = 1 ;
+		uint32_t x ;
+		x = dacptr->DACC_TPR = (uint32_t) VoiceBuffer[index].dataw ;
+		dacptr->DACC_TCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+		dacptr->DACC_TPR = x ;		// Goes wrong without this!!!
+		dacptr->DACC_PTCR = DACC_PTCR_TXTEN ;
+		dacptr->DACC_IER = DACC_IER_TXBUFE ;		// Only one buffer
+	}
+	else
+	{
+		if ( VoiceCount == 2 )
+		{
+			dacptr->DACC_TNPR = CONVERT_PTR(VoiceBuffer[index].dataw);
+			dacptr->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+			dacptr->DACC_IDR = DACC_IDR_TXBUFE ;
+			dacptr->DACC_IER = DACC_IER_ENDTX ;
+		}
 	}
 	__enable_irq() ;
 }
@@ -589,13 +642,24 @@ void playTone( uint32_t frequency, uint32_t time )
 //	tone_start( 0 ) ;
 }
 
-uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency_increment )
+uint32_t unlockTone()
+{
+	if ( Sound_g.Sound_time == 0 )
+	{
+		Sound_g.toneLock = 0 ;
+		return 1 ;
+	}
+	return 0 ;
+}
+
+uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency_increment, uint32_t lock )
 {
 	if ( Sound_g.Sound_time == 0 )
 	{
 		Sound_g.Next_freq = frequency ;
 		Sound_g.Next_frequency_increment = frequency_increment ;
 		Sound_g.Sound_time = time ;
+		Sound_g.toneLock = lock ;
 		return 1 ;
 	}
 	return 0 ;	

@@ -734,9 +734,6 @@ void processFrskyPacket(uint8_t *packet)
 
 //===============================================================
 
-//uint8_t TelemetryDebug[100] ;
-//uint8_t TelDebugCount = 0 ;
-
 uint8_t DsmDebug[18] ;
 
 void processDsmPacket(uint8_t *packet, uint8_t byteCount)
@@ -867,7 +864,8 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 }
 
 
-#ifndef REVX
+#ifndef DISABLE_PXX_SPORT
+//#ifndef REVX
 static bool checkSportPacket()
 {
 	uint8_t *packet = frskyRxBuffer ;
@@ -902,7 +900,7 @@ void processSportPacket()
   
 	if ( prim == DATA_FRAME )
 	{
-		
+		prim = packet[0] & 0x1F ;		// Sensor ID
 		if ( packet[3] == 0xF1 )
 		{ // Receiver specific
 			uint8_t value = packet[4] ;
@@ -977,6 +975,10 @@ void processSportPacket()
 				case CELLS_ID_8 :
 				{
   	      uint8_t battnumber = value ;
+					if ( prim != DATA_ID_FLVSS )
+					{
+						battnumber += 6 ;
+					}
 					uint16_t cell ;
   				FrskyBattCells = battnumber >> 4 ;
 					battnumber &= 0x0F ;
@@ -1092,11 +1094,6 @@ void processSportPacket()
 
 void frsky_receive_byte( uint8_t data )
 {
-//	if ( TelDebugCount < 100 )
-//	{
-//		TelemetryDebug[TelDebugCount++] = data ;
-//	}
-
 #ifdef PCBSKY
 	if ( g_model.bt_telemetry )
 	{
@@ -1132,7 +1129,8 @@ void frsky_receive_byte( uint8_t data )
       case frskyDataStart:
         if (data == START_STOP)
 				{
-#ifndef REVX
+#ifndef DISABLE_PXX_SPORT
+//#ifndef REVX
 					if ( FrskyTelemetryType )		// SPORT
 					{
          		dataState = frskyDataInFrame ;
@@ -1154,7 +1152,8 @@ void frsky_receive_byte( uint8_t data )
         }
         if (data == START_STOP) // end of frame detected
         {
-#ifdef REVX
+#ifdef DISABLE_PXX_SPORT
+//#ifdef REVX
 	          processFrskyPacket(frskyRxBuffer); // FrskyRxBufferReady = 1;
   	        dataState = frskyDataIdle;
 #else
@@ -1191,7 +1190,8 @@ void frsky_receive_byte( uint8_t data )
 
     } // switch
   }
-#ifndef REVX
+#ifndef DISABLE_PXX_SPORT
+//#ifndef REVX
 	if ( FrskyTelemetryType == 1 )		// SPORT
 	{
   	if (numbytes >= FRSKY_SPORT_PACKET_SIZE)
@@ -1632,7 +1632,14 @@ void check_frsky()
 			while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
 			{
 	//Debug_frsky2 += 1 ;
-				frsky_receive_byte( rxchar ) ;
+//				if ( MaintenanceRunning )
+//				{
+//					maintenance_receive_byte( rxchar ) ;
+//				}
+//				else
+//				{
+					frsky_receive_byte( rxchar ) ;
+//				}
 			}
 		}
 		else
@@ -1656,7 +1663,8 @@ void check_frsky()
    			frskyTelemetry[2].set( 0, FR_RXRSI_COPY );	// RSSI
  				FrskyHubData[FR_RXRSI_COPY] = 0 ;
 			}
-			putVoiceQueue( V_NOTELEM ) ;
+			putSystemVoice( SV_NO_TELEM, V_NOTELEM ) ;
+//			putVoiceQueue( V_NOTELEM ) ;
 		}
 	}
   if (frskyUsrStreaming > 0) frskyUsrStreaming--;
@@ -1888,7 +1896,7 @@ uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8
 }
 
 
-uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale)
+uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att, uint8_t scale)
 {
     uint32_t value ;
     //  uint8_t ratio ;

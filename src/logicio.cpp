@@ -42,6 +42,8 @@
 #include "lcd.h"
 #endif
 
+#include "myeeprom.h"
+
 
 #ifndef SIMU
 #ifdef PCBSKY
@@ -151,7 +153,7 @@ void configure_pins( uint32_t pins, uint16_t config )
       if ( ( (config & PIN_MODE_MASK ) == PIN_OUTPUT) || ( (config & PIN_MODE_MASK) == PIN_PERIPHERAL) )
       {
         /* Speed mode configuration */
-        pgpio->OSPEEDR &= ~GPIO_OSPEEDER_OSPEEDR0 << (pos * 2) ;
+        pgpio->OSPEEDR &= ~(GPIO_OSPEEDER_OSPEEDR0 << (pos * 2)) ;
         pgpio->OSPEEDR |= ((config & PIN_SPEED_MASK) >> 13 ) << (pos * 2) ;
 
         /* Output mode configuration*/
@@ -493,6 +495,7 @@ uint32_t hwKeyState( uint8_t key )
 {
 	register uint32_t a ;
 	register uint32_t c ;
+	uint32_t av9 = Analog_values[9] ;
 
   CPU_UINT xxx = 0 ;
   if( key > HSW_MAX )  return 0 ;
@@ -539,15 +542,15 @@ uint32_t hwKeyState( uint8_t key )
     break ;
 		
 		case HSW_Ele3pos0 :
-			xxx = Analog_values[9] < 490 ;
+			xxx = av9 < 490 ;
     break ;
 
 		case HSW_Ele3pos1 :
-			xxx = Analog_values[9] > 1500 ;
+			xxx = av9 > 1500 ;
     break ;
 
 		case HSW_Ele3pos2 :
-			xxx = ( Analog_values[9] <= 1500 ) && ( Analog_values[9] >= 490 ) ;
+			xxx = ( av9 <= 1500 ) && ( av9 >= 490 ) ;
     break ;
 
 		case HSW_Rud3pos0 :
@@ -587,27 +590,69 @@ uint32_t hwKeyState( uint8_t key )
     break ;
 
 		case HSW_Ele6pos0 :
-			xxx = Analog_values[9] > 0x7E0 ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = av9 > 3438 ;
+			}
+			else
+			{
+				xxx = av9 > 0x7E0 ;
+			}
     break ;
 			
 		case HSW_Ele6pos1 :
-			xxx = ( Analog_values[9] <= 0x7E0 ) && ( Analog_values[9] >= 0x7A8 ) ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = ( av9 <= 3438 ) && ( av9 >= 2525 ) ;
+			}
+			else
+			{
+				xxx = ( av9 <= 0x7E0 ) && ( av9 >= 0x7A8 ) ;
+			}
     break ;
 			
 		case HSW_Ele6pos2 :
-			xxx = ( Analog_values[9] <= 0x7A8 ) && ( Analog_values[9] >= 0x770 ) ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = ( av9 <= 2525 ) && ( av9 >= 2159 ) ;
+			}
+			else
+			{
+				xxx = ( av9 <= 0x7A8 ) && ( av9 >= 0x770 ) ;
+			}
     break ;
 			
 		case HSW_Ele6pos3 :
-			xxx = ( Analog_values[9] <= 0x770 ) && ( Analog_values[9] >= 0x340 ) ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = ( av9 <= 2159 ) && ( av9 >= 1974 ) ;
+			}
+			else
+			{
+				xxx = ( av9 <= 0x770 ) && ( av9 >= 0x340 ) ;
+			}
     break ;
 			
 		case HSW_Ele6pos4 :
-			xxx = ( Analog_values[9] <= 0x340 ) && ( Analog_values[9] >= 0x070 ) ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = ( av9 <= 1974 ) && ( av9 >= 950 ) ;
+			}
+			else
+			{
+				xxx = ( av9 <= 0x340 ) && ( av9 >= 0x070 ) ;
+			}
     break ;
 			
 		case HSW_Ele6pos5 :
-			xxx = Analog_values[9] < 0x070 ;
+			if ( g_eeGeneral.switchMapping & USE_ELE_6PSB )
+			{
+				xxx = av9 < 950 ;
+			}
+			else
+			{
+				xxx = av9 < 0x070 ;
+			}
     break ;
 			
 
@@ -868,7 +913,120 @@ void setup_switches()
 	
 }
 
+uint32_t hwKeyState( uint8_t key )
+{
+  register uint32_t a = GPIOA->IDR;
+  register uint32_t b = GPIOB->IDR;
+  register uint32_t e = GPIOE->IDR;
 
+  uint32_t xxx = 0 ;
+  
+	if( key > HSW_MAX )  return 0 ;
+
+  switch ( key )
+	{
+    case HSW_SA0:
+      xxx = ~e & PIN_SW_A_L;
+      break;
+    case HSW_SA1:
+      xxx = ((e & PIN_SW_A_L) | (b & PIN_SW_A_H)) == (PIN_SW_A_L | PIN_SW_A_H) ;
+      break;
+    case HSW_SA2:
+      xxx = ~b & PIN_SW_A_H;
+      break;
+
+    case HSW_SB0:
+      xxx = ~e & PIN_SW_B_L ;
+      break;
+    case HSW_SB1:
+      xxx = (e & (PIN_SW_B_L | PIN_SW_B_H)) == (PIN_SW_B_L | PIN_SW_B_H) ;
+      break;
+    case HSW_SB2:
+      xxx = ~e & PIN_SW_B_H ;
+      break;
+
+    case HSW_SC0:
+      xxx = ~a & PIN_SW_C_L ;
+      break;
+    case HSW_SC1:
+      xxx = ((a & PIN_SW_C_L) | (e & PIN_SW_C_H)) == (PIN_SW_C_L | PIN_SW_C_H) ;
+      break;
+    case HSW_SC2:
+      xxx = ~e & PIN_SW_C_H ;
+      break;
+
+    case HSW_SD0:
+#ifdef REVPLUS
+      xxx = ~e & PIN_SW_D_L ;
+#else
+      xxx = ~b & PIN_SW_D_L ;
+#endif
+			break;
+    case HSW_SD1:
+#ifdef REVPLUS
+      xxx = ((e & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
+#else
+      xxx = ((b & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
+#endif
+      break;
+    case HSW_SD2:
+      xxx = ~e & PIN_SW_D_H ;
+      break;
+
+    case HSW_SE0:
+      xxx = ~b & PIN_SW_E_L ;
+      break;
+    case HSW_SE1:
+      xxx = ((b & PIN_SW_E_H) | (b & PIN_SW_E_L)) == (PIN_SW_E_H | PIN_SW_E_L) ;
+      break;
+    case HSW_SE2:
+      xxx = ~b & PIN_SW_E_H ;
+      break;
+
+//    case HSW_SF0:
+//      xxx = e & PIN_SW_F ;
+//      break;
+    case HSW_SF2:
+      xxx = ~e & PIN_SW_F ;
+      break;
+
+    case HSW_SG0:
+      xxx = ~e & PIN_SW_G_L ;
+      break;
+    case HSW_SG1:
+      xxx = (e & (PIN_SW_G_H | PIN_SW_G_L)) == (PIN_SW_G_H | PIN_SW_G_L) ;
+      break;
+    case HSW_SG2:
+      xxx = ~e & PIN_SW_G_H ;
+      break;
+
+//    case HSW_SH0:
+//#ifdef REVPLUS
+//      xxx = GPIOD->IDR & PIN_SW_H;
+//#else
+//      xxx = e & PIN_SW_H;
+//#endif
+//      break;
+    case HSW_SH2:
+#ifdef REVPLUS
+      xxx = ~GPIOD->IDR & PIN_SW_H;
+#else
+      xxx = ~e & PIN_SW_H;
+#endif
+      break;
+
+    default:
+      break;
+  }
+
+
+  if ( xxx )
+  {
+    return 1 ;
+  }
+  return 0;
+
+}
 
 uint32_t keyState(EnumKeys enuk)
 {
@@ -881,25 +1039,25 @@ uint32_t keyState(EnumKeys enuk)
   if (enuk < (int) DIM(keys)) return keys[enuk].state() ? 1 : 0;
 
   switch ((uint8_t) enuk) {
-    case SW_SA0:
-      xxx = ~e & PIN_SW_A_L;
-      break;
-    case SW_SA1:
-      xxx = ((e & PIN_SW_A_L) | (b & PIN_SW_A_H)) == (PIN_SW_A_L | PIN_SW_A_H) ;
-      break;
-    case SW_SA2:
-      xxx = ~b & PIN_SW_A_H;
-      break;
+//    case SW_SA0:
+//      xxx = ~e & PIN_SW_A_L;
+//      break;
+//    case SW_SA1:
+//      xxx = ((e & PIN_SW_A_L) | (b & PIN_SW_A_H)) == (PIN_SW_A_L | PIN_SW_A_H) ;
+//      break;
+//    case SW_SA2:
+//      xxx = ~b & PIN_SW_A_H;
+//      break;
 
-    case SW_SB0:
-      xxx = ~e & PIN_SW_B_L ;
-      break;
-    case SW_SB1:
-      xxx = (e & (PIN_SW_B_L | PIN_SW_B_H)) == (PIN_SW_B_L | PIN_SW_B_H) ;
-      break;
-    case SW_SB2:
-      xxx = ~e & PIN_SW_B_H ;
-      break;
+//    case SW_SB0:
+//      xxx = ~e & PIN_SW_B_L ;
+//      break;
+//    case SW_SB1:
+//      xxx = (e & (PIN_SW_B_L | PIN_SW_B_H)) == (PIN_SW_B_L | PIN_SW_B_H) ;
+//      break;
+//    case SW_SB2:
+//      xxx = ~e & PIN_SW_B_H ;
+//      break;
 
     case SW_SC0:
       xxx = ~a & PIN_SW_C_L ;
@@ -911,58 +1069,58 @@ uint32_t keyState(EnumKeys enuk)
       xxx = ~e & PIN_SW_C_H ;
       break;
 
-    case SW_SD0:
-#ifdef REVPLUS
-      xxx = ~e & PIN_SW_D_L ;
-#else
-      xxx = ~b & PIN_SW_D_L ;
-#endif
-			break;
-    case SW_SD1:
-#ifdef REVPLUS
-      xxx = ((e & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
-#else
-      xxx = ((b & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
-#endif
-      break;
-    case SW_SD2:
-      xxx = ~e & PIN_SW_D_H ;
-      break;
+//    case SW_SD0:
+//#ifdef REVPLUS
+//      xxx = ~e & PIN_SW_D_L ;
+//#else
+//      xxx = ~b & PIN_SW_D_L ;
+//#endif
+//			break;
+//    case SW_SD1:
+//#ifdef REVPLUS
+//      xxx = ((e & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
+//#else
+//      xxx = ((b & PIN_SW_D_L) | (e & PIN_SW_D_H)) == (PIN_SW_D_L | PIN_SW_D_H) ;
+//#endif
+//      break;
+//    case SW_SD2:
+//      xxx = ~e & PIN_SW_D_H ;
+//      break;
 
-    case SW_SE0:
-      xxx = ~b & PIN_SW_E_L ;
-      break;
-    case SW_SE1:
-      xxx = ((b & PIN_SW_E_H) | (b & PIN_SW_E_L)) == (PIN_SW_E_H | PIN_SW_E_L) ;
-      break;
-    case SW_SE2:
-      xxx = ~b & PIN_SW_E_H ;
-      break;
+//    case SW_SE0:
+//      xxx = ~b & PIN_SW_E_L ;
+//      break;
+//    case SW_SE1:
+//      xxx = ((b & PIN_SW_E_H) | (b & PIN_SW_E_L)) == (PIN_SW_E_H | PIN_SW_E_L) ;
+//      break;
+//    case SW_SE2:
+//      xxx = ~b & PIN_SW_E_H ;
+//      break;
 
-    case SW_SF0:
-      xxx = e & PIN_SW_F ;
-      break;
+//    case SW_SF0:
+//      xxx = e & PIN_SW_F ;
+//      break;
     case SW_SF2:
       xxx = ~e & PIN_SW_F ;
       break;
 
-    case SW_SG0:
-      xxx = ~e & PIN_SW_G_L ;
-      break;
-    case SW_SG1:
-      xxx = (e & (PIN_SW_G_H | PIN_SW_G_L)) == (PIN_SW_G_H | PIN_SW_G_L) ;
-      break;
-    case SW_SG2:
-      xxx = ~e & PIN_SW_G_H ;
-      break;
+//    case SW_SG0:
+//      xxx = ~e & PIN_SW_G_L ;
+//      break;
+//    case SW_SG1:
+//      xxx = (e & (PIN_SW_G_H | PIN_SW_G_L)) == (PIN_SW_G_H | PIN_SW_G_L) ;
+//      break;
+//    case SW_SG2:
+//      xxx = ~e & PIN_SW_G_H ;
+//      break;
 
-    case SW_SH0:
-#ifdef REVPLUS
-      xxx = GPIOD->IDR & PIN_SW_H;
-#else
-      xxx = e & PIN_SW_H;
-#endif
-      break;
+//    case SW_SH0:
+//#ifdef REVPLUS
+//      xxx = GPIOD->IDR & PIN_SW_H;
+//#else
+//      xxx = e & PIN_SW_H;
+//#endif
+//      break;
     case SW_SH2:
 #ifdef REVPLUS
       xxx = ~GPIOD->IDR & PIN_SW_H;
@@ -983,27 +1141,75 @@ uint32_t keyState(EnumKeys enuk)
 }
 
 // Returns 0, 1 or 2 for ^ - or v
+static const uint8_t SwitchIndices[] = {HSW_SA0,HSW_SB0,HSW_SC0,HSW_SD0,HSW_SE0,HSW_SF2,HSW_SG0,HSW_SH2} ;
 uint32_t switchPosition( uint32_t swtch )
 {
-	swtch *= 3 ;
-	swtch += SW_SA0 ;
-	if ( swtch > SW_SF0 )
+	swtch = SwitchIndices[swtch] ;
+
+	if ( swtch == HSW_SF2 )
 	{
-		swtch -= 1 ;		
-	}
-	if ( keyState( (EnumKeys)swtch ) )
+		if ( hwKeyState( swtch ) )
+		{
+			return 2 ;
+		}
+		return 0 ;
+	} 
+	if ( swtch == HSW_SH2 )
+	{
+		if ( hwKeyState( swtch ) )
+		{
+			return 2 ;
+		}
+		return 0 ;
+	} 
+	if ( hwKeyState( swtch ) )
 	{
 		return 0 ;
 	}
 	swtch += 1 ;
-	if ( keyState( (EnumKeys)swtch ) )
+	if ( hwKeyState( swtch ) )
 	{
-		if ( ( swtch != SW_SF2 ) && ( swtch != SW_SH2 ) )
-		{
-			return 1 ;			
-		}
+		return 1 ;			
 	}
+//	if ( swtch == HSW_Ele6pos1 )
+//	{
+//		swtch += 2 ;
+//		if ( hwKeyState( swtch ) )
+//		{
+//			return 3 ;
+//		}
+//		swtch += 1 ;
+//		if ( hwKeyState( swtch ) )
+//		{
+//			return 4 ;
+//		}
+//		swtch += 1 ;
+//		if ( hwKeyState( swtch ) )
+//		{
+//			return 5 ;
+//		}
+//	}
 	return 2 ;
+	
+//	swtch *= 3 ;
+//	swtch += SW_SA0 ;
+//	if ( swtch > SW_SF0 )
+//	{
+//		swtch -= 1 ;		
+//	}
+//	if ( keyState( (EnumKeys)swtch ) )
+//	{
+//		return 0 ;
+//	}
+//	swtch += 1 ;
+//	if ( keyState( (EnumKeys)swtch ) )
+//	{
+//		if ( ( swtch != SW_SF2 ) && ( swtch != SW_SH2 ) )
+//		{
+//			return 1 ;			
+//		}
+//	}
+//	return 2 ;
 }
 
 

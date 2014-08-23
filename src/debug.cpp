@@ -184,14 +184,20 @@ DIR Dir ;
 
 extern uint16_t Captures[256] ;
 extern uint32_t Cap_index ;
+extern uint8_t Activated ;
 
 uint8_t EEdata[256] ;
 uint32_t Tcap_index ;
 
-
 void handle_serial(void* pdata)
 {
 	uint16_t rxchar ;
+
+	while ( Activated == 0 )
+	{
+		CoTickDelay(10) ;					// 20mS
+	}
+
 #if VOICE_TEST
 	static uint32_t SdAddress = 0 ;
 #endif
@@ -205,7 +211,7 @@ void handle_serial(void* pdata)
 #if PCBSKY		
 		if ( SoundCheck )
 		{
-			if ( queueTone( 610, 200, 30 ) )
+			if ( queueTone( 610, 200, 30, 0 ) )
 			{
 				SoundCheck = 0 ;
 			}			

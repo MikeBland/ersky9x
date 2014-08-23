@@ -43,6 +43,12 @@ extern int16_t g_chans512[] ;
 extern void init_pxx(uint32_t port) ;
 extern void disable_pxx(uint32_t port) ;
 
+// TC0 - hardware timer
+// TC1 - DAC clock
+// TC2 - 5mS timer
+// TC3 - input capture
+// TC4 - input capture clock
+// TC5 - Spare
 
 // Starts TIMER at 200Hz, 5mS period
 #ifdef PCBSKY

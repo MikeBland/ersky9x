@@ -38,11 +38,11 @@
 
 #ifdef PCBX9D
 #include "diskio.h"
-#include "x9d\stm32f2xx.h"
-#include "x9d\stm32f2xx_gpio.h"
-#include "x9d\stm32f2xx_rcc.h"
-#include "x9d\stm32f2xx_usart.h"
-#include "x9d\hal.h"
+#include "X9D/stm32f2xx.h"
+#include "X9D/stm32f2xx_gpio.h"
+#include "X9D/stm32f2xx_rcc.h"
+#include "X9D/stm32f2xx_usart.h"
+#include "X9D/hal.h"
 #endif
 
 
@@ -67,7 +67,7 @@ uint16_t Scc_baudrate ;				// 0 for 125000, 1 for 115200
 uint16_t DsmRxTimeout ;
 uint16_t WatchdogTimeout ;
 
-#define RX_UART_BUFFER_SIZE	32
+#define RX_UART_BUFFER_SIZE	128
 
 struct t_rxUartBuffer
 {
@@ -75,8 +75,7 @@ struct t_rxUartBuffer
 	uint8_t *outPtr ;
 } ;
 
-struct t_rxUartBuffer TelemetryInBuffer[2] ;
-uint32_t TelemetryActiveBuffer ;
+struct t_rxUartBuffer TelemetryInBuffer ;
 
 struct t_fifo32 Console_fifo ;
 struct t_fifo32 BtRx_fifo ;
@@ -352,6 +351,9 @@ void per10ms()
 #ifdef PCBSKY
 #if !defined(SIMU)
 	uint8_t value = ~PIOB->PIO_PDSR & 0x40 ;
+
+extern uint8_t AnaEncSw ;
+	value |= AnaEncSw ;
 	keys[enuk].input( value,(EnumKeys)enuk); // Rotary Enc. Switch
 	if ( value )
 	{
@@ -360,6 +362,18 @@ void per10ms()
 #endif
 
 #endif
+#ifdef PCBX9D
+#if !defined(SIMU)
+extern uint8_t AnaEncSw ;
+	uint8_t value = AnaEncSw ;
+	keys[enuk].input( value,(EnumKeys)enuk); // Rotary Enc. Switch
+	if ( value )
+	{
+		StickScrollTimer = STICK_SCROLL_TIMEOUT ;
+	}
+#endif
+#endif
+
 #ifdef PCBX9D
 	sdPoll10ms() ;
 #endif
@@ -786,6 +800,11 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 
   /* Configure PIO */
 	configure_pins( (PIO_PA5 | PIO_PA6), PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_NO_PULLUP ) ;
+	
+#ifdef REVX
+	configure_pins( PIO_PA25, PIN_ENABLE | PIN_LOW | PIN_OUTPUT | PIN_PORTA | PIN_NO_PULLUP ) ;
+#endif
+
 //	pioptr = PIOA ;
 //  pioptr->PIO_ABCDSR[0] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
 //  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA5 | PIO_PA6) ;	// Peripheral A
@@ -837,8 +856,31 @@ void UART2_timeout_disable()
 extern "C" void USART0_IRQHandler()
 {
   register Usart *pUsart = SECOND_USART;
-  pUsart->US_CR = US_CR_STTTO ;		// Clears timeout bit
-	DsmRxTimeout = 1 ;
+  if ( pUsart->US_IMR & US_IMR_TIMEOUT )
+	{
+	  pUsart->US_CR = US_CR_STTTO ;		// Clears timeout bit
+		DsmRxTimeout = 1 ;
+	}
+  if ( pUsart->US_IMR & US_IMR_ENDTX )
+	{
+	 	if ( pUsart->US_CSR & US_CSR_ENDTX )
+		{
+			pUsart->US_IER = US_IER_TXEMPTY ;
+			pUsart->US_IDR = US_IDR_ENDTX ;
+		}
+	}
+// Disable Tx output
+  if ( pUsart->US_IMR & US_CSR_TXEMPTY )
+	{
+ 		if ( pUsart->US_CSR & US_CSR_TXEMPTY )
+		{
+#ifdef REVX
+			PIOA->PIO_CODR = 0x02000000L ;	// Set bit A25 OFF
+#endif
+			pUsart->US_IDR = US_IDR_TXEMPTY ;
+			pUsart->US_CR = US_CR_RXEN ;
+		}
+	}
 }
 
 // set outPtr start of buffer
@@ -873,17 +915,14 @@ void startPdcUsartReceive()
 {
   register Usart *pUsart = SECOND_USART;
 	
-	TelemetryInBuffer[0].outPtr = TelemetryInBuffer[0].fifo ;
-	TelemetryInBuffer[1].outPtr = TelemetryInBuffer[1].fifo ;
+	TelemetryInBuffer.outPtr = TelemetryInBuffer.fifo ;
 #ifndef SIMU
-  // TODO because of the 64bits cast ...
-	pUsart->US_RPR = (uint32_t)TelemetryInBuffer[0].fifo ;
-	pUsart->US_RNPR = (uint32_t)TelemetryInBuffer[1].fifo ;
+	pUsart->US_RPR = (uint32_t)TelemetryInBuffer.fifo ;
+	pUsart->US_RNPR = (uint32_t)TelemetryInBuffer.fifo ;
 #endif
 	pUsart->US_RCR = RX_UART_BUFFER_SIZE ;
 	pUsart->US_RNCR = RX_UART_BUFFER_SIZE ;
 	pUsart->US_PTCR = US_PTCR_RXTEN ;
-	TelemetryActiveBuffer = 0 ;
 }
 
 //void endPdcUsartReceive()
@@ -899,36 +938,30 @@ void rxPdcUsart( void (*pChProcess)(uint8_t x) )
   register Usart *pUsart = SECOND_USART;
 	uint8_t *ptr ;
 	uint8_t *endPtr ;
-//	uint32_t bufIndex ;
-//	uint32_t i ;
-	uint32_t j ;
 
  //Find out where the DMA has got to
-	__disable_irq() ;
-	pUsart->US_PTCR = US_PTCR_RXTDIS ;		// Freeze DMA
-	ptr = (uint8_t *)pUsart->US_RPR ;
-	j = pUsart->US_RNCR ;
-	pUsart->US_PTCR = US_PTCR_RXTEN ;			// DMA active again
-	__enable_irq() ;
-
-	endPtr = ptr - 1 ;
-	ptr = TelemetryInBuffer[TelemetryActiveBuffer].outPtr ;
-	if ( j == 0 )		// First buf is full
+	endPtr = (uint8_t *)pUsart->US_RPR ;
+	// Check for DMA passed end of buffer
+	if ( endPtr > &TelemetryInBuffer.fifo[RX_UART_BUFFER_SIZE-1] )
 	{
-		endPtr = &TelemetryInBuffer[TelemetryActiveBuffer].fifo[RX_UART_BUFFER_SIZE-1] ;		// last byte
+		endPtr = TelemetryInBuffer.fifo ;
 	}
-	while ( ptr <= endPtr )
+	
+	ptr = TelemetryInBuffer.outPtr ;
+	while ( ptr != endPtr )
 	{
 		(*pChProcess)(*ptr++) ;
+		if ( ptr > &TelemetryInBuffer.fifo[RX_UART_BUFFER_SIZE-1] )		// last byte
+		{
+			ptr = TelemetryInBuffer.fifo ;
+		}
 	}
-	TelemetryInBuffer[TelemetryActiveBuffer].outPtr = ptr ;
-	if ( j == 0 )		// First buf is full
+	TelemetryInBuffer.outPtr = ptr ;
+
+	if ( pUsart->US_RNCR == 0 )
 	{
-		TelemetryInBuffer[TelemetryActiveBuffer].outPtr = TelemetryInBuffer[TelemetryActiveBuffer].fifo ;
-		pUsart->US_RNPR = (uint32_t)TelemetryInBuffer[TelemetryActiveBuffer].fifo ;
+		pUsart->US_RNPR = (uint32_t)TelemetryInBuffer.fifo ;
 		pUsart->US_RNCR = RX_UART_BUFFER_SIZE ;
-		TelemetryActiveBuffer ^= 1 ;		// Other buffer is active
-		rxPdcUsart( pChProcess ) ;			// Get any chars from second buffer
 	}
 #endif
 }
@@ -939,15 +972,24 @@ uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 
 	if ( pUsart->US_TNCR == 0 )
 	{
+#ifdef REVX
+		PIOA->PIO_SODR = 0x02000000L ;	// Set bit A25 ON, enable SPort output
+#endif
+
+		pUsart->US_CR = US_CR_RXDIS ;
 #ifndef SIMU
 	  pUsart->US_TNPR = (uint32_t)buffer ;
 #endif
 		pUsart->US_TNCR = size ;
 		pUsart->US_PTCR = US_PTCR_TXTEN ;
+		pUsart->US_IER = US_IER_ENDTX ;
+		NVIC_EnableIRQ(USART0_IRQn) ;
 		return 1 ;
 	}
 	return 0 ;
 }
+
+
   
 uint32_t txCom2Uart( uint8_t *buffer, uint32_t size )
 {
@@ -1154,6 +1196,78 @@ void hex_digit_send( unsigned char c )
 	txmit( c ) ;
 }
 
+//void xread_9_adc()
+//{
+//	register Adc *padc ;
+//	register uint32_t y ;
+//	register uint32_t x ;
+//	static uint16_t timer = 0 ;
+
+//	padc = ADC ;
+//#ifdef REVB
+//#ifndef REVX
+//	padc->ADC_CHER = 0x00000400 ;  // channel 10 on
+//#endif
+//#endif
+	
+//	y = padc->ADC_ISR ;		// Clear EOC flags
+//	padc->ADC_CR = 2 ;		// Start conversion
+//	x = 0 ;
+//	while ( ( padc->ADC_ISR & 0x00008000 ) == 0 )
+//	{
+//		// wait for EOC15 flag
+//		if ( ++x > 1000000 )
+//		{
+//			break ;		// Software timeout				
+//		}
+//	}
+//#ifdef REVB
+//#ifndef REVX
+//	padc->ADC_CHDR = 0x00000400 ;  // channel 10 off
+//#endif
+//#endif
+//	Analog_values[0] = ADC->ADC_CDR2 ;
+//	Analog_values[1] = ADC->ADC_CDR9 ;
+//	Analog_values[2] = ADC->ADC_CDR14 ;
+//	Analog_values[3] = ADC->ADC_CDR1 ;
+//	Analog_values[4] = ADC->ADC_CDR5 ;
+//	Analog_values[5] = ADC->ADC_CDR13 ;
+//	Analog_values[6] = ADC->ADC_CDR3 ;
+//	Analog_values[7] = ADC->ADC_CDR4 ;
+
+//#ifdef REVB
+//	Analog_values[8] = ADC->ADC_CDR8 ;
+	
+//	x = ADC->ADC_CDR10 ;
+//	y = Analog_values[9] ;
+//	int32_t diff = x - y ;
+//	if ( diff < 0 )
+//	{
+//		diff = -diff ;
+//	}
+//	if ( diff > 10 )
+//	{
+//		if ( ( ( g_tmr10ms - timer ) & 0x0000FFFF ) > 3 )
+//		{
+//			timer = g_tmr10ms ;
+//			Analog_values[9] = x ;
+//		}
+//	}
+//	else
+//	{
+//		timer = g_tmr10ms ;
+//		Analog_values[9] = x ;
+//	}
+
+//#endif
+//	Temperature = ( Temperature * 7 + ADC->ADC_CDR15 ) >> 3 ;	// Filter it
+//	if ( Temperature > Max_temperature )
+//	{
+//		Max_temperature = Temperature ;		
+//	}
+	 
+//}
+
 
 // Read 8 (9 for REVB) ADC channels
 // Documented bug, must do them 1 by 1
@@ -1193,45 +1307,45 @@ void read_9_adc()
 #endif
 #endif
 	// Next bit may be done using the PDC
-// Option on 9XR to increas ADC accuracy
+// Option on 9XR to increase ADC accuracy
 //#ifdef REVX
-//	int32_t calc = ADC->ADC_CDR1 ;
+//	int32_t calc = ADC->ADC_CDR2 ;
 //	calc -= 2048 ;
 //	calc *= 18 ;
 //	calc >>= 4 ;
 //	calc += 2048 ;
 //	Analog_values[0] = calc ;
-//	calc = ADC->ADC_CDR2 ;
+//	calc = ADC->ADC_CDR9 ;
 //	calc -= 2048 ;
 //	calc *= 18 ;
 //	calc >>= 4 ;
 //	calc += 2048 ;
 //	Analog_values[1] = calc ;
-//	Analog_values[2] = ADC->ADC_CDR3 ;
-//	Analog_values[3] = ADC->ADC_CDR4 ;
-//	Analog_values[4] = ADC->ADC_CDR5 ;
-//	calc = ADC->ADC_CDR9 ;
-//	calc -= 2048 ;
-//	calc *= 21 ;
-//	calc >>= 4 ;
-//	calc += 2048 ;
-//	Analog_values[5] = calc ;
-//	Analog_values[6] = ADC->ADC_CDR13 ;
 //	calc = ADC->ADC_CDR14 ;
 //	calc -= 2048 ;
 //	calc *= 21 ;
 //	calc >>= 4 ;
 //	calc += 2048 ;
-//	Analog_values[7] = calc ;
+//	Analog_values[2] = calc ;
+//	calc = ADC->ADC_CDR1 ;
+//	calc -= 2048 ;
+//	calc *= 21 ;
+//	calc >>= 4 ;
+//	calc += 2048 ;
+//	Analog_values[3] = calc ;
+//	Analog_values[4] = ADC->ADC_CDR5 ;
+//	Analog_values[5] = ADC->ADC_CDR13 ;
+//	Analog_values[6] = ADC->ADC_CDR3 ;
+//	Analog_values[7] = ADC->ADC_CDR4 ;
 //#else	
-	Analog_values[0] = ADC->ADC_CDR1 ;
-	Analog_values[1] = ADC->ADC_CDR2 ;
-	Analog_values[2] = ADC->ADC_CDR3 ;
-	Analog_values[3] = ADC->ADC_CDR4 ;
+	Analog_values[0] = ADC->ADC_CDR2 ;
+	Analog_values[1] = ADC->ADC_CDR9 ;
+	Analog_values[2] = ADC->ADC_CDR14 ;
+	Analog_values[3] = ADC->ADC_CDR1 ;
 	Analog_values[4] = ADC->ADC_CDR5 ;
-	Analog_values[5] = ADC->ADC_CDR9 ;
-	Analog_values[6] = ADC->ADC_CDR13 ;
-	Analog_values[7] = ADC->ADC_CDR14 ;
+	Analog_values[5] = ADC->ADC_CDR13 ;
+	Analog_values[6] = ADC->ADC_CDR3 ;
+	Analog_values[7] = ADC->ADC_CDR4 ;
 //#endif
 #ifdef REVB
 	Analog_values[8] = ADC->ADC_CDR8 ;
@@ -1245,7 +1359,7 @@ void read_9_adc()
 	}
 	if ( diff > 10 )
 	{
-		if ( ( ( g_tmr10ms - timer ) & 0x0000FFFF ) > 3 )
+		if ( ( ( g_tmr10ms - timer ) & 0x0000FFFF ) > 10 )
 		{
 			timer = g_tmr10ms ;
 			Analog_values[9] = x ;
@@ -1641,6 +1755,7 @@ void init_ssc( uint16_t baudrate )
 	sscptr->SSC_CR = SSC_CR_TXEN ;
 
 	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_PULLUP ) ;
+#ifdef REVX
 	if ( baudrate )
 	{
 		PIOA->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
@@ -1649,6 +1764,9 @@ void init_ssc( uint16_t baudrate )
 	{
 		PIOA->PIO_MDER = PIO_PA17 ;						// Open Drain O/p in A17
 	}
+#else
+	PIOA->PIO_MDDR = PIO_PA17 ;						// Push Pull O/p in A17
+#endif
 }
 
 void disable_ssc()
@@ -1667,6 +1785,39 @@ void disable_ssc()
 #endif
 
 #ifdef PCBX9D
+
+//  /* Determine the integer part */
+//  if ((USARTx->CR1 & USART_CR1_OVER8) != 0)
+//  {
+//    /* Integer part computing in case Oversampling mode is 8 Samples */
+//    integerdivider = ((25 * apbclock) / (2 * (USART_InitStruct->USART_BaudRate)));    
+//  }
+//  else /* if ((USARTx->CR1 & USART_CR1_OVER8) == 0) */
+//  {
+//    /* Integer part computing in case Oversampling mode is 16 Samples */
+//    integerdivider = ((25 * apbclock) / (4 * (USART_InitStruct->USART_BaudRate)));    
+//  }
+//  tmpreg = (integerdivider / 100) << 4;
+
+//  /* Determine the fractional part */
+//  fractionaldivider = integerdivider - (100 * (tmpreg >> 4));
+
+//  /* Implement the fractional part in the register */
+//  if ((USARTx->CR1 & USART_CR1_OVER8) != 0)
+//  {
+//    tmpreg |= ((((fractionaldivider * 8) + 50) / 100)) & ((uint8_t)0x07);
+//  }
+//  else /* if ((USARTx->CR1 & USART_CR1_OVER8) == 0) */
+//  {
+//    tmpreg |= ((((fractionaldivider * 16) + 50) / 100)) & ((uint8_t)0x0F);
+//  }
+  
+//  /* Write to USART BRR register */
+//  USARTx->BRR = (uint16_t)tmpreg;
+
+extern uint32_t Peri1_frequency ;
+extern uint32_t Peri2_frequency ;
+
 void x9dConsoleInit()
 {
 	// Serial configure  
@@ -1674,7 +1825,7 @@ void x9dConsoleInit()
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
 	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
 	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
-	USART3->BRR = 0x061A ;		// 97.625 divider => 9600 baud
+	USART3->BRR = Peri1_frequency / 9600 ;		// 97.625 divider => 9600 baud
 	USART3->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART3->CR2 = 0 ;
 	USART3->CR3 = 0 ;
@@ -1692,11 +1843,11 @@ void x9dSPortInit( uint32_t baudRate )
 	GPIOD->AFR[0] = (GPIOD->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
 	if ( baudRate == 0 )
 	{
-		USART2->BRR = 0x0104 ;		// 16.25 divider => 57600 baud
+		USART2->BRR = Peri1_frequency / 57600 ;		// 16.25 divider => 57600 baud
 	}
 	else
 	{
-		USART2->BRR = 0x061A ;		// 97.625 divider => 9600 baud
+		USART2->BRR = Peri1_frequency / 9600 ;		// 97.625 divider => 9600 baud
 	}
 	USART2->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART2->CR2 = 0 ;
@@ -1710,7 +1861,8 @@ void x9dSPortTxStart( uint8_t *buffer, uint32_t count )
 	SportTx.ptr = buffer ;
 	SportTx.count = count ;
 	GPIOD->BSRRL = 0x0010 ;		// output enable
-	USART2->CR1 |= USART_CR1_TE ;
+//	USART2->SR = ~USART_SR_TC ;
+	USART2->CR1 |= USART_CR1_TXEIE ;
 }
 
 #if !defined(SIMU)
@@ -1737,13 +1889,13 @@ extern "C" void USART2_IRQHandler()
 			USART2->DR = *SportTx.ptr++ ;
 			if ( --SportTx.count == 0 )
 			{
-				USART2->CR1 &= ~USART_CR1_TE ;	// Stop Tx interrupt
+				USART2->CR1 &= ~USART_CR1_TXEIE ;	// Stop Tx interrupt
 				USART2->CR1 |= USART_CR1_TCIE ;	// Enable complete interrupt
 			}
 		}
 	}
-
-	if ( status & USART_SR_TC )
+	
+	if ( USART2->SR & USART_SR_TC )
 	{
 		USART2->CR1 &= ~USART_CR1_TCIE ;	// Stop Complete interrupt
 		GPIOD->BSRRH = 0x0010 ;		// output disable
@@ -1751,6 +1903,7 @@ extern "C" void USART2_IRQHandler()
 
   while (status & (USART_FLAG_RXNE | USART_FLAG_ERRORS))
 	{
+
     data = USART2->DR;
 
     if (!(status & USART_FLAG_ERRORS))

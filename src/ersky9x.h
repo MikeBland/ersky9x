@@ -25,6 +25,14 @@
 
 #define FIX_MODE		1
 
+//#ifdef PCBSKY
+// #ifdef REVX
+//  #define DISABLE_PXX_SPORT	1
+// #endif
+//#endif
+
+#define TELEMETRY_LOST	1
+
 #ifdef SIMU
 #include "simpgmspace.h"
 #else
@@ -110,7 +118,8 @@ extern const char * const Swedish[] ;
 #define CSW_INDEX	9	// Index of first custom switch
 #endif
 #ifdef PCBX9D
-#define CSW_INDEX	22	// Index of first custom switch
+#define CSW_INDEX	9	// Index of first custom switch
+//#define CSW_INDEX	22	// Index of first custom switch
 #endif
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
@@ -147,27 +156,14 @@ enum EnumKeys {
 #endif
 
 #ifdef PCBX9D
-  SW_SA0,
-  SW_SA1,
-  SW_SA2,
-  SW_SB0,
-  SW_SB1,
-  SW_SB2,
+  SW_SF2,
+  SW_nu1,
+  SW_nu2,
   SW_SC0,
   SW_SC1,
   SW_SC2,
-  SW_SD0,
-  SW_SD1,
-  SW_SD2,
-  SW_SE0,
-  SW_SE1,
-  SW_SE2,
-  SW_SF0,
-  SW_SF2,
-  SW_SG0,
-  SW_SG1,
-  SW_SG2,
-  SW_SH0,
+  SW_nu3,
+  SW_nu4,
   SW_SH2
 #endif
 };
@@ -240,16 +236,58 @@ enum EnumKeys {
 #define	USE_ELE_6POS	0x08
 #define	USE_AIL_3POS	0x10
 #define	USE_GEA_3POS	0x20
+#define	USE_ELE_6PSB	0x40
 
 //extern uint8_t switchMap[] ;
 //extern uint8_t switchUnMap[] ;
-void createSwitchMapping( void ) ;
-int8_t switchUnMap( int8_t x ) ;
-int8_t switchMap( int8_t x ) ;
 uint16_t oneSwitchText( uint8_t swtch, uint16_t state ) ;
 extern uint8_t Sw3PosList[] ;
 extern uint8_t Sw3PosCount[] ;
-#endif
+#endif // PCBSKY
+
+void createSwitchMapping( void ) ;
+int8_t switchUnMap( int8_t x ) ;
+int8_t switchMap( int8_t x ) ;
+
+#ifdef PCBX9D
+
+#define HSW_SF2				1
+//#define HSW_SF2				2
+
+#define HSW_SC0				4
+#define HSW_SC1				5
+#define HSW_SC2				6
+
+//#define HSW_SH0				8
+#define HSW_SH2				9
+
+#define HSW_SB0				45	// Skip some values because of safety switch values
+#define HSW_SB1				46
+#define HSW_SB2				47
+#define HSW_SE0				48
+#define HSW_SE1				49
+#define HSW_SE2				50
+#define HSW_SA0				51
+#define HSW_SA1				52
+#define HSW_SA2				53
+#define HSW_SD0				54
+#define HSW_SD1				55
+#define HSW_SD2				56
+#define HSW_SG0				57
+#define HSW_SG1				58
+#define HSW_SG2				59
+#define HSW_Ele6pos0	60
+#define HSW_Ele6pos1	61
+#define HSW_Ele6pos2	62
+#define HSW_Ele6pos3	63
+#define HSW_Ele6pos4	64
+#define HSW_Ele6pos5	65
+#define HSW_MAX				65
+
+#define HSW_OFFSET ( HSW_SB0 - ( HSW_SH2 + NUM_SKYCSW + 1 ) )
+
+#endif // PCBX9D
+
 extern uint8_t MaxSwitchIndex ;		// For ON and OFF
 
 // c17-c24 added for timer mode A display
@@ -275,13 +313,17 @@ extern uint8_t MaxSwitchIndex ;		// For ON and OFF
 #define CS_LATCH		 12
 #define CS_FLIP			 13
 #define CS_TIME	     14
-#define CS_EXEQUAL   15	// V~=offset
-#define CS_MAXF      14  //max function
+#define CS_NTIME     15
+#define CS_MONO		   16	// Monostable
+#define CS_RMONO	   17	// Monostable with reset
+#define CS_EXEQUAL   18	// V~=offset
+#define CS_MAXF      18  //max function
 
 #define CS_VOFS       0
 #define CS_VBOOL      1
 #define CS_VCOMP      2
 #define CS_TIMER			3
+#define CS_TMONO      4
 
 uint8_t CS_STATE( uint8_t x) ;
 //#define CS_STATE(x)   ((x)<CS_AND ? CS_VOFS : ((((x)<CS_EQUAL) || ((x)==CS_LATCH) || ((x)==CS_FLIP)) ? CS_VBOOL : ((x)<CS_TIME ? CS_VCOMP : CS_TIMER)))
@@ -295,11 +337,15 @@ uint8_t CS_STATE( uint8_t x) ;
 #endif
 
 #ifdef PCBX9D
-#define SW_BASE      SW_SA0
-#define SW_BASE_DIAG SW_SA0
-#define MAX_PSWITCH   (SW_SH2-SW_SA0+1)  // 9 physical switches
-#define MAX_DRSWITCH (1+SW_SH2-SW_SA0+1+NUM_CSW)
-#define MAX_SKYDRSWITCH (1+SW_SH2-SW_SA0+1+NUM_SKYCSW)
+//#define SW_BASE      SW_SA0
+#define SW_BASE      SW_SF2
+//#define SW_BASE_DIAG SW_SA0
+#define SW_BASE_DIAG SW_SF2
+//#define MAX_PSWITCH   (SW_SH2-SW_SA0+1)  // 9 physical switches
+#define MAX_PSWITCH   (SW_SH2-SW_SF2+1)  // 9 physical switches
+//#define MAX_DRSWITCH (1+SW_SH2-SW_SA0+1+NUM_CSW)
+//#define MAX_SKYDRSWITCH (1+SW_SH2-SW_SA0+1+NUM_SKYCSW)
+#define MAX_SKYDRSWITCH (1+SW_SH2-SW_SF2+1+NUM_SKYCSW)
 #endif
 
 
@@ -527,7 +573,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
 extern int16_t getValue(uint8_t i) ;
-#define NUM_TELEM_ITEMS 45
+#define NUM_TELEM_ITEMS 46
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
@@ -771,7 +817,7 @@ extern uint8_t g_vbat100mV ;
 extern void doSplash( void ) ;
 extern void mainSequence( uint32_t no_menu ) ;
 #ifdef FRSKY
-extern uint8_t putsTelemValue(uint8_t x, uint8_t y, uint8_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
+extern uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
 extern void telem_byte_to_bt( uint8_t data ) ;
 extern uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att ) ;
 #endif
@@ -818,6 +864,7 @@ extern struct t_timer s_timer[] ;
 #define	ROTARY_VALUE			3
 
 extern uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
+extern void valueprocessAnalogEncoder( uint32_t x ) ;
 
 #if GVARS
 extern int8_t REG(int8_t x, int8_t min, int8_t max) ;
@@ -852,9 +899,9 @@ extern uint8_t unexpectedShutdown ;
 extern uint8_t SdMounted ;
 
 #ifdef PCBX9D
-#include "x9d/stm32f2xx.h"
-#include "x9d\rtc.h"
-#include "x9d\stm32f2xx_rtc.h"
+#include "X9D/stm32f2xx.h"
+#include "X9D/rtc.h"
+#include "X9D/stm32f2xx_rtc.h"
 
 #define MASTER_FREQUENCY 60000000
 #define PERI1_FREQUENCY 15000000

@@ -14,22 +14,23 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef PCBSKY
 #include "AT91SAM3S4.h"
 #endif
 #ifdef PCBX9D
-#include "x9d\stm32f2xx.h"
-#include "x9d\stm32f2xx_gpio.h"
-#include "x9d\hal.h"
+#include "X9D/stm32f2xx.h"
+#include "X9D/stm32f2xx_gpio.h"
+#include "X9D/hal.h"
 #endif
 #if !defined(SIMU)
 // Mike I think this include is not needed (already present in diskio.h)
 #include "core_cm3.h"
 #endif
 #include "ersky9x.h"
+#include "myeeprom.h"
 #include "audio.h"
 #include "sound.h"
-#include "myeeprom.h"
 #include "diskio.h"
 #include "ff.h"
 
@@ -38,7 +39,9 @@
 #endif
 
 extern uint8_t CurrentVolume ;
+extern uint8_t Activated ;
 
+extern uint8_t AudioVoiceCountUnderruns ;
 
 //#ifdef PCBX9D
 //#ifdef REVPLUS
@@ -108,7 +111,7 @@ void audioQueue::heartbeat()
   if (toneTimeLeft )
 	{
 		
-		if ( queueTone( toneFreq * 61 / 2, toneTimeLeft * 10, toneFreqIncr * 61 / 2 ))
+		if ( queueTone( toneFreq * 61 / 2, toneTimeLeft * 10, toneFreqIncr * 61 / 2, 0 ) )
 		{
     			toneTimeLeft = 0 ; //time gets counted down
 		}
@@ -134,7 +137,7 @@ void audioQueue::heartbeat()
 		
     if ( tonePause )
 		{
-			if ( queueTone( 0, tonePause * 10, 0 ) )
+			if ( queueTone( 0, tonePause * 10, 0, 0 ) )
 			{
     		tonePause = 0 ; //time gets counted down
 			}
@@ -222,41 +225,42 @@ void audioQueue::playASAP(uint8_t tFreq, uint8_t tLen, uint8_t tPause,
   }
 }
 
-void audioQueue::event(uint8_t e, uint8_t f) {
+void audioQueue::event(uint8_t e, uint8_t f, uint8_t hapticOff) {
 
   uint8_t beepVal = g_eeGeneral.beeperVal;
+	hapticOff = hapticOff ? 0 : 1 ;
 	if (t_queueRidx == t_queueWidx) {		
 	  switch (e) {
 		    case AU_WARNING1:
-		      playNow(BEEP_DEFAULT_FREQ, 10, 1, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 10, 1, 0, hapticOff);
 		      break;
 		    case AU_WARNING2:
-		      playNow(BEEP_DEFAULT_FREQ, 20, 1, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 20, 1, 0, hapticOff);
 		      break;
 		    case AU_WARNING3:
-		      playNow(BEEP_DEFAULT_FREQ, 30, 1, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 30, 1, 0, hapticOff);
 		      break;
 	      case AU_CHEEP:
-	        playASAP(BEEP_DEFAULT_FREQ+30,10,2,2,1,2);
+	        playASAP(BEEP_DEFAULT_FREQ+30,10,2,2,hapticOff,2);
 	        break;
 	      case AU_RING:
-	        playASAP(BEEP_DEFAULT_FREQ+25,5,2,10,1);
-	        playASAP(BEEP_DEFAULT_FREQ+25,5,10,1,1);
-	        playASAP(BEEP_DEFAULT_FREQ+25,5,2,10,1);
+	        playASAP(BEEP_DEFAULT_FREQ+25,5,2,10,hapticOff);
+	        playASAP(BEEP_DEFAULT_FREQ+25,5,10,1,hapticOff);
+	        playASAP(BEEP_DEFAULT_FREQ+25,5,2,10,hapticOff);
 	        break;
 	      case AU_SCIFI:
 	        playASAP(80,10,3,2,0,-1);
 	        playASAP(60,10,3,2,0,1);
-	        playASAP(70,10,1,0,2);
+	        playASAP(70,10,1,0,2*hapticOff);
 	        break;
 	      case AU_ROBOT:
-	        playASAP(70,5,1,1,1);
-	        playASAP(50,15,2,1,1);
-	        playASAP(80,15,2,1,1);
+	        playASAP(70,5,1,1,hapticOff);
+	        playASAP(50,15,2,1,hapticOff);
+	        playASAP(80,15,2,1,hapticOff);
 	        break;
 	      case AU_CHIRP:
-	        playASAP(BEEP_DEFAULT_FREQ+40,5,1,2,1);
-	        playASAP(BEEP_DEFAULT_FREQ+54,5,1,3,1);
+	        playASAP(BEEP_DEFAULT_FREQ+40,5,1,2,hapticOff);
+	        playASAP(BEEP_DEFAULT_FREQ+54,5,1,3,hapticOff);
 	        break;
 	      case AU_TADA:
 	        playASAP(50,5,5);
@@ -264,24 +268,24 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 	        playASAP(110,3,4,2);
 	        break;
 	      case AU_CRICKET:
-	        playASAP(80,5,10,3,1);
-	        playASAP(80,5,20,1,1);
-	        playASAP(80,5,10,3,1);
+	        playASAP(80,5,10,3,hapticOff);
+	        playASAP(80,5,20,1,hapticOff);
+	        playASAP(80,5,10,3,hapticOff);
 	        break;
 	      case AU_SIREN:
-	        playASAP(10,20,5,2,1,1);
+	        playASAP(10,20,5,2,hapticOff,1);
 	        break;
 	      case AU_ALARMC:
-	        playASAP(50,4,10,2,1);
-	        playASAP(70,8,20,1,1);
-	        playASAP(50,8,10,2,1);
-	        playASAP(70,4,20,1,1);
+	        playASAP(50,4,10,2,hapticOff);
+	        playASAP(70,8,20,1,hapticOff);
+	        playASAP(50,8,10,2,hapticOff);
+	        playASAP(70,4,20,1,hapticOff);
 	        break;
 	      case AU_RATATA:
-	        playASAP(BEEP_DEFAULT_FREQ+50,5,10,10,1);
+	        playASAP(BEEP_DEFAULT_FREQ+50,5,10,10,hapticOff);
 	        break;
 	      case AU_TICK:
-	        playASAP(BEEP_DEFAULT_FREQ+50,5,50,2,1);
+	        playASAP(BEEP_DEFAULT_FREQ+50,5,50,2,hapticOff);
 	        break;
 	      case AU_HAPTIC1:
 	        playASAP(0,20,10,1,1);
@@ -293,7 +297,7 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 	        playASAP(0,15,20,3,1);
 	        break;
 		    case AU_ERROR:
-		      playNow(BEEP_DEFAULT_FREQ, 40, 1, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 40, 1, 0, hapticOff);
 		      break;
 		    case AU_KEYPAD_UP:
 		      if (beepVal != BEEP_NOKEYS) {
@@ -309,7 +313,7 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		      playNow(f, 6, 1);
 		      break;
 		    case AU_TRIM_MIDDLE:
-		      playNow(BEEP_DEFAULT_FREQ, 20, 2, 0, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 20, 2, 0, hapticOff);
 		      break;
 		    case AU_MENUS:
 		      if (beepVal != BEEP_NOKEYS) {
@@ -320,25 +324,25 @@ void audioQueue::event(uint8_t e, uint8_t f) {
 		      playNow(BEEP_DEFAULT_FREQ + 50, 10, 1, 0, 0);
 		      break;
 		    case AU_MIX_WARNING_1:
-		      playNow(BEEP_DEFAULT_FREQ + 50, 10, 1, 1, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 50, 10, 1, 1, hapticOff);
 		      break;
 		    case AU_MIX_WARNING_2:
-		      playNow(BEEP_DEFAULT_FREQ + 52, 10, 1, 2, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 52, 10, 1, 2, hapticOff);
 		      break;
 		    case AU_MIX_WARNING_3:
-		      playNow(BEEP_DEFAULT_FREQ + 54, 10, 1, 3, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 54, 10, 1, 3, hapticOff);
 		      break;
 		    case AU_TIMER_30:
-		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 3, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 3, hapticOff);
 		      break;
 		    case AU_TIMER_20:
-		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 2, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 2, hapticOff);
 		      break;
 		    case AU_TIMER_10:
-		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 1, 1);
+		      playNow(BEEP_DEFAULT_FREQ + 50, 15, 3, 1, hapticOff);
 		      break;
 		    case AU_TIMER_LT3:
-		      playNow(BEEP_DEFAULT_FREQ, 20, 25, 1, 1);
+		      playNow(BEEP_DEFAULT_FREQ, 20, 25, 1, hapticOff);
 		      break;
 		    case AU_INACTIVITY:
 		      playNow(70, 10, 2,2);
@@ -421,6 +425,7 @@ void voice_numeric( int16_t value, uint8_t num_decimals, uint8_t units_index )
 	qr = div( value, 100 ) ;
 	if ( qr.quot )
 	{
+		decimals = qr.rem ;		// save in case no hundreds
 		if ( qr.quot > 9 )		// Thousands
 		{
 			flag = 1 ;
@@ -436,8 +441,18 @@ void voice_numeric( int16_t value, uint8_t num_decimals, uint8_t units_index )
 			}
 			qr.quot = qr.rem ;			
 		}
-		putVoiceQueue( qr.quot + 100 ) ;
-		if ( flag == 0 )
+		if ( qr.quot )		// There are hundreds
+		{
+			putVoiceQueue( qr.quot + 100 ) ;
+			putVoiceQueue( decimals + 400 ) ;
+			flag = 1 ;
+		}
+		else
+		{
+			putVoiceQueue( decimals + 400 ) ;
+			flag = 1 ;
+		}
+		if ( ( flag == 0 ) && (qr.rem) )
 		{
 			putVoiceQueue( qr.rem + 400 ) ;
 		}
@@ -482,12 +497,141 @@ void putVoiceQueue( uint16_t value )
 	}
 }
 
+const char SysVoiceNames[][VOICE_NAME_SIZE+1] =
+{
+	"ALERT",
+	"Sw_Warn",
+	"Thr_Warn",
+	"WARNING",
+	"ERROR",
+	"FEET",
+	"FOOT",
+	"MINUS",
+	"WELCOME",
+	"LIMIT",
+	"RPM",
+	"FLT_BATT",
+	"TX_VOLT",
+	"CURRENT",
+	"ALTITUDE",
+	"POINT",
+	"VOLTS",
+	"VOLT",
+	"MINUTES",
+	"MINUTE",
+	"PACKVOLT",
+	"30SECOND",
+	"20SECOND",
+	"10SECOND",
+	"PERCENT",
+	"INACTV",
+	"TXBATLOW",
+	"DEGREES",
+	"DEGREE",
+	"RX_VOLT",
+	"TEMPERAT",
+	"AMPS",
+	"AMP",
+	"SECONDS",
+	"SECOND",
+	"DB",
+	"METERS",
+	"METER",
+	"NO_TELEM",
+	"RX_V_LOW",
+	"TEMPWARN",
+	"ALT_WARN",
+	"WATT",
+	"WATTS",
+	"KNOT",
+	"KNOTS",
+	"MILLIAMP",
+	"MILIAMPS",
+	"MILAMP_H",
+	"MLAMPS_H",
+	"RSSI_LOW",
+	"RSSICRIT",
+	"RX_LOST",
+	"CAP_WARN"
+} ;
+
+void putSystemVoice( uint16_t sname, uint16_t value )
+{
+	const char *name ;
+
+	name = SysVoiceNames[sname] ;
+	putNamedVoiceQueue( name, 0xE000 + value ) ;
+}
+
+void putUserVoice( char *name, uint16_t value )
+{
+	putNamedVoiceQueue( name, 0xD000 + value ) ;
+}
+
+void putNamedVoiceQueue( const char *name, uint16_t value )
+{
+	struct t_voice *vptr ;
+	vptr = &Voice ;
+	
+	if ( vptr->VoiceQueueCount < VOICE_Q_LENGTH )
+	{
+    memmove(vptr->NamedVoiceQueue[vptr->VoiceQueueInIndex], name, VOICE_NAME_SIZE ) ;
+    vptr->NamedVoiceQueue[vptr->VoiceQueueInIndex][VOICE_NAME_SIZE] = '\0' ;
+		vptr->VoiceQueue[vptr->VoiceQueueInIndex++] = value ; //0xE000 + (value & 0xFFF) ;		// Flag to say use name
+		vptr->VoiceQueueInIndex &= ( VOICE_Q_LENGTH - 1 ) ;
+		__disable_irq() ;
+		vptr->VoiceQueueCount += 1 ;
+		__enable_irq() ;
+	}
+}
+
+
 uint8_t SaveVolume ;
 TCHAR VoiceFilename[48] ;
 uint8_t FileData[1024] ;
 FATFS g_FATFS ;
 FIL Vfile ;
 uint32_t SDlastError ;
+
+void buildFilename( uint32_t v_index, uint8_t *name )
+{
+	uint32_t x ;
+	TCHAR *ptr ;
+	uint8_t *dirName ;
+	
+	ptr = (TCHAR *)cpystr( ( uint8_t*)VoiceFilename, ( uint8_t*)"\\voice\\" ) ;
+	if (v_index & 0xF000)
+	{
+		v_index &= 0xF000 ;
+		dirName = ( uint8_t*)"system\\" ;	// 0xE000
+		if ( v_index == 0xC000 )
+		{
+			dirName = ( uint8_t*)"modelNames\\" ;
+		}
+		else if ( v_index == 0xD000 )
+		{
+			dirName = ( uint8_t*)"user\\" ;
+		}
+		ptr = (TCHAR *)cpystr( (uint8_t *)ptr, dirName ) ;
+		ptr = (TCHAR *)cpystr( (uint8_t *)ptr, name ) ;
+	}
+	else
+	{
+		*ptr++ = '0' ;
+		*(ptr + 2) = '0' + v_index % 10 ;
+		x = v_index / 10 ;
+		*(ptr + 1) = '0' + x % 10 ;
+		x /= 10 ;
+		*ptr = '0' + x % 10 ;
+		ptr += 3 ;
+	}
+	while ( *(ptr-1) == ' ' )
+	{
+		ptr -= 1 ;
+	}
+	cpystr( ( uint8_t*)ptr, ( uint8_t*)".wav" ) ;
+}
+
 
 void voice_task(void* pdata)
 {
@@ -498,12 +642,26 @@ void voice_task(void* pdata)
 	uint32_t w8or16 ;
 	uint32_t mounted = 0 ;
 	uint32_t size ;
+	uint8_t *name ;
+
+	static uint32_t currentFrequency ;
 
 	for(;;)
 	{
 		while ( !sd_card_ready() )
 		{
 			CoTickDelay(5) ;					// 10mS for now
+			if ( Activated == 0 )
+			{
+#ifndef SIMU
+#ifdef PCBSKY
+				sd_poll_10mS() ;
+#endif
+#ifdef PCBX9D
+				sdPoll10ms() ;
+#endif
+#endif
+			}
 		}
 		if ( mounted == 0 )
 		{
@@ -523,6 +681,7 @@ void voice_task(void* pdata)
 				CoTickDelay(3) ;					// 6mS for now
 			}
 
+			name = Voice.NamedVoiceQueue[Voice.VoiceQueueOutIndex] ;
 			v_index = Voice.VoiceQueue[Voice.VoiceQueueOutIndex++] ;
 
 			if ( (v_index & 0xFF00) == 0xFF00 )
@@ -548,23 +707,24 @@ void voice_task(void* pdata)
 					Voice.VoiceLock = 1 ;
   				CoSchedUnlock() ;
 
-					{	// Create filename
-						TCHAR *ptr ;
-						ptr = (TCHAR *)cpystr( ( uint8_t*)VoiceFilename, ( uint8_t*)"\\voice\\" ) ;
-						*ptr++ = '0' ;
-						*(ptr + 2) = '0' + v_index % 10 ;
-						x = v_index / 10 ;
-						*(ptr + 1) = '0' + x % 10 ;
-						x /= 10 ;
-						*ptr = '0' + x % 10 ;
-						cpystr( ( uint8_t*)(ptr+3), ( uint8_t*)".wav" ) ;
-					}
-					
+					buildFilename( v_index, name ) ;
 					fr = f_open( &Vfile, VoiceFilename, FA_READ ) ;
+					if ( fr != FR_OK )
+					{
+						if ( (v_index & 0xF000) == 0xE000 )
+						{
+							v_index &= 0x0FFF ;
+							if ( v_index )
+							{
+								buildFilename( v_index, name ) ;
+								fr = f_open( &Vfile, VoiceFilename, FA_READ ) ;
+							}
+						}
+					}
 					if ( fr == FR_OK )
 					{
 						uint32_t offset ;
-						fr = f_read( &Vfile, FileData, 1024, &nread ) ;
+						fr = f_read( &Vfile, FileData, VOICE_BUFFER_SIZE*2, &nread ) ;
 						x = FileData[34] + ( FileData[35] << 8 ) ;		// sample size
 						w8or16 = x ;
 						x = FileData[24] + ( FileData[25] << 8 ) ;		// sample rate
@@ -594,17 +754,17 @@ void voice_task(void* pdata)
 							size = FileData[offset+1] + ( FileData[offset+2] << 8 ) + ( FileData[offset+3] << 16 ) ;		// data size
 							offset += 5 ;
 						
-							size -= 512-offset ;
+							size -= VOICE_BUFFER_SIZE-offset ;
 							if ( w8or16 == 8 )
 							{
-								wavU8Convert( &FileData[offset], VoiceBuffer[0].data, 512-offset ) ;
-								VoiceBuffer[0].count = 512-offset ;
+								wavU8Convert( &FileData[offset], VoiceBuffer[0].dataw, VOICE_BUFFER_SIZE-offset ) ;
+								VoiceBuffer[0].count = VOICE_BUFFER_SIZE-offset ;
 							}
 							else if ( w8or16 == 16 )
 							{
-								wavU16Convert( (uint16_t*)&FileData[offset], VoiceBuffer[0].data, 512-offset/2 ) ;
-								VoiceBuffer[0].count = 512-offset/2 ;
-								size -= 512 ;
+								wavU16Convert( (uint16_t*)&FileData[offset], VoiceBuffer[0].dataw, VOICE_BUFFER_SIZE-offset/2 ) ;
+								VoiceBuffer[0].count = VOICE_BUFFER_SIZE-offset/2 ;
+								size -= VOICE_BUFFER_SIZE ;
 							}
 							else
 							{
@@ -615,36 +775,41 @@ void voice_task(void* pdata)
 							{
 								uint32_t amount ;
 								VoiceBuffer[0].frequency = x ;		// sample rate
+								currentFrequency = VoiceBuffer[0].frequency = x ;		// sample rate
 								
 								if ( w8or16 == 8 )
 								{
-									wavU8Convert( &FileData[512], VoiceBuffer[1].data, 512 ) ;
+									wavU8Convert( &FileData[VOICE_BUFFER_SIZE], VoiceBuffer[1].dataw, VOICE_BUFFER_SIZE ) ;
 									size -= 512 ;
 								}
 								else
 								{
-									fr = f_read( &Vfile, (uint8_t *)FileData, 1024, &nread ) ;
-									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].data, 512 ) ;
+									fr = f_read( &Vfile, FileData, VOICE_BUFFER_SIZE*2, &nread ) ;
+									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[1].dataw, VOICE_BUFFER_SIZE ) ;
 									size -= nread ;
 								}
-								VoiceBuffer[1].count = 512 ;
-//								VoiceBuffer[1].frequency = 15998 ;
+//								VoiceBuffer[1].count = 512 ;
+								VoiceBuffer[1].count = VOICE_BUFFER_SIZE ;
 					
-								amount = (w8or16 == 8) ? 512 : 1024 ;
+//								amount = (w8or16 == 8) ? 512 : 1024 ;
+								amount = (w8or16 == 8) ? VOICE_BUFFER_SIZE : VOICE_BUFFER_SIZE*2 ;
 
-								fr = f_read( &Vfile, (uint8_t *)FileData, amount, &nread ) ;		// Read next buffer
-								if ( w8or16 == 8 )
+								for ( x = 2 ; x < NUM_VOICE_BUFFERS ; x += 1 )
 								{
-									wavU8Convert( &FileData[0], VoiceBuffer[2].data, 512 ) ;
+									if ( w8or16 == 8 )
+									{
+										fr = f_read( &Vfile, &FileData[VOICE_BUFFER_SIZE], amount, &nread ) ;		// Read next buffer
+										wavU8Convert( &FileData[VOICE_BUFFER_SIZE], VoiceBuffer[x].dataw, VOICE_BUFFER_SIZE ) ;
+									}
+									else
+									{
+										fr = f_read( &Vfile, &FileData[0], amount, &nread ) ;		// Read next buffer
+										wavU16Convert( (uint16_t *)&FileData[0], VoiceBuffer[x].dataw, VOICE_BUFFER_SIZE ) ;
+									}
+									size -= nread ;
+									VoiceBuffer[x].count = VOICE_BUFFER_SIZE ;
 								}
-								else
-								{
-									wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[2].data, 512 ) ;
-								}
-								size -= nread ;
-								VoiceBuffer[2].count = 512 ;
-//								VoiceBuffer[2].frequency = 15997 ;
-								startVoice( 3 ) ;
+								startVoice( NUM_VOICE_BUFFERS ) ;
 								for(x = 0;;)
 								{
 									if ( size < amount )
@@ -663,25 +828,25 @@ void voice_task(void* pdata)
 									}
 									if ( AudioVoiceUnderrun )
 									{
-											// We weren't quick enough
+										// We weren't quick enough
+										AudioVoiceCountUnderruns += 1 ;
 										AudioVoiceUnderrun = 0 ;
-										break ;
 									}
 									if ( w8or16 == 8 )
 									{
-										wavU8Convert( &FileData[0], VoiceBuffer[x].data, nread ) ;
+										wavU8Convert( &FileData[0], VoiceBuffer[x].dataw, nread ) ;
 									}
 									else
 									{
 										nread /= 2 ;
-										wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].data, nread ) ;
+										wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].dataw, nread ) ;
 									}
 									VoiceBuffer[x].count = nread ;
-//									VoiceBuffer[x].frequency = 15996 ;
-									appendVoice( x ) ;					// index of next buffer
+									VoiceBuffer[x].frequency = currentFrequency ;
+									appendVoice( x ) ;		// index of next buffer
 									v_index = x ;		// Last buffer sent
 									x += 1 ;
-									if ( x > 2 )
+									if ( x > NUM_VOICE_BUFFERS - 1 )
 									{
 										x = 0 ;							
 									}
@@ -703,6 +868,7 @@ void voice_task(void* pdata)
 								break ;		// Timeout, 200 mS
 							}
 						}
+						endVoice() ;
 					}
 					else if (fr != FR_NO_FILE)			// There is no file to open
 					{

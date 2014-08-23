@@ -36,7 +36,7 @@ extern void ee32SwapModels( uint8_t id1, uint8_t id2 ) ;
 extern uint32_t ee32_read_512( uint32_t sector, uint8_t *buffer ) ;
 extern const char *ee32BackupModel( uint8_t modelIndex ) ;
 extern const char *ee32RestoreModel( uint8_t modelIndex, char *filename ) ;
-
+extern void eeModelChanged( void ) ;
 
 struct t_file_entry
 {

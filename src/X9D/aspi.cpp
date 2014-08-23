@@ -40,6 +40,7 @@
 }*/
 
 //Anolog spi
+#ifndef REVPLUS
 void AspiCmd(uint8_t Command_Byte)
 {
     int i=8; 
@@ -64,28 +65,6 @@ void AspiCmd(uint8_t Command_Byte)
     LCD_A0_HIGH();
 }
 
-/**
-
-********send data to lcd**************
-
-*/
-
-//hardware spi
-/*
-u16 spiData(u8 addr)
-{
-	u16 readValue;
-      	OLED_RS_HIGH();
-	SPI_NCS_LOW();
-	
-	SPI_WRITE_BYTE(addr);
-	SPI_WAIT_DONE();
-
-	readValue=SPI_READ_BYTE();
-	SPI_NCS_HIGH();
-      	return	readValue;
-}
-*/
 
 //Anolog spi
 void AspiData(uint8_t Para_data)
@@ -109,82 +88,25 @@ void AspiData(uint8_t Para_data)
     LCD_NCS_HIGH();
     LCD_A0_HIGH();  
 }
-
-/***
-**********read one byte in a register*******
-*/
-
-/*
-u16 spiRegAccess(u8 addrByte, u8 writeValue)
-{
-	u8 readValue;
-
-	SPI_NCS_LOW();
-	
-	SPI_WRITE_BYTE(addrByte);
-	SPI_WAIT_DONE();
-
-	SPI_WRITE_BYTE(writeValue);
-	SPI_WAIT_DONE();
-
-	readValue=SPI_READ_BYTE();
-	SPI_NCS_HIGH();
-	return	readValue;
-}
-
-*/
+#endif
 
 #ifdef REVPLUS
-// New hardware SPI driver for LCD
-void initLcdSpi()
+void AspiCmd(uint8_t Command_Byte)
 {
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD, ENABLE);
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_RST, ENABLE);
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_NCS, ENABLE);
-	
-  RCC->APB1ENR |= RCC_APB1ENR_SPI3EN ;    // Enable clock
-	// APB1 clock / 2 = 133nS per clock
-	SPI3->CR1 = SPI_CR1_BIDIOE | SPI_CR1_SPE | SPI_CR1_MSTR | SPI_CR1_CPOL ;
-	SPI3->CR2 = 0 ;
-
-	configure_pins( PIN_LCD_NCS, PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
-	configure_pins( PIN_LCD_RST, PIN_OUTPUT | PIN_PORTD | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
-	configure_pins( PIN_LCD_A0,  PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
-	configure_pins( PIN_LCD_MOSI|PIN_LCD_CLK, PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS50 | PIN_NO_PULLUP | PIN_PER_6 | PIN_PERIPHERAL ) ;
-}
-
-void xAspiCmd(uint8_t Command_Byte)
-{
-	while ( SPI3->SR & SPI_SR_TXE )
-	{
-		// wait
-	}
   LCD_A0_LOW() ;
   LCD_NCS_LOW() ;  
+	while ( ( SPI3->SR & SPI_SR_TXE ) == 0 )
+	{
+		// wait
+	}
+	(void)SPI3->DR ;		// Clear receive
 	SPI3->DR = Command_Byte ;
-	while ( SPI3->SR & SPI_SR_TXE )
+	while ( ( SPI3->SR & SPI_SR_RXNE ) == 0 )
 	{
 		// wait
 	}
   LCD_NCS_HIGH() ;
 }
-
-void xAspiData(uint8_t Para_data)
-{
-	while ( SPI3->SR & SPI_SR_TXE )
-	{
-		// wait
-	}
-  LCD_A0_HIGH() ;
-  LCD_NCS_LOW() ;  
-	SPI3->DR = Para_data ;
-	while ( SPI3->SR & SPI_SR_TXE )
-	{
-		// wait
-	}
-  LCD_NCS_HIGH() ;
-}
-
 
 #endif
 

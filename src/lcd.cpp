@@ -65,7 +65,11 @@ const uint8_t *ExtraBigFont = NULL ;
 
 // Local data
 uint8_t Lcd_lastPos ;
+#ifdef GREY_SCALE
+uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8*4] ;
+#else
 uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
+#endif
 #define DISPLAY_END (DisplayBuf+sizeof(DisplayBuf))
 
 #ifdef PCBX9D
@@ -578,15 +582,28 @@ void lcd_plot( register uint8_t x, register uint8_t y )
   //  if(y>=64)  return;
   //  if(x>=128) return;
   //  displayBuf[ y / 8 * DISPLAY_W + x ] ^= BITMASK(y%8);
+#ifdef GREY_SCALE
+  register uint8_t *p   = &DISPLAY_START[ y / 2 * DISPLAY_W + x ];
+#else
   register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+#endif
+#ifdef GREY_SCALE
+	lcd_write_bits( p, (y&1) ? 0xF0 : 0x0F ) ;
+#else
 	lcd_write_bits( p, BITMASK(y%8) ) ;
+#endif
 }
 
 void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat )
 {
   if(w<0) {x+=w; w=-w;}
-  register uint8_t *p  = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
-  register uint8_t msk = BITMASK(y%8);
+#ifdef GREY_SCALE
+  register uint8_t *p = &DISPLAY_START[ y / 2 * DISPLAY_W + x ] ;
+	register uint8_t msk = (y&1) ? 0xF0 : 0x0F ;
+#else
+  register uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ] ;
+	register uint8_t msk = BITMASK(y%8) ;
+#endif  
   while(w)
 	{
     if ( p>=DISPLAY_END)
@@ -639,11 +656,23 @@ void lcd_char_inverse( uint8_t x, uint8_t y, uint8_t w, uint8_t blink )
 		return ;
 	}
 	uint8_t end = x + w ;
-  uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+#ifdef GREY_SCALE
+  register uint8_t *p = &DISPLAY_START[ y / 2 * DISPLAY_W + x ] ;
+#else
+  register uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ] ;
+#endif  
 
 	while ( x < end )
 	{
+#ifdef GREY_SCALE
+		*p ^= 0xFF ;
+		*(p+DISPLAY_W) ^= 0xFF ;
+		*(p+DISPLAY_W*2) ^= 0xFF ;
+		*(p+DISPLAY_W*3) ^= 0xFF ;
+		p += 1 ;
+#else
 		*p++ ^= 0xFF ;
+#endif  
 		x += 1 ;
 	}
 }
@@ -667,9 +696,30 @@ void lcd_hline( uint8_t x, uint8_t y, int8_t w )
 void lcd_vline( uint8_t x, uint8_t y, int8_t h )
 {
   if (h<0) { y+=h; h=-h; }
-  register uint8_t *p  = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
-//  register uint8_t *q  = &DisplayBuf[ (y+h) / 8 * DISPLAY_W + x ];
 
+#ifdef GREY_SCALE
+  register uint8_t *p   = &DISPLAY_START[ y / 2 * DISPLAY_W + x ];
+  y &= 0x01 ;
+	if ( y )
+	{
+    uint8_t msk = 0x0F ;
+    h -= 1 ;
+		lcd_write_bits( p, msk ) ;
+    p += DISPLAY_W ;
+	}
+    
+  while( h >= 2 )
+	{
+		h -= 2 ;
+		lcd_write_bits( p, 0xFF ) ;
+    p += DISPLAY_W ;
+  }
+	if ( h > 0 )
+	{
+  	lcd_write_bits( p, 0xF0 ) ;
+	}
+#else
+  register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
   y &= 0x07 ;
 	if ( y )
 	{
@@ -691,6 +741,7 @@ void lcd_vline( uint8_t x, uint8_t y, int8_t h )
 	{
   	lcd_write_bits( p, (BITMASK(h)-1) ) ;
 	}
+#endif
 }
 
 #ifdef SIMU
@@ -785,7 +836,17 @@ uint8_t LcdInputs ;
 
 const static uint8_t Lcdinit[] =
 {
-	0xe2, 0xae, 0xa1, 0xA6, 0xA4, 0xA2, 0xC0, 0x2F, 0x25, 0x81, 0x22, 0xAF
+	0xe2,		// Reset
+	0xae,		// Display off
+	0xa1,		// Reverse segment drive
+	0xA6,		// Display normal (not inverse)
+	0xA4,		// Display normal (not all on)
+	0xA2,		// Bias low (A3 for high)
+	0xC0,		// Scan Com0->Com63
+	0x2F,		// Internal power mode
+	0x25,		// Internal Vreg ratio high(ish)
+	0x81,	0x22,		// Contrast
+	0xAF		// Display on
 } ;	
 
 

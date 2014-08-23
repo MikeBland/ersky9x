@@ -41,6 +41,8 @@
 
 #include "board.h"
 
+//#define	USE_54_MHZ	1
+
 /*----------------------------------------------------------------------------
  *        Local definitions
  *----------------------------------------------------------------------------*/
@@ -112,8 +114,15 @@ static uint32_t BOARD_ConfigurePmc(void)
 
 // Settings at 72MHz/2 = 36MHz
 #define BOARD_OSCOUNT         (CKGR_MOR_MOSCXTST & (0x8 << 8))
+
+#ifdef USE_54_MHZ
+// Settings at 108MHz/2 = 54MHz
+#define BOARD_PLLR ((1 << 29) | (0x8 << AT91C_CKGR_MUL_SHIFT) \
+         | (0x1 << AT91C_CKGR_PLLCOUNT_SHIFT) | (0x2 << AT91C_CKGR_DIV_SHIFT))
+#else
 #define BOARD_PLLR ((1 << 29) | (0x5 << AT91C_CKGR_MUL_SHIFT) \
          | (0x1 << AT91C_CKGR_PLLCOUNT_SHIFT) | (0x2 << AT91C_CKGR_DIV_SHIFT))
+#endif
 #define BOARD_MCKR (PMC_MCKR_CSS_PLLA_CLK)
 
 // Define clock timeout
@@ -160,7 +169,7 @@ static uint32_t BOARD_ConfigurePmc(void)
     timeout = 0;
     while (!(pmcptr->PMC_SR & PMC_SR_MCKRDY) && (++timeout < CLOCK_TIMEOUT));
 
-    /* Initialize PLLA 72 MHz */
+    /* Initialize PLLA 72 MHz (or 108 MHz) */
     pmcptr->CKGR_PLLAR = BOARD_PLLR;
     timeout = 0;
     while (!(pmcptr->PMC_SR & PMC_SR_LOCKA) && (++timeout < CLOCK_TIMEOUT));
@@ -183,7 +192,11 @@ static uint32_t BOARD_ConfigurePmc(void)
   while (!(PMC->PMC_SR & PMC_SR_MCKRDY) && (timeout++ < CLOCK_TIMEOUT));
 
 #endif
+#ifdef USE_54_MHZ
+	return 54000000L ;		// Master_frequency
+#else	
 	return 36000000L ;		// Master_frequency
+#endif
 }
 
 void revert_osc()
@@ -265,9 +278,15 @@ uint32_t SystemInit (void)
 	lowLevelUsbCheck() ;
 #endif
 #endif
+#ifdef USE_54_MHZ
+    /** Set 3 cycle (2 WS) for Embedded Flash Access */
+		// Max clock is 64 MHz (1.8V VVDCORE)
+   EFC->EEFC_FMR = (2 << 8) ;
+#else
     /** Set 2 cycle (1 WS) for Embedded Flash Access */
 		// Max clock is 38 MHz (1.8V VVDCORE)
    EFC->EEFC_FMR = (1 << 8) ;
+#endif
 
    /** Configure PMC */
   return BOARD_ConfigurePmc();

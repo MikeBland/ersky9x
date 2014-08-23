@@ -116,14 +116,15 @@
 #define ISTR_T_HELI_SETUP   "Heli Setup"
 #define ISTR_T_GYRO         "Gyro Setup"
 #define ISTR_T_SERVO_TEST   "Servo Test"
+#define ISTR_T_RANGE_TEST   "Range Test"
 
 // menus.cpp
 // ***********
 #ifdef PCBSKY
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSITSSITim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 RTC "
 #endif
 #ifdef PCBX9D
-#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
+#define ISTR_TELEM_ITEMS	   "\004----A1= A2= RSSISWR Tim1Tim2Alt GaltGspdT1= T2= RPM FUELMah1Mah2CvltBattAmpsMah CtotFasVAccXAccYAccZVspdGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7FwatRxV Hdg A3= A4= SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 RTC "
 #endif
 #define ISTR_TELEM_SHORT    "\004----TIM1TIM2BATTGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV             "GV"
@@ -144,9 +145,9 @@
 #define ISTR_TELEMETRY      "TELEMETRY"
 #define ISTR_USR_PROTO      "UsrProto"
 #ifdef REVX
-#define ISTR_FRHUB_WSHHI    "\005FrHubWSHhiDSMx "
+#define ISTR_FRHUB_WSHHI    "\005FrHubWSHhiDSMx ArduP"
 #else
-#define ISTR_FRHUB_WSHHI    "\005FrHubWSHhi"
+#define ISTR_FRHUB_WSHHI    "\005FrHubWSHhiArduP"
 #endif
 #define ISTR_MET_IMP        "\003MetImp"
 #define ISTR_A_CHANNEL      "A  channel"
@@ -166,10 +167,10 @@
 #define ISTR_2SENSITIVITY   "\002Sensitivity"
 #define ISTR_GLOBAL_VARS    "GLOBAL VARS"
 #ifdef PCBSKY
-#define ISTR_GV_SOURCE      "\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 P3 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
+#define ISTR_GV_SOURCE      "\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 P3 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1SC2SC3SC4SC5SC6SC7SC8O1 O2 O3 O4 O5 O6 O7 O8 O9 O10O11O12O13O14O15O16O17O18O19O20O21O22O23O24"
 #endif
 #ifdef PCBX9D
-#define ISTR_GV_SOURCE      "\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 SL SR c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
+#define ISTR_GV_SOURCE      "\003---RtmEtmTtmAtmRENRUDELETHRAILP1 P2 SL SR c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1SC2SC3SC4SC5SC6SC7SC8O1 O2 O3 O4 O5 O6 O7 O8 O9 O10O11O12O13O14O15O16O17O18O19O20O21O22O23O24"
 #endif
 #define ISTR_TEMPLATES      "TEMPLATES"
 #define ISTR_CHAN_ORDER     "Channel Order"
@@ -226,7 +227,7 @@
 #define ISTR_DUPLICATING    "Duplicating model"
 #define ISTR_SETUP          "SETUP"
 #define ISTR_NAME           "Name"
-#define ISTR_VOICE_INDEX    "Voice Index\021MENU"
+#define ISTR_VOICE_INDEX    "Voice\021MENU"
 #define ISTR_TRIGGERA       "Trigger"
 #define ISTR_TRIGGERB       "TriggerB"
 //ISTR_COUNT_DOWN_UP indexed, 10 chars each
@@ -317,7 +318,7 @@
 #define ISTR_FLASH_ON_BEEP  "Flash on beep"
 #define ISTR_LIGHT_SWITCH   "Light switch"
 #define ISTR_LIGHT_INVERT   "Backlight invert"
-#define ISTR_LIGHT_AFTER    "Light off after"
+#define ISTR_LIGHT_AFTER    "Light on key"
 #define ISTR_LIGHT_STICK    "Light on Stk Mv"
 #define ISTR_SPLASH_SCREEN  "Splash screen"
 #define ISTR_SPLASH_NAME    "Splash Name"
@@ -340,7 +341,7 @@
 #define IHW_SWITCHARROW_STR  "\200-\201"
 #endif
 #ifdef PCBX9D
-#define ISWITCHES_STR "\003SA\200SA-SA\201SB\200SB-SB\201SC\200SC-SC\201SD\200SD-SD\201SE\200SE-SE\201SF\200SF\201SG\200SG-SG\201SH\200SH\201SW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
+#define ISWITCHES_STR "\003SF       SC\200SC-SC\201      SH SW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWOonfSB\200SB-SB\201SE\200SE-SE\201SA\200SA-SA\201SD\200SD-SD\201SG\200SG-SG\201"
 #define IHW_SWITCHES_STR "\002SASBSCSDSESFSGSH"
 #define IHW_SWITCHARROW_STR "\200-\201"
 #endif
@@ -349,11 +350,11 @@
 // c17-c24 added for timer mode A display
 #define ICURV_STR					 "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 // CSWITCH_STR indexed 7 chars each
-#define ICSWITCH_STR        "\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop TimeOffv\140=ofs"
+#define ICSWITCH_STR        "\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop TimeOffNtmeOff1-Shot 1-ShotRv\140=ofs"
 
 #define ISWASH_TYPE_STR     "\006---   ""120   ""120X  ""140   ""90    "
 
-#define ISTR_STICK_NAMES    "RUD ELE THR AIL "
+#define ISTR_STICK_NAMES    "\004RUD ELE THR AIL "
 
 #define ISTR_STAT           "STAT"
 #define ISTR_STAT2          "STAT2"
@@ -437,5 +438,99 @@
 #define ISTR_ALERT_ORG			"Alert [Org]"
 #define ISTR_ALERT_RED			"Alert [Red]"
 #define ISTR_LANGUAGE				"Language"
+
+#define ISTR_RSSI_WARN		  "RSSI Warn"
+#define ISTR_RSSI_CRITICAL  "RSSI Critical"
+#define ISTR_RX_VOLTAGE		  "Rx Voltage"
+#define ISTR_DSM_WARNING	  "DSM Warning"
+#define ISTR_FADESLOSSHOLDS "\006fades lossesholds "
+#define ISTR_DSM_CRITICAL	  "DSM Critical"
+#define ISTR_BT_TRAINER		  "BT as Trainer"
+
+//"Current Source"
+//"\004----A1  A2  FASVSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
+//"SC  ="
+//"Source"
+//"Multiplier"
+//"Divisor"
+//"Unit"
+//"Sign"
+//"Decimals"
+//"Offset At"
+//"\005FirstLast "
+//"Voice Switch"
+//"Function"
+//"\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsON     OFF    BOTH   "
+//"Switch"
+//"Rate"
+//"\017Once"
+//"Offset"
+//"FileType"
+//"\006  NameNumberHaptic"
+//"Voice File"
+//"\006Haptc1Haptc2Haptc3"
+// SKY "\003IDxTHRRUDELEAILGEATRN"
+// X9D "\002SASBSCSDSESFSGSH"
+//"\002MODES"
+// SKY "\004sIDxsTHRsRUDsELEsAILsGEAsTRN"
+// X9D "\002SASBSCSDSESFSGSH"
+//"Reset Switch"
+// SKY "\003---P1 P2 P3 GV4GV5GV6GV7"
+// X9D "\003---P1 P2 SL SR GV5GV6GV7"
+//"Internal"
+//"\003AmeJapEur"
+//"External"
+//"Fade In"
+//"Fade Out"
+//"Name"
+//"Co Proc"
+//"On Time"
+//"ttimer1        us"
+//"\013rssi"
+//"Vbat"
+//"\013RxV"
+//"AMP\013Temp"
+//"RPM\021DSM2"
+//"SETTINGS"
+//"Display"
+//"AudioHaptic"
+//"Alarms"
+//"General"
+//"Controls"
+//"Hardware"
+//"Calibration"
+//"Trainer"
+//"Version"
+//"Date-Time"
+//"DiagSwtch"
+//"DiagAna"
+//"DISPLAY"
+//"BLUE"
+//"WHITE"
+//"Optrex Display"
+//"AUDIO/HAPTIC"
+//"ALARMS"
+//"[Next]"
+//"GENERAL"
+//"\012   ENGLISH  FRANCAIS   DEUTSCH NORWEGIAN   SWEDISH"
+//"\005NONE POT  STICKBOTH "
+//"CONTROLS"
+//"HARDWARE"
+//"ELE  switch"
+//"\0042POS3POS6POS"
+//"THR  switch"
+//"\0042POS3POS"
+//"RUD  switch"
+//"GEAR switch"
+//"MODEL SETTINGS"
+//"Mixer"
+//"C.Switches"
+//"Telemetry"
+//"Limits"
+//"Display"
+//"MDISPLAY"
+
+
+
 
 

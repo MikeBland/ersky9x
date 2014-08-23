@@ -1,10 +1,6 @@
 /*
  * Author - Mike Blandford
  *
- * Based on er9x by Erez Raviv <erezraviv@gmail.com>
- *
- * Based on th9x -> http://code.google.com/p/th9x/
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -21,6 +17,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(PCBTARANIS)
+#include "opentx.h"
+#include "stm32f2xx_flash.h"
+#define PCBX9D 1
+extern uint8_t *cpystr( uint8_t *dest, uint8_t *source ) ;
+#define lcd_puts_Pleft lcd_putsLeft
+#define lcd_outdez lcd_outdezAtt
+#define read_keys readKeys
+#define lcd_putsn_P lcd_putsn
+
+uint8_t *cpystr( uint8_t *dest, uint8_t *source )
+{
+  while ( (*dest++ = *source++) )
+    ;
+  return dest - 1 ;
+}
+
+#define MKEY_RIGHT  KEY_ENTER
+#define MKEY_LEFT   KEY_PAGE
+
+
+#else
 #ifdef PCBSKY
 #include "AT91SAM3S2.h"
 #include "core_cm3.h"
@@ -38,21 +56,36 @@
 #include "CoOS.h"
 #endif
 #include "ff.h"
+#include "X9D/hal.h"
+#include "sound.h"
+#include "frsky.h"
+
+#define MKEY_RIGHT  KEY_RIGHT
+#define MKEY_LEFT   KEY_LEFT
+
+#endif
 #include "maintenance.h"
-#include "x9d\hal.h"
 
 #define SPORT_INTERNAL	0
 #define SPORT_EXTERNAL	1
 
+#ifdef PCBX9D
+#if !defined(PCBTARANIS)
 #define INTERNAL_RF_ON()      GPIO_SetBits(GPIOPWRINT, PIN_INT_RF_PWR)
 #define INTERNAL_RF_OFF()     GPIO_ResetBits(GPIOPWRINT, PIN_INT_RF_PWR)
 #define EXTERNAL_RF_ON()      GPIO_SetBits(GPIOPWREXT, PIN_EXT_RF_PWR)
 #define EXTERNAL_RF_OFF()     GPIO_ResetBits(GPIOPWREXT, PIN_EXT_RF_PWR)
+#endif
+#endif
 
-#ifdef PCBX9D
+// Update Types
+#define UPDATE_TYPE_BOOTLOADER		0
+#define UPDATE_TYPE_COPROCESSOR		1
+#define UPDATE_TYPE_SPORT_INT			2
+#define UPDATE_TYPE_SPORT_EXT			3
+
 extern void frsky_receive_byte( uint8_t data ) ;
 uint16_t crc16_ccitt( uint8_t *buf, uint32_t len ) ;
-#endif
 
 #ifdef PCBSKY
  #ifndef REVX
@@ -67,24 +100,34 @@ uint8_t CoProresult ;
  #endif
 #endif
 
-#ifdef PCBX9D
 uint32_t sportUpdate( uint32_t external ) ;
-#endif
 
 TCHAR Filenames[8][50] ;
 extern FATFS g_FATFS ;
-extern uint8_t FileData[1024] ;	// Share with voice task
+extern uint8_t FileData[] ;	// Share with voice task
+#if defined(PCBTARANIS)
+uint8_t FileData[1024] ;
+uint8_t ExtraFileData[1024] ;
+#else
+uint8_t *ExtraFileData = (uint8_t *) &VoiceBuffer[0] ;	// Share with voice task
+#endif
 FILINFO Finfo ;
 DIR Dj ;
 uint32_t FileSize[8] ;
 TCHAR FlashFilename[60] ;
 FIL FlashFile ;
 UINT BlockCount ;
+UINT XblockCount ;
 uint32_t BytesFlashed ;
 uint32_t ByteEnd ;
 uint32_t BlockOffset ;
 uint8_t UpdateItem ;
 uint8_t MaintenanceRunning = 0 ;
+uint8_t BlockInUse ;
+uint8_t SportVerValid ;
+uint8_t SportVersion[4] ;
+uint32_t FirmwareSize ;
+
 
 uint8_t SportState ;
 #define SPORT_IDLE				0
@@ -356,7 +399,7 @@ uint32_t fillNames( uint32_t index, struct fileControl *fc )
 		fr = readBinDir( &Dj, &Finfo, fc ) ;		// First entry
 		FileSize[0] = Finfo.fsize ;
 		i += 1 ;
-		if ( fr == FR_NO_FILE)
+		if ( fr != FR_OK || Finfo.fname[0] == 0 )
 		{
 			return 0 ;
 		}
@@ -446,11 +489,11 @@ uint32_t fileList(uint8_t event, struct fileControl *fc )
 			}
 		}
 	}
-	if ( ( event == EVT_KEY_REPT(KEY_RIGHT)) || ( event == EVT_KEY_FIRST(KEY_RIGHT) ) )
+	if ( ( event == EVT_KEY_REPT(MKEY_RIGHT)) || ( event == EVT_KEY_FIRST(MKEY_RIGHT) ) )
 	{
 		if ( fc->hpos + DISPLAY_CHAR_WIDTH < maxhsize )	fc->hpos += 1 ;
 	}
-	if ( ( event == EVT_KEY_REPT(KEY_LEFT)) || ( event == EVT_KEY_FIRST(KEY_LEFT) ) )
+	if ( ( event == EVT_KEY_REPT(MKEY_LEFT)) || ( event == EVT_KEY_FIRST(MKEY_LEFT) ) )
 	{
 		if ( fc->hpos )	fc->hpos -= 1 ;
 	}
@@ -464,12 +507,22 @@ uint32_t fileList(uint8_t event, struct fileControl *fc )
 		// Select file to flash
 		result = 2 ;
 	}
+	if ( event == EVT_KEY_BREAK(KEY_MENU) )
+	{
+		// Tag file
+		result = 3 ;
+	}
+#if defined(PCBTARANIS)
+	lcd_filled_rect( 0, 2*FH+FH*fc->vpos, DISPLAY_CHAR_WIDTH*FW, 8, 0xFF, 0 ) ;
+#else
 	lcd_char_inverse( 0, 2*FH+FH*fc->vpos, DISPLAY_CHAR_WIDTH*FW, 0 ) ;
+#endif
 	return result ;
 }
 
 uint8_t CoProcReady ;
 
+#if !defined(PCBTARANIS)
 void lcd_putsnAtt0(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 {
 	register char c ;
@@ -483,30 +536,36 @@ void lcd_putsnAtt0(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
     len--;
   }
 }
+#endif
+
+// Values in state
+#define UPDATE_NO_FILES		0
+#define UPDATE_FILE_LIST	1
+#define UPDATE_CONFIRM		2
+#define UPDATE_SELECTED		3
+#define UPDATE_INVALID		4
+#define UPDATE_ACTION			5
+#define UPDATE_COMPLETE		6
+
 
 void menuUp1(uint8_t event)
 {
 	FRESULT fr ;
 	struct fileControl *fc = &FileControl ;
-//  static uint8_t index = 0 ;
   static uint8_t mounted = 0 ;
 	static uint32_t state ;
-//	static uint32_t nameCount = 0 ;
-//	static uint32_t vpos = 0 ;
-//	static uint32_t hpos = 0 ;
 	static uint32_t firmwareAddress ;
 	uint32_t i ;
-//	uint32_t limit ;
 	uint32_t width ;
-	
-	if (UpdateItem == 0 )		// Bootloader
+	 
+	if (UpdateItem == UPDATE_TYPE_BOOTLOADER )		// Bootloader
 	{
   	TITLE( "UPDATE BOOT" ) ;
 	}
 	else
 	{
 #ifdef PCBX9D
-		if (UpdateItem == 1 )
+		if (UpdateItem == UPDATE_TYPE_SPORT_INT )
 		{
   		TITLE( "UPDATE Int. XJT" ) ;
 		}
@@ -514,17 +573,37 @@ void menuUp1(uint8_t event)
 		{
   		TITLE( "UPDATE Ext. SPort" ) ;
 		}
-#else
-  	TITLE( "UPDATE COPROC" ) ;
+#endif
+
+#ifdef PCBSKY
+ #ifndef REVX
+ 		if (UpdateItem == UPDATE_TYPE_COPROCESSOR )
+		{
+  		TITLE( "UPDATE COPROC" ) ;
+		}
+		else
+		{
+  		TITLE( "UPDATE SPort" ) ;
+		}
+ #else
+ 		if (UpdateItem == UPDATE_TYPE_SPORT_EXT )
+		{
+  		TITLE( "UPDATE SPort" ) ;
+		}
+ #endif
 #endif
 	}
 	switch(event)
 	{
     case EVT_ENTRY:
-			state = 0 ;
+			state = UPDATE_NO_FILES ;
 			if ( mounted == 0 )
 			{
+#if defined(PCBTARANIS)
+  			fr = f_mount(0, &g_FATFS_Obj) ;
+#else				
   			fr = f_mount(0, &g_FATFS) ;
+#endif
 #ifdef PCBX9D
 				unlockFlash() ;
 #endif
@@ -542,13 +621,12 @@ void menuUp1(uint8_t event)
 				fr = f_chdir( (TCHAR *)"\\firmware" ) ;
 				if ( fr == FR_OK )
 				{
-					state = 1 ;
+					state = UPDATE_NO_FILES ;
 					fc->index = 0 ;
 					fr = f_opendir( &Dj, (TCHAR *) "." ) ;
 					if ( fr == FR_OK )
 					{
-#ifdef PCBX9D
- 						if ( (UpdateItem > 0 ) )
+ 						if ( (UpdateItem > 1 ) )
 						{
 							fc->ext[0] = 'F' ;
 							fc->ext[1] = 'R' ;
@@ -556,47 +634,52 @@ void menuUp1(uint8_t event)
 						}
 						else
 						{
-#endif
 							fc->ext[0] = 'B' ;
 							fc->ext[1] = 'I' ;
 							fc->ext[2] = 'N' ;
-#ifdef PCBX9D
 						}
-#endif
 						fc->ext[3] = 0 ;
 						fc->index = 0 ;
 						fc->nameCount = fillNames( 0, fc ) ;
 						fc->hpos = 0 ;
 						fc->vpos = 0 ;
+						if ( fc->nameCount )
+						{
+							state = UPDATE_FILE_LIST ;
+						}
 					}
 				}
 			}
     break ;
     
 		case EVT_KEY_FIRST(KEY_EXIT):
-      chainMenu(menuUpdate) ;
-    	killEvents(event) ;
+			if ( state < UPDATE_ACTION )
+			{
+      	chainMenu(menuUpdate) ;
+    		killEvents(event) ;
+			}
     break ;
 	}
 
 	switch ( state )
 	{
-		case 0 :
+		case UPDATE_NO_FILES :
 			lcd_puts_Pleft( 4*FH, "\005No Files" ) ;
 	    lcd_outdez( 21*FW, 4*FH, mounted ) ;
     break ;
 		
-		case 1 :
+		case UPDATE_FILE_LIST :
+			SportVerValid = 0 ;
 			if ( fileList( event, &FileControl ) == 1 )
 			{
-				state = 2 ;
+				state = UPDATE_CONFIRM ;
 			}
     break ;
-		case 2 :
- 			if ( (UpdateItem > 0 ) )
+		case UPDATE_CONFIRM :
+ 			if ( (UpdateItem > UPDATE_TYPE_BOOTLOADER ) )
 			{
 #ifdef PCBX9D
- 				if ( (UpdateItem == 1 ) )
+ 				if ( (UpdateItem == UPDATE_TYPE_SPORT_INT ) )
 				{
 					lcd_puts_Pleft( 2*FH, "Flash Int. XJT from" ) ;
 				}
@@ -604,41 +687,57 @@ void menuUp1(uint8_t event)
 				{
 					lcd_puts_Pleft( 2*FH, "Flash Ext.SP from" ) ;
 				}
+				SportVerValid = 0 ;
 #else
-				lcd_puts_Pleft( 2*FH, "Flash Co-Proc. from" ) ;
-#endif
+ #ifndef REVX
+ 				if ( (UpdateItem == UPDATE_TYPE_COPROCESSOR ) )
+				{
+					lcd_puts_Pleft( 2*FH, "Flash Co-Proc. from" ) ;
+				}
+				else
+				{
+					lcd_puts_Pleft( 2*FH, "Flash SPort from" ) ;
+				}
 				CoProcReady = 0 ;
+ #else
+				lcd_puts_Pleft( 2*FH, "Flash SPort from" ) ;
+ #endif
+#endif
 			}
 			else
 			{
 				lcd_puts_Pleft( 2*FH, "Flash Bootloader from" ) ;
 			}
 			cpystr( cpystr( (uint8_t *)FlashFilename, (uint8_t *)"\\firmware\\" ), (uint8_t *)Filenames[fc->vpos] ) ;
+#if defined(PCBTARANIS)
+			lcd_putsnAtt( 0, 4*FH, Filenames[fc->vpos], DISPLAY_CHAR_WIDTH, 0 ) ;
+#else
 			lcd_putsnAtt0( 0, 4*FH, Filenames[fc->vpos], DISPLAY_CHAR_WIDTH, 0 ) ;
+#endif
 			if ( event == EVT_KEY_LONG(KEY_MENU) )
 			{
-				state = 3 ;
+				state = UPDATE_SELECTED ;
 			}
 			if ( event == EVT_KEY_LONG(KEY_EXIT) )
 			{
-				state = 1 ;		// Canceled
+				state = UPDATE_FILE_LIST ;		// Canceled
 			}
     break ;
-		case 3 :
+		case UPDATE_SELECTED :
 			f_open( &FlashFile, FlashFilename, FA_READ ) ;
 			f_read( &FlashFile, (BYTE *)FileData, 1024, &BlockCount ) ;
 			i = 1 ;
-			if (UpdateItem == 0 )		// Bootloader
+			if (UpdateItem == UPDATE_TYPE_BOOTLOADER )		// Bootloader
 			{
 				i = validateFile( (uint32_t *) FileData ) ;
 			}
 			if ( i == 0 )
 			{
-				state = 4 ;
+				state = UPDATE_INVALID ;
 			}
 			else
 			{
-				if (UpdateItem == 0 )		// Bootloader
+				if (UpdateItem == UPDATE_TYPE_BOOTLOADER )		// Bootloader
 				{
 #ifdef PCBX9D
 					firmwareAddress = 0x08000000 ;
@@ -647,50 +746,46 @@ void menuUp1(uint8_t event)
 					firmwareAddress = 0x00400000 ;
 #endif
 				}
-				else
-				{
-#ifdef PCBX9D
-// SPort update
-					SportState = SPORT_START ;
-#endif
-					firmwareAddress = 0x00000080 ;
 #ifdef PCBSKY
  #ifndef REVX
+				else if (UpdateItem == UPDATE_TYPE_COPROCESSOR )		// Bootloader
+				{
+					firmwareAddress = 0x00000080 ;
 					if ( check_ready() == 0 )
 					{
 						CoProcReady = 1 ;
 					}
+				}
  #endif
 #endif
+				else
+				{
+// SPort update
+					SportState = SPORT_START ;
+					FirmwareSize = FileSize[fc->vpos] ;
+					BlockInUse = 0 ;
+					f_read( &FlashFile, (BYTE *)ExtraFileData, 1024, &XblockCount ) ;
 				}
 				BytesFlashed = 0 ;
 				BlockOffset = 0 ;
 				ByteEnd = 1024 ;
-				state = 5 ;
+				state = UPDATE_ACTION ;
 			}
     break ;
-		case 4 :
+		case UPDATE_INVALID :
 			lcd_puts_Pleft( 2*FH, "Invalid File" ) ;
 			lcd_puts_Pleft( 4*FH, "Press EXIT" ) ;
 			if ( event == EVT_KEY_FIRST(KEY_EXIT) )
 			{
-				state = 1 ;		// Canceled
+				state = UPDATE_FILE_LIST ;		// Canceled
     		killEvents(event) ;
 			}
     break ;
-		case 5 :
+		case UPDATE_ACTION :
 			// Do the flashing
 			lcd_puts_Pleft( 3*FH, "Flashing" ) ;
-#ifdef PCBSKY
- #ifndef REVX
-			if (UpdateItem == 0 )		// Bootloader
+			if (UpdateItem == UPDATE_TYPE_BOOTLOADER )		// Bootloader
 			{
- #endif
-#endif
-#ifdef PCBX9D
-			if (UpdateItem == 0 )		// Bootloader
-			{
-#endif
 				width = ByteEnd >> 9 ;
 				if ( BytesFlashed < ByteEnd )
 				{
@@ -703,7 +798,7 @@ void menuUp1(uint8_t event)
 				{
 					if ( ByteEnd >= 32768 )
 					{
-						state = 6 ;					
+						state = UPDATE_COMPLETE ;
 					}
 					else
 					{
@@ -712,10 +807,11 @@ void menuUp1(uint8_t event)
 						BlockOffset = 0 ;
 					}
 				}
+			}
+
 #ifdef PCBSKY
  #ifndef REVX
-			}
-			else		// CoProcessor
+			else if (UpdateItem == UPDATE_TYPE_COPROCESSOR )		// CoProcessor
 			{
 				uint32_t size = FileSize[fc->vpos] ;
 				width = BytesFlashed * 64 / size ;
@@ -740,7 +836,7 @@ void menuUp1(uint8_t event)
 					{
 						if ( ByteEnd >= size )
 						{
-							state = 6 ;					
+							state = UPDATE_COMPLETE ;
 						}
 						else
 						{
@@ -753,42 +849,90 @@ void menuUp1(uint8_t event)
 				else
 				{
 					CoProresult = 1 ;
-					state = 6 ;
+					state = UPDATE_COMPLETE ;
 				}
 			}
  #endif
 #endif
-#ifdef PCBX9D
-			}
 			else		// Internal/External Sport
 			{
-				width = sportUpdate( (UpdateItem == 1) ? SPORT_INTERNAL : SPORT_EXTERNAL ) ;
-			}	
+#ifdef PCBX9D
+				width = sportUpdate( (UpdateItem == UPDATE_TYPE_SPORT_INT) ? SPORT_INTERNAL : SPORT_EXTERNAL ) ;
+#else
+				width = sportUpdate( SPORT_EXTERNAL ) ;
 #endif
+				if ( width > FirmwareSize )
+				{
+					state = UPDATE_COMPLETE ;
+					SportVerValid = width ;
+				}
+				width *= 64 ;
+				width /= FirmwareSize ;
+				if ( SportVerValid )
+				{
+					lcd_outhex4( 0, 7*FH, (SportVersion[0] << 8) | SportVersion[1] ) ;
+					lcd_outhex4( 25, 7*FH, (SportVersion[2] << 8) | SportVersion[3] ) ;
+				}
+				if ( SportState == SPORT_POWER_ON )
+				{
+					lcd_puts_Pleft( 4*FH, "Finding Device" ) ;
+				}
+
+				if ( event == EVT_KEY_LONG(KEY_EXIT) )
+				{
+					state = UPDATE_COMPLETE ;
+					SportVerValid = 0x00FF ; // Abort with failed
+					SportState = SPORT_IDLE ;
+				}
+			}	
 			lcd_hline( 0, 5*FH-1, 65 ) ;
 			lcd_hline( 0, 6*FH, 65 ) ;
 			lcd_vline( 64, 5*FH, 8 ) ;
-			for ( i = 0 ; i < width ; i += 1 )
+			for ( i = 0 ; i <= width ; i += 1 )
 			{
 				lcd_vline( i, 5*FH, 8 ) ;
 			}
     break ;
-		case 6 :
+		
+		case UPDATE_COMPLETE :
 			lcd_puts_Pleft( 3*FH, "Flashing Complete" ) ;
+ 			if ( (UpdateItem != UPDATE_TYPE_BOOTLOADER ) )
+ 			{
+#ifdef PCBX9D
+ 				if ( SportVerValid & 1 )
+ 				{
+ 					lcd_puts_Pleft( 5*FH, "FAILED" ) ;
+ 				}
+#endif
 #ifdef PCBSKY
  #ifndef REVX
-			if (UpdateItem == 1 )		// CoProcessor
-			{
-				if ( CoProresult )
+				if (UpdateItem == UPDATE_TYPE_COPROCESSOR )		// CoProcessor
 				{
-					lcd_puts_Pleft( 5*FH, "FAILED" ) ;
+					if ( CoProresult )
+					{
+						lcd_puts_Pleft( 5*FH, "FAILED" ) ;
+					}
 				}
+				else
+				{
+ #endif 			
+ 					if ( SportVerValid & 1 )
+	 				{
+ 						lcd_puts_Pleft( 5*FH, "FAILED" ) ;
+ 					}
+  #ifndef REVX
+			  }
+  #endif 			
+ #endif 			
 			}
- #endif
-#endif
+
 			if ( event == EVT_KEY_FIRST(KEY_EXIT) )
 			{
-				state = 1 ;
+#ifdef PCBX9D
+				EXTERNAL_RF_OFF();
+				INTERNAL_RF_OFF();
+#endif
+				state = UPDATE_FILE_LIST ;
     		killEvents(event) ;
 			}
     break ;
@@ -800,15 +944,18 @@ void menuUpdate(uint8_t event)
 	static uint8_t reboot = 0 ;
 	static uint32_t position = 2*FH ;
   TITLE( "MAINTENANCE" ) ;
-	lcd_puts_Pleft( 2*FH, "\002Update Bootloader" );
+	lcd_puts_Pleft( 2*FH, "  Update Bootloader" );
 #ifdef PCBSKY
  #ifndef REVX
-	lcd_puts_Pleft( 3*FH, "\002Update CoProcessor" );
+	lcd_puts_Pleft( 3*FH, "  Update CoProcessor" );
+	lcd_puts_Pleft( 4*FH, "  Update SPort" );
+ #else
+	lcd_puts_Pleft( 3*FH, "  Update SPort" );
  #endif
 #endif
 #ifdef PCBX9D
-	lcd_puts_Pleft( 3*FH, "\002Update Internal XJT" );
-	lcd_puts_Pleft( 4*FH, "\002Update External SPort" );
+	lcd_puts_Pleft( 3*FH, "  Update Int. XJT" );
+	lcd_puts_Pleft( 4*FH, "  Update Ext. SPort" );
 #endif
 
   switch(event)
@@ -816,18 +963,29 @@ void menuUpdate(uint8_t event)
     case EVT_ENTRY:
 			position = 2*FH ;
     break ;
-		
-    case EVT_KEY_FIRST(KEY_MENU):
+    
+		case EVT_KEY_FIRST(KEY_MENU):
 			if ( position == 2*FH )
 			{
-				UpdateItem = 0 ;
+				UpdateItem = UPDATE_TYPE_BOOTLOADER ;
 	      chainMenu(menuUp1) ;
 			}
 #ifdef PCBSKY
  #ifndef REVX
 			if ( position == 3*FH )
 			{
-				UpdateItem = 1 ;
+				UpdateItem = UPDATE_TYPE_COPROCESSOR ;
+	      chainMenu(menuUp1) ;
+			}
+			if ( position == 4*FH )
+			{
+				UpdateItem = UPDATE_TYPE_SPORT_EXT ;
+	      chainMenu(menuUp1) ;
+			}
+ #else
+			if ( position == 3*FH )
+			{
+				UpdateItem = UPDATE_TYPE_SPORT_EXT ;
 	      chainMenu(menuUp1) ;
 			}
  #endif
@@ -835,12 +993,12 @@ void menuUpdate(uint8_t event)
 #ifdef PCBX9D
 			if ( position == 3*FH )
 			{
-				UpdateItem = 1 ;
+				UpdateItem = UPDATE_TYPE_SPORT_INT ;
 	      chainMenu(menuUp1) ;
 			}
 			if ( position == 4*FH )
 			{
-				UpdateItem = 2 ;
+				UpdateItem = UPDATE_TYPE_SPORT_EXT ;
 	      chainMenu(menuUp1) ;
 			}
 #endif
@@ -854,6 +1012,20 @@ void menuUpdate(uint8_t event)
 
 #ifdef PCBSKY
  #ifndef REVX
+    case EVT_KEY_FIRST(KEY_DOWN):
+			if ( position < 4*FH )
+			{
+				position += FH ;				
+			}
+		break ;
+    
+		case EVT_KEY_FIRST(KEY_UP):
+			if ( position > 2*FH )
+			{
+				position -= FH ;				
+			}
+		break ;
+ #else
     case EVT_KEY_FIRST(KEY_DOWN):
 			if ( position < 3*FH )
 			{
@@ -884,8 +1056,6 @@ void menuUpdate(uint8_t event)
 			}
 		break ;
 #endif
-
-
 	}
 
 	if ( reboot )
@@ -895,11 +1065,16 @@ void menuUpdate(uint8_t event)
 		  NVIC_SystemReset() ;
 		}
 	}
+#if defined(PCBTARANIS)
+	lcd_filled_rect( 2*FW, position, 18*FW, 8, 0xFF, 0 ) ;
+#else
 	lcd_char_inverse( 2*FW, position, 18*FW, 0 ) ;
+#endif
 }
 
+
+
 #ifdef PCBSKY
- #ifndef REVX
 
 void init_mtwi()
 {
@@ -923,8 +1098,39 @@ void init_mtwi()
 
 	TWI0->TWI_CWGR = 0x00040000 | timing ;			// TWI clock set
 	TWI0->TWI_CR = TWI_CR_MSEN | TWI_CR_SVDIS ;		// Master mode enable
+#ifdef REVX
+	TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
+#else	
 	TWI0->TWI_MMR = 0x00350000 ;		// Device 35 and master is writing
+#endif
 }
+
+#ifdef REVX
+uint32_t clearMfp()
+{
+	uint32_t i ;
+	
+	TWI0->TWI_MMR = 0x006F0100 ;		// Device 6F and master is writing, 1 byte addr
+	TWI0->TWI_IADR = 7 ;
+	TWI0->TWI_THR = 0 ;					// Value for clear
+	TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+	for ( i = 0 ; i < 100000 ; i += 1 )
+	{
+		if ( TWI0->TWI_SR & TWI_SR_TXCOMP )
+		{
+			break ;
+		}	
+	}
+	
+	if ( i >= 100000 )
+	{
+		return 0 ;
+	}
+	return 1 ;
+}
+#endif
+
+ #ifndef REVX
 
 uint8_t Addr_buffer[132] ;
 
@@ -1112,26 +1318,9 @@ uint32_t check_ready()
 	return result ;
 }
 
-//uint32_t write( uint32_t addr, uint8_t *buffer, uint32_t count )
-//{
-//	uint32_t result ;
-//	result = 0 ;				// OK
-
-//	if (addr % 4)
-//	{
-//		result = 1 ;
-//	}
-//	else
-//	{
-//		result = write_CoProc( addr, buffer, count ) ;
-//	}
-//	return result ;
-//}
-
  #endif
 #endif
 
-#ifdef PCBX9D
 #define PRIM_REQ_POWERUP    (0)
 #define PRIM_REQ_VERSION    (1)
 #define PRIM_CMD_DOWNLOAD   (3)
@@ -1144,25 +1333,17 @@ uint32_t check_ready()
 #define PRIM_END_DOWNLOAD   (0x83)
 #define PRIM_DATA_CRC_ERR   (0x84)
 
-//uint8_t txPacketReqPowerup[]  = {0x50, PRIM_REQ_POWERUP, 0,0,0,0, 0, 0} ;
-//uint8_t txPacketReqVersion[]  = {0x50, PRIM_REQ_VERSION, 0,0,0,0, 0, 0} ;
-//uint8_t txPacketCmdDownload[] = {0x50, PRIM_CMD_DOWNLOAD,0,0,0,0, 0, 0} ;
-//uint8_t txPacketDataWord[]		= {0x50, PRIM_DATA_WORD, 0,0,0,0, 0, 0} ;
-//uint8_t txPacketDataEof[]			= {0x50, PRIM_DATA_EOF, 0,0,0,0, 0, 0} ;
-
 static uint8_t TxPacket[8] ;
 static uint8_t TxPhyPacket[16] ;
 static uint8_t SportTimer ;
 
-#endif
 
 
-#ifdef PCBX9D
 void writePacket( uint8_t *buffer )
 {
 	uint8_t *ptr = TxPhyPacket ;
 	uint32_t i ;
-	
+
 	*ptr++ = 0x7E ;
 	*ptr++ = 0xFF ;
 	buffer[7] = crc16_ccitt( buffer, 7 ) ;
@@ -1179,21 +1360,34 @@ void writePacket( uint8_t *buffer )
     }
 	}
 	i = ptr - TxPhyPacket ;		// Length of buffer to send
+#ifdef PCBX9D
 	x9dSPortTxStart( TxPhyPacket, i ) ;
-}
 #endif
+#ifdef PCBSKY
+	txPdcUsart( TxPhyPacket, i ) ;
+#endif
+}
 
+void blankTxPacket()
+{
+	uint32_t i ;
+	for ( i = 2 ; i < 8 ; i += 1 )
+	{
+		TxPacket[i] = 0 ;
+	}
+}
 
 // This is called from the receive processing.
+// Packet has leading 0x7E stripped
 void maintenance_receive_packet( uint8_t *packet )
 {
-#ifdef PCBX9D
 	uint32_t addr ;
-
-	if( ( packet[1] == 0x5E) && ( packet[2]==0x50))
+	
+	if( ( packet[0] == 0x5E) && ( packet[1]==0x50))
 	{
 		SportTimer = 0 ;		// stop timer
-		switch( packet[3] )
+
+		switch( packet[2] )
 		{
 			case PRIM_ACK_POWERUP :
 				if ( SportState == SPORT_POWER_ON )
@@ -1208,46 +1402,84 @@ void maintenance_receive_packet( uint8_t *packet )
 				{
 					SportTimer = 2 ;
 					SportState = SPORT_DATA_START ;
+					SportVersion[0] = packet[3] ;
+					SportVersion[1] = packet[4] ;
+					SportVersion[2] = packet[5] ;
+					SportVersion[3] = packet[6] ;
+					SportVerValid = 1 ;
 				}
 			break ;
 
 			case PRIM_REQ_DATA_ADDR :
-				if ( BlockCount )
+			{
+				UINT bcount ;
+				bcount = BlockInUse ? XblockCount : BlockCount ;
+				
+				if ( BytesFlashed >= FirmwareSize )
 				{
-					BlockCount -= 4 ;
-					addr = *((int32_t *)(&packet[4])) ;
+					// We have finished
+					blankTxPacket() ;
 					TxPacket[0] = 0x50 ;
-					TxPacket[1] = PRIM_REQ_POWERUP ;
-        	*((int32_t *)&TxPacket[2]) = FileData[( addr & 1023 ) >> 2 ] ;
-        	TxPacket[6] = addr & 0x000000FF ;
+					TxPacket[1] = PRIM_DATA_EOF ;
 					SportTimer = 20 ;		// 200 mS
 					writePacket( TxPacket ) ;
+					SportState = SPORT_END ;
 				}
-				if ( BlockCount == 0 )
-				{
-					SportState = SPORT_DATA_READ ;
+				else
+				{				
+					if ( bcount )
+					{
+						uint32_t *ptr ;
+						bcount -= 4 ;
+						BytesFlashed += 4 ;
+						addr = *((uint32_t *)(&packet[3])) ;
+						TxPacket[0] = 0x50 ;
+						TxPacket[1] = PRIM_DATA_WORD ;
+        		TxPacket[6] = addr & 0x000000FF ;
+						addr = ( addr & 1023 ) >> 2 ;		// 32 bit word offset into buffer
+						ptr = ( uint32_t *) (BlockInUse ? ExtraFileData : FileData ) ;
+						ptr += addr ;
+						uint32_t *dptr = (uint32_t *)(&TxPacket[2]) ;
+        		*dptr = *ptr ;
+						SportTimer = 20 ;		// 200 mS
+						writePacket( TxPacket ) ;
+					}
+					if ( BlockInUse )
+					{
+						XblockCount = bcount ;
+					}
+					else
+					{
+						BlockCount = bcount ;
+					}
+					if ( bcount == 0 )
+					{
+						SportState = SPORT_DATA_READ ;
+						if ( BlockInUse )
+						{
+							BlockInUse = 0 ;						
+						}
+						else
+						{
+							BlockInUse = 1 ;
+						}
+					}
 				}
+			}
 			break ;
 
+			case PRIM_END_DOWNLOAD :
+					SportState = SPORT_COMPLETE ;
+			break ;
+				
+			case PRIM_DATA_CRC_ERR :
+					SportState = SPORT_FAIL ;
+			break ;
 		}
 	}
-#endif
 }
-
-#ifdef PCBX9D
-void blankTxPacket()
-{
-	uint32_t i ;
-	for ( i = 2 ; i < 8 ; i += 1 )
-	{
-		TxPacket[i] = 0 ;
-	}
-}
-#endif
-
 
 // This is called repeatedly every 10mS while update is in progress
-#ifdef PCBX9D
 uint32_t sportUpdate( uint32_t external )
 {
 	if ( SportTimer )
@@ -1261,7 +1493,25 @@ uint32_t sportUpdate( uint32_t external )
 		break ;
 		
 		case SPORT_START :
+#if !defined(PCBTARANIS)
+			FrskyTelemetryType = 1 ;
+#endif
+#ifdef PCBX9D
+#if defined(PCBTARANIS)
+			sportInit() ;
+#else
+			x9dSPortInit( 0 ) ;
+#endif
+#endif
+#ifdef PCBSKY
+ #ifdef REVX
+		clearMfp() ;
+ #endif
+			UART2_Configure( 57600, Master_frequency ) ;
+			startPdcUsartReceive() ;
+#endif
 			SportTimer = 5 ;		// 50 mS
+#ifdef PCBX9D
 			if ( external )
 			{
   			EXTERNAL_RF_ON();
@@ -1270,6 +1520,7 @@ uint32_t sportUpdate( uint32_t external )
 			{
   			INTERNAL_RF_ON();
 			}
+#endif
 			SportState = SPORT_POWER_ON ;
 		break ;
 		
@@ -1279,8 +1530,7 @@ uint32_t sportUpdate( uint32_t external )
 				blankTxPacket() ;
 				TxPacket[0] = 0x50 ;
 				TxPacket[1] = PRIM_REQ_POWERUP ;
-				SportTimer = 20 ;		// 200 mS
-				SportState = SPORT_VERSION ;
+				SportTimer = 10 ;		// 100 mS
 				writePacket( TxPacket ) ;
 			}
 		break ;
@@ -1292,7 +1542,7 @@ uint32_t sportUpdate( uint32_t external )
 				TxPacket[0] = 0x50 ;
 				TxPacket[1] = PRIM_REQ_VERSION ;
 				SportTimer = 20 ;		// 200 mS
-//				SportState = SPORT_VERSION ;
+				SportState = SPORT_VERSION ;
 				writePacket( TxPacket ) ;
 			}
 		break ;
@@ -1303,32 +1553,68 @@ uint32_t sportUpdate( uint32_t external )
 			TxPacket[1] = PRIM_CMD_DOWNLOAD ;
 			SportTimer = 20 ;		// 200 mS
 			SportState = SPORT_DATA ;
+// Stop here for testing
 			writePacket( TxPacket ) ;
 		break ;
 
 		case SPORT_DATA :
-		 
 		break ;
+		
+		case SPORT_DATA_READ :
+		{	
+			uint32_t *ptr ;
+			UINT *pcount ;
+			ptr = ( uint32_t *) (BlockInUse ? FileData : ExtraFileData ) ;
+			pcount = BlockInUse ? &BlockCount : &XblockCount ;
+			f_read( &FlashFile, (BYTE *)ptr, 1024, pcount ) ;
+			SportState = SPORT_DATA ;
+		}
+		break ;
+		
+		case SPORT_END :
+		break ;
+
+		case SPORT_COMPLETE :
+			return 0xFFFFFFFE ;
+		break ;
+				
+		case SPORT_FAIL :
+			return 0xFFFFFFFF ;
+		break ;
+
 	}
-	return 0 ;
+	return BytesFlashed ;
 }
-#endif
 
 // This is called as often as possible
-#ifdef PCBX9D
 void maintenanceBackground()
 {
+#if !defined(PCBTARANIS)
 	// First, deal with any received bytes
+#ifdef PCBX9D
 	uint16_t rxchar ;
 	while ( ( rxchar = rxTelemetry() ) != 0xFFFF )
 	{
 		frsky_receive_byte( rxchar ) ;
 	}
-	
-}
+#endif
+		
+#ifdef PCBSKY
+	rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
 #endif
 
-#ifdef PCBX9D
+#else
+	uint8_t data ;
+extern void processSerialData(uint8_t data) ;
+
+  while (telemetryFifo.pop(data))
+	{
+    processSerialData(data);
+	}
+#endif
+	 
+}
+
 /* CRC16 implementation acording to CCITT standards */
 
 static const unsigned short crc16tab[256]= {
@@ -1376,6 +1662,4 @@ uint16_t crc16_ccitt( uint8_t *buf, uint32_t len )
 	}
 	return crc;
 }
-
-#endif
 

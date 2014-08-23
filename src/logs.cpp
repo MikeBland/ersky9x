@@ -256,7 +256,7 @@ void writeLogs()
 //#if defined(FRSKY_SPORT)
 //      f_printf(&g_oLogFile, "%d,%d,", frskyData.rssi[1].value, frskyData.rssi[0].value);
 //#elif defined(FRSKY)
-      f_printf(&g_oLogFile, "%d,%d,%d,", frskyStreaming, FrskyHubData[FR_RXRSI_COPY], FrskyHubData[FR_TXRSI_COPY]) ;
+      f_printf(&g_oLogFile, "%d,%d,%d,", frskyUsrStreaming * 100 + frskyStreaming, FrskyHubData[FR_RXRSI_COPY], FrskyHubData[FR_TXRSI_COPY]) ;
 			if ( g_model.DsmTelemetry )
 			{
 				f_printf(&g_oLogFile, "%d,%d,", DsmABLRFH[4],DsmABLRFH[5] ) ;

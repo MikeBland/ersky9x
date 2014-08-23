@@ -47,7 +47,7 @@ void generalDefault()
   memset(&g_eeGeneral,0,sizeof(g_eeGeneral));
   g_eeGeneral.myVers   =  MDVERS;
 //  g_eeGeneral.currModel=  0;
-  g_eeGeneral.contrast = 30;
+  g_eeGeneral.contrast = 18;
   g_eeGeneral.vBatWarn = 65;
   g_eeGeneral.stickMode=  1;
 	g_eeGeneral.disablePotScroll=  1;
@@ -113,7 +113,7 @@ void eeReadAll()
 //	txmit('b') ;
 		
     alert((char const *)PSTR(STR_BAD_EEPROM), true);
-    g_eeGeneral.contrast = 25 ;
+    g_eeGeneral.contrast = 18 ;
     message(PSTR(STR_EE_FORMAT));
     generalDefault();
 

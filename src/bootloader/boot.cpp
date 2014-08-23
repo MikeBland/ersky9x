@@ -85,7 +85,7 @@ extern "C" {
 __attribute__ ((section(".version"), used))
 const uint8_t Version[] =
 {
-	'B', 'O', 'O', 'T', '1', '2'
+	'B', 'O', 'O', 'T', '1', '3'
 } ;
 
 __attribute__ ((section(".text"), used))
@@ -227,8 +227,14 @@ void delayNus( uint16_t time )
 }
 #endif
 
+static uint32_t PowerUpDelay ;
+
 static bool usbPlugged(void)
 {
+	if ( PowerUpDelay < 100 )	// 1000 mS
+	{
+		return 0 ;
+	}
 #ifdef PCBSKY
 	return PIOC->PIO_PDSR & 0x02000000 ;
 #endif
@@ -762,11 +768,11 @@ uint8_t flashFile( uint32_t index )
 
 extern Key keys[] ;
 
-static uint32_t PowerUpDelay ;
 
 uint16_t statuses ;
 
 uint16_t WriteCounter ;
+extern uint32_t Breason ;
 
 int main()
 {
@@ -868,7 +874,10 @@ extern uint8_t OptrexDisplay ;
 	for(;;)
 	{
 #ifdef PCBSKY
-    usbMassStorage() ;
+ 		if ( PowerUpDelay > 100 )	// 1000 mS
+		{
+    	usbMassStorage() ;
+		}
 #endif
 		
 		wdt_reset() ;
@@ -893,6 +902,7 @@ extern uint8_t OptrexDisplay ;
 			lcd_puts_Pleft( 0, "Boot Loader V ." ) ;
 			lcd_putc( 13*FW, 0, Version[4] ) ;
 			lcd_putc( 15*FW-2, 0, Version[5] ) ;
+
 //extern uint8_t StartStopCounter ;
 //extern uint16_t ReadCounter ;
 //	lcd_outhex4( 0, FH, StartStopCounter ) ;
@@ -961,7 +971,7 @@ extern uint8_t OptrexDisplay ;
 					lcd_putc( 6, 7*FH, '0' + EepromBlocked ) ;
 #endif
 				}
-
+				
 				if ( state == ST_START )
 				{
   				fr = f_mount(0, &g_FATFS) ;
@@ -1188,11 +1198,16 @@ extern uint8_t OptrexDisplay ;
 #ifdef PCBX9D
 			}
 #endif			
-			if ( PowerUpDelay < 20 )	// 200 mS
+			if ( PowerUpDelay < 200 )	// 2000 mS
 			{
 				PowerUpDelay += 1 ;
 			}
-			else
+			if ( PowerUpDelay >= 20 )	// 200 mS
+//			if ( PowerUpDelay < 20 )	// 200 mS
+//			{
+//				PowerUpDelay += 1 ;
+//			}
+//			else
 			{
 #ifdef PCBSKY
 				sd_poll_10mS() ;

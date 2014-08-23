@@ -95,7 +95,7 @@ unsigned char ModelNames[MAX_MODELS+1][sizeof(g_model.name)+1] ;		// Allow for g
 
 uint16_t General_timer ;
 uint16_t Model_timer ;
-uint32_t Update_timer ;
+//uint32_t Update_timer ;
 uint8_t General_dirty ;
 uint8_t Model_dirty ;
 
@@ -220,6 +220,14 @@ void ee32StoreGeneral()
 	General_timer = 500 ;		// 5 seconds timeout before writing
 }
 
+void eeModelChanged()
+{
+	if ( Model_timer == 0 )
+	{
+		ee32StoreModel( g_eeGeneral.currModel, EE_MODEL ) ;
+		Model_timer = 30000 ;	// 5 minutes
+	}
+}
 
 // Store model to EEPROM, trim is non-zero if this is the result of a trim change
 void ee32StoreModel( uint8_t modelNumber, uint8_t trim )
@@ -524,7 +532,7 @@ bool ee32LoadGeneral()
   g_eeGeneral.myVers   =  MDVERS; // update myvers
 
   uint16_t sum=0;
-  if(size>(sizeof(EEGeneral)-20)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
+  if(size>(43)) for(uint8_t i=0; i<12;i++) sum+=g_eeGeneral.calibMid[i];
 	else return false ;
   return g_eeGeneral.chkSum == sum;
 }
@@ -783,6 +791,14 @@ uint32_t ee32_check_finished()
 			|| ( Model_timer )
 			|| ( Ee32_model_delete_pending) )
 	{
+		if ( General_timer )
+		{
+			General_timer = 1 ;		// Make these happen soon
+		}
+		if ( Model_timer )
+		{
+			Model_timer = 1 ;
+		}
 		ee32_process() ;
 		return 0 ;
 	}

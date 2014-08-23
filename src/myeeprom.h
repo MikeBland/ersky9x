@@ -41,6 +41,7 @@
 #define MDSKYVERS   3
 
 #define	NUM_VOICE		8
+#define NUM_VOICE_ALARMS	24
 
 //OBSOLETE - USE ONLY MDVERS NOW
 //#define GENERAL_MYVER_r261 3
@@ -71,6 +72,7 @@
 
 #define GENERAL_OWNER_NAME_LEN 10
 #define MODEL_NAME_LEN         10
+#define VOICE_NAME_SIZE					8
 
 #define MAX_GVARS 7
 
@@ -166,8 +168,11 @@ PACK(typedef struct t_EEGeneral {
   int16_t   x9dPcalibSpanNeg ;	// X9D for PLUS
   int16_t   x9dPcalibSpanPos ;	// X9D for PLUS
 	uint8_t		switchMapping ;			// 'PRO / SKY
-	int8_t		switchTest ;				// 'PRO / SKY
+	int8_t		spare10 ;						// was switchTest
 	exTrainerMix exTrainer[4] ;
+	uint16_t totalElapsedTime ;
+	uint16_t sparetotalElapsedTime ;	// In case we need 32 bits
+	uint8_t		BtType ;
 }) EEGeneral;
 
 
@@ -466,26 +471,29 @@ PACK(typedef struct t_dsmLink
 	uint8_t levelCritical ;
 }) DsmLinkData ;
 
-PACK(typedef struct t_voiceAlarm
+typedef struct t_voiceAlarm
 {
   uint8_t source ;
 	uint8_t func;
   int8_t  swtch ;
 	uint8_t rate ;
-	uint8_t fnameType:2 ;
-	uint8_t spare1:6 ;
-  uint8_t  offset ;		//offset
+	uint8_t fnameType:3 ;
+	uint8_t haptic:2 ;
+	uint8_t vsource:2 ;
+	uint8_t mute:1 ;
+	uint8_t res1 ;			// Spare for expansion
+  int16_t  offset ;		//offset
 	union
 	{
 		int16_t vfile ;
-		uint8_t name[6] ;
+		uint8_t name[8] ;
 	} file ;
-}) VoiceAlarmData ;
+} VoiceAlarmData ;
 
 
 PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
-  uint8_t   modelVoice ;		// Index to model name voice (260+value)
+  int8_t  	modelVoice ;			// Index to model name voice (260+value)
   uint8_t   RxNum ;						// was timer trigger source, now RxNum for model match
   uint8_t   telemetryRxInvert:1 ;	// was tmrDir, now use tmrVal>0 => count down
   uint8_t   traineron:1;  		// 0 disable trainer, 1 allow trainer
@@ -505,7 +513,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   frskyComPort:1 ;
 	uint8_t		DsmTelemetry:1 ;
-	uint8_t   spare11:1;
+	uint8_t   arduTelemetry:1 ;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
@@ -552,7 +560,6 @@ PACK(typedef struct te_ModelData {
 	int8_t pxxFailsafe[16] ;
 	int8_t logSwitch ;
 	uint8_t logRate ;
-  // X9D ext module
 	uint8_t   xprotocol:4 ;
   uint8_t   xcountry:2 ;
   uint8_t   xsub_protocol:2 ;
@@ -570,13 +577,24 @@ PACK(typedef struct te_ModelData {
 	uint8_t		enRssiRed:2 ;
 	int8_t		rssiRed:6 ;
 	uint8_t		rxVratio ;
-//	uint8_t		spare24:6 ;
 	uint8_t   currentSource ;
 	uint8_t   altSource ;
 	ScaleData Scalers[NUM_SCALERS] ;
 	DsmLinkData dsmLinkData ; 
 	int8_t timer1RstSw ;
 	int8_t timer2RstSw ;
+	uint8_t timer1Cdown:1 ;
+	uint8_t timer2Cdown:1 ;
+	uint8_t timer1Mbeep:1 ;
+	uint8_t timer2Mbeep:1 ;
+	uint8_t tspare:4 ;
+  int8_t mlightSw ;
+	uint8_t ppmOpenDrain ;
+	char modelVname[VOICE_NAME_SIZE] ;
+	VoiceAlarmData vad[NUM_VOICE_ALARMS] ;
+	int8_t gvswitch[MAX_GVARS] ;
+  uint8_t mview ;
+
 }) SKYModelData;
 
 

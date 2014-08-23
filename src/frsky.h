@@ -232,6 +232,16 @@ DataID Meaning       Unit   Range   Note
 #define BETA_ALT_ID_8		   0x01
 
 
+// Default sensor data IDs (Physical IDs)
+
+#define DATA_ID_VARIO 0x00
+#define DATA_ID_FLVSS 0x01
+#define DATA_ID_FAS		0x02
+#define DATA_ID_GPS 	0x03
+#define DATA_ID_RPM 	0x04
+#define DATA_ID_SP2UH 0x05
+#define DATA_ID_SP2UR 0x06
+
 // Conversion table
 // 0100		FR_ALT_BARO
 // 0110   FR_VSPD

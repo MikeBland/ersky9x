@@ -100,6 +100,7 @@ extern void p4hex( uint16_t value ) ;
 extern void p2hex( unsigned char c ) ;
 extern void hex_digit_send( unsigned char c ) ;
 extern void read_9_adc(void ) ;
+extern void xread_9_adc(void ) ;
 extern void init_adc( void ) ;
 void set_stick_gain( uint32_t gains ) ;
 extern void init_ssc( uint16_t baudrate ) ;

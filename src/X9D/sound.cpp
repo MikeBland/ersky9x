@@ -82,6 +82,11 @@ struct t_VoiceBuffer VoiceBuffer[3] ;
 #define SOUND_VOICE	2
 #define SOUND_STOP	3
 
+//uint8_t ActualVolume ;
+//uint8_t TargetVolume ;
+//int8_t VolumeChanging ;
+//uint8_t VolumeDelay ;
+
 struct t_VoiceBuffer *PtrVoiceBuffer[3] ;
 uint8_t VoiceCount ;
 uint8_t SoundType ;
@@ -254,12 +259,13 @@ extern "C" void TIM6_DAC_IRQHandler()
 }
 
 uint8_t AudioVoiceUnderrun ;
+uint8_t AudioVoiceCountUnderruns ;
 
 extern "C" void DMA1_Stream5_IRQHandler()
 {
 	DMA1_Stream5->CR &= ~DMA_SxCR_TCIE ;		// Stop interrupt
 	DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear flags
-	if ( Sound_g.VoiceActive )
+	if ( Sound_g.VoiceActive == 1 )
 	{
 		PtrVoiceBuffer[0]->flags |= VF_SENT ;		// Flag sent
 		PtrVoiceBuffer[0] = PtrVoiceBuffer[1] ;
@@ -269,7 +275,7 @@ extern "C" void DMA1_Stream5_IRQHandler()
 		if ( VoiceCount == 0 )		// Run out of buffers
 		{
 			AudioVoiceUnderrun = 1 ;		// For debug
-			Sound_g.VoiceActive = 0 ;
+			Sound_g.VoiceActive = 2 ;
 //			DMA1_Stream5->CR &= ~DMA_SxCR_TCIE ;			// Disable DMA interrupt
 			DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
 			DacIdle = 1 ;
@@ -277,7 +283,7 @@ extern "C" void DMA1_Stream5_IRQHandler()
 		else
 		{
 			DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
-			DMA1_Stream5->M0AR = (uint32_t) PtrVoiceBuffer[0]->data ;
+			DMA1_Stream5->M0AR = (uint32_t) PtrVoiceBuffer[0]->dataw ;
 			DMA1_Stream5->NDTR =  PtrVoiceBuffer[0]->count ;
 			DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
 			DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;	// Enable DMA channel
@@ -343,7 +349,7 @@ void sound_5ms()
 #ifndef SIMU
 				DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
 				DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
-				DMA1_Stream5->M0AR = (uint32_t) VoiceBuffer[0].data ;
+				DMA1_Stream5->M0AR = (uint32_t) VoiceBuffer[0].dataw ;
 				DMA1_Stream5->NDTR =  VoiceBuffer[0].count ;
 				DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;		// Enable DMA channel and interrupt
 				DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
@@ -401,6 +407,13 @@ void sound_5ms()
 			}
 		}
 	}
+//	if ( VolumeChanging )
+//	{
+//		if ( --VolumeDelay == 0 )
+//		{
+//			setVolume( CurrentVolume ) ;
+//		}
+//	}
 }
 
 
@@ -429,13 +442,24 @@ void playTone( uint32_t frequency, uint32_t time )
 	Sound_g.Sound_time = time ;
 }
 
-uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency_increment )
+uint32_t unlockTone()
+{
+	if ( Sound_g.Sound_time == 0 )
+	{
+		Sound_g.toneLock = 0 ;
+		return 1 ;
+	}
+	return 0 ;
+}
+
+uint32_t queueTone( uint32_t frequency, uint32_t time, uint32_t frequency_increment, uint32_t lock )
 {
 	if ( Sound_g.Sound_time == 0 )
 	{
 		Sound_g.Next_freq = frequency ;
 		Sound_g.Next_frequency_increment = frequency_increment ;
 		Sound_g.Sound_time = time ;
+		Sound_g.toneLock = lock ;
 		return 1 ;
 	}
 	return 0 ;	
@@ -480,12 +504,34 @@ void startVoice( uint32_t count )		// count of filled in buffers
 }
 
 
+void endVoice()
+{
+	if ( Sound_g.VoiceActive == 2 )
+	{
+		Sound_g.VoiceActive = 0 ;
+	}
+}
+
 void appendVoice( uint32_t index )		// index of next buffer
 {
 	VoiceBuffer[index].flags &= ~VF_SENT ;
 	__disable_irq() ;
 	PtrVoiceBuffer[VoiceCount++] = &VoiceBuffer[index] ;
 	__enable_irq() ;
+	if ( DacIdle )	// All sent
+	{
+		DacIdle = 0 ;
+		Sound_g.VoiceActive = 1 ;
+#ifndef SIMU
+		DMA1_Stream5->CR &= ~DMA_SxCR_EN ;				// Disable DMA channel
+		DMA1->HIFCR = DMA_HIFCR_CTCIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CFEIF5 ; // Write ones to clear bits
+		DMA1_Stream5->M0AR = (uint32_t) VoiceBuffer[index].dataw ;
+		DMA1_Stream5->NDTR =  VoiceBuffer[index].count ;
+		DMA1_Stream5->CR |= DMA_SxCR_EN | DMA_SxCR_TCIE ;		// Enable DMA channel and interrupt
+		DAC->SR = DAC_SR_DMAUDR1 ;			// Write 1 to clear flag
+		DAC->CR |= DAC_CR_EN1 | DAC_CR_DMAEN1 ;			// Enable DAC
+#endif
+	}
 }
 
 static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
@@ -505,6 +551,27 @@ void setVolume( register uint8_t volume )
 	CurrentVolume = volume ;
 	volume = Volume_scale[volume] ;
 	I2C_set_volume( volume ) ;
+
+//	TargetVolume = volume ;
+//	if ( TargetVolume != ActualVolume )
+//	{
+//		if ( TargetVolume > ActualVolume )
+//		{
+//			VolumeChanging = 1 ;
+//		}
+//		else
+//		{
+//			VolumeChanging = -1 ;
+//		}
+//		volume = ActualVolume + VolumeChanging ;
+//		ActualVolume = volume ;
+//		VolumeDelay = 2 ;
+//		I2C_set_volume( volume ) ;
+//	}	 
+//	else
+//	{
+//		VolumeChanging = 0 ;
+//	}
 #endif
 }
 
