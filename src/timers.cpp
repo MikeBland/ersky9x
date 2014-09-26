@@ -1062,7 +1062,7 @@ void setupTrainerPulses()
 	}
 	*ptr++ = total ;
 	*ptr = 0 ;
-	TIM3->CCR2 = total - 1000 ;		// Update time
+	TIM3->CCR1 = total - 1000 ;		// Update time
 	TIM3->CCR4 = (g_model.ppmDelay*50+300)*2 ;
 }
 
@@ -1089,8 +1089,8 @@ void init_trainer_ppm()
 //	TIM8->DIER = TIM_DIER_UDE ;
 
 	TIM3->SR &= ~TIM_SR_UIF ;				// Clear flag
-	TIM3->SR &= ~TIM_SR_CC2IF ;				// Clear flag
-	TIM3->DIER |= TIM_DIER_CC2IE ;
+	TIM3->SR &= ~TIM_SR_CC1IF ;				// Clear flag
+	TIM3->DIER |= TIM_DIER_CC1IE ;
 	TIM3->DIER |= TIM_DIER_UIE ;
 
 	TIM3->CR1 = TIM_CR1_CEN ;
@@ -1102,36 +1102,10 @@ void init_trainer_ppm()
 void stop_trainer_ppm()
 {
 	configure_pins( 0x0200, PIN_INPUT | PIN_PORTC ) ;
-	TIM8->CR1 &= ~TIM_CR1_CEN ;				// Stop counter
-	NVIC_DisableIRQ(TIM8_CC_IRQn) ;				// Stop Interrupt
-	NVIC_DisableIRQ(TIM8_UP_TIM13_IRQn) ; // Stop Interrupt
+	TIM3->DIER = 0 ;
+	TIM3->CR1 &= ~TIM_CR1_CEN ;				// Stop counter
+	NVIC_DisableIRQ(TIM3_IRQn) ;				// Stop Interrupt
 }
-
-//extern "C" void TIM8_CC_IRQHandler()
-//{
-//	TIM8->DIER &= ~TIM_DIER_CC2IE ;		// stop this interrupt
-//	TIM8->SR &= ~TIM_SR_CC2IF ;				// Clear flag
-
-//	setupTrainerPulses() ;
-
-//	TrainerPulsePtr = TrainerPpmStream ;
-//	TIM8->DIER |= TIM_DIER_UDE ;
-
-//	TIM8->SR &= ~TIM_SR_UIF ;					// Clear this flag
-//	TIM8->DIER |= TIM_DIER_UIE ;				// Enable this interrupt
-//}
-
-//extern "C" void TIM8_UP_TIM13_IRQHandler()
-//{
-//	TIM8->SR &= ~TIM_SR_UIF ;				// Clear flag
-
-//	TIM8->ARR = *TrainerPulsePtr++ ;
-//	if ( *TrainerPulsePtr == 0 )
-//	{
-//		TIM8->SR &= ~TIM_SR_CC2IF ;			// Clear this flag
-//		TIM8->DIER |= TIM_DIER_CC2IE ;	// Enable this interrupt
-//	}
-//}
 
 // Trainer capture, PC8, Timer 3 channel 3
 void init_trainer_capture()
@@ -1150,26 +1124,139 @@ void init_trainer_capture()
 	TIM3->CR1 = TIM_CR1_CEN ;
   NVIC_SetPriority(TIM3_IRQn, 7);
 	NVIC_EnableIRQ(TIM3_IRQn) ;
-	
 }
+
+void stop_trainer_capture()
+{
+	TIM3->DIER = 0 ;
+	TIM3->CR1 &= ~TIM_CR1_CEN ;				// Stop counter
+	NVIC_DisableIRQ(TIM3_IRQn) ;				// Stop Interrupt
+}
+
+void init_serial_trainer_capture()
+{
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
+	configure_pins( 0x0800, PIN_PERIPHERAL | PIN_PORTB | PIN_PER_1 ) ;
+	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN ;		// Enable clock
+	
+	TIM2->ARR = 0xFFFF ;
+	TIM2->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM2->CR2 = 0 ;
+	TIM2->CCMR2 = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_CC4S_0 ;
+	TIM2->CCER = TIM_CCER_CC4E ;
+	TIM2->SR &= ~TIM_SR_CC4IF ;				// Clear flag
+	TIM2->DIER |= TIM_DIER_CC4IE ;
+	TIM2->CR1 = TIM_CR1_CEN ;
+  NVIC_SetPriority(TIM2_IRQn, 7);
+	NVIC_EnableIRQ(TIM2_IRQn) ;
+}
+
+void stop_serial_trainer_capture()
+{
+	TIM2->DIER = 0 ;
+	TIM2->CR1 &= ~TIM_CR1_CEN ;				// Stop counter
+	NVIC_DisableIRQ(TIM2_IRQn) ;				// Stop Interrupt
+}
+
+// Capture interrupt for trainer input
+extern "C" void TIM2_IRQHandler()
+{
+  
+	uint16_t capture = 0 ;
+  static uint16_t lastCapt ;
+  uint16_t val ;
+	uint32_t doCapture = 0 ;
+	
+  // What mode? in or out?
+  if ( (TIM2->DIER & TIM_DIER_CC4IE ) && ( TIM2->SR & TIM_SR_CC4IF ) )
+    // capture mode
+	{	
+		capture = TIM2->CCR4 ;
+		doCapture = 1 ;
+	}
+
+	if ( doCapture )
+	{
+  	val = (uint16_t)(capture - lastCapt) / 2 ;
+  	lastCapt = capture;
+
+  	// We prcoess g_ppmInsright here to make servo movement as smooth as possible
+  	//    while under trainee control
+  	if ((val>4000) && (val < 19000)) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
+		{
+  	  ppmInState = 1; // triggered
+		}
+  	else
+  	{
+  		if(ppmInState && (ppmInState<=8))
+			{
+  	  	if((val>800) && (val<2200))
+				{
+					ppmInValid = 100 ;
+  		    g_ppmIns[ppmInState++ - 1] = (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
+
+		    }else{
+  		    ppmInState=0; // not triggered
+  	  	}
+  	  }
+  	}
+	}
+}
+
+void init_cppm_on_heartbeat_capture()
+{
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
+	configure_pins( 0x0080, PIN_PERIPHERAL | PIN_PORTC | PIN_PER_2 ) ;
+	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN ;		// Enable clock
+	
+	TIM3->ARR = 0xFFFF ;
+	TIM3->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM3->CR2 = 0 ;
+	TIM3->CCMR1 = TIM_CCMR1_IC2F_0 | TIM_CCMR1_IC2F_1 | TIM_CCMR1_CC2S_0 ;
+	TIM3->CCER = TIM_CCER_CC2E ;	 
+	TIM3->SR &= ~TIM_SR_CC2IF ;				// Clear flag
+	TIM3->DIER |= TIM_DIER_CC2IE ;
+	TIM3->CR1 = TIM_CR1_CEN ;
+  NVIC_SetPriority(TIM3_IRQn, 7);
+	NVIC_EnableIRQ(TIM3_IRQn) ;
+}
+
+void stop_cppm_on_heartbeat_capture()
+{
+	TIM3->DIER = 0 ;
+	TIM3->CR1 &= ~TIM_CR1_CEN ;				// Stop counter
+	NVIC_DisableIRQ(TIM3_IRQn) ;				// Stop Interrupt
+}
+
 
 // Capture interrupt for trainer input
 extern "C" void TIM3_IRQHandler()
 {
   
-	uint16_t capture ;
+	uint16_t capture = 0 ;
   static uint16_t lastCapt ;
   uint16_t val ;
+	uint32_t doCapture = 0 ;
 	
   // What mode? in or out?
   if ( (TIM3->DIER & TIM_DIER_CC3IE ) && ( TIM3->SR & TIM_SR_CC3IF ) )
     // capture mode
 	{	
 		capture = TIM3->CCR3 ;
+		doCapture = 1 ;
+	}
 
+  if ( (TIM3->DIER & TIM_DIER_CC2IE ) && ( TIM3->SR & TIM_SR_CC2IF ) )
+    // capture mode
+	{	
+		capture = TIM3->CCR2 ;
+		doCapture = 1 ;
+	}
+
+	if ( doCapture )
+	{
   	val = (uint16_t)(capture - lastCapt) / 2 ;
   	lastCapt = capture;
-	
 
   	// We prcoess g_ppmInsright here to make servo movement as smooth as possible
   	//    while under trainee control
@@ -1194,11 +1281,11 @@ extern "C" void TIM3_IRQHandler()
 	}
 
   // PPM out compare interrupt
-  if ( ( TIM3->DIER & TIM_DIER_CC2IE ) && ( TIM3->SR & TIM_SR_CC2IF ) )
+  if ( ( TIM3->DIER & TIM_DIER_CC1IE ) && ( TIM3->SR & TIM_SR_CC1IF ) )
 	{
     // compare interrupt
-    TIM3->DIER &= ~TIM_DIER_CC2IE ;         // stop this interrupt
-    TIM3->SR &= ~TIM_SR_CC2IF ;                             // Clear flag
+    TIM3->DIER &= ~TIM_DIER_CC1IE ;         // stop this interrupt
+    TIM3->SR &= ~TIM_SR_CC1IF ;                             // Clear flag
 
     setupTrainerPulses() ;
 
@@ -1215,8 +1302,8 @@ extern "C" void TIM3_IRQHandler()
     TIM3->ARR = *TrainerPulsePtr++ ;
     if ( *TrainerPulsePtr == 0 )
 		{
-      TIM3->SR &= ~TIM_SR_CC2IF ;                     // Clear this flag
-      TIM3->DIER |= TIM_DIER_CC2IE ;  // Enable this interrupt
+      TIM3->SR &= ~TIM_SR_CC1IF ;                     // Clear this flag
+      TIM3->DIER |= TIM_DIER_CC1IE ;  // Enable this interrupt
     }
   }
 }

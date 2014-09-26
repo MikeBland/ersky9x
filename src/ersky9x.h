@@ -762,7 +762,7 @@ extern const char *get_switches_string( void ) ;
 void putsDblSizeName( uint8_t y ) ;
 
 extern void interrupt5ms() ;
-
+extern uint16_t getTmr2MHz( void ) ;
 
 extern int16_t intpol(int16_t x, uint8_t idx);
 

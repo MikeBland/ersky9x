@@ -35,7 +35,9 @@ extern void hw_delay( uint16_t time ) ;
 extern void init_main_ppm( void ) ;
 extern void disable_main_ppm( void ) ;
 extern void init_trainer_ppm( void ) ;
+extern void stop_trainer_ppm( void ) ;
 extern void init_trainer_capture( void ) ;
+extern void stop_trainer_capture( void ) ;
 extern void setupPulsesPXX(uint8_t module) ;
 extern void setupPulses( unsigned int port ) ;
 extern void setupPulsesPpm( void ) ;
@@ -45,6 +47,10 @@ extern void disable_no_pulses(uint32_t port) ;
 extern void init_dsm2(uint32_t port) ;
 extern void disable_dsm2(uint32_t port) ;
 extern void setupPulsesDsm2(uint8_t channels) ;
+extern void init_cppm_on_heartbeat_capture( void ) ;
+extern void stop_cppm_on_heartbeat_capture( void ) ;
+extern void init_serial_trainer_capture( void ) ;
+extern void stop_serial_trainer_capture( void ) ;
 
 #endif
 

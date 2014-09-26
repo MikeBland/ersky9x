@@ -43,6 +43,7 @@
 #include "X9D/stm32f2xx_rcc.h"
 #include "X9D/stm32f2xx_usart.h"
 #include "X9D/hal.h"
+#include "timers.h"
 #endif
 
 
@@ -75,10 +76,16 @@ struct t_rxUartBuffer
 	uint8_t *outPtr ;
 } ;
 
+uint8_t JetiTxBuffer[16] ;
+
 struct t_rxUartBuffer TelemetryInBuffer ;
 
 struct t_fifo32 Console_fifo ;
 struct t_fifo32 BtRx_fifo ;
+
+struct t_16bit_fifo32 Jeti_fifo ;
+
+struct t_fifo32 Sbus_fifo ;
 
 #ifdef PCBX9D
 struct t_fifo32 Telemetry_fifo ;
@@ -415,6 +422,39 @@ int32_t get_fifo32( struct t_fifo32 *pfifo )
 	
 }
 
+void put_16bit_fifo32( struct t_16bit_fifo32 *pfifo, uint16_t word )
+{
+	pfifo->fifo[pfifo->in] = word ;
+#ifndef SIMU
+	__disable_irq() ;
+#endif
+	pfifo->count += 1 ;
+#ifndef SIMU
+		__enable_irq() ;
+#endif
+	pfifo->in = ( pfifo->in + 1) & 0x1F ;
+}
+
+int32_t get_16bit_fifo32( struct t_16bit_fifo32 *pfifo )
+{
+	int32_t rxbyte ;
+	if ( pfifo->count )						// Look for char available
+	{
+		rxbyte = pfifo->fifo[pfifo->out] ;
+#ifndef SIMU
+	__disable_irq() ;
+#endif
+		pfifo->count -= 1 ;
+#ifndef SIMU
+		__enable_irq() ;
+#endif
+		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
+		return rxbyte ;
+	}
+	return -1 ;
+}
+
+
 //void put_frsky_fifo( uint8_t c )
 //{
 //	FrskyFifo.fifo[FrskyFifo.in] = c ;
@@ -729,6 +769,19 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
+// Set up COM2 for SBUS (8E2), can't set 2 stop bits!
+void UART_Sbus_configure( uint32_t masterClock )
+{
+  register Uart *pUart = CONSOLE_USART;
+	
+	UART_Configure( 100000, masterClock ) ;
+  pUart->UART_MR =  0 ;  // NORMAL, Even Parity
+}
+
+void UART_9dataOdd1stop()
+{
+	
+}
 //void UART_Stop()
 //{
 //  CONSOLE_USART->UART_IDR = UART_IDR_RXRDY ;
@@ -738,7 +791,14 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 
 extern "C" void UART0_IRQHandler()
 {
-	put_fifo32( &Console_fifo, CONSOLE_USART->UART_RHR ) ;	
+	if ( g_model.com2Function == 1 )
+	{
+		put_fifo32( &Sbus_fifo, CONSOLE_USART->UART_RHR ) ;	
+	}
+	else
+	{
+		put_fifo32( &Console_fifo, CONSOLE_USART->UART_RHR ) ;	
+	}	 
 }
 
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
@@ -832,6 +892,11 @@ void UART2_Configure( uint32_t baudrate, uint32_t masterClock)
 
 }
 
+void UART2_9dataOdd1stop()
+{
+	
+}
+
 void UART2_timeout_enable()
 {
   register Usart *pUsart = SECOND_USART;
@@ -853,9 +918,75 @@ void UART2_timeout_disable()
 	
 }
 
+//static uint8_t SPI2ndByte ;
+
+//uint32_t CopyMode ;
+//uint8_t Scount1 ;
+//uint8_t Scount2 ;
+//uint8_t Scount3 ;
+
+//uint16_t Sstat1 ;
+//uint16_t Sstat2 ;
+//uint16_t Sstat3 ;
+
+extern uint16_t Debug_frsky3 ;
+
 extern "C" void USART0_IRQHandler()
 {
   register Usart *pUsart = SECOND_USART;
+
+#ifdef REVX
+	if ( (pUsart->US_MR & 0x0000000F) == 0x0000000E )
+	{
+//		if ( pUsart->US_IMR & US_IMR_TXRDY )
+//		{
+//			if ( pUsart->US_CSR & US_CSR_TXRDY )
+//			{
+//				Sstat1 = pUsart->US_CSR ;
+//				Sstat2 = pUsart->US_IMR ;
+//  			pUsart->US_IDR = US_IDR_TXRDY ;
+//  			pUsart->US_IER = US_IER_TXEMPTY ;
+//				pUsart->US_THR = SPI2ndByte ;
+//				Scount1 += 1 ;
+//			}
+//		}
+		if ( pUsart->US_IMR & US_IMR_TXEMPTY )
+		{
+			if ( pUsart->US_CSR & US_CSR_TXEMPTY )
+			{
+  			pUsart->US_PTCR = US_PTCR_RXTDIS | US_PTCR_TXTDIS;
+				// SPI mode for JETI, must be finished
+  			pUsart->US_CR = US_CR_RSTRX | US_CR_RSTTX | US_CR_RXDIS | US_CR_TXDIS ;
+		//#ifdef REVX
+				PIOA->PIO_CODR = 0x02000000L ;	// Set bit A25 OFF
+		//#endif
+//			  pUsart->US_MR =  0x000008C0 ;  // NORMAL, No Parity, 8 bit
+	  		pUsart->US_MR =  0x000202C0 ;  // NORMAL, Odd Parity, 9 bit
+  			pUsart->US_BRGR = (Master_frequency / 9600) / 16;
+	  		pUsart->US_IDR = 0xFFFFFFFF ;
+  			pUsart->US_CR = US_CR_RXEN ;
+				(void) pUsart->US_RHR ;
+	  		pUsart->US_IER = US_IER_RXRDY ;
+				NVIC_EnableIRQ(USART0_IRQn) ;
+//				pUsart->US_PTCR = US_PTCR_RXTEN ;
+			}
+		}
+		return ;
+	}
+
+	if ( pUsart->US_MR & 0x00020000 ) // 9-bit => Jeti
+	{
+		if ( pUsart->US_CSR & US_CSR_RXRDY )
+		{
+			uint16_t x ;
+			x = pUsart->US_RHR ;
+			Debug_frsky3 = x ;
+			put_16bit_fifo32( &Jeti_fifo, x ) ; // pUsart->US_RHR ) ;	
+		}
+		return ;
+	}
+#endif
+
   if ( pUsart->US_IMR & US_IMR_TIMEOUT )
 	{
 	  pUsart->US_CR = US_CR_STTTO ;		// Clears timeout bit
@@ -965,6 +1096,61 @@ void rxPdcUsart( void (*pChProcess)(uint8_t x) )
 	}
 #endif
 }
+
+#ifdef REVX
+void jetiSendWord( uint16_t word )
+{
+  register Usart *pUsart = SECOND_USART;
+	uint32_t i ;
+	uint16_t parity = 0 ;
+
+	JetiTxBuffer[0] = 0 ;	// Sends a 1
+	JetiTxBuffer[1] = 0 ;	// Sends a 1
+	JetiTxBuffer[2] = 0xFF ;	// Sends a 0 ( start )
+	
+	for ( i = 3 ; i < 12 ; i += 1 )
+	{
+		parity += word ;
+		JetiTxBuffer[i] = ( word & 1 ) ? 0 : 0xFF ;
+		word >>= 1 ;
+	}
+	JetiTxBuffer[12] = ( parity & 1 ) ? 0xFF : 0 ;
+	JetiTxBuffer[13] = 0 ;	// Stop bit
+	JetiTxBuffer[14] = 0 ;	// Stop bit
+	JetiTxBuffer[15] = 0 ;	// Stop bit
+
+	 
+	NVIC_DisableIRQ(USART0_IRQn) ;
+//  /* Disable PDC channel */
+  pUsart->US_PTCR = US_PTCR_RXTDIS | US_PTCR_TXTDIS;
+//#ifdef REVX
+//	PIOA->PIO_SODR = 0x02000000L ;	// Set bit A25 ON, enable SPort output
+//#endif
+  pUsart->US_CR = US_CR_RSTTX | US_CR_RXDIS | US_CR_TXDIS ;
+
+//  /* Configure mode */
+  pUsart->US_MR = 0x0000080E ;  // SPI mode, 5 bits
+
+//  /* Configure baudrate */
+  pUsart->US_BRGR = ( Master_frequency / 9600 / 8 ) ;
+
+  pUsart->US_IDR = 0xFFFFFFFF ;
+//  /* Enable transmitter */
+  pUsart->US_CR = US_CR_TXEN ;
+
+	(void) pUsart->US_RHR ;
+	txPdcUsart( JetiTxBuffer, 16 ) ;
+//	pUsart->US_THR = ( word >> 7 ) | 0xFE ;
+  pUsart->US_IER = US_IER_TXEMPTY ;
+	NVIC_EnableIRQ(USART0_IRQn) ;
+}
+
+int32_t getJetiWord()
+{
+	return get_16bit_fifo32( &Jeti_fifo ) ;
+}
+
+#endif
 
 uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 {
@@ -1818,6 +2004,39 @@ void disable_ssc()
 extern uint32_t Peri1_frequency ;
 extern uint32_t Peri2_frequency ;
 
+void USART6_Sbus_configure()
+{
+	RCC->APB2ENR |= RCC_APB2ENR_USART6EN ;		// Enable clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
+//	GPIOC->MODER = (GPIOC->MODER & 0xFFFFBFFF ) | 0x00008000 ;	// Alternate func.
+//	GPIOC->AFR[0] = (GPIOC->AFR[0] & 0x0FFFFFFF ) | 0x80000000 ;	// Alternate func.
+	configure_pins( 0x0080, PIN_PERIPHERAL | PIN_PORTC | PIN_PER_8 ) ;
+	USART6->BRR = Peri2_frequency / 100000 ;
+	USART6->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_M | USART_CR1_PCE ;
+	USART6->CR2 = 0 ;
+	USART6->CR3 = 0 ;
+	(void) USART6->DR ;
+  NVIC_EnableIRQ(USART6_IRQn) ;
+}
+
+void stop_USART6_Sbus()
+{
+	configure_pins( 0x0080, PIN_INPUT | PIN_PORTC ) ;
+  NVIC_DisableIRQ(USART6_IRQn) ;
+}
+
+extern "C" void USART6_IRQHandler()
+{
+	put_fifo32( &Sbus_fifo, USART6->DR ) ;	
+}
+
+void UART_Sbus_configure( uint32_t masterClock )
+{
+	USART3->BRR = Peri1_frequency / 100000 ;
+	USART3->CR1 |= USART_CR1_M | USART_CR1_PCE ;
+}
+
+
 void x9dConsoleInit()
 {
 	// Serial configure  
@@ -1934,7 +2153,20 @@ extern "C" void USART2_IRQHandler()
   }
 }
 
-#endif
+// Start TIMER7 at 2000000Hz
+void start_2Mhz_timer()
+{
+	// Now for timer 7
+	RCC->APB1ENR |= RCC_APB1ENR_TIM7EN ;		// Enable clock
+	
+	TIM7->PSC = 0 ;													// Max speed
+	TIM7->ARR = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;	// 0.5 uS, 2 MHz
+	TIM7->CR2 = 0 ;
+	TIM7->CR2 = 0x20 ;
+	TIM7->CR1 = TIM_CR1_CEN ;
+}
+
+#endif	// SIMU
 
 uint16_t rxTelemetry()
 {
@@ -1962,7 +2194,14 @@ uint16_t rxuart()
 
 extern "C" void USART3_IRQHandler()
 {
-	put_fifo32( &Console_fifo, USART3->DR ) ;	
+	if ( g_model.com2Function == 1 )
+	{
+		put_fifo32( &Sbus_fifo, USART3->DR ) ;	
+	}
+	else
+	{
+		put_fifo32( &Console_fifo, USART3->DR ) ;	
+	}	 
 }
 
 
@@ -2019,4 +2258,66 @@ void hex_digit_send( unsigned char c )
 
 
 #endif
+
+uint8_t SbusFrame[28] ;
+uint16_t SbusTimer ;
+uint8_t SbusIndex = 0 ;
+
+void processSBUSframe( uint8_t *sbus, int16_t *pulses )
+{
+	uint32_t inputbitsavailable = 0 ;
+	uint32_t i ;
+	uint32_t inputbits = 0 ;
+	if ( *sbus++ != 0x0F )
+	{
+		return ;		// Not a valid SBUS frame
+	}
+	for ( i = 0 ; i < 16 ; i += 1 )
+	{
+		while ( inputbitsavailable < 11 )
+		{
+			inputbits |= *sbus++ << inputbitsavailable ;
+			inputbitsavailable += 8 ;
+		}
+		*pulses++ = ( (int32_t)( inputbits & 0x7FF ) - 0x3E0 ) * 5 / 8 ;
+		inputbitsavailable -= 11 ;
+		inputbits >>= 11 ;
+	}
+	ppmInValid = 100 ;
+	return ;
+}
+
+void processSbusInput()
+{
+	uint16_t rxchar ;
+	uint32_t active = 0 ;
+	while ( ( rxchar = get_fifo32( &Sbus_fifo ) ) != 0xFFFF )
+	{
+		active = 1 ;
+		SbusFrame[SbusIndex++] = rxchar ;
+		if ( SbusIndex > 27 )
+		{
+			SbusIndex = 27 ;
+		}
+	}
+	if ( active )
+	{
+		SbusTimer = getTmr2MHz() ;
+		return ;
+	}
+	else
+	{
+		if ( SbusIndex )
+		{
+			if ( ( uint16_t)( getTmr2MHz() - SbusTimer ) > 1000 )	// 500 uS
+			{
+				processSBUSframe( SbusFrame, g_ppmIns ) ;
+				SbusIndex = 0 ;	 
+			}
+		}
+	}
+}
+
+
+
 

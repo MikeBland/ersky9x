@@ -459,6 +459,23 @@ uint32_t fileList(uint8_t event, struct fileControl *fc )
 		}
 		lcd_putsn_P( 0, 16+FH*i, &Filenames[i][x], len ) ;
 	}
+
+#if !defined(PCBTARANIS)
+	if ( event == 0 )
+	{
+extern int32_t Rotary_diff ;
+		if ( Rotary_diff > 0 )
+		{
+			event = EVT_KEY_FIRST(KEY_DOWN) ;
+		}
+		else if ( Rotary_diff < 0 )
+		{
+			event = EVT_KEY_FIRST(KEY_UP) ;
+		}
+		Rotary_diff = 0 ;
+	}
+#endif
+
 	if ( ( event == EVT_KEY_REPT(KEY_DOWN) ) || event == EVT_KEY_FIRST(KEY_DOWN) )
 	{
 		if ( fc->vpos < limit-1 )
@@ -497,12 +514,13 @@ uint32_t fileList(uint8_t event, struct fileControl *fc )
 	{
 		if ( fc->hpos )	fc->hpos -= 1 ;
 	}
-	if ( event == EVT_KEY_LONG(KEY_MENU) )
+	if ( ( event == EVT_KEY_LONG(KEY_MENU) ) || ( event == EVT_KEY_BREAK(BTN_RE) ) )
 	{
 		// Select file to flash
+		killEvents(event);
 		result = 1 ;
 	}
-	if ( event == EVT_KEY_FIRST(KEY_EXIT) )
+	if ( ( event == EVT_KEY_FIRST(KEY_EXIT) ) || ( event == EVT_KEY_LONG(BTN_RE) ) )
 	{
 		// Select file to flash
 		result = 2 ;

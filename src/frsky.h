@@ -330,6 +330,7 @@ extern uint8_t FrskyAlarmCheckFlag ;
 //extern uint16_t MaxGpsAlt ;
 
 void FRSKY_Init( uint8_t brate ) ;
+void telemetry_init( uint8_t telemetryType ) ;
 void FRSKY10mspoll(void);
 uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
 void check_frsky( void ) ;
@@ -341,12 +342,33 @@ void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm) ;
 void resetTelemetry();
 extern void frskyTransmitBuffer( uint32_t size ) ;
 extern uint8_t FrskyTelemetryType ;
+extern uint8_t JetiTxReady ;
+extern uint16_t JetiTxChar ;
 
 struct t_hub_max_min
 {
 	int16_t hubMin[HUBMINMAXLEN] ;
 	int16_t hubMax[HUBMINMAXLEN] ;
 } ;
+
+// Values for TelemetryType
+#define TEL_FRSKY_HUB		0
+#define TEL_FRSKY_SPORT	1
+#define TEL_JETI				2
+#define TEL_MAVLINK			3
+#define TEL_ARDUPILOT		4
+#define TEL_DSM					5
+extern uint8_t TelemetryType ;
+
+// Values in EEPROM
+#define TELEMETRY_UNDEFINED	0		// To detect not yet configured
+#define TELEMETRY_FRSKY			1
+#define TELEMETRY_WSHHI			2
+#define TELEMETRY_DSM				3
+#define TELEMETRY_JETI			4
+#define TELEMETRY_MAVLINK		5
+#define TELEMETRY_ARDUPILOT	6
+
 
 extern uint16_t DsmABLRFH[] ;
 extern uint32_t LastDsmfades ;

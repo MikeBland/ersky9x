@@ -34,6 +34,8 @@
 #include "lcd.h"
 #include "ff.h"
 #include "maintenance.h"
+#include "sound.h"
+#include "mavlink.h"
 
 // Enumerate FrSky packet codes
 #define LINKPKT         0xfe
@@ -137,6 +139,15 @@ struct t_hub_max_min FrskyHubMaxMin ;
 uint8_t FrskyVolts[12];
 uint8_t FrskyBattCells=0;
 uint16_t Frsky_Amp_hour_prescale ;
+
+uint8_t TelemetryType ;
+
+#ifdef REVX
+uint8_t JetiTxReady ;
+uint16_t JetiTxChar ;
+extern uint8_t JetiBuffer[] ; // 32 characters
+extern uint8_t JetiIndex ;
+#endif
 
 uint8_t FrskyTelemetryType ;
 uint8_t FrskyComPort ;
@@ -906,7 +917,10 @@ void processSportPacket()
 			uint8_t value = packet[4] ;
 			if ( packet[2] != 5 )	// Anything except SWR
 			{
-				frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
+				if ( !( ( packet[2] == 1 ) && ( value == 0 ) ) )
+				{
+					frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
+				}
 			}
 			switch ( packet[2] )
 			{
@@ -1094,10 +1108,19 @@ void processSportPacket()
 
 void frsky_receive_byte( uint8_t data )
 {
+	
 #ifdef PCBSKY
 	if ( g_model.bt_telemetry )
 	{
 		telem_byte_to_bt( data ) ;
+	}
+#endif
+
+#ifdef REVX
+	if ( TelemetryType == TEL_MAVLINK )
+	{
+		mavlinkReceive( data ) ;
+		return ;
 	}
 #endif
 
@@ -1255,6 +1278,14 @@ void FRSKY10mspoll(void)
   }
 
   // Now send a packet
+#ifdef REVX
+	if ( TelemetryType == TEL_JETI )
+	{
+//    FrskyDelay = 5 ; // 50mS
+//    frskyTransmitBuffer( size ) ; 
+	}
+	else
+#endif
   {
 		uint8_t i ;
 		uint8_t j = 1 ;
@@ -1397,12 +1428,81 @@ void FRSKY_alarmPlay(uint8_t idx, uint8_t alarm)
 }
 
 
+void telemetry_init( uint8_t telemetryType )
+{
+	TelemetryType = telemetryType ;
+	switch ( telemetryType )
+	{
+		case TEL_FRSKY_HUB :
+			FRSKY_Init( 0 ) ;
+		break ;
+		
+		case TEL_FRSKY_SPORT :
+			FRSKY_Init( 1 ) ;
+		break ;
+
+#ifdef REVX
+		case TEL_JETI :
+			UART2_Configure( 9600, Master_frequency ) ;
+  		USART0->US_MR =  0x000202C0 ;  // NORMAL, Odd Parity, 9 bit
+			UART2_timeout_disable() ;
+			g_model.telemetryRxInvert = 1 ;
+			setMFP() ;
+			USART0->US_IER = US_IER_RXRDY ;
+			NVIC_EnableIRQ(USART0_IRQn) ;
+		  memset(frskyAlarms, 0, sizeof(frskyAlarms));
+		  resetTelemetry();
+//			startPdcUsartReceive() ;
+		break ;
+#endif
+
+#ifdef REVX
+		case TEL_MAVLINK :
+			UART2_Configure( MAVLINK_BAUDRATE, Master_frequency ) ;
+			UART2_timeout_disable() ;
+			g_model.telemetryRxInvert = 1 ;
+			setMFP() ;
+		  memset(frskyAlarms, 0, sizeof(frskyAlarms));
+		  resetTelemetry();
+			startPdcUsartReceive() ;
+		break ;
+#endif
+		
+#ifdef REVX
+		case TEL_ARDUPILOT :
+			UART2_Configure( 38400, Master_frequency ) ;
+			UART2_timeout_disable() ;
+			g_model.telemetryRxInvert = 1 ;
+			setMFP() ;
+		  memset(frskyAlarms, 0, sizeof(frskyAlarms));
+		  resetTelemetry();
+			startPdcUsartReceive() ;
+		break ;
+#endif
+
+		case TEL_DSM :
+			FRSKY_Init( 2 ) ;
+		break ;
+
+	}
+
+}
 
 void FRSKY_Init( uint8_t brate )
 {
 	
 	FrskyComPort = g_model.frskyComPort ;
 	FrskyTelemetryType = brate ;
+
+	if ( g_model.com2Function == 1 )
+	{
+		if ( g_model.frskyComPort == 1 )
+		{
+			// Can't change COM2 from SBUS
+			return ;
+		}
+	}
+
 #ifdef PCBSKY
 	
 	if ( brate == 0 )
@@ -1413,6 +1513,7 @@ void FRSKY_Init( uint8_t brate )
 			UART2_timeout_disable() ;
 #ifdef REVX
 			g_model.telemetryRxInvert = 0 ;
+			clearMFP() ;
 #endif
 		}
 		else
@@ -1433,6 +1534,7 @@ void FRSKY_Init( uint8_t brate )
 			UART2_timeout_disable() ;
 #ifdef REVX
 			g_model.telemetryRxInvert = 0 ;
+			clearMFP() ;
 #endif
 		}
 		else
@@ -1449,6 +1551,7 @@ void FRSKY_Init( uint8_t brate )
 			UART2_Configure( 115200, Master_frequency ) ;
 			UART2_timeout_enable() ;
 			g_model.telemetryRxInvert = 1 ;
+			setMFP() ;
 //		}
 //		else
 //		{
@@ -1555,18 +1658,26 @@ void resetTelemetry()
   memset( &FrskyHubMaxMin, 0, sizeof(FrskyHubMaxMin));
 }
 
-//uint16_t Debug_frsky1 ;
-//uint16_t Debug_frsky2 ;
-//uint16_t Debug_frsky3 ;
+uint16_t Debug_frsky1 ;
+uint16_t Debug_frsky2 ;
+uint16_t Debug_frsky3 ;
+
+void (*TelemetryReceiver)(uint8_t x) = frsky_receive_byte ;
+
 // Called every 10 mS in interrupt routine
 void check_frsky()
 {
   // Used to detect presence of valid FrSky telemetry packets inside the
   // last FRSKY_TIMEOUT10ms 10ms intervals
 //Debug_frsky1 += 1 ;
-	uint8_t telemetryType ;
+	uint8_t telemetryType = g_model.telemetryProtocol ;
+	uint8_t type = TEL_FRSKY_HUB ;
+
 #ifdef PCBSKY
-	telemetryType = g_model.protocol == PROTO_PXX ;
+	if ( g_model.protocol == PROTO_PXX )
+	{
+		type = TEL_FRSKY_SPORT ;
+	}
 #endif
 #ifdef PCBX9D
 	telemetryType = g_model.protocol == PROTO_PXX ;
@@ -1577,41 +1688,85 @@ void check_frsky()
 #endif
 
 #ifdef REVX
-
 	if ( (g_model.protocol == PROTO_DSM2) && ( g_model.sub_protocol == DSM_9XR ) )
 	{
-		telemetryType = 2 ;
-	}
-	if ( g_model.DsmTelemetry )
-	{
-		telemetryType = 2 ;
+		type = TEL_DSM ;
 	}
 #endif
+	switch ( telemetryType )
+	{
+		case TELEMETRY_JETI :
+			type = TEL_JETI ;
+		break ;
+		case TELEMETRY_DSM :
+			type = TEL_DSM ;
+		break ;
+	}
+	Debug_frsky1 = type ;
 #ifdef PCBSKY
-	if ( ( telemetryType != FrskyTelemetryType )
+	if ( ( type != TelemetryType )
 			 || ( FrskyComPort != g_model.frskyComPort ) )
 #endif
 #ifdef PCBX9D
 	if ( telemetryType != FrskyTelemetryType )
 #endif
 	{
-		FRSKY_Init( telemetryType ) ;	
+		telemetry_init( type ) ;
 	}
 
 #ifdef PCBSKY
-	if ( g_model.frskyComPort == 0 )
+
+#ifdef REVX
+	if ( TelemetryType == TEL_JETI )
 	{
-		rxPdcUsart( frsky_receive_byte ) ;		// Send serial data here
+		int32_t value ;
+		while ( (value = getJetiWord()) != -1 )
+		{
+			Debug_frsky2 += 1 ;
+			// send byte to JETI code
+			if ( ( value & 0x0100 ) == 0 )
+			{
+				if ( ( value & 0x000000FF ) == 0x000000FE )
+				{
+					JetiIndex = 0 ;
+				}
+			}
+			else
+			{
+				value &= 0x000000FF ;
+				if ( value == 0x000000DF )
+				{
+					value = '@' ;
+				}
+				JetiBuffer[JetiIndex++] = value ;
+				if ( JetiIndex > 35 )
+				{
+					JetiIndex = 35 ;
+				}
+			}
+		}
 	}
 	else
 	{
-		uint16_t rxchar ;
-		while ( ( rxchar = rxuart() ) != 0xFFFF )
+#endif
+
+		if ( g_model.frskyComPort == 0 )
 		{
-			frsky_receive_byte( rxchar ) ;
+			rxPdcUsart( TelemetryReceiver ) ;		// Send serial data here
 		}
+		else
+		{
+			uint16_t rxchar ;
+			while ( ( rxchar = rxuart() ) != 0xFFFF )
+			{
+				TelemetryReceiver( rxchar ) ;
+	//			frsky_receive_byte( rxchar ) ;
+			}
+		}
+#ifdef REVX
 	}
 #endif
+#endif // PCBSKY
 
 #ifdef REVX
 	if ( telemetryType == 2)		// DSM telemetry

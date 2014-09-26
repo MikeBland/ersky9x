@@ -152,11 +152,7 @@
 #define ISTR_COPY_TRIM       "LAGRA TRIM[MENU]"
 #define ISTR_TELEMETRY       "TELEMETRI"
 #define ISTR_USR_PROTO       "Protokoll"
-#ifdef REVX
-#define ISTR_FRHUB_WSHHI     "\005FrHubWSHhiDSMx ArduP"
-#else
-#define ISTR_FRHUB_WSHHI     "\005FrHubWSHhiArduP"
-#endif
+#define ISTR_FRHUB_WSHHI    "\005FrHubWSHhiDSMx Jeti MavlkArduP"
 #define ISTR_MET_IMP         "\003MetImp"
 #define ISTR_A_CHANNEL       "A  kanal"
 #define ISTR_ALRM            "alrm"
@@ -343,12 +339,12 @@
 
 // SWITCHES_STR 3 chars each
 #ifdef PCBSKY
-#define ISWITCHES_STR        "\003GASRODHJDID0ID1ID2SKELANTRNBR1BR2BR3BR4BR5BR6BR7BR8BR9BRABRBBRCBRDBREBRFBRGBRHBRIBRJBRKBRLBRMBRNBRO"
+#define ISWITCHES_STR        "\003GASRODHJDID0ID1ID2SKELANTRNBR1BR2BR3BR4BR5BR6BR7BR8BR9BRABRBBRCBRDBREBRFBRGBRHBRIBRJBRKBRLBRMBRNBROonfTH\200TH-TH\201RU\200RU-RU\201EL\200EL-EL\201AI\200AI-AI\201GE\200GE-GE\2016P06P16P26P36P46P5"
 #define IHW_SWITCHES_STR     "\002SASBSCSDSESFSGSH"
 #define IHW_SWITCHARROW_STR  "\200-\201"
 #endif
 #ifdef PCBX9D
-#define ISWITCHES_STR        "\003SA\200SA-SA\201SB\200SB-SB\201SC\200SC-SC\201SD\200SD-SD\201SE\200SE-SE\201SF\200SF\201SG\200SG-SG\201SH\200SH\201BR1BR2BR3BR4BR5BR6BR7BR8BR9BRABRBBRCBRDBREBRFBRGBRHBRIBRJBRKBRLBRMBRNBRO"
+#define ISWITCHES_STR        "\003SF       SC\200SC-SC\201      SH BR1BR2BR3BR4BR5BR6BR7BR8BR9BRABRBBRCBRDBREBRFBRGBRHBRIBRJBRKBRLBRMBRNBROonfSB\200SB-SB\201SE\200SE-SE\201SA\200SA-SA\201SD\200SD-SD\201SG\200SG-SG\201"
 #define IHW_SWITCHES_STR     "\002SASBSCSDSESFSGSH"
 #define IHW_SWITCHARROW_STR  "\200-\201"
 #endif
@@ -357,7 +353,7 @@
 // c17-c24 added for timer mode A display
 #define ICURV_STR            "\003---x>0x<0|x|f>0f<0|f|c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24"
 // CSWITCH_STR indexed 7 chars each
-#define ICSWITCH_STR         "\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop TimeOff1-Shot 1-ShotRv\140=ofs"
+#define ICSWITCH_STR         "\007----   v>val  v<val  |v|>val|v|<valAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop TimeOff1-Shot 1-ShotRv\140=val"
 
 #define ISWASH_TYPE_STR      "\006---   ""120   ""120X  ""140   ""90    "
 
@@ -474,7 +470,7 @@
 //"\005FirstLast "
 //"Voice Switch"
 //"Function"
-//"\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsON     OFF    BOTH   "
+//"\007----   v>val  v<val  |v|>val|v|<valON     OFF    BOTH   "
 //"Switch"
 //"Rate"
 //"\017Once"

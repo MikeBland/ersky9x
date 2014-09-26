@@ -218,6 +218,7 @@ CPPSRC = ersky9x.cpp \
 			se.cpp \
 			loadboot.cpp \
 			maintenance.cpp \
+			mavlink.cpp \
 		   lcd.cpp
 
 #         gtime.cpp \
@@ -271,6 +272,7 @@ CPPSRC = stamp.cpp \
 			se.cpp \
 			loadboot.cpp \
 			maintenance.cpp \
+			mavlink.cpp \
 			logs.cpp
 
 #         gtime.cpp \

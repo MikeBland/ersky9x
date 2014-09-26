@@ -71,4 +71,3 @@ extern void setupPulsesDsm2(uint8_t chns) ;
 extern void setupPulsesPXX( void ) ;
 extern void dsmBindResponse( uint8_t mode, int8_t channels ) ;
 
-

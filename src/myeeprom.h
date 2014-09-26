@@ -173,6 +173,7 @@ PACK(typedef struct t_EEGeneral {
 	uint16_t totalElapsedTime ;
 	uint16_t sparetotalElapsedTime ;	// In case we need 32 bits
 	uint8_t		BtType ;
+	uint8_t		trainerSource ;
 }) EEGeneral;
 
 
@@ -513,7 +514,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   frskyComPort:1 ;
 	uint8_t		DsmTelemetry:1 ;
-	uint8_t   arduTelemetry:1 ;
+	uint8_t   spareBit:1 ;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
@@ -594,6 +595,10 @@ PACK(typedef struct te_ModelData {
 	VoiceAlarmData vad[NUM_VOICE_ALARMS] ;
 	int8_t gvswitch[MAX_GVARS] ;
   uint8_t mview ;
+	uint8_t telemetryProtocol ;
+	uint8_t com2Function:4 ;
+	uint8_t com3Function:4 ;	// Bluetooth or telemetry
+	uint8_t telemetryBaudrate ;	// May be useful
 
 }) SKYModelData;
 

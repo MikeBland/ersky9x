@@ -131,6 +131,7 @@ t_time Time ;
 
 uint8_t unexpectedShutdown = 0;
 uint8_t SdMounted = 0;
+uint8_t CurrentTrainerSource ;
 
 #define SW_STACK_SIZE	6
 uint8_t Last_switch[NUM_SKYCSW] ;
@@ -288,7 +289,7 @@ uint8_t sysFlags = 0 ;
 //uint32_t Per10ms_action ;
 //uint32_t Permenu_action ;
 
-int16_t g_ppmIns[8];
+int16_t g_ppmIns[16];
 uint8_t ppmInState = 0; //0=unsync 1..8= wait for value i-1
 uint8_t Main_running ;
 #ifdef PCBSKY
@@ -627,6 +628,58 @@ void update_mode(void* pdata)
 	}
 }
 
+
+#ifdef PCBX9D
+
+#define EXTERNAL_RF_ON()      GPIO_SetBits(GPIOPWREXT, PIN_EXT_RF_PWR)
+#define EXTERNAL_RF_OFF()     GPIO_ResetBits(GPIOPWREXT, PIN_EXT_RF_PWR)
+
+void checkTrainerSource()
+{
+	if ( CurrentTrainerSource	!= g_eeGeneral.trainerSource )
+	{
+		switch ( CurrentTrainerSource )
+		{
+			case 0 :
+				stop_trainer_capture() ;
+			break ;
+			case 1 :
+				stop_USART6_Sbus() ;
+				EXTERNAL_RF_OFF() ;
+			break ;
+			case 2 :
+				stop_cppm_on_heartbeat_capture() ;				
+				EXTERNAL_RF_OFF() ;
+			break ;
+			case 3 :
+				stop_trainer_ppm() ;
+			break ;
+		}
+		CurrentTrainerSource = g_eeGeneral.trainerSource ;
+		switch ( CurrentTrainerSource )
+		{
+			case 0 :
+				init_trainer_capture() ;
+				EXTERNAL_RF_OFF() ;
+			break ;
+			case 1 :
+				USART6_Sbus_configure() ;
+				EXTERNAL_RF_ON() ;
+			break ;
+			case 2 :
+				init_cppm_on_heartbeat_capture()  ;
+				EXTERNAL_RF_ON() ;
+			break ;
+			case 3 :	// Slave so output
+				init_trainer_ppm() ;
+				EXTERNAL_RF_OFF() ;
+			break ;
+		}
+	}
+}
+#endif
+
+
 int main( void )
 {
 #ifdef PCBSKY
@@ -760,6 +813,7 @@ int main( void )
 	init_trims() ;
 	I2C_EE_Init() ;
 	initHaptic() ;
+	start_2Mhz_timer() ;
 //	init_adc2( 8 ) ;
 #endif
 #ifdef PCBSKY
@@ -792,7 +846,13 @@ int main( void )
 	createSwitchMapping() ;
 #ifdef PCBSKY
 	init_rotary_encoder() ;
+	
 #endif 
+
+	if ( g_model.com2Function == 1 )
+	{
+		UART_Sbus_configure( Master_frequency ) ;
+	}
 
 	// At this point, check for "maintenance mode"
 	if ( ( read_trims() & 0x81 )== 0x81 )
@@ -823,10 +883,10 @@ int main( void )
 
 #ifdef FRSKY
 #ifdef PCBSKY
-  FRSKY_Init( 0 );
+	telemetry_init( TEL_FRSKY_HUB ) ;
 #endif
 #ifdef PCBX9D
-  FRSKY_Init( 1 );
+	telemetry_init( TEL_FRSKY_SPORT ) ;
 #endif
 #endif
 
@@ -1124,7 +1184,7 @@ uint32_t setBtRole( uint32_t role )
 #define BT_RX_FIRST		1
 #define BT_RX_SECOND	2
 
-int16_t BtChannels[8] ;
+//int16_t BtChannels[16] ;
 uint8_t BtFirstByte ; 
 uint8_t BtChannelNumber ;
 uint8_t BtRxState ;
@@ -1154,9 +1214,9 @@ void processBtRx( int32_t x, uint32_t rxTimeout )
 			uint16_t value ;
 			value = x ;
 			value |= (uint16_t)BtFirstByte << 8 ;
-			if ( BtChannelNumber < 8 )
+			if ( BtChannelNumber < 16 )
 			{
-				BtChannels[BtChannelNumber] = value ;
+//				BtChannels[BtChannelNumber] = value ;
 				if ( BtAsPpm )
 				{
   	    	g_ppmIns[BtChannelNumber] = (int16_t)value - 1500 ;
@@ -1486,7 +1546,7 @@ void main_loop(void* pdata)
 
 	start_ppm_capture() ;
 
-  FrskyAlarmSendState |= 0x40 ;
+//  FrskyAlarmSendState |= 0x40 ;
 #endif
 
 #ifdef PCBX9D
@@ -1675,13 +1735,13 @@ void main_loop(void* pdata)
 //}
 //#endif
 
-static inline uint16_t getTmr2MHz()
+uint16_t getTmr2MHz()
 {
 #ifdef PCBSKY
 	return TC1->TC_CHANNEL[0].TC_CV ;
 #endif
 #ifdef PCBX9D
-	return TIM3->CNT ;
+	return TIM7->CNT ;
 #endif
 }
 
@@ -2048,6 +2108,18 @@ void mainSequence( uint32_t no_menu )
     heartbeat = 0;
   }
 
+#ifdef PCBX9D
+	checkTrainerSource() ;
+	if ( ( g_model.com2Function == 1 ) || ( CurrentTrainerSource == 1 ) )
+#endif
+#ifdef PCBSKY
+	if ( g_model.com2Function == 1 )
+#endif
+	{
+		processSbusInput() ;
+	}
+
+
 
 	if ( Tenms )
 	{
@@ -2120,48 +2192,6 @@ void mainSequence( uint32_t no_menu )
     AlarmCheckFlag = 0 ;
     // Check for alarms here
     // Including Altitude limit
-
-		uint8_t redAlert = 0 ;
-		static uint8_t redCounter ;
-		static uint8_t orangeCounter ;
-		uint8_t rssiValue = FrskyHubData[FR_RXRSI_COPY] ;
-
-		if ( frskyStreaming )
-		{
-			if ( g_model.enRssiRed == 0 )
-			{
-				if ( rssiValue && rssiValue < g_model.rssiRed + 42 )
-				{
-					// Alarm
-					redAlert = 1 ;
-					if ( ++redCounter > 3 )
-					{
-						putSystemVoice( SV_RSSICRIT, V_RSSI_CRITICAL ) ;
-						redCounter = 0 ;
-					}
-				}
-				else
-				{
-					redCounter = 0 ;
-				}
-			}
-			if ( ( redAlert == 0 ) && ( g_model.enRssiOrange == 0 ) )
-			{
-				if ( rssiValue && rssiValue < g_model.rssiOrange + 45 )
-				{
-					// Alarm
-					if ( ++orangeCounter > 3 )
-					{
-						putSystemVoice( SV_RSSI_LOW, V_RSSI_WARN ) ;
-						orangeCounter = 0 ;
-					}
-				}
-				else
-				{
-					orangeCounter = 0 ;
-				}
-			}
-		}
 
 #ifdef FRSKY
     if (frskyUsrStreaming)
@@ -2331,10 +2361,11 @@ void mainSequence( uint32_t no_menu )
 	// New switch voices
 	// New entries, Switch, (on/off/both), voice file index
 
-	if ( VoiceCheckFlag )
+	if ( VoiceCheckFlag )	// Every 100mS
   {
 		uint32_t i ;
 		static uint32_t timer ;
+		static uint32_t delayTimer = 0 ;
     
 		if ( VoiceCheckFlag & 1 )
 		{
@@ -2346,6 +2377,61 @@ void mainSequence( uint32_t no_menu )
 //			TelemetryStatus = frskyStreaming ;
 //#endif
 			timer += 1 ;
+			if ( delayTimer )
+			{
+				delayTimer -= 1 ;
+			}
+
+			uint8_t redAlert = 0 ;
+			static uint8_t redCounter ;
+			static uint8_t orangeCounter ;
+			uint8_t rssiValue = FrskyHubData[FR_RXRSI_COPY] ;
+
+			if ( frskyStreaming )
+			{
+				if ( g_model.enRssiRed == 0 )
+				{
+					if ( rssiValue && rssiValue < g_model.rssiRed + 42 )
+					{
+						// Alarm
+						redAlert = 1 ;
+						orangeCounter += 1 ;
+						if ( ++redCounter > 3 )
+						{
+							if ( delayTimer == 0 )
+							{
+								putSystemVoice( SV_RSSICRIT, V_RSSI_CRITICAL ) ;
+								delayTimer = 40 ;	// 4 seconds
+							}
+							redCounter = 0 ;
+						}
+					}
+					else
+					{
+						redCounter = 0 ;
+					}
+				}
+				if ( ( redAlert == 0 ) && ( g_model.enRssiOrange == 0 ) )
+				{
+					if ( rssiValue && rssiValue < g_model.rssiOrange + 45 )
+					{
+						// Alarm
+						if ( ++orangeCounter > 3 )
+						{
+							if ( delayTimer == 0 )
+							{
+								putSystemVoice( SV_RSSI_LOW, V_RSSI_WARN ) ;
+								delayTimer = 40 ;	// 4 seconds
+							}
+							orangeCounter = 0 ;
+						}
+					}
+					else
+					{
+						orangeCounter = 0 ;
+					}
+				}
+			}
 
 			for ( i = 0 ; i < numSafety ; i += 1 )
 			{
@@ -4155,6 +4241,20 @@ void putsChnRaw(uint8_t x,uint8_t y,uint8_t idx,uint8_t att)
 		if ( mix )
 		{
 			idx += TEL_ITEM_SC1-(chanLimit-NUM_SKYXCHNRAW) ;
+			if ( idx - NUM_SKYXCHNRAW > TEL_ITEM_SC1 + NUM_SCALERS )
+			{
+				lcd_putsAtt(x,y,XPSTR("PPM"),att) ;
+				idx -= TEL_ITEM_SC1 + NUM_SCALERS - 8 + NUM_SKYXCHNRAW ;
+				if ( idx == 9 )
+				{
+					lcd_putcAtt( x+3*FW, y, '9', att  ) ;
+				}
+				else
+				{
+  				lcd_outdezAtt( x+5*FW-2, y,idx, att ) ;
+				}
+				return ;
+			}
 		}
   	lcd_putsAttIdx(x,y,PSTR(STR_TELEM_ITEMS),(idx-NUM_SKYXCHNRAW),att);
 	}

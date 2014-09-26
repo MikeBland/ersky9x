@@ -11,6 +11,14 @@ struct t_fifo32
 	volatile uint32_t count ;
 } ;
 
+struct t_16bit_fifo32
+{
+	uint16_t fifo[32] ;
+	uint32_t in ;
+	uint32_t out ;
+	volatile uint32_t count ;
+} ;
+
 struct t_serial_tx
 {
 	uint8_t *buffer ;
@@ -28,12 +36,12 @@ struct t_serial_fifo64
 
 extern void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte ) ;
 extern int32_t get_fifo32( struct t_fifo32 *pfifo ) ;
-
 extern struct t_serial_tx Bt_tx ;
 extern uint32_t txPdcBt( struct t_serial_tx *data ) ;
 extern void end_bt_tx_interrupt() ;
 
 #ifdef REVX
+extern int32_t getJetiWord( void ) ;
 extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
 #else
 extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
@@ -51,6 +59,8 @@ extern volatile uint32_t Spi_complete ;
 #ifdef PCBX9D
 extern void x9dConsoleInit( void ) ;
 extern uint16_t rxTelemetry( void ) ;
+extern void USART6_Sbus_configure( void ) ;
+extern void stop_USART6_Sbus( void ) ;
 #endif
 
 extern uint16_t DsmRxTimeout ;
@@ -59,8 +69,11 @@ extern uint16_t WatchdogTimeout ;
 extern void putEvent( register uint8_t evt) ;
 extern void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 extern void UART2_Configure( uint32_t baudrate, uint32_t masterClock) ;
+extern void UART2_9dataOdd1stop( void ) ;
 extern void UART2_timeout_enable( void ) ;
 extern void UART2_timeout_disable( void ) ;
+extern void UART_Sbus_configure( uint32_t masterClock ) ;
+extern void jetiSendWord( uint16_t word ) ;
 //extern void UART_Stop( void ) ;
 //extern void Bt_UART_Stop( void ) ;
 extern void txmit( uint8_t c ) ;
@@ -109,6 +122,8 @@ extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, s
 extern void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size ) ;
 void start_ppm_capture( void ) ;
 void end_ppm_capture( void ) ;
+extern void processSbusInput( void ) ;
+extern void start_2Mhz_timer( void ) ;
 
 extern void disable_ssc( void ) ;
 

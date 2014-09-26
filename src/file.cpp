@@ -726,6 +726,19 @@ void ee32LoadModel(uint8_t id)
 	}
 #endif
 
+// // Sort telemetry options
+	if ( g_model.telemetryProtocol == TELEMETRY_UNDEFINED )
+	{
+		g_model.telemetryProtocol = TELEMETRY_FRSKY ;	// default
+		if ( g_model.FrSkyUsrProto )
+		{
+			g_model.telemetryProtocol = TELEMETRY_WSHHI ;
+		}
+		if ( g_model.DsmTelemetry )
+		{
+			g_model.telemetryProtocol = TELEMETRY_DSM ;
+		}
+	}
 }
 
 bool ee32ModelExists(uint8_t id)

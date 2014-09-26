@@ -326,7 +326,7 @@
 //"\005FirstLast "
 //"Voice Switch"
 //"Function"
-//"\007----   v>ofs  v<ofs  |v|>ofs|v|<ofsON     OFF    BOTH   "
+//"\007----   v>val  v<val  |v|>val|v|<valON     OFF    BOTH   "
 //"Switch"
 //"Rate"
 //"\017Once"
