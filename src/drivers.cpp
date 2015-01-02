@@ -20,7 +20,11 @@
 #include <stdlib.h>
 
 #ifdef PCBSKY
-#include "AT91SAM3S4.h"
+ #ifndef PCBDUE
+  #include "AT91SAM3S4.h"
+ #else
+	#include "sam3x8e.h"
+ #endif
 #ifndef SIMU
 #include "core_cm3.h"
 #endif
@@ -45,6 +49,9 @@
 #include "X9D/hal.h"
 #include "timers.h"
 #endif
+
+
+#define SERIAL_TRAINER	1
 
 
 // Timer usage
@@ -80,15 +87,17 @@ uint8_t JetiTxBuffer[16] ;
 
 struct t_rxUartBuffer TelemetryInBuffer ;
 
-struct t_fifo32 Console_fifo ;
-struct t_fifo32 BtRx_fifo ;
+struct t_fifo64 Console_fifo ;
+struct t_fifo64 BtRx_fifo ;
+
+struct t_fifo64 CaptureRx_fifo ;
 
 struct t_16bit_fifo32 Jeti_fifo ;
 
-struct t_fifo32 Sbus_fifo ;
+struct t_fifo64 Sbus_fifo ;
 
 #ifdef PCBX9D
-struct t_fifo32 Telemetry_fifo ;
+struct t_fifo64 Telemetry_fifo ;
 struct t_SportTx
 {
 	uint8_t *ptr ;
@@ -106,7 +115,6 @@ void killEvents(uint8_t event) ;
 
 void UART_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmit( uint8_t c ) ;
-void uputs( register char *string ) ;
 uint16_t rxuart( void ) ;
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock) ;
 void txmitBt( uint8_t c ) ;
@@ -122,11 +130,6 @@ uint32_t spi_operation( uint8_t *tx, uint8_t *rx, uint32_t count ) ;
 //uint32_t spi_action( uint8_t *command, uint8_t *tx, uint8_t *rx, uint32_t comlen, uint32_t count ) ;
 uint32_t spi_PDC_action( uint8_t *command, uint8_t *tx, uint8_t *rx, uint32_t comlen, uint32_t count ) ;
 
-void crlf( void ) ;
-void p8hex( uint32_t value ) ;
-void p4hex( uint16_t value ) ;
-void p2hex( unsigned char c ) ;
-void hex_digit_send( unsigned char c ) ;
 void read_9_adc(void ) ;
 void init_adc( void ) ;
 void init_ssc( uint16_t baudrate ) ;
@@ -371,8 +374,12 @@ extern uint8_t AnaEncSw ;
 #endif
 #ifdef PCBX9D
 #if !defined(SIMU)
+#ifdef REV9E
+	uint8_t value = ~GPIOF->IDR & PIN_BUTTON_ENCODER ;
+#else
 extern uint8_t AnaEncSw ;
 	uint8_t value = AnaEncSw ;
+#endif // REV9E
 	keys[enuk].input( value,(EnumKeys)enuk); // Rotary Enc. Switch
 	if ( value )
 	{
@@ -388,66 +395,110 @@ extern uint8_t AnaEncSw ;
 }
 
 
-void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
+//void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte )
+//{
+//	pfifo->fifo[pfifo->in] = byte ;
+//#ifndef SIMU
+//	__disable_irq() ;
+//#endif
+//	pfifo->count += 1 ;
+//#ifndef SIMU
+//		__enable_irq() ;
+//#endif
+//	pfifo->in = ( pfifo->in + 1) & 0x1F ;
+//}
+
+//int32_t get_fifo32( struct t_fifo32 *pfifo )
+//{
+//	int32_t rxbyte ;
+//	if ( pfifo->count )						// Look for char available
+//	{
+//		rxbyte = pfifo->fifo[pfifo->out] ;
+//#ifndef SIMU
+//	__disable_irq() ;
+//#endif
+//		pfifo->count -= 1 ;
+//#ifndef SIMU
+//		__enable_irq() ;
+//#endif
+//		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
+//		return rxbyte ;
+//	}
+//	return -1 ;
+//}
+
+void put_fifo64( struct t_fifo64 *pfifo, uint8_t byte )
 {
-	pfifo->fifo[pfifo->in] = byte ;
-#ifndef SIMU
-	__disable_irq() ;
-#endif
-	pfifo->count += 1 ;
-#ifndef SIMU
-		__enable_irq() ;
-#endif
-	pfifo->in = ( pfifo->in + 1) & 0x1F ;
+  uint32_t next = (pfifo->in + 1) & 0x3f;
+	if ( next != pfifo->out )
+	{
+		pfifo->fifo[pfifo->in] = byte ;
+		pfifo->in = next ;
+	}
 }
 
-int32_t get_fifo32( struct t_fifo32 *pfifo )
+int32_t get_fifo64( struct t_fifo64 *pfifo )
 {
 	int32_t rxbyte ;
-	if ( pfifo->count )						// Look for char available
+	if ( pfifo->in != pfifo->out )				// Look for char available
 	{
 		rxbyte = pfifo->fifo[pfifo->out] ;
-#ifndef SIMU
-	__disable_irq() ;
-#endif
-		pfifo->count -= 1 ;
-#ifndef SIMU
-		__enable_irq() ;
-#endif
-		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
+		pfifo->out = ( pfifo->out + 1 ) & 0x3F ;
 		return rxbyte ;
 	}
 	return -1 ;
-
-	
 }
+
+
+//void put_fifo64( struct t_fifo64 *pfifo, uint8_t byte )
+//{
+//	pfifo->fifo[pfifo->in] = byte ;
+//#ifndef SIMU
+//	__disable_irq() ;
+//#endif
+//	pfifo->count += 1 ;
+//#ifndef SIMU
+//		__enable_irq() ;
+//#endif
+//	pfifo->in = ( pfifo->in + 1) & 0x3F ;
+//}
+
+//int32_t get_fifo64( struct t_fifo64 *pfifo )
+//{
+//	int32_t rxbyte ;
+//	if ( pfifo->count )						// Look for char available
+//	{
+//		rxbyte = pfifo->fifo[pfifo->out] ;
+//#ifndef SIMU
+//	__disable_irq() ;
+//#endif
+//		pfifo->count -= 1 ;
+//#ifndef SIMU
+//		__enable_irq() ;
+//#endif
+//		pfifo->out = ( pfifo->out + 1 ) & 0x3F ;
+//		return rxbyte ;
+//	}
+//	return -1 ;
+//}
+
 
 void put_16bit_fifo32( struct t_16bit_fifo32 *pfifo, uint16_t word )
 {
-	pfifo->fifo[pfifo->in] = word ;
-#ifndef SIMU
-	__disable_irq() ;
-#endif
-	pfifo->count += 1 ;
-#ifndef SIMU
-		__enable_irq() ;
-#endif
-	pfifo->in = ( pfifo->in + 1) & 0x1F ;
+  uint32_t next = (pfifo->in + 1) & 0x1f;
+	if ( next != pfifo->out )
+	{
+		pfifo->fifo[pfifo->in] = word ;
+		pfifo->in = next ;
+	}
 }
 
 int32_t get_16bit_fifo32( struct t_16bit_fifo32 *pfifo )
 {
 	int32_t rxbyte ;
-	if ( pfifo->count )						// Look for char available
+	if ( pfifo->in != pfifo->out )				// Look for char available
 	{
 		rxbyte = pfifo->fifo[pfifo->out] ;
-#ifndef SIMU
-	__disable_irq() ;
-#endif
-		pfifo->count -= 1 ;
-#ifndef SIMU
-		__enable_irq() ;
-#endif
 		pfifo->out = ( pfifo->out + 1 ) & 0x1F ;
 		return rxbyte ;
 	}
@@ -509,6 +560,7 @@ void init_spi()
 	timer = ( Master_frequency / 3000000 ) << 8 ;		// Baud rate 3Mb/s
 	spiptr->SPI_MR = 0x14000011 ;				// 0001 0100 0000 0000 0000 0000 0001 0001 Master
 	spiptr->SPI_CSR[0] = 0x01180009 | timer ;		// 0000 0001 0001 1000 xxxx xxxx 0000 1001
+	NVIC_SetPriority( SPI_IRQn, 4 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(SPI_IRQn) ;
 
 	p = spi_buf ;
@@ -744,6 +796,29 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
 //  pioptr->PIO_ABCDSR[1] &= ~(PIO_PA9 | PIO_PA10) ;	// Peripheral A
 //  pioptr->PIO_PDR = (PIO_PA9 | PIO_PA10) ;					// Assign to peripheral
 
+	if ( baudrate < 10 )
+	{
+		switch ( baudrate )
+		{
+			case 0 :
+			default :
+				baudrate = 9600 ;
+			break ;
+			case 1 :
+				baudrate = 19200 ;
+			break ;
+			case 2 :
+				baudrate = 38400 ;
+			break ;
+			case 3 :
+				baudrate = 57600 ;
+			break ;
+			case 4 :
+				baudrate = 115200 ;
+			break ;
+		}
+	}
+
   /* Configure PMC */
   PMC->PMC_PCER0 = 1 << CONSOLE_ID;
 
@@ -765,6 +840,7 @@ void UART_Configure( uint32_t baudrate, uint32_t masterClock)
   pUart->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
   pUart->UART_IER = UART_IER_RXRDY ;
 
+	NVIC_SetPriority( UART0_IRQn, 4 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(UART0_IRQn) ;
 
 }
@@ -778,6 +854,14 @@ void UART_Sbus_configure( uint32_t masterClock )
   pUart->UART_MR =  0 ;  // NORMAL, Even Parity
 }
 
+void UART_Sbus57600_configure( uint32_t masterClock )
+{
+  register Uart *pUart = CONSOLE_USART;
+	
+	UART_Configure( 57600, masterClock ) ;
+  pUart->UART_MR =  0 ;  // NORMAL, Even Parity
+}
+
 void UART_9dataOdd1stop()
 {
 	
@@ -788,17 +872,54 @@ void UART_9dataOdd1stop()
 //	NVIC_DisableIRQ(UART0_IRQn) ;
 //}
 
+struct t_serial_tx *Current_Com2 ;
+
+uint32_t txPdcCom2( struct t_serial_tx *data )
+{
+	Uart *pUart=CONSOLE_USART ;
+		
+	if ( pUart->UART_TNCR == 0 )
+	{
+		Current_Com2 = data ;
+		data->ready = 1 ;
+#ifndef SIMU
+	  pUart->UART_TPR = (uint32_t)data->buffer ;
+#endif
+		pUart->UART_TCR = data->size ;
+		pUart->UART_PTCR = US_PTCR_TXTEN ;
+		pUart->UART_IER = UART_IER_TXBUFE ;
+		NVIC_SetPriority( UART0_IRQn, 4 ) ; // Lower priority interrupt
+		NVIC_EnableIRQ(UART0_IRQn) ;
+		return 1 ;			// Sent OK
+	}
+	return 0 ;				// Busy
+	
+}
 
 extern "C" void UART0_IRQHandler()
 {
-	if ( g_model.com2Function == 1 )
+	Uart *pUart=CONSOLE_USART ;
+	if ( pUart->UART_SR & UART_SR_TXBUFE )
 	{
-		put_fifo32( &Sbus_fifo, CONSOLE_USART->UART_RHR ) ;	
+		pUart->UART_IDR = UART_IDR_TXBUFE ;
+		pUart->UART_PTCR = US_PTCR_TXTDIS ;
+		Current_Com2->ready = 0 ;	
 	}
-	else
+	if ( pUart->UART_SR & UART_SR_RXRDY )
 	{
-		put_fifo32( &Console_fifo, CONSOLE_USART->UART_RHR ) ;	
-	}	 
+		if ( ( g_model.com2Function == COM2_FUNC_SBUSTRAIN ) || ( g_model.com2Function == COM2_FUNC_SBUS57600 ) )
+		{
+			put_fifo64( &Sbus_fifo, CONSOLE_USART->UART_RHR ) ;	
+		}
+		else if ( g_model.com2Function == COM2_FUNC_BTDIRECT )	// BT <-> COM2
+		{
+			telem_byte_to_bt( CONSOLE_USART->UART_RHR ) ;
+		}
+		else
+		{
+			put_fifo64( &Console_fifo, CONSOLE_USART->UART_RHR ) ;	
+		}	 
+	}
 }
 
 void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
@@ -838,6 +959,7 @@ void UART3_Configure( uint32_t baudrate, uint32_t masterClock)
   /* Enable receiver and transmitter */
   pUart->UART_CR = UART_CR_RXEN | UART_CR_TXEN;
   pUart->UART_IER = UART_IER_RXRDY ;
+	NVIC_SetPriority( UART1_IRQn, 4 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(UART1_IRQn) ;
 
 }
@@ -1169,14 +1291,13 @@ uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 		pUsart->US_TNCR = size ;
 		pUsart->US_PTCR = US_PTCR_TXTEN ;
 		pUsart->US_IER = US_IER_ENDTX ;
+		NVIC_SetPriority( USART0_IRQn, 4 ) ; // Lower priority interrupt
 		NVIC_EnableIRQ(USART0_IRQn) ;
 		return 1 ;
 	}
 	return 0 ;
 }
 
-
-  
 uint32_t txCom2Uart( uint8_t *buffer, uint32_t size )
 {
 	Uart *pUart=CONSOLE_USART ;
@@ -1226,6 +1347,7 @@ uint32_t txPdcBt( struct t_serial_tx *data )
 		pUart->UART_TCR = data->size ;
 		pUart->UART_PTCR = US_PTCR_TXTEN ;
 		pUart->UART_IER = UART_IER_TXBUFE ;
+		NVIC_SetPriority( USART1_IRQn, 4 ) ; // Lower priority interrupt
 		NVIC_EnableIRQ(UART1_IRQn) ;
 		return 1 ;			// Sent OK
 	}
@@ -1250,7 +1372,7 @@ extern "C" void UART1_IRQHandler()
 	}
 	if ( pUart->UART_SR & UART_SR_RXRDY )
 	{
-		put_fifo32( &BtRx_fifo, pUart->UART_RHR ) ;	
+		put_fifo64( &BtRx_fifo, pUart->UART_RHR ) ;	
 	}
 }
 
@@ -1274,17 +1396,9 @@ void txmit( uint8_t c )
 
 // Outputs a string to the UART
 
-void uputs( register char *string )
-{
-	while ( *string )
-	{
-		txmit( *string++ ) ;		
-	}	
-}
-
 uint16_t rxuart()
 {
-	return get_fifo32( &Console_fifo ) ;
+	return get_fifo64( &Console_fifo ) ;
   
 //	Uart *pUart=CONSOLE_USART ;
 
@@ -1337,49 +1451,7 @@ void txmitBt( uint8_t c )
 
 int32_t rxBtuart()
 {
-	return get_fifo32( &BtRx_fifo ) ;
-}
-
-// Send a <cr><lf> combination to the serial port
-void crlf()
-{
-	txmit( 13 ) ;
-	txmit( 10 ) ;
-}
-
-// Send the 32 bit value to the RS232 port as 8 hex digits
-void p8hex( uint32_t value )
-{
-	p4hex( value >> 16 ) ;
-	p4hex( value ) ;
-}
-
-// Send the 16 bit value to the RS232 port as 4 hex digits
-void p4hex( uint16_t value )
-{
-	p2hex( value >> 8 ) ;
-	p2hex( value ) ;
-}
-
-// Send the 8 bit value to the RS232 port as 2 hex digits
-void p2hex( unsigned char c )
-{
-//	asm("swap %c") ;
-	hex_digit_send( c >> 4 ) ;
-//	asm("swap %c") ;
-	hex_digit_send( c ) ;
-}
-
-// Send a single 4 bit value to the RS232 port as a hex digit
-void hex_digit_send( unsigned char c )
-{
-	c &= 0x0F ;
-	if ( c > 9 )
-	{
-		c += 7 ;
-	}
-	c += '0' ;
-	txmit( c ) ;
+	return get_fifo64( &BtRx_fifo ) ;
 }
 
 //void xread_9_adc()
@@ -1735,9 +1807,11 @@ void start_ppm_capture()
 
 #ifdef SERIAL_TRAINER
 // 9600 baud, bit time 104.16uS
-#define BIT_TIME_9600		1042
+#define BIT_TIME_9600		208
 // 100000 baud, bit time 10uS (SBUS)
-#define BIT_TIME_100K		100
+#define BIT_TIME_100K		20
+// 115200 baud, bit time 8.68uS
+#define BIT_TIME_115K		17
 
 // States in LineState
 #define LINE_IDLE			0
@@ -1748,52 +1822,96 @@ void start_ppm_capture()
 #define BIT_ACTIVE		1
 #define BIT_FRAMING		2
 
-// Options in CaptureMode
-#define CAP_PPM				0
-#define CAP_SERIAL		1
-
 uint8_t LineState ;
 uint8_t CaptureMode ;
 uint16_t BitTime ;
 uint16_t HtoLtime ;
 uint16_t LtoHtime ;
+uint8_t SoftSerInvert = 0 ;
 
 uint8_t BitState ;
 uint8_t BitCount ;
 uint8_t Byte ;
+uint8_t Tc5Count ;
 
-void putCaptureTime( uint32_t time, uint32_t value )
+uint16_t SerTimes[64] ;
+uint16_t SerValues[64] ;
+uint16_t SerBitStates[64] ;
+uint16_t SerBitCounts[64] ;
+uint16_t SerBitInputs[64] ;
+
+uint32_t SerIndex ;
+
+
+
+// time in units of 0.5uS, value is 1 or 0
+void putCaptureTime( uint16_t time, uint32_t value )
 {
+//	if ( BitState == BIT_IDLE )
+//	{
+//		SerTimes[14] = SerTimes[0] ;
+//		SerTimes[15] = SerTimes[1] ;
+//		SerValues[14] = SerValues[0] ;
+//		SerValues[15] = SerValues[1] ;
+//		SerIndex = 0 ;
+//	}
+	
+	SerTimes[SerIndex] = time ;
+	SerValues[SerIndex] = value ;
+	
 	time += BitTime/2 ;
 	time /= BitTime ;		// Now number of bits
+
+	SerBitStates[SerIndex] = BitState ;
+	SerBitCounts[SerIndex] = BitCount ;
+	SerBitInputs[SerIndex] = time ;
+	
+	SerIndex += 1 ;
+	if ( SerIndex > 63 )
+	{
+		SerIndex = 0 ;
+	}
+	 
+	if ( value == 3 )
+	{
+		return ;
+	}
+
 	if ( BitState == BIT_IDLE )
 	{ // Starting, value should be 0
 		BitState = BIT_ACTIVE ;
 		BitCount = 0 ;
-		if ( count > 1 )
+		if ( time > 1 )
 		{
-			Byte >>= count-1 ;
-			BitCount = count-1 ;
+			Byte >>= time-1 ;
+			BitCount = time-1 ;
 		}
 	}
 	else
 	{
 		if ( value )
 		{
-			while ( count )
+			while ( time )
 			{
 				if ( BitCount >= 8 )
 				{ // Got a byte
-					
+					put_fifo64( &CaptureRx_fifo, Byte ) ;
+					BitState = BIT_IDLE ;
+					break ;
 				}
 				else
 				{
 					Byte >>= 1 ;
 					Byte |= 0x80 ;
-					count -= 1 ;
+					time -= 1 ;
 					BitCount += 1 ;
 				}
 			}
+		}
+		else
+		{
+			Byte >>= time ;
+			BitCount += time ;
 		}
 	}
 }
@@ -1805,17 +1923,121 @@ void setCaptureMode(uint32_t mode)
 {
 	CaptureMode = mode ;
 
-	if ( mode = CAP_SERIAL )
+	NVIC_DisableIRQ(PIOA_IRQn) ;
+	TC1->TC_CHANNEL[2].TC_CCR = 2 ;		// Disable clock
+		if ( mode == CAP_SERIAL )
 	{
 		LineState = LINE_IDLE ;
-		BitTime = BIT_TIME_9600 ;
+		BitTime = BIT_TIME_115K ;
 		TC1->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, B fall
 		// Or for inverted operation:
 //		TC1->TC_CHANNEL[0].TC_CMR = 0x00060005 ;	// 0000 0000 0000 0110 0000 0000 0000 0101, XC0, A fall, B rise
+		TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
 	}
 	else
 	{
 		TC1->TC_CHANNEL[0].TC_CMR = 0x00090005 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC0, A rise, B fall
+	}
+}
+
+void start_timer5()
+{
+#ifndef SIMU
+  register Tc *ptc ;
+//	register Pio *pioptr ;
+
+	// Enable peripheral clock TC0 = bit 23 thru TC5 = bit 28
+  PMC->PMC_PCER0 |= 0x10000000L ;		// Enable peripheral clock to TC5
+
+  ptc = TC1 ;		// Tc block 1 (TC3-5)
+	ptc->TC_BCR = 0 ;			// No sync
+	ptc->TC_BMR = 0x32 ;
+	ptc->TC_CHANNEL[2].TC_CMR = 0x00000000 ;	// Capture mode
+	ptc->TC_CHANNEL[2].TC_CMR = 0x00090007 ;	// 0000 0000 0000 1001 0000 0000 0000 0101, XC2, A rise, B fall
+	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+	NVIC_SetPriority( TC5_IRQn, 14 ) ; // Low priority interrupt
+	NVIC_EnableIRQ(TC5_IRQn) ;
+#endif
+}
+
+
+
+// Handle software serial on COM1 input (for non-inverted input)
+void init_software_com1(uint32_t baudrate, uint32_t invert)
+{
+	BitTime = 2000000 / baudrate ;
+
+	SoftSerInvert = invert ? 0 : PIO_PA5 ;
+
+	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
+	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRBS ;		// No int on falling edge
+	TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
+	LineState = LINE_IDLE ;
+	CaptureMode = CAP_COM1 ;
+	configure_pins( PIO_PA5, PIN_ENABLE | PIN_INPUT | PIN_PORTA ) ;
+	PIOA->PIO_IER = PIO_PA5 ;
+	NVIC_SetPriority( PIOA_IRQn, 0 ) ; // Highest priority interrupt
+	NVIC_EnableIRQ(PIOA_IRQn) ;
+	start_timer5() ;
+}
+
+extern "C" void PIOA_IRQHandler()
+{
+  register uint32_t capture ;
+  register uint32_t dummy ;
+	
+	capture =  TC1->TC_CHANNEL[0].TC_CV ;	// Capture time
+	dummy = PIOA->PIO_ISR ;			// Read and clear status register
+	(void) dummy ;		// Discard value - prevents compiler warning
+
+	dummy = PIOA->PIO_PDSR ;
+	if ( ( dummy & PIO_PA5 ) == SoftSerInvert )
+	{
+		// L to H transisition
+		LtoHtime = capture ;
+		TC1->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
+		TC1->TC_CHANNEL[2].TC_RC = BitTime * 10 ;
+		uint32_t time ;
+		capture -= HtoLtime ;
+		time = capture ;
+		putCaptureTime( time, 0 ) ;
+		TC1->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;		// Compare interrupt
+		(void) TC1->TC_CHANNEL[2].TC_SR ;
+	}
+	else
+	{
+		// H to L transisition
+		HtoLtime = capture ;
+		if ( LineState == LINE_IDLE )
+		{
+			LineState = LINE_ACTIVE ;
+			putCaptureTime( 0, 3 ) ;
+			TC1->TC_CHANNEL[2].TC_RC = capture + (BitTime * 20) ;
+			(void) TC1->TC_CHANNEL[2].TC_SR ;
+		}
+		else
+		{
+			uint32_t time ;
+			capture -= LtoHtime ;
+			time = capture ;
+			putCaptureTime( time, 1 ) ;
+		}
+		TC1->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
+	}
+}
+
+extern "C" void TC5_IRQHandler()
+{
+	uint32_t status ;
+
+	status = TC1->TC_CHANNEL[2].TC_SR ;
+	if ( status & TC_SR0_CPCS )
+	{		
+		uint32_t time ;
+		time = TC1->TC_CHANNEL[0].TC_CV - LtoHtime ;
+		putCaptureTime( time, 2 ) ;
+		LineState = LINE_IDLE ;
+		TC1->TC_CHANNEL[2].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
 	}
 }
 
@@ -1835,86 +2057,95 @@ extern "C" void TC3_IRQHandler() //capture ppm in at 2MHz
   static uint16_t lastCapt ;
   uint16_t val ;
 
-#ifdef SERIAL_TRAINER
 	uint32_t status ;
 	if ( CaptureMode == CAP_SERIAL )
 	{
-		if ( ( status = TC1->TC_CHANNEL[0].TC_SR ) & TC_SR_LDRBS )
+		if ( ( status = TC1->TC_CHANNEL[0].TC_SR ) & TC_SR0_LDRBS )
 		{	// H->L edge
 			capture = TC1->TC_CHANNEL[0].TC_RB ;
+			HtoLtime = capture ;
 			if ( LineState == LINE_IDLE )
 			{
 				LineState = LINE_ACTIVE ;
-				TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRBS ;		// No int on falling edge
-				TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;		// Int on rising edge
-				TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCSS ;		// No compare interrupt
 		  }
 			else
 			{
 				uint32_t time ;
 				capture -= LtoHtime ;
 				time = capture ;
-				time *= 5 ;			// To units of 0.1uS
 				putCaptureTime( time, 1 ) ;
 			}
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRAS ;		// Int on rising edge
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRBS ;		// No int on falling edge
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
 		}
-		else if ( status & TC_SR_LDRAS )
+		else if ( status & TC_SR0_LDRAS )
 		{	// L->H edge
 			capture = TC1->TC_CHANNEL[0].TC_RA ;
+			LtoHtime = capture ;
 			TC1->TC_CHANNEL[0].TC_RC = capture + (BitTime * 10) ;
 			uint32_t time ;
 			capture -= HtoLtime ;
 			time = capture ;
-			time *= 5 ;			// To units of 0.1uS
 			putCaptureTime( time, 0 ) ;
-			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
 			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
-			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_CPCSS ;		// Compare interrupt
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
+			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_CPCS ;		// Compare interrupt
 		}
 		else
 		{ // Compare interrupt
 			uint32_t time ;
-			time = TC1->TC_CHANNEL[0].TC_RC - LtoHtime ;
-			time *= 5 ;
-			putCaptureTime( time, 1 ) ;
-			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCSS ;		// No compare interrupt
+			time = TC1->TC_CHANNEL[0].TC_CV - LtoHtime ;
+			putCaptureTime( time, 2 ) ;
+			LineState = LINE_IDLE ;
 			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_LDRAS ;		// No int on rising edge
 			TC1->TC_CHANNEL[0].TC_IER = TC_IER0_LDRBS ;		// Int on falling edge
-			LineState = LINE_IDLE ;
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
 		}
 		return ;
 	}
 
-#endif	 
-	capture = TC1->TC_CHANNEL[0].TC_RA ;
-	(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
+	status = TC1->TC_CHANNEL[0].TC_SR ;
+	if ( CaptureMode == CAP_COM1 )
+	{
+		if ( status & TC_SR0_CPCS )
+		{		
+			uint32_t time ;
+			time = TC1->TC_CHANNEL[0].TC_RC - LtoHtime ;
+			putCaptureTime( time, 2 ) ;
+			LineState = LINE_IDLE ;
+			TC1->TC_CHANNEL[0].TC_IDR = TC_IDR0_CPCS ;		// No compare interrupt
+		}
+	}
 
-  val = (uint16_t)(capture - lastCapt) / 2 ;
-  lastCapt = capture;
+	if ( status & TC_SR0_LDRAS )
+	{
+		capture = TC1->TC_CHANNEL[0].TC_RA ;
+//		(void) TC1->TC_CHANNEL[0].TC_SR ;		// Acknowledgethe interrupt
 
-  // We prcoess g_ppmInsright here to make servo movement as smooth as possible
-  //    while under trainee control
-  if (val>4000 && val < 19000) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
-    ppmInState = 1; // triggered
-  else
-  {
-  	if(ppmInState && ppmInState<=8)
-		{
-    	if(val>800 && val<2200)
+  	val = (uint16_t)(capture - lastCapt) / 2 ;
+  	lastCapt = capture;
+
+  	// We prcoess g_ppmInsright here to make servo movement as smooth as possible
+  	//    while under trainee control
+  	if (val>4000 && val < 19000) // G: Prioritize reset pulse. (Needed when less than 8 incoming pulses)
+  	  ppmInState = 1; // triggered
+  	else
+  	{
+  		if(ppmInState && ppmInState<=16)
 			{
-				ppmInValid = 100 ;
-  	    g_ppmIns[ppmInState++ - 1] =
-    	    (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
+  	  	if(val>800 && val<2200)
+				{
+					ppmInValid = 100 ;
+  		    g_ppmIns[ppmInState++ - 1] =
+  	  	    (int16_t)(val - 1500)*(g_eeGeneral.PPM_Multiplier+10)/10; //+-500 != 512, but close enough.
 
-	    }else{
-  	    ppmInState=0; // not triggered
-    	}
-    }
-  }
-
-//  cli();
-//  ETIMSK |= (1<<TICIE3);
-//  sei();
+		    }else{
+  		    ppmInState=0; // not triggered
+  	  	}
+  	  }
+  	}
+	}
 }
 
 // Initialise the SSC to allow PXX/DSM output.
@@ -2016,6 +2247,7 @@ void USART6_Sbus_configure()
 	USART6->CR2 = 0 ;
 	USART6->CR3 = 0 ;
 	(void) USART6->DR ;
+	NVIC_SetPriority( USART6_IRQn, 4 ) ; // Lower priority interrupt
   NVIC_EnableIRQ(USART6_IRQn) ;
 }
 
@@ -2027,12 +2259,18 @@ void stop_USART6_Sbus()
 
 extern "C" void USART6_IRQHandler()
 {
-	put_fifo32( &Sbus_fifo, USART6->DR ) ;	
+	put_fifo64( &Sbus_fifo, USART6->DR ) ;	
 }
 
 void UART_Sbus_configure( uint32_t masterClock )
 {
 	USART3->BRR = Peri1_frequency / 100000 ;
+	USART3->CR1 |= USART_CR1_M | USART_CR1_PCE ;
+}
+
+void UART_Sbus57600_configure( uint32_t masterClock )
+{
+	USART3->BRR = Peri1_frequency / 57600 ;
 	USART3->CR1 |= USART_CR1_M | USART_CR1_PCE ;
 }
 
@@ -2048,6 +2286,7 @@ void x9dConsoleInit()
 	USART3->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART3->CR2 = 0 ;
 	USART3->CR3 = 0 ;
+	NVIC_SetPriority( USART3_IRQn, 4 ) ; // Lower priority interrupt
   NVIC_EnableIRQ(USART3_IRQn) ;
 }
 
@@ -2071,6 +2310,7 @@ void x9dSPortInit( uint32_t baudRate )
 	USART2->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART2->CR2 = 0 ;
 	USART2->CR3 = 0 ;
+	NVIC_SetPriority( USART2_IRQn, 4 ) ; // Lower priority interrupt
   NVIC_EnableIRQ(USART2_IRQn);
 }
 
@@ -2127,7 +2367,7 @@ extern "C" void USART2_IRQHandler()
 
     if (!(status & USART_FLAG_ERRORS))
 		{
-			put_fifo32( &Telemetry_fifo, data ) ;
+			put_fifo64( &Telemetry_fifo, data ) ;
 		}
 		else
 		{
@@ -2170,7 +2410,7 @@ void start_2Mhz_timer()
 
 uint16_t rxTelemetry()
 {
-	return get_fifo32( &Telemetry_fifo ) ;
+	return get_fifo64( &Telemetry_fifo ) ;
 }
 
 void txmit( uint8_t c )
@@ -2189,135 +2429,23 @@ uint16_t rxuart()
 //		return USART3->DR ;
 //	}
 //	return 0xFFFF ;
-	return get_fifo32( &Console_fifo ) ;
+	return get_fifo64( &Console_fifo ) ;
 }
 
 extern "C" void USART3_IRQHandler()
 {
-	if ( g_model.com2Function == 1 )
+	if ( ( g_model.com2Function == COM2_FUNC_SBUSTRAIN ) || ( g_model.com2Function == COM2_FUNC_SBUS57600 ) )
 	{
-		put_fifo32( &Sbus_fifo, USART3->DR ) ;	
+		put_fifo64( &Sbus_fifo, USART3->DR ) ;	
 	}
 	else
 	{
-		put_fifo32( &Console_fifo, USART3->DR ) ;	
+		put_fifo64( &Console_fifo, USART3->DR ) ;	
 	}	 
 }
 
 
-void uputs( register char *string )
-{
-	while ( *string )
-	{
-		txmit( *string++ ) ;		
-	}	
-}
-
-
-// Send a <cr><lf> combination to the serial port
-void crlf()
-{
-	txmit( 13 ) ;
-	txmit( 10 ) ;
-}
-
-// Send the 32 bit value to the RS232 port as 8 hex digits
-void p8hex( uint32_t value )
-{
-	p4hex( value >> 16 ) ;
-	p4hex( value ) ;
-}
-
-// Send the 16 bit value to the RS232 port as 4 hex digits
-void p4hex( uint16_t value )
-{
-	p2hex( value >> 8 ) ;
-	p2hex( value ) ;
-}
-
-// Send the 8 bit value to the RS232 port as 2 hex digits
-void p2hex( unsigned char c )
-{
-//	asm("swap %c") ;
-	hex_digit_send( c >> 4 ) ;
-//	asm("swap %c") ;
-	hex_digit_send( c ) ;
-}
-
-// Send a single 4 bit value to the RS232 port as a hex digit
-void hex_digit_send( unsigned char c )
-{
-	c &= 0x0F ;
-	if ( c > 9 )
-	{
-		c += 7 ;
-	}
-	c += '0' ;
-	txmit( c ) ;
-}
 
 
 #endif
-
-uint8_t SbusFrame[28] ;
-uint16_t SbusTimer ;
-uint8_t SbusIndex = 0 ;
-
-void processSBUSframe( uint8_t *sbus, int16_t *pulses )
-{
-	uint32_t inputbitsavailable = 0 ;
-	uint32_t i ;
-	uint32_t inputbits = 0 ;
-	if ( *sbus++ != 0x0F )
-	{
-		return ;		// Not a valid SBUS frame
-	}
-	for ( i = 0 ; i < 16 ; i += 1 )
-	{
-		while ( inputbitsavailable < 11 )
-		{
-			inputbits |= *sbus++ << inputbitsavailable ;
-			inputbitsavailable += 8 ;
-		}
-		*pulses++ = ( (int32_t)( inputbits & 0x7FF ) - 0x3E0 ) * 5 / 8 ;
-		inputbitsavailable -= 11 ;
-		inputbits >>= 11 ;
-	}
-	ppmInValid = 100 ;
-	return ;
-}
-
-void processSbusInput()
-{
-	uint16_t rxchar ;
-	uint32_t active = 0 ;
-	while ( ( rxchar = get_fifo32( &Sbus_fifo ) ) != 0xFFFF )
-	{
-		active = 1 ;
-		SbusFrame[SbusIndex++] = rxchar ;
-		if ( SbusIndex > 27 )
-		{
-			SbusIndex = 27 ;
-		}
-	}
-	if ( active )
-	{
-		SbusTimer = getTmr2MHz() ;
-		return ;
-	}
-	else
-	{
-		if ( SbusIndex )
-		{
-			if ( ( uint16_t)( getTmr2MHz() - SbusTimer ) > 1000 )	// 500 uS
-			{
-				processSBUSframe( SbusFrame, g_ppmIns ) ;
-				SbusIndex = 0 ;	 
-			}
-		}
-	}
-}
-
-
-
 

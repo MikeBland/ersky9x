@@ -89,6 +89,7 @@ volatile uint32_t Pulses2_index = 0 ;		// Modified in interrupt routine
 #define BadData 0x47
 
 static uint8_t pass ;		// For PXX and DSM-9XR
+uint8_t DebugDsmPass ;
 
 void module_output_low()
 {
@@ -166,7 +167,7 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 #endif
 
 	pwmptr->PWM_IER1 = PWM_IER1_CHID1 ;
-  NVIC_SetPriority(PWM_IRQn, 1);
+  NVIC_SetPriority(PWM_IRQn, 1 ) ;
 	NVIC_EnableIRQ(PWM_IRQn) ;
 
 }
@@ -337,7 +338,7 @@ void dsmBindResponse( uint8_t mode, int8_t channels )
 	// Process mode here
 	uint8_t dsm_mode_response ;
 //	Dsm_9xr_channels = channels ;
-	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
+	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE | ORTX_USE_TM ) ;
 //	channels -= 8 ;
 //	channels /= 2 ;
 	if ( ( g_model.ppmNCH != channels ) || ( (g_model.dsmMode & 0x7F) != dsm_mode_response ) )
@@ -400,7 +401,7 @@ void setupPulsesDsm2(uint8_t chns)
 		{
 			dsmDat[0] &= ~BindBit	;
 		}
-		
+		DebugDsmPass = pass ;
 		sendByteDsm2( 0xAA );
 		if ( pass == 0 )
 		{
@@ -414,7 +415,14 @@ void setupPulsesDsm2(uint8_t chns)
 			// Need to choose dsmx/dsm2 as well
   		sendByteDsm2( flags ) ;
   		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ;		// 
-  		sendByteDsm2( channels ) ;			// Max channels
+//			if ( flags & ORTX_USE_DSMX )
+//			{
+  			sendByteDsm2( channels ) ;			// Max channels
+//			}
+//			else
+//			{
+//  			sendByteDsm2( 12 ) ;			// Max channels
+//			}
 //  		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
   		sendByteDsm2( 1 ) ;		// 'Model Match' disabled
 			pass = 1 ;
@@ -593,7 +601,12 @@ void setupPulsesPPM()			// Don't enable interrupts through here
   //The pulse ISR is 2mhz that's why everything is multiplied by 2
   uint16_t *ptr ;
   ptr = Pulses ;
-  uint32_t p=8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+	uint32_t p = (g_model.ppmNCH + 4) * 2 ;
+	if ( p > 16 )
+	{
+		p -= 13 ;
+	}
+  p += g_model.startChannel ; //Channels *2
 	if ( p > NUM_SKYCHNOUT )
 	{
 		p = NUM_SKYCHNOUT ;	// Don't run off the end		
@@ -652,13 +665,24 @@ void setupPulsesPPM2()
 
 	if ( p == 0 )
 	{
-  	p = 8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+//  	p = 8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+		p = (g_model.ppmNCH + 4) * 2 ;
+		if ( p > 16 )
+		{
+			p -= 13 ;
+		}
+  	p += g_model.startChannel ; //Channels *2
 	}
 	else
 	{
 		p -= 1 ;
 	}
-	uint32_t q = 8+g_model.ppm2NCH*2 + p ;
+	uint32_t q = (g_model.ppm2NCH + 4) * 2 ;
+	if ( q > 16 )
+	{
+		q -= 13 ;
+	}
+	q += p ;
 	if ( q > NUM_SKYCHNOUT )
 	{
 		q = NUM_SKYCHNOUT ;	// Don't run off the end		

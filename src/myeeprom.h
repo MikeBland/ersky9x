@@ -156,7 +156,7 @@ PACK(typedef struct t_EEGeneral {
 	uint8_t		bt_baudrate ;
 	uint8_t		rotaryDivisor ;
 	uint8_t   crosstrim:1;
-	uint8_t   spare9:7;
+	uint8_t   hapticMinRun:7;
 	int8_t    rtcCal ;
   int16_t   x9dcalibMid ;			// X9D
   int16_t   x9dcalibSpanNeg ;	// X9D
@@ -174,6 +174,10 @@ PACK(typedef struct t_EEGeneral {
 	uint16_t sparetotalElapsedTime ;	// In case we need 32 bits
 	uint8_t		BtType ;
 	uint8_t		trainerSource ;
+	uint8_t		customStickNames[16] ;
+  int16_t   xcalibMid[3];
+  int16_t   xcalibSpanNeg[3];
+  int16_t   xcalibSpanPos[3];
 }) EEGeneral;
 
 
@@ -365,7 +369,7 @@ PACK(typedef struct te_MixData {
   uint8_t mltpx:2;           // multiplex method 0=+ 1=* 2=replace
   uint8_t lateOffset:1;      // Add offset later
   uint8_t mixWarn:2;         // mixer warning
-  uint8_t enableFmTrim:1;
+  uint8_t disableExpoDr:1;
   uint8_t differential:1 ;
   int8_t  sOffset;
 	uint8_t modeControl ;
@@ -514,7 +518,7 @@ PACK(typedef struct te_ModelData {
   uint8_t   thrExpo:1;            // Enable Throttle Expo
 	uint8_t   frskyComPort:1 ;
 	uint8_t		DsmTelemetry:1 ;
-	uint8_t   spareBit:1 ;
+	uint8_t   useCustomStickNames:1 ;
   int8_t    trimInc;          // Trim Increments
   int8_t    ppmDelay;
   int8_t    trimSw;
@@ -598,8 +602,16 @@ PACK(typedef struct te_ModelData {
 	uint8_t telemetryProtocol ;
 	uint8_t com2Function:4 ;
 	uint8_t com3Function:4 ;	// Bluetooth or telemetry
-	uint8_t telemetryBaudrate ;	// May be useful
-
+	uint8_t telemetryBaudrate:4 ;	// May be useful
+	uint8_t com2Baudrate:4 ;
+	uint8_t throttleSource:3 ;
+	uint8_t throttleIdle:2 ;
+	uint8_t thrSpare:3 ;
+	uint8_t BTfunction ;
+	uint32_t totalTime ;
+  uint16_t xmodelswitchWarningStates ;	// Enough bits for Taranis X9E
+  uint8_t ymodelswitchWarningStates ;	// Enough bits for Taranis X9E
+	uint8_t customDisplay2Index[6] ;
 }) SKYModelData;
 
 

@@ -236,10 +236,13 @@ static void lowLevelUsbCheck( void )
 		{
 			initReadTrims() ;
 			Breason = 1 ;
-			return ;
-//  		PMC->PMC_PCDR0 = (1<<ID_PIOC)	;	// Disable clock to PIOC
-//			dispUSB() ;
-//			sam_bootx() ;
+			if ( ( PIOC->PIO_PDSR & 0x00000100 ) == 0 )	// if ( !readTrainerSwitch() )
+			{
+				return ;
+			}
+  		PMC->PMC_PCDR0 = (1<<ID_PIOC)	;	// Disable clock to PIOC
+			dispUSB() ;
+			sam_bootx() ;
 		}
 	}
 

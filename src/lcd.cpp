@@ -23,7 +23,9 @@
 #include <string.h>
 
 #ifdef PCBSKY
-#include "AT91SAM3S4.h"
+ #ifndef PCBDUE
+ #include "AT91SAM3S4.h"
+ #endif
 #endif
 #include "ersky9x.h"
 #include "myeeprom.h"
@@ -79,6 +81,7 @@ uint8_t DisplayBuf[DISPLAY_W*DISPLAY_H/8] ;
 #define DISPLAY_START (DisplayBuf + 0)
 #endif 
 
+#ifndef PCBDUE
 #ifdef PCBSKY
 // Lookup table for prototype board
 #ifdef REVB
@@ -104,7 +107,7 @@ const uint8_t Lcd_lookup[] =
 } ;
 #endif 
 #endif 
-
+#endif // DUE
 
 void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
 {
@@ -365,7 +368,18 @@ uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode )
 	{
     char c = *s++ ;
     if(!c) break ;
-    x = lcd_putcAtt(x,y,c,mode) ;
+		if ( c == 31 )
+		{
+			if ( (y += FH) >= DISPLAY_H )	// Screen height
+			{
+				break ;
+			}	
+			x = 0 ;
+		}
+		else
+		{
+    	x = lcd_putcAtt(x,y,c,mode) ;
+		}
 //    x+=FW ;
 //		if ((size)&& (c!=0x2E)) x+=FW ; //check for decimal point
   }
@@ -374,6 +388,21 @@ uint8_t lcd_putsAtt( uint8_t x, uint8_t y, const char *s, uint8_t mode )
 
 void lcd_puts_Pleft( uint8_t y, const char *s )
 {
+  lcd_putsAtt( 0, y, s, 0);
+}
+
+// This routine skips 'skip' strings, then displays the rest
+void lcd_puts_Pskip(uint8_t y,const char * s, uint8_t skip)
+{
+	while ( skip )
+	{
+    char c = *s++ ;
+    if(!c) return ;
+		if ( c == 31 )
+		{
+			skip -= 1 ;
+		}
+	}
   lcd_putsAtt( 0, y, s, 0);
 }
 
@@ -783,9 +812,10 @@ void lcd_clear()
   //for(unsigned i=0; i<sizeof(displayBuf); i++) displayBuf[i]=0;
   memset( DisplayBuf, 0, sizeof( DisplayBuf) ) ;
 #if PCBX9D
+#ifndef REV9E
 	lcd_img( 212-X9D_OFFSET, 0, arrows, 0, 0 ) ;
 	lcd_img( 212-X9D_OFFSET-10, 0, arrows, 1, 0 ) ;
-
+#endif	// nREV9E
 	putsTime( 140, 1*FH, Time.hour*60+Time.minute, 0, 0 ) ;
 	lcd_img( 130, 2*FH, speaker, 0, 0 ) ;
 extern uint8_t CurrentVolume ;
@@ -797,6 +827,13 @@ extern uint8_t CurrentVolume ;
 //	lcd_outhex4( 212-X9D_OFFSET+12, 24, GPIOD->IDR ) ;
 //	lcd_outhex4( 212-X9D_OFFSET+12, 32, GPIOE->IDR ) ;
 
+//#ifdef REV9E
+//// Debug
+//	lcd_outhex4( 212-X9D_OFFSET, 0, Analog_values[NUMBER_ANALOG] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 8, Analog_values[NUMBER_ANALOG+1] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 16, Analog_values[NUMBER_ANALOG+2] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 24, Analog_values[NUMBER_ANALOG-2] ) ;
+//#endif	// REV9E
 #endif // PCBX9D
 }
 
@@ -832,6 +869,7 @@ uint8_t LcdInputs ;
 
 
 
+#ifndef PCBDUE
 #ifdef PCBSKY
 
 const static uint8_t Lcdinit[] =
@@ -1136,7 +1174,8 @@ void refreshDisplay()
 
 }
 
+#endif // SIMU
 #endif // PCBSKY
-#endif // PCBSKY
+#endif // PCBDUE
 
 

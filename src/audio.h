@@ -29,7 +29,9 @@
 #define BEEP_OFFSET        (10)
 #define BEEP_KEY_UP_FREQ   (BEEP_DEFAULT_FREQ+5)
 #define BEEP_KEY_DOWN_FREQ (BEEP_DEFAULT_FREQ-5)
-#define HAPTIC_SPINUP (20) //time haptic runs for to ensure motor starts up!
+
+#define HAPTIC_SPINUP (25) //time haptic runs for to ensure motor starts up!
+#define HAPTIC_QUEUE_LENGTH  4
 
 
 /* the audio selection menu in the system config page */
@@ -107,7 +109,6 @@ class audioQueue
 
 
 
-
 //inline void driver() {
 //  if (toneTimeLeft > 0) {	
 //					switch (g_eeGeneral.speakerMode){					
@@ -151,6 +152,11 @@ class audioQueue
     uint8_t t_queueRidx;
     uint8_t t_queueWidx;
 
+    uint8_t t_hapticQueueRidx ;
+    uint8_t t_hapticQueueWidx ;
+  	uint8_t buzzTimeLeft ;
+  	uint8_t buzzPause ;
+
     uint8_t toneFreq;
     int8_t toneFreqIncr;
     uint8_t toneTimeLeft;
@@ -164,10 +170,14 @@ class audioQueue
     uint8_t queueTonePause[AUDIO_QUEUE_LENGTH];
     uint8_t queueToneRepeat[AUDIO_QUEUE_LENGTH];
 
+    uint8_t queueHapticLength[HAPTIC_QUEUE_LENGTH];
+    uint8_t queueHapticPause[HAPTIC_QUEUE_LENGTH];
+    uint8_t queueHapticRepeat[HAPTIC_QUEUE_LENGTH];
+
     uint8_t hapticMinRun;
-    uint8_t toneHaptic;
-    uint8_t hapticTick;
-    uint8_t queueToneHaptic[AUDIO_QUEUE_LENGTH];
+//    uint8_t toneHaptic;
+//    uint8_t hapticTick;
+//    uint8_t queueToneHaptic[AUDIO_QUEUE_LENGTH];
 	 // uint8_t toneCounter;
 
 };

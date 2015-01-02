@@ -245,6 +245,7 @@ void init_dac()
 	DAC->SR = DAC_SR_DMAUDR1 ;		// Write 1 to clear flag
 	DAC->CR = DAC_CR_TEN1 | DAC_CR_EN1 ;			// Enable DAC
 	NVIC_SetPriority( DMA1_Stream5_IRQn, 2 ) ; // Lower priority interrupt
+	NVIC_SetPriority( TIM6_DAC_IRQn, 2 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(TIM6_DAC_IRQn) ;
 	NVIC_EnableIRQ(DMA1_Stream5_IRQn) ;
 }
@@ -534,11 +535,46 @@ void appendVoice( uint32_t index )		// index of next buffer
 	}
 }
 
+#ifdef REV9E
+static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
+{
+	 0,  1,  2,   3,   4,  5,  6,  8,  10,  12,  14,  16,
+	18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 35 	
+} ;
+#else
 static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
 {
 	 0,  2,  4,   6,   8,  10,  13,  17,  22,  27,  33,  40,
 	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
 } ;
+#endif	// REV9E
+
+uint8_t ExternalBits ;
+//uint8_t I2CsendBuffer[2] ;
+
+// bit is 0 to 3 for coprocessor
+void setExternalOutput( uint8_t bit, uint8_t value )
+{
+	uint8_t oldValue = ExternalBits ;
+	if ( value )
+	{
+		ExternalBits |= 1 << bit ;
+	}
+	else
+	{
+		ExternalBits &= ~(1 << bit) ;
+	}
+	if ( ExternalBits != oldValue )
+	{
+//#ifdef PCBSKY
+// #ifndef REVX
+//		I2CsendBuffer[0] = 0x75 ;
+//		I2CsendBuffer[1] = ExternalBits ;
+//		write_coprocessor( (uint8_t *) &I2CsendBuffer, 2 ) ;
+// #endif
+//#endif
+	}
+}
 
 
 void setVolume( register uint8_t volume )

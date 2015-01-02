@@ -42,7 +42,7 @@
 #include "ersky9x.h"
 #include "templates.h"
 #include "myeeprom.h"
-#include "Stringidx.h"
+#include "stringidx.h"
 
 //static const char string_1[] = "Simple 4-CH";
 //static const char string_2[] = "T-Cut";
@@ -141,28 +141,36 @@ void applyTemplate(uint8_t idx)
     if(idx==j++) 
     {
         clearMixes();
-        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD);
-        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE);
-        md=setDest(ICC(STK_THR));  md->srcRaw=CM(STK_THR);
-        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_AIL);
+        md=setDest(ICC(STK_RUD));  md->srcRaw=CM(STK_RUD); md->lateOffset = 1 ;
+        md=setDest(ICC(STK_ELE));  md->srcRaw=CM(STK_ELE); md->lateOffset = 1 ;
+        md=setDest(ICC(STK_THR));  md->srcRaw=CM(STK_THR); md->lateOffset = 1 ;
+        md=setDest(ICC(STK_AIL));  md->srcRaw=CM(STK_AIL); md->lateOffset = 1 ;
     }
 
     //T-Cut
     if(idx==j++)
     {
-        md=setDest(ICC(STK_THR));  md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
+//        md=setDest(ICC(STK_THR));  md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
+    	SKYSafetySwData *sd = &g_model.safetySw[ICC(STK_THR)-1] ;
+			sd->opt.ss.mode = 0 ;
+			sd->opt.ss.swtch = DSW_THR ;
+			sd->opt.ss.val = -100 ;
     }
 
     //sticky t-cut
     if(idx==j++)
     {
-        md=setDest(ICC(STK_THR));  md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWC;  md->mltpx=MLTPX_REP;
-        md=setDest(14);            md->srcRaw=CH(14);
-        md=setDest(14);            md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWB;  md->mltpx=MLTPX_REP;
-        md=setDest(14);            md->srcRaw=MIX_MAX;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
+//        md=setDest(ICC(STK_THR));  md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWC;  md->mltpx=MLTPX_REP;
+//        md=setDest(14);            md->srcRaw=CH(14);
+//        md=setDest(14);            md->srcRaw=MIX_MAX;  md->weight=-100;  md->swtch=DSW_SWB;  md->mltpx=MLTPX_REP;
+//        md=setDest(14);            md->srcRaw=MIX_MAX;  md->swtch=DSW_THR;  md->mltpx=MLTPX_REP;
 
-        setSwitch(0xB,CS_VNEG, CM(STK_THR), -99);
-        setSwitch(0xC,CS_VPOS, CH(14), 0);
+//        setSwitch(0xB,CS_VNEG, CM(STK_THR), -99);
+//        setSwitch(0xC,CS_VPOS, CH(14), 0);
+    	SKYSafetySwData *sd = &g_model.safetySw[ICC(STK_THR)-1] ;
+			sd->opt.ss.mode = 3 ;
+			sd->opt.ss.swtch = DSW_THR ;
+			sd->opt.ss.val = -100 ;
     }
 
     //V-Tail

@@ -202,7 +202,7 @@ extern uint32_t sdMounted( void ) ;
 	{
 		f_puts(",Fades,Holds", &g_oLogFile) ;
 	}
-  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH,TxBat,Vspd,RxV,Lat,Long,Fuel,SC1\n", &g_oLogFile);
+  f_puts(",A1,A2,AltB,AltG,Temp1,Temp2,RPM,Amps,Volts,mAH,TxBat,Vspd,RxV,Lat,Long,Fuel,Gspd,SC1,SC2,SC3,SC4,SC5,SC6,SC7,SC8\n", &g_oLogFile);
 
   return NULL ;
 }
@@ -296,26 +296,30 @@ void writeLogs()
 			qr = div( value, 10);
 			f_printf(&g_oLogFile, "%d.%d,", qr.quot, qr.rem ) ;
 			f_printf(&g_oLogFile, "%d.%04d%c,%d.%04d%c,", FrskyHubData[FR_GPS_LAT],FrskyHubData[FR_GPS_LATd],FrskyHubData[FR_LAT_N_S],FrskyHubData[FR_GPS_LONG],FrskyHubData[FR_GPS_LONGd],FrskyHubData[FR_LONG_E_W] ) ;
-			f_printf(&g_oLogFile, "%d,", FrskyHubData[FR_FUEL] ) ;
+			f_printf(&g_oLogFile, "%d,%d,", FrskyHubData[FR_FUEL],FrskyHubData[FR_GPS_SPEED] ) ;
 
-			//SC1
-			uint8_t unit = 0 ;
-			uint8_t num_decimals = 0 ;
-			value = calc_scaler( 0, &unit, &num_decimals ) ;
-			if ( num_decimals == 0 )
+			//SC1-8
+			uint32_t i ;
+			for ( i = 0 ; i < NUM_SCALERS ; i += 1 )
 			{
-				num_decimals = 1 ;
+				uint8_t unit = 0 ;
+				uint8_t num_decimals = 0 ;
+				value = calc_scaler( i, &unit, &num_decimals ) ;
+				if ( num_decimals == 0 )
+				{
+					num_decimals = 1 ;
+				}
+				else if ( num_decimals == 1 )
+				{
+					num_decimals = 10 ;
+				}
+				else
+				{
+					num_decimals = 100 ;
+				}
+				qr = div( value, num_decimals ) ;
+				f_printf(&g_oLogFile, (i==NUM_SCALERS-1) ? "%d.%d\n" : "%d.%d,", qr.quot, qr.rem ) ;
 			}
-			else if ( num_decimals == 1 )
-			{
-				num_decimals = 10 ;
-			}
-			else
-			{
-				num_decimals = 100 ;
-			}
-			qr = div( value, num_decimals ) ;
-			f_printf(&g_oLogFile, "%d.%d\n", qr.quot, qr.rem ) ;
 
 //FR_GPS_SPEED,
 //FR_FUEL, FR_A1_MAH, FR_A2_MAH, FR_CELL_MIN,

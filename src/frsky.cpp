@@ -98,6 +98,8 @@ const uint8_t Fr_indices[] =
 	HUBDATALENGTH-1		// 44
 } ;
 
+uint8_t TmOK ;
+
 uint8_t AltitudeDecimals ;
 int16_t WholeAltitude ;
 
@@ -141,6 +143,7 @@ uint8_t FrskyBattCells=0;
 uint16_t Frsky_Amp_hour_prescale ;
 
 uint8_t TelemetryType ;
+uint8_t SportStreamingStarted ;
 
 #ifdef REVX
 uint8_t JetiTxReady ;
@@ -746,6 +749,14 @@ void processFrskyPacket(uint8_t *packet)
 //===============================================================
 
 uint8_t DsmDebug[18] ;
+uint8_t DsmControlDebug[18] ;
+uint16_t DsmControlCounter ;
+uint16_t DsmDbgCounters[18] ;
+extern uint8_t DsmFrameRequired ;
+uint16_t TelemetryDebug ;
+uint16_t TelemetryDebug1 ;
+uint16_t TelemetryDebug2 ;
+
 
 void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 {
@@ -758,7 +769,22 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 		
    	frskyUsrStreaming = FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid packets are being detected
   	frskyStreaming = FRSKY_TIMEOUT10ms; // reset counter only if valid packets are being detected
+
 		
+		// Debug code
+		if ( *packet == DsmFrameRequired )
+		{
+			uint8_t *p = packet ;
+			uint8_t i ;
+			DsmDebug[0] = byteCount ;
+			for ( i = 1 ; i < 17 ; i += 1 )
+			{
+				DsmDebug[i] = *p++ ;
+			}
+			TelemetryDebug2 += 1 ;
+		}
+		// End debug code
+		 
 		ivalue = (int16_t) ( (packet[2] << 8 ) | packet[3] ) ;
 		// Telemetry
     frskyTelemetry[2].set(type, FR_RXRSI_COPY );	// RSSI
@@ -767,28 +793,34 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 			case DSM_ALT :
 	//2[02] Altitude MSB (Hex)
 	//3[03] Altitude LSB (Hex) 16bit signed integer, in 0.1m
+				DsmDbgCounters[0] += 1 ;
 				FrskyHubData[FR_ALT_BARO] = ivalue ;
 			break ;
 		
 			case DSM_AMPS :
 	//2 [02] MSB (Hex) //16bit signed integer
 	//3 [03] LSB (Hex) //In 0.196791A
+				DsmDbgCounters[1] += 1 ;
 				ivalue *= 2015 ;
 				ivalue /= 1024 ;
-				FrskyHubData[FR_CURRENT] = ivalue ;
+				store_hub_data( FR_CURRENT, ivalue ) ;	// Handles FAS Offset
+//				FrskyHubData[FR_CURRENT] = ivalue ;
 			break ;
 
 			case DSM_PBOX :
+				DsmDbgCounters[2] += 1 ;
 				FrskyHubData[FR_VOLTS] = (uint16_t)ivalue / 10 ;
 				ivalue = (int16_t) ( (packet[6] << 8 ) | packet[7] ) ;
  				FrskyHubData[FR_AMP_MAH] = ivalue ;
 			break ;
 
 			case DSM_AIRSPEED :
+				DsmDbgCounters[3] += 1 ;
 				// airspeed in km/h
 			break ;
 
 			case DSM_GFORCE :
+				DsmDbgCounters[4] += 1 ;
 				// check units (0.01G)
 				FrskyHubData[FR_ACCX] = ivalue ;
 				ivalue = (int16_t) ( (packet[4] << 8 ) | packet[5] ) ;
@@ -799,6 +831,7 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 			
 			case DSM_VTEMP1 :
 			case DSM_VTEMP2 :
+				DsmDbgCounters[5] += 1 ;
 				// RPM
 				if ( (uint16_t)ivalue == 0xFFFF )
 				{
@@ -820,17 +853,7 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 
 			case DSM_STAT1 :
 			case DSM_STAT2 :
-				
-//		// Debug code
-//	uint8_t *p = packet ;
-//		uint8_t i ;
-//		DsmDebug[0] = byteCount ;
-//		for ( i = 1 ; i < 17 ; i += 1 )
-//		{
-//			DsmDebug[i] = *p++ ;
-//		}
-//		DsmDebug[17] += 1 ;
-//		// End debug code
+				DsmDbgCounters[6] += 1 ;
 				
 				DsmABLRFH[0] = ivalue + 1 ;
 				ivalue = (int16_t) ( (packet[4] << 8 ) | packet[5] ) ;
@@ -844,10 +867,17 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				ivalue = (int16_t) ( (packet[12] << 8 ) | packet[13] ) ;
 				DsmABLRFH[5] = ivalue + 1 ;
 				ivalue = (int16_t) ( (packet[14] << 8 ) | packet[15] ) ;
-				uint32_t x = (uint16_t)ivalue ;
-				x *= 128 ;
-				x /= 717 ;		// was 1155 ;
-				store_hub_data( FR_RXV, x ) ;
+				{
+					uint32_t x = (uint16_t)ivalue ;
+					x *= 128 ;
+					x /= 717 ;		// was 1155 ;
+					store_hub_data( FR_RXV, x ) ;
+				}
+			break ;
+
+			default :
+				DsmDbgCounters[7] += 1 ;
+				DsmDebug[17] = *packet ;
 			break ;
 		}
 	}
@@ -856,15 +886,29 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 		dsmBindResponse( *packet, *(packet+2) ) ;
 		// Debug code
 		uint8_t i ;
-		DsmDebug[0] = byteCount ;
+		DsmControlDebug[0] = byteCount ;
 		for ( i = 1 ; i < 17 ; i += 1 )
 		{
-			DsmDebug[i] = *packet++ ;
+			DsmControlDebug[i] = *packet++ ;
 		}
+		DsmControlCounter += 1 ;
 		// End debug code
 	}
 	else if ( type == 0xFF )
 	{
+		// Debug code
+		{	
+			uint8_t i ;
+			uint8_t *p = packet ;
+			DsmControlDebug[0] = byteCount ;
+			for ( i = 1 ; i < 17 ; i += 1 )
+			{
+				DsmControlDebug[i] = *p++ ;
+			}
+		}
+		DsmControlCounter += 1 ;
+		// End debug code
+		
 		DsmManCode[0] = *packet++ ;
 		DsmManCode[1] = *packet++ ;
 		DsmManCode[2] = *packet++ ;
@@ -917,9 +961,17 @@ void processSportPacket()
 			uint8_t value = packet[4] ;
 			if ( packet[2] != 5 )	// Anything except SWR
 			{
-				if ( !( ( packet[2] == 1 ) && ( value == 0 ) ) )
+				if ( SportStreamingStarted )
 				{
 					frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
+				}
+				else
+				{
+					if ( !( ( packet[2] == 1 ) && ( value == 0 ) ) )
+					{
+						SportStreamingStarted = 1 ;
+						frskyStreaming = FRSKY_TIMEOUT10ms * 3 ; // reset counter only if valid frsky packets are being detected
+					}
 				}
 			}
 			switch ( packet[2] )
@@ -1108,7 +1160,7 @@ void processSportPacket()
 
 void frsky_receive_byte( uint8_t data )
 {
-	
+	TelemetryDebug += 1 ;
 #ifdef PCBSKY
 	if ( g_model.bt_telemetry )
 	{
@@ -1141,7 +1193,14 @@ void frsky_receive_byte( uint8_t data )
 
       case frskyDataInFrame:
         if (numbytes < 19)
+				{
 	        frskyRxBuffer[numbytes++] = data ;
+					if ( numbytes >= 18 )
+					{
+						processDsmPacket( frskyRxBuffer, numbytes ) ;
+						numbytes = 0 ;
+					}
+				}
       break ;
 		}
 	}
@@ -1449,6 +1508,7 @@ void telemetry_init( uint8_t telemetryType )
 			g_model.telemetryRxInvert = 1 ;
 			setMFP() ;
 			USART0->US_IER = US_IER_RXRDY ;
+			NVIC_SetPriority( USART0_IRQn, 4 ) ; // Lower priority interrupt
 			NVIC_EnableIRQ(USART0_IRQn) ;
 		  memset(frskyAlarms, 0, sizeof(frskyAlarms));
 		  resetTelemetry();
@@ -1494,7 +1554,7 @@ void FRSKY_Init( uint8_t brate )
 	FrskyComPort = g_model.frskyComPort ;
 	FrskyTelemetryType = brate ;
 
-	if ( g_model.com2Function == 1 )
+	if ( ( g_model.com2Function == COM2_FUNC_SBUSTRAIN ) || ( g_model.com2Function == COM2_FUNC_SBUS57600 ) )
 	{
 		if ( g_model.frskyComPort == 1 )
 		{
@@ -1558,6 +1618,9 @@ void FRSKY_Init( uint8_t brate )
 //			UART_Configure( 115200, Master_frequency ) ;
 //		}
 	}
+#else
+		FrskyComPort = g_model.frskyComPort = 0 ;
+		init_software_com1( 115200, 1 ) ;
 #endif
   // clear frsky variables
 #endif
@@ -1664,13 +1727,8 @@ uint16_t Debug_frsky3 ;
 
 void (*TelemetryReceiver)(uint8_t x) = frsky_receive_byte ;
 
-// Called every 10 mS in interrupt routine
-void check_frsky()
+uint8_t decodeTelemetryType( uint8_t telemetryType )
 {
-  // Used to detect presence of valid FrSky telemetry packets inside the
-  // last FRSKY_TIMEOUT10ms 10ms intervals
-//Debug_frsky1 += 1 ;
-	uint8_t telemetryType = g_model.telemetryProtocol ;
 	uint8_t type = TEL_FRSKY_HUB ;
 
 #ifdef PCBSKY
@@ -1679,6 +1737,7 @@ void check_frsky()
 		type = TEL_FRSKY_SPORT ;
 	}
 #endif
+
 #ifdef PCBX9D
 	telemetryType = g_model.protocol == PROTO_PXX ;
 	if ( g_model.protocol == PROTO_OFF )
@@ -1687,12 +1746,13 @@ void check_frsky()
 	}
 #endif
 
-#ifdef REVX
+#ifdef PCBSKY
 	if ( (g_model.protocol == PROTO_DSM2) && ( g_model.sub_protocol == DSM_9XR ) )
 	{
 		type = TEL_DSM ;
 	}
 #endif
+	
 	switch ( telemetryType )
 	{
 		case TELEMETRY_JETI :
@@ -1703,6 +1763,20 @@ void check_frsky()
 		break ;
 	}
 	Debug_frsky1 = type ;
+	return type ;
+}
+
+// Called every 10 mS in interrupt routine
+void check_frsky()
+{
+  // Used to detect presence of valid FrSky telemetry packets inside the
+  // last FRSKY_TIMEOUT10ms 10ms intervals
+//Debug_frsky1 += 1 ;
+	uint8_t telemetryType = g_model.telemetryProtocol ;
+	uint8_t type ;
+
+	type = decodeTelemetryType( telemetryType ) ;
+
 #ifdef PCBSKY
 	if ( ( type != TelemetryType )
 			 || ( FrskyComPort != g_model.frskyComPort ) )
@@ -1715,7 +1789,6 @@ void check_frsky()
 	}
 
 #ifdef PCBSKY
-
 #ifdef REVX
 	if ( TelemetryType == TEL_JETI )
 	{
@@ -1752,7 +1825,22 @@ void check_frsky()
 
 		if ( g_model.frskyComPort == 0 )
 		{
+#ifndef REVX
+			if ( CaptureMode == CAP_COM1 )
+			{
+				uint16_t rxchar ;
+				while ( ( rxchar = get_fifo64( &CaptureRx_fifo ) ) != 0xFFFF )
+				{
+					TelemetryReceiver( rxchar ) ;
+				}
+			}
+			else
+			{
+				rxPdcUsart( TelemetryReceiver ) ;		// Send serial data here
+			}
+#else			 
 			rxPdcUsart( TelemetryReceiver ) ;		// Send serial data here
+#endif
 		}
 		else
 		{
@@ -1769,14 +1857,14 @@ void check_frsky()
 #endif // PCBSKY
 
 #ifdef REVX
-	if ( telemetryType == 2)		// DSM telemetry
-	{
-		if ( DsmRxTimeout )
-		{
-			DsmRxTimeout = 0 ;
-			processDsmPacket( frskyRxBuffer, numPktBytes ) ;
-		}
-	}
+//	if ( telemetryType == TELEMETRY_DSM)		// DSM telemetry
+//	{
+//		if ( DsmRxTimeout )
+//		{
+//			DsmRxTimeout = 0 ;
+//			processDsmPacket( frskyRxBuffer, numPktBytes ) ;
+//		}
+//	}
 #endif
 
 #ifdef PCBX9D
@@ -1807,6 +1895,7 @@ void check_frsky()
 	}
 #endif
 	 
+	uint8_t lTmOK ;
 	if (frskyStreaming > 0)
 	{
 		if ( --frskyStreaming == 0 )
@@ -1821,8 +1910,21 @@ void check_frsky()
 			putSystemVoice( SV_NO_TELEM, V_NOTELEM ) ;
 //			putVoiceQueue( V_NOTELEM ) ;
 		}
+		lTmOK = 1 ;
 	}
-  if (frskyUsrStreaming > 0) frskyUsrStreaming--;
+	else
+	{
+		lTmOK = 0 ;
+	}
+  if (frskyUsrStreaming > 0)
+	{
+		if ( lTmOK )
+		{
+			lTmOK = 2 ;
+		}
+		frskyUsrStreaming--;
+	}
+	TmOK = lTmOK ;
 	
   if ( FrskyAlarmSendState )
   {
@@ -2000,127 +2102,156 @@ void process_frsky_q()
 //  GpsPosLat = (((uint32_t)(uint16_t)FrskyHubData[FR_GPS_LAT] / 100) * 1000000) + (((uint32_t)((uint16_t)FrskyHubData[FR_GPS_LAT] % 100) * 10000 + (uint16_t)FrskyHubData[FR_GPS_LATd]) * 5) / 3;
 //}
 
-uint16_t logAxScale( uint8_t channel, uint8_t *dps )
-{
-	uint16_t val ;
-	*dps = 0 ;
-	val = FrskyHubData[channel ? FR_A2_COPY : FR_A1_COPY] ;
-	uint8_t ltype = g_model.frsky.channels[channel].type ;
-	val = scale_telem_value( val, channel, (ltype == 2/*V*/), dps ) ;
-	if ( *dps )
-	{
-		*dps = (*dps == PREC1) ? 10 : 100 ; 
-	}
-	else
-	{
-		*dps = 1 ;
-	}
-	return val ; 
-}
+uint8_t Unit ;
 
-
-uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att )
+int16_t scale_telem_value( int16_t val, uint8_t channel, uint8_t *dplaces )
 {
-  uint32_t value ;
-	uint16_t ratio ;
+	int32_t value ;
+  uint8_t unit = 'v' ;
+	uint8_t places = 1 ;
 	
-  value = val ;
-  ratio = g_model.frsky.channels[channel].ratio ;
-  if ( times2 )
-  {
+	value = val ;
+	uint8_t ltype = g_model.frsky.channels[channel].type ;
+	uint16_t ratio = g_model.frsky.channels[channel].ratio ;
+	if (ltype == 2/*V*/)	// times 2
+	{
     ratio <<= 1 ;
-  }
+	}
   value *= ratio ;
-	if (g_model.frsky.channels[channel].type == 3/*A*/)
+	if (ltype == 3/*A*/)
   {
+		unit = 'A' ;
     value /= 100 ;
-    *p_att |= PREC1 ;
   }
   else if ( ratio < 100 )
   {
     value *= 2 ;
     value /= 51 ;  // Same as *10 /255 but without overflow
-    *p_att |= PREC2 ;
+		places = 2 ;
   }
   else
   {
     value /= 255 ;
-    *p_att |= PREC1 ;
   }
+	if ( ltype == 1 )
+	{
+		unit = ' ' ;
+  	places = 0 ;
+	}
+	if ( dplaces )
+	{
+  	*dplaces = places ;
+	}
+	Unit = unit ;
 	return value ;
 }
 
-
-uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att, uint8_t scale)
+// Scales A1 and/or A2 and sets dplaces to 1 or 2
+uint16_t A1A2toScaledValue( uint8_t channel, uint8_t *dplaces )
 {
-    uint32_t value ;
+	uint8_t val = FrskyHubData[channel ? FR_A2_COPY : FR_A1_COPY] ;
+	return scale_telem_value( val, channel, dplaces ) ;
+}
+
+uint16_t logAxScale( uint8_t channel, uint8_t *dps )
+{
+	uint16_t val ;
+	val = A1A2toScaledValue( channel, dps ) ;
+	*dps = (*dps) ? 10 : 100 ; 
+	return val ; 
+}
+
+//uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att )
+//{
+//  uint32_t value ;
+//	uint16_t ratio ;
+	
+//  value = val ;
+//  ratio = g_model.frsky.channels[channel].ratio ;
+//  if ( times2 )
+//  {
+//    ratio <<= 1 ;
+//  }
+//  value *= ratio ;
+//	if (g_model.frsky.channels[channel].type == 3/*A*/)
+//  {
+//    value /= 100 ;
+//    *p_att |= PREC1 ;
+//  }
+//  else if ( ratio < 100 )
+//  {
+//    value *= 2 ;
+//    value /= 51 ;  // Same as *10 /255 but without overflow
+//    *p_att |= PREC2 ;
+//  }
+//  else
+//  {
+//    value /= 255 ;
+//    *p_att |= PREC1 ;
+//  }
+//	return value ;
+//}
+
+
+uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att )
+{
+    int32_t value ;
     //  uint8_t ratio ;
-    uint16_t ratio ;
-    uint8_t times2 ;
+    uint8_t dplaces ;
+//    uint8_t times2 ;
     uint8_t unit = ' ' ;
+    
+//		uint8_t ltype = g_model.frsky.channels[channel].type ;
 
-    value = val ;
-    if (g_model.frsky.channels[channel].type == 2/*V*/)
-    {
-        times2 = 1 ;
-    }
-    else
-    {
-        times2 = 0 ;
-    }
+//    if ( scale )
+//		{
+//			value = valuetoScaledValue( val, channel, &dplaces ) ;
+//		}
 
-    if ( scale )
+		value = scale_telem_value( val, channel, &dplaces ) ;
+		if ( dplaces == 1 )
+		{
+			att |= PREC1 ;
+		}
+		else if ( dplaces == 2 )
+		{
+			att |= PREC2 ;
+		}
+//        ratio = g_model.frsky.channels[channel].ratio ;
+//        if ( times2 )
+//        {
+//            ratio <<= 1 ;
+//        }
+//        value *= ratio ;
+//		  	if (g_model.frsky.channels[channel].type == 3/*A*/)
+//        {
+//            value /= 100 ;
+//            att |= PREC1 ;
+//        }
+//        else if ( ratio < 100 )
+//        {
+//            value *= 2 ;
+//            value /= 51 ;  // Same as *10 /255 but without overflow
+//            att |= PREC2 ;
+//        }
+//        else
+//        {
+//            value /= 255 ;
+//        }
+    if ( Unit == 'v' ) //ltype == 0/*v*/) || (ltype == 2/*v*/) )
+//    if ( ( ltype == 0/*v*/) || ( ltype == 2/*v*/) )
     {
-        ratio = g_model.frsky.channels[channel].ratio ;
-        if ( times2 )
-        {
-            ratio <<= 1 ;
-        }
-        value *= ratio ;
-  	if (g_model.frsky.channels[channel].type == 3/*A*/)
-        {
-            value /= 100 ;
-            att |= PREC1 ;
-        }
-        else if ( ratio < 100 )
-        {
-            value *= 2 ;
-            value /= 51 ;  // Same as *10 /255 but without overflow
-            att |= PREC2 ;
-        }
-        else
-        {
-            value /= 255 ;
-        }
-    }
-    else
-    {
-        if ( times2 )
-        {
-            value <<= 1 ;
-        }
-  	if (g_model.frsky.channels[channel].type == 3/*A*/)
-        {
-            value *= 255 ;
-            value /= 100 ;
-            att |= PREC1 ;
-        }
-    }
-    //              val = (uint16_t)staticTelemetry[i]*g_model.frsky.channels[i].ratio / 255;
-    //              putsTelemetry(x0-2, 2*FH, val, g_model.frsky.channels[i].type, blink|DBLSIZE|LEFT);
-    //  if (g_model.frsky.channels[channel].type == 0/*v*/)
-    if ( (g_model.frsky.channels[channel].type == 0/*v*/) || (g_model.frsky.channels[channel].type == 2/*v*/) )
-    {
-      lcd_outdezNAtt(x, y, value, att|PREC1, 5) ;
-			unit = 'v' ;
+      lcd_outdezNAtt(x, y, value, att, 5) ;
+//			unit = 'v' ;
       if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
     }
     else
     {
       lcd_outdezAtt(x, y, value, att);
-	    if (g_model.frsky.channels[channel].type == 3/*A*/)
+	    if ( Unit == 'A')
+//	    if ( ltype == 3/*A*/)
 			{
-					unit = 'A' ;
+//					unit = 'A' ;
        	if(!(att&NO_UNIT)) lcd_putcAtt(Lcd_lastPos, y, unit, att);
 			}
     }

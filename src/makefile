@@ -30,13 +30,21 @@ ifeq ($(PCB), X9D)
  ifeq ($(REVPLUS), 1)
   OBJDIR = x9dpobj
  else
-  OBJDIR = x9dobj
+  ifeq ($(REV9E), 1)
+   OBJDIR = x9eobj
+  else
+   OBJDIR = x9dobj
+  endif
  endif
 else
- ifeq ($(REVX), 1)
-  OBJDIR = skyRobj
+ ifeq ($(PCB), DUE)
+  OBJDIR = skyDobj
  else
-  OBJDIR = skyobj
+  ifeq ($(REVX), 1)
+   OBJDIR = skyRobj
+  else
+   OBJDIR = skyobj
+  endif
  endif
 endif
 
@@ -78,15 +86,23 @@ endif
 # Define project name and Ram/Flash mode here
 ifeq ($(PCB), X9D)
  ifeq ($(REVPLUS), 1)
-PROJECT        = x9dp
+  PROJECT        = x9dp
  else
-PROJECT        = x9d
+  ifeq ($(REV9E), 1)
+   PROJECT        = x9e
+  else
+   PROJECT        = x9d
+  endif
  endif
 else
  ifeq ($(REVX), 1)
   PROJECT      = ersky9xr
  else
-  PROJECT      = ersky9x
+  ifeq ($(PCB), DUE)
+   PROJECT      = ersky9xd
+  else
+   PROJECT      = ersky9x
+  endif
  endif
 endif
 
@@ -127,12 +143,19 @@ else
 	  CPPDEFS += -DPCBX9D 
    else
     CPPDEFS += -DPCBSKY 
-    ifeq ($(REVX), 1)
-     LDSCRIPT = sam3s8c_flash.ld
-     UDEFS = -Dat91sam3s8
+    ifeq ($(PCB), DUE)
+      LDSCRIPT = due/sam3x8_flash.ld
+      UDEFS = -Dat91sam3x8
+		UDEFS  += -D__SAM3X8E__
+      CPPDEFS += -DPCBDUE 
 	 else
-     LDSCRIPT = sam3s4c_flash.ld
-     UDEFS = -Dat91sam3s4
+     ifeq ($(REVX), 1)
+      LDSCRIPT = sam3s8c_flash.ld
+      UDEFS = -Dat91sam3s8
+     else
+      LDSCRIPT = sam3s4c_flash.ld
+      UDEFS = -Dat91sam3s4
+     endif
     endif
 	endif
  endif
@@ -219,6 +242,7 @@ CPPSRC = ersky9x.cpp \
 			loadboot.cpp \
 			maintenance.cpp \
 			mavlink.cpp \
+			sbus.cpp \
 		   lcd.cpp
 
 #         gtime.cpp \
@@ -228,6 +252,33 @@ CPPSRC = ersky9x.cpp \
 
 # List ASM source files here
 ASRC = x9d/startup_stm32f2xx.s
+
+else
+
+ifeq ($(PCB), DUE)
+
+# List C source files here
+SRC  = due/startup_sam3x.c \
+       due/exceptions.c \
+       due/system_sam3x.c \
+       port.c \
+       coos.c
+
+CPPSRC = stamp.cpp \
+         due/dlogicio.cpp \
+         due/lcd_driver.cpp \
+         lcd.cpp \
+			en.cpp \
+			de.cpp \
+			no.cpp \
+			fr.cpp \
+			se.cpp \
+         debug.cpp \
+         file.cpp \
+         pers.cpp \
+         templates.cpp \
+			sbus.cpp \
+         blink.cpp
 
 else
 
@@ -273,6 +324,7 @@ CPPSRC = stamp.cpp \
 			loadboot.cpp \
 			maintenance.cpp \
 			mavlink.cpp \
+			sbus.cpp \
 			logs.cpp
 
 #         gtime.cpp \
@@ -280,6 +332,8 @@ CPPSRC = stamp.cpp \
 
 # List ASM source files here
 ASRC =
+
+endif
 
 endif
 
@@ -379,6 +433,13 @@ ifeq ($(REVPLUS), 1)
  CPPDEFS += -DREVPLUS
 endif
 
+# If Taranis X9E
+ifeq ($(REV9E), 1)
+ CPPDEFS += -DREVPLUS
+ CPPDEFS += -DREV9E
+ EXT_MOD=X9E
+endif
+
 CPPDEFS += -DFRSKY
 CPPDEFS += -DCPUARM
 
@@ -459,9 +520,11 @@ $(AOBJS) : $(OBJDIR)/%.o : %.s
 
 clean:
 	-rm -f x9dobj/*.*
+	-rm -f x9eobj/*.*
 	-rm -f x9dpobj/*.*
 	-rm -f skyobj/*.*
 	-rm -f skyRobj/*.*
+	-rm -f skyDobj/*.*
 	-rm -f $(FULL_PRJ).elf
 	-rm -f $(FULL_PRJ).map
 	-rm -f $(FULL_PRJ).hex

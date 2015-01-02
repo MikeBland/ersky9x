@@ -65,6 +65,7 @@ void init_twi( void ) ;
 void setVolume( register uint8_t volume ) ;
 extern "C" void TWI0_IRQHandler (void) ;
 void audioDefevent( uint8_t e ) ;
+void i2c_check_for_request( void ) ;
 
 
 extern uint32_t Master_frequency ;
@@ -757,6 +758,16 @@ static uint8_t TwiOperation ;
 #define TWI_WAIT_RTCSTOP	10
 #define TWI_WRITE_MFP     11
 
+// General I2C operation
+#define TWI_WRITE_ONE			12
+#define TWI_READ_ONE			13
+#define TWI_WRITE_BUFFER	14
+#define TWI_READ_BUFFER		15
+#define TWI_WRITE_COMMAND_BUFFER    16
+#define TWI_READ_COMMAND_BUFFER     17
+
+
+
 // Commands to the coprocessor bootloader/application
 #define TWI_CMD_PAGEUPDATE        	0x01	// TWI Command to program a flash page
 #define TWI_CMD_EXECUTEAPP        	0x02	// TWI Command to jump to the application program
@@ -807,6 +818,119 @@ static uint32_t toBCD( uint32_t value )
 
 #endif
 
+// General I2C operation
+//#define GENERAL_I2C_WRITE_ONE								0
+//#define GENERAL_I2C_READ_ONE                1
+//#define GENERAL_I2C_WRITE_BUFFER            2
+//#define GENERAL_I2C_READ_BUFFER             3
+//#define GENERAL_I2C_WRITE_COMMAND_BUFFER    4
+//#define GENERAL_I2C_READ_COMMAND_BUFFER     5
+
+struct t_I2C_request
+{
+	uint32_t mmr ;		// 0x00AARa00  AA=device address, a=address byte count, R=1 for read
+	uint8_t *dataBuffer ;
+	uint32_t address ;
+	uint32_t dataSize ;
+	struct t_I2C_request *next ;
+	uint8_t commandByte ;
+	uint8_t operationType ;
+	volatile uint8_t done ;
+} ;
+
+#define MMR_ADDRESS_COUNT_MASK	0x00000300
+
+struct t_I2C_request GeneralI2cRequest ;
+struct t_I2C_request LedI2cRequest ;
+struct t_I2C_request *I2cHeadPointer ;
+struct t_I2C_request *I2cTailPointer ;
+
+uint8_t I2Cdebug ;
+
+void submitI2cRequest( struct t_I2C_request *ptr )
+{
+	ptr->done = 0 ;
+	ptr->next = (struct t_I2C_request *) NULL ;
+	__disable_irq() ;
+	if ( I2cHeadPointer )
+	{
+		I2cTailPointer->next = ptr ;
+	}
+	else
+	{
+		I2cHeadPointer = ptr ;
+		I2cTailPointer = ptr ;
+	}
+	i2c_check_for_request() ;
+	__enable_irq() ;
+}
+
+uint8_t Mcp23008InitData[7] = {0, 0, 0, 0, 0, 0, 0 } ;
+uint8_t LedInitData[14] = {1, 0, 5, 5, 5, 0, 0, 0 ,0 ,0, 0xFF, 0, 0xAA, 0xAA } ;
+uint8_t LedLightData[3] ;
+
+void initLed()
+{
+	LedI2cRequest.mmr = 0x00480100 ;	// writing, 1 byte addr
+	LedI2cRequest.address = 0x80 ;
+	LedI2cRequest.dataSize = 14 ;
+	LedI2cRequest.dataBuffer = LedInitData ;
+	LedI2cRequest.operationType = TWI_WRITE_BUFFER ;
+	submitI2cRequest( &LedI2cRequest ) ;
+}
+
+void writeLed( uint8_t value )
+{
+	LedI2cRequest.mmr = 0x00480100 ;	// writing, 1 byte addr
+	LedI2cRequest.address = 0x82 ;
+	LedLightData[0] = value ;
+	LedLightData[1] = value ;
+	LedLightData[2] = value ;
+	LedI2cRequest.dataSize = 3 ;
+	LedI2cRequest.dataBuffer = LedLightData ;
+	LedI2cRequest.operationType = TWI_WRITE_BUFFER ;
+	submitI2cRequest( &LedI2cRequest ) ;
+}
+
+void readLed( uint8_t *ptrData )
+{
+	LedI2cRequest.mmr = 0x00481100 ;	// reading, 1 byte addr
+	LedI2cRequest.address = 0x80 ;
+	LedI2cRequest.dataBuffer = ptrData ;
+	LedI2cRequest.operationType = TWI_READ_ONE ;
+	submitI2cRequest( &LedI2cRequest ) ;
+}
+
+void init23008()
+{
+	GeneralI2cRequest.mmr = 0x00200100 ;	// writing, 1 byte addr
+	GeneralI2cRequest.address = 0 ;
+	GeneralI2cRequest.dataSize = 7 ;
+	GeneralI2cRequest.dataBuffer = Mcp23008InitData ;
+	Mcp23008InitData[0] = 3 ;	// 2 inputs
+	Mcp23008InitData[6] = 3 ;	// Pullups
+	GeneralI2cRequest.operationType = TWI_WRITE_BUFFER ;
+	submitI2cRequest( &GeneralI2cRequest ) ;
+}
+
+void write23008( uint8_t outputs )
+{
+	GeneralI2cRequest.mmr = 0x00200100 ;	// writing, 1 byte addr
+	GeneralI2cRequest.address = 10 ;
+	GeneralI2cRequest.commandByte = outputs ;
+	GeneralI2cRequest.operationType = TWI_WRITE_ONE ;
+	submitI2cRequest( &GeneralI2cRequest ) ;
+}
+
+void read23008( uint8_t *ptrData )
+{
+	GeneralI2cRequest.mmr = 0x00201100 ;	// reading, 1 byte addr
+	GeneralI2cRequest.address = 9 ;
+	GeneralI2cRequest.dataBuffer = ptrData ;
+	GeneralI2cRequest.operationType = TWI_READ_ONE ;
+	submitI2cRequest( &GeneralI2cRequest ) ;
+}
+
 // This is called from an interrupt routine, or
 // interrupts must be disabled while it is called
 // from elsewhere.
@@ -816,7 +940,58 @@ void i2c_check_for_request()
 	{
 		return ;		// Busy
 	}
-	
+//#if 0
+
+	if ( I2cHeadPointer )
+	{
+		TWI0->TWI_MMR = I2cHeadPointer->mmr ;
+		TWI0->TWI_IADR = I2cHeadPointer->address ;
+
+		if ( I2cHeadPointer->operationType == TWI_WRITE_ONE )
+		{
+			TwiOperation = TWI_WRITE_ONE ;
+			TWI0->TWI_THR = I2cHeadPointer->commandByte ;		// Send data
+			TWI0->TWI_IER = TWI_IER_TXCOMP ;
+			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+		}
+		else if ( I2cHeadPointer->operationType == TWI_READ_ONE )
+		{
+			TwiOperation = TWI_READ_ONE ;
+			TWI0->TWI_CR = TWI_CR_START | TWI_CR_STOP ;		// Start and stop Tx
+			TWI0->TWI_IER = TWI_IER_TXCOMP ;
+		}
+		else if ( I2cHeadPointer->operationType == TWI_WRITE_BUFFER )
+		{
+			I2Cdebug = 'A' ;
+			TwiOperation = TWI_WRITE_BUFFER ;
+#ifndef SIMU
+			TWI0->TWI_TPR = (uint32_t)I2cHeadPointer->dataBuffer+1 ;
+#endif
+			TWI0->TWI_TCR = I2cHeadPointer->dataSize-1 ;
+			TWI0->TWI_THR = *I2cHeadPointer->dataBuffer ;	// First byte
+			TWI0->TWI_PTCR = TWI_PTCR_TXTEN ;	// Start data transfer
+			TWI0->TWI_IER = TWI_IER_TXBUFE | TWI_IER_TXCOMP ;
+			I2Cdebug = 'B' ;
+		}
+		else if ( I2cHeadPointer->operationType == TWI_READ_BUFFER )
+		{
+			TwiOperation = TWI_READ_BUFFER ;
+#ifndef SIMU
+			TWI0->TWI_RPR = (uint32_t)I2cHeadPointer->dataBuffer ;
+#endif
+			TWI0->TWI_RCR = I2cHeadPointer->dataSize-1 ;
+			if ( TWI0->TWI_SR & TWI_SR_RXRDY )
+			{
+				(void) TWI0->TWI_RHR ;
+			}
+			TWI0->TWI_PTCR = TWI_PTCR_RXTEN ;	// Start data transfer
+			TWI0->TWI_CR = TWI_CR_START ;		// Start Rx
+			TWI0->TWI_IER = TWI_IER_RXBUFF | TWI_IER_TXCOMP ;
+		}
+	}
+	else
+//#endif	 
+
 	if ( Volume_required >= 0 )				// Set volume to this value
 	{
 		TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
@@ -1052,6 +1227,33 @@ void readRTC()
 }
 #endif
 
+uint8_t ExternalBits ;
+uint8_t I2CsendBuffer[2] ;
+
+// bit is 0 to 3 for coprocessor
+void setExternalOutput( uint8_t bit, uint8_t value )
+{
+	uint8_t oldValue = ExternalBits ;
+	if ( value )
+	{
+		ExternalBits |= 1 << bit ;
+	}
+	else
+	{
+		ExternalBits &= ~(1 << bit) ;
+	}
+	if ( ExternalBits != oldValue )
+	{
+#ifdef PCBSKY
+ #ifndef REVX
+		I2CsendBuffer[0] = 0x75 ;
+		I2CsendBuffer[1] = ExternalBits ;
+		write_coprocessor( (uint8_t *) &I2CsendBuffer, 2 ) ;
+ #endif
+#endif
+	}
+}
+
 
 #ifndef REVX
 void write_coprocessor( uint8_t *ptr, uint32_t count )
@@ -1239,6 +1441,81 @@ extern "C" void TWI0_IRQHandler()
 		}
 	}
 #endif
+
+	if ( TwiOperation == TWI_WRITE_ONE )
+	{
+		I2cHeadPointer->done = 1 ;
+		I2cHeadPointer = I2cHeadPointer->next ;
+	}
+
+	if ( TwiOperation == TWI_READ_ONE )
+	{
+		if ( status & TWI_SR_RXRDY )
+		{
+			*I2cHeadPointer->dataBuffer = TWI0->TWI_RHR ;		// Read data
+			I2cHeadPointer->done = 1 ;
+			I2cHeadPointer = I2cHeadPointer->next ;
+		}
+		else
+		{
+			I2Cdebug = 'F' ;
+			I2cHeadPointer->done = 2 ;
+			I2cHeadPointer = I2cHeadPointer->next ;
+		}
+	}
+
+	if ( TwiOperation == TWI_WRITE_BUFFER )
+	{
+ 		I2Cdebug = 'C' ;
+		if ( status & TWI_SR_TXBUFE )
+		{
+			I2Cdebug = 'D' ;
+			TWI0->TWI_IDR = TWI_IDR_TXBUFE ;
+			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+			TWI0->TWI_PTCR = TWI_PTCR_TXTDIS ;	// Stop transfers
+			TwiOperation = TWI_NONE ;
+			I2cHeadPointer->done = 1 ;
+			I2cHeadPointer = I2cHeadPointer->next ;
+			return ;
+		}
+		else
+		{
+			I2Cdebug = 'E' ;
+			TWI0->TWI_IDR = TWI_IDR_TXBUFE ;
+			TWI0->TWI_CR = TWI_CR_STOP ;		// Stop Tx
+			TWI0->TWI_PTCR = TWI_PTCR_TXTDIS ;	// Stop transfers
+			TwiOperation = TWI_NONE ;
+			I2cHeadPointer->done = 1 ;
+			I2cHeadPointer = I2cHeadPointer->next ;
+			return ;
+		}
+	}
+
+	if ( TwiOperation == TWI_READ_BUFFER )
+	{
+		if ( status & TWI_SR_RXBUFF )
+		{
+			TWI0->TWI_IDR = TWI_IDR_RXBUFF ;
+			TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			TWI0->TWI_RCR = 1 ;						// Last byte
+			return ;
+		}
+		else
+		{
+			// must be TXCOMP, prob. NAK in data
+			if ( TWI0->TWI_RCR > 0 )
+			{
+				TWI0->TWI_CR = TWI_CR_STOP ;	// Stop Rx
+			}
+			else
+			{
+				TwiOperation = TWI_NONE ;
+				I2cHeadPointer->done = 1 ;
+				I2cHeadPointer = (struct t_I2C_request *) NULL ;
+			}
+		}
+		
+	}
 	 
 	if ( status & TWI_SR_NACK )
 	{

@@ -71,11 +71,16 @@ void init5msTimer()
 																						// MCK/128, set @ RA, Clear @ RC waveform
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
+  NVIC_SetPriority(TC2_IRQn, 1) ;
 	NVIC_EnableIRQ(TC2_IRQn) ;
 	TC0->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;
 }
 
+#ifdef DUE
+void TC2_Handler()
+#else
 extern "C" void TC2_IRQHandler()
+#endif
 {
   register uint32_t dummy;
 
@@ -230,6 +235,7 @@ void init5msTimer()
 	TIM14->EGR = 0 ;
 	TIM14->CR1 = 5 ;
 	TIM14->DIER |= 1 ;
+  NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 1 ) ;
 	NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
 }
 
@@ -445,7 +451,12 @@ void setupPulsesPpm()
   uint32_t i ;
 	uint32_t total ;
 	uint16_t *ptr ;
-  uint32_t p=8+g_model.ppmNCH*2 + g_model.startChannel ; //Channels *2
+	uint32_t p = (g_model.ppmNCH + 4) * 2 ;
+	if ( p > 16 )
+	{
+		p -= 13 ;
+	}
+  p += g_model.startChannel ; //Channels *2
 	if ( p > NUM_SKYCHNOUT )
 	{
 		p = NUM_SKYCHNOUT ;	// Don't run off the end		
@@ -478,7 +489,13 @@ void setupPulsesPpmx()
   uint32_t i ;
 	uint32_t total ;
 	uint16_t *ptr ;
-  uint32_t p=8+g_model.xppmNCH*2 + g_model.startChannel ; //Channels *2
+//  uint32_t p=8+g_model.xppmNCH*2 + g_model.startChannel ; //Channels *2
+	uint32_t p = (g_model.xppmNCH + 4) * 2 ;
+	if ( p > 16 )
+	{
+		p -= 13 ;
+	}
+  p += g_model.startChannel ; //Channels *2
 	if ( p > NUM_SKYCHNOUT )
 	{
 		p = NUM_SKYCHNOUT ;	// Don't run off the end		
@@ -1045,7 +1062,11 @@ void setupTrainerPulses()
 	uint32_t total ;
 	uint32_t pulse ;
 	uint16_t *ptr ;
-  uint32_t p=8+g_model.ppmNCH*2; //Channels *2
+	uint32_t p = (g_model.ppmNCH + 4) * 2 ;
+	if ( p > 16 )
+	{
+		p -= 13 ;
+	}
 	int16_t PPM_range = g_model.extendedLimits ? 640*2 : 512*2;   //range of 0.7..1.7msec
 
   ptr = TrainerPpmStream ;
@@ -1188,7 +1209,7 @@ extern "C" void TIM2_IRQHandler()
 		}
   	else
   	{
-  		if(ppmInState && (ppmInState<=8))
+  		if(ppmInState && (ppmInState<=16))
 			{
   	  	if((val>800) && (val<2200))
 				{
@@ -1266,7 +1287,7 @@ extern "C" void TIM3_IRQHandler()
 		}
   	else
   	{
-  		if(ppmInState && (ppmInState<=8))
+  		if(ppmInState && (ppmInState<=16))
 			{
   	  	if((val>800) && (val<2200))
 				{

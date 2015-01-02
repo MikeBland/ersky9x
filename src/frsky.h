@@ -334,6 +334,7 @@ void telemetry_init( uint8_t telemetryType ) ;
 void FRSKY10mspoll(void);
 uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
 void check_frsky( void ) ;
+uint8_t decodeTelemetryType( uint8_t telemetryType ) ;
 
 void FRSKY_setModelAlarms(void) ;
 
@@ -344,6 +345,7 @@ extern void frskyTransmitBuffer( uint32_t size ) ;
 extern uint8_t FrskyTelemetryType ;
 extern uint8_t JetiTxReady ;
 extern uint16_t JetiTxChar ;
+extern uint8_t SportStreamingStarted ;
 
 struct t_hub_max_min
 {
@@ -376,6 +378,7 @@ extern uint16_t LastDsmFH[] ;
 
 extern struct t_hub_max_min FrskyHubMaxMin ;
 
+extern uint16_t A1A2toScaledValue( uint8_t channel, uint8_t *dplaces ) ;
 extern uint16_t logAxScale( uint8_t channel, uint8_t *dps ) ;
 
 #endif

@@ -46,7 +46,11 @@
 #endif
 #endif
 
+#ifdef PCBDUE
+#define VERSION	"DUE-V1.00"
+#else
 #define VERSION	"V0.26"
+#endif
 
 #define GVARS		1
 
@@ -93,11 +97,15 @@ extern const char * const Swedish[] ;
 
 #ifdef PCBX9D
  #ifdef REVPLUS
+	#ifdef REV9E
   #define NUMBER_ANALOG		10
+  #else
+  #define NUMBER_ANALOG		10
+	#endif	// REV9E
  #else
   #define NUMBER_ANALOG		9
  #endif
-#else
+#else // not PCBX9D
 #ifdef REVX
 #define NUMBER_ANALOG		10
 #define CURRENT_ANALOG	8
@@ -111,6 +119,13 @@ extern const char * const Swedish[] ;
 #endif
 #endif
 
+#ifdef REV9E
+#define NUM_EXTRA_ANALOG		3
+#else
+#define NUM_EXTRA_ANALOG		0
+#endif	// REV9E
+
+
 //#define SWITCHES_STR "THRRUDELEID0ID1ID2AILGEATRNSW1SW2SW3SW4SW5SW6SW7SW8SW9SWASWBSWCSWDSWESWFSWGSWHSWISWJSWKSWLSWMSWNSWO"
 #define NUM_CSW  12 //number of custom switches
 #define NUM_SKYCSW  24 //number of custom switches
@@ -123,6 +138,10 @@ extern const char * const Swedish[] ;
 #endif
 
 #define DIM(arr) (sizeof((arr))/sizeof((arr)[0]))
+
+#ifdef REV9E
+#define KEY_PAGE	KEY_LEFT
+#endif	// REV9E
 
 enum EnumKeys {
     KEY_MENU ,
@@ -282,7 +301,42 @@ int8_t switchMap( int8_t x ) ;
 #define HSW_Ele6pos3	63
 #define HSW_Ele6pos4	64
 #define HSW_Ele6pos5	65
+#ifdef REV9E
+#define HSW_SI0				66
+#define HSW_SI1				67
+#define HSW_SI2				68
+#define HSW_SJ0				69
+#define HSW_SJ1				70
+#define HSW_SJ2				71
+#define HSW_SK0				72
+#define HSW_SK1				73
+#define HSW_SK2				74
+#define HSW_SL0				75
+#define HSW_SL1				76
+#define HSW_SL2				77
+#define HSW_SM0				78
+#define HSW_SM1				79
+#define HSW_SM2				80
+#define HSW_SN0				81
+#define HSW_SN1				82
+#define HSW_SN2				83
+#define HSW_SO0				84
+#define HSW_SO1				85
+#define HSW_SO2				86
+#define HSW_SP0				87
+#define HSW_SP1				88
+#define HSW_SP2				89
+#define HSW_SQ0				90
+#define HSW_SQ1				91
+#define HSW_SQ2				92
+#define HSW_SR0				93
+#define HSW_SR1				94
+#define HSW_SR2				95
+#define HSW_MAX				95
+#else
 #define HSW_MAX				65
+#endif	// REV9E
+
 
 #define HSW_OFFSET ( HSW_SB0 - ( HSW_SH2 + NUM_SKYCSW + 1 ) )
 
@@ -389,6 +443,7 @@ uint8_t CS_STATE( uint8_t x) ;
 //#define EVT_KEY_DBL(key)   ((key)|0x10)
 #define EVT_ENTRY               (0xff - _MSK_KEY_REPT)
 #define EVT_ENTRY_UP            (0xfe - _MSK_KEY_REPT)
+#define EVT_TOGGLE_GVAR         (0xfd - _MSK_KEY_REPT)
 #define EVT_KEY_MASK             0x0f
 
 #define HEART_TIMER_PULSES 1 ;
@@ -414,6 +469,7 @@ uint8_t CS_STATE( uint8_t x) ;
 #define TRIM_EXTENDED_MAX	500
 
 #define NUM_PPM     8
+#define NUM_EXTRA_PPM     8
 //number of real outputchannels CH1-CH16
 #define NUM_CHNOUT  16
 #define NUM_SKYCHNOUT  24
@@ -438,24 +494,40 @@ uint8_t CS_STATE( uint8_t x) ;
 
 #define MIX_P1    5
 #define MIX_P2    6
-#ifdef PCBSKY
 #define MIX_P3    7
+#ifdef PCBSKY
 #define MIX_MAX   8
 #define MIX_FULL  9
 #define MIX_CYC1  10
 #define MIX_CYC2  11
 #define MIX_CYC3  12
-#endif
-#ifdef PCBX9D
-#define MIX_P3    7
-#define MIX_P4    8
-#define MIX_MAX   9
-#define MIX_FULL  10
-#define MIX_CYC1  11
-#define MIX_CYC2  12
-#define MIX_CYC3  13
+
+#define	NUM_EXTRA_POTS 0
+
 #endif
 
+#define EXTRA_POTS_POSITION	8
+
+#ifdef PCBX9D
+#define MIX_MAX   8 
+#define MIX_FULL  9 
+#define MIX_CYC1  10
+#define MIX_CYC2  11
+#define MIX_CYC3  12
+#define MIX_P4    200
+#define MIX_P5    201
+#define MIX_P6    202
+#define MIX_P7    203
+#define MIX_P8    204
+
+#ifdef REV9E
+#define	NUM_EXTRA_POTS 5
+#else
+#define	NUM_EXTRA_POTS 1
+#endif	// REV9E
+#endif
+
+#define EXTRA_POTS_START	120
 
 #define DR_HIGH   0
 #define DR_MID    1
@@ -573,7 +645,7 @@ const char s_charTab[]=" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 extern const int8_t TelemIndex[] ;
 extern int16_t convertTelemConstant( int8_t channel, int8_t value) ;
 extern int16_t getValue(uint8_t i) ;
-#define NUM_TELEM_ITEMS 46
+#define NUM_TELEM_ITEMS 47
 
 #define NUM_XCHNRAW (CHOUT_BASE+NUM_CHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
 #define NUM_SKYXCHNRAW (CHOUT_BASE+NUM_SKYCHNOUT) // NUMCH + P1P2P3+ AIL/RUD/ELE/THR + MAX/FULL + CYC1/CYC2/CYC3
@@ -585,7 +657,7 @@ extern int16_t getValue(uint8_t i) ;
 
 inline int32_t calc100toRESX(register int8_t x)
 {
-  return ((uint32_t)x*655)>>6 ;
+  return ((int32_t)x*655)>>6 ;
 }
 
 inline int16_t calc1000toRESX( register int32_t x)  // improve calc time by Pat MacKenzie
@@ -663,6 +735,8 @@ struct t_calib
 	uint8_t idxState;
 } ;
 
+#define menuPressed() ( ( read_keys() & 2 ) == 0 )
+
 union t_xmem
 {
 //	struct MixTab s_mixTab[MAX_MIXERS+NUM_XCHNOUT+1] ;	
@@ -729,6 +803,7 @@ extern uint8_t heartbeat ;
 extern int16_t g_chans512[NUM_SKYCHNOUT];
 //extern uint8_t eeprom[4096] ;
 extern uint8_t BtAsPpm ;
+extern uint8_t BtBaudrateChanged ;
 
 uint8_t char2idx(char c);
 char idx2char(uint8_t idx);
@@ -817,9 +892,9 @@ extern uint8_t g_vbat100mV ;
 extern void doSplash( void ) ;
 extern void mainSequence( uint32_t no_menu ) ;
 #ifdef FRSKY
-extern uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att, uint8_t scale) ;
+extern uint8_t putsTelemValue(uint8_t x, uint8_t y, int16_t val, uint8_t channel, uint8_t att ) ;
 extern void telem_byte_to_bt( uint8_t data ) ;
-extern uint16_t scale_telem_value( uint16_t val, uint8_t channel, uint8_t times2, uint8_t *p_att ) ;
+extern int16_t scale_telem_value( int16_t val, uint8_t channel, uint8_t *dplaces ) ;
 #endif
 uint8_t telemItemValid( uint8_t index ) ;
 
@@ -840,7 +915,13 @@ extern int16_t getTrimValue( uint8_t phase, uint8_t idx ) ;
 extern void setTrimValue(uint8_t phase, uint8_t idx, int16_t trim) ;
 
 extern void checkSwitches( void ) ;
+extern void checkTHR( void ) ;
 extern void setLanguage( void ) ;
+
+#define TMR_OFF     0
+#define TMR_RUNNING 1
+#define TMR_BEEPING 2
+#define TMR_STOPPED 3
 
 struct t_timer
 {
@@ -853,6 +934,7 @@ struct t_timer
 	uint16_t s_timeCumThr ;  //gewichtete laufzeit in 1/16 sec
 	uint16_t s_timeCum16ThrP ; //gewichtete laufzeit in 1/16 sec
 	int16_t  s_timerVal ;
+	int16_t last_tmr ;
 } ;
 
 extern struct t_timer s_timer[] ;
@@ -928,5 +1010,18 @@ extern uint8_t AlertType ;
 #define EXTERNAL_MODULE 1
 #define TRAINER_MODULE  2
 #endif
+
+// COM2 Functions
+#define COM2_FUNC_TELEMETRY		0
+#define COM2_FUNC_SBUSTRAIN		1
+#define COM2_FUNC_SBUS57600		2
+#ifdef PCBSKY
+#define COM2_FUNC_BTDIRECT		3
+#endif
+#ifdef PCBX9D
+#define COM2_FUNC_CPPMTRAIN		3
+#endif
+
+extern uint8_t TmOK ;
 
 #endif

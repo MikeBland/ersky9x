@@ -123,12 +123,25 @@ mstate2.check(event,0,NULL,0,mstate_tab,DIM(mstate_tab)-1,lines_count-1)
 static MState2 mstate2; \
 mstate2.check_submenu_simple(event,lines_count-1)
 
+#define SIMPLE_SUBMENU(title, lines_count) \
+TITLE(title); \
+SIMPLE_SUBMENU_NOTITLE(lines_count-1)
+
 /*
 //#define SIMPLE_SUBMENU(title, lines_count) \
 //TITLE(title); \
 //SIMPLE_SUBMENU_NOTITLE(lines_count-1)
 	*/
 
+struct t_popupData
+{
+	uint8_t PopupActive ;
+	uint8_t	PopupIdx ;
+	uint8_t	PopupSel ;
+	uint8_t PopupTimer ;
+} ;
+
+extern struct t_popupData PopupData ;
 
 extern int16_t calibratedStick[] ;
 //extern int16_t g_chans512[NUM_SKYCHNOUT];
@@ -147,9 +160,13 @@ extern void menuUp1(uint8_t event) ;
 extern void menuUpdate(uint8_t event) ;
 //extern void inactivityCheck( void ) ;
 
+const char *get_curve_string() ;
+
 extern int16_t calc_scaler( uint8_t index, uint8_t *unit, uint8_t *num_decimals) ;
 
 extern uint8_t CalcScaleNest ;
+
+#define TMOK			-21
 
 #define V_RTC			-20
 

@@ -8,12 +8,19 @@
 #define RCC_AHB1Periph_GPIOBUTTON       (RCC_AHB1Periph_GPIOA|RCC_AHB1Periph_GPIOB|RCC_AHB1Periph_GPIOC|RCC_AHB1Periph_GPIOD|RCC_AHB1Periph_GPIOE)
 
 // Keys
+#ifdef REV9E
+#define PIN_BUTTON_MENU		        GPIO_Pin_7	//SW4 PD.07
+#define	PIN_BUTTON_EXIT                 GPIO_Pin_2	//SW5 PD.02
+#define PIN_BUTTON_PAGE                 GPIO_Pin_3      //SW6 PD.03
+#define PIN_BUTTON_ENCODER              GPIO_Pin_0      // PF.00
+#else
 #define	PIN_BUTTON_PLUS		        GPIO_Pin_10	//SW3 PE.10
 #define	PIN_BUTTON_MINUS	        GPIO_Pin_11	//SW2 PE.11
 #define	PIN_BUTTON_ENTER	        GPIO_Pin_12	//SW1 PE.12
 #define PIN_BUTTON_MENU		        GPIO_Pin_7	//SW4 PD.07
 #define	PIN_BUTTON_EXIT                 GPIO_Pin_2	//SW5 PD.02
 #define PIN_BUTTON_PAGE                 GPIO_Pin_3      //SW6 PD.03
+#endif // REV9E
 
 // Trims
 #define	PIN_TRIM1_UP		        GPIO_Pin_3	//PC.03
@@ -65,6 +72,15 @@
 #define	PIN_SW_H			        GPIO_Pin_13	//PE.13
 #endif
 #endif
+
+#ifdef REV9E
+#define	PIN_SW_I_L		        GPIO_Pin_1	//PF.01
+#define	PIN_SW_I_H		        GPIO_Pin_2	//PF.02
+#define	PIN_SW_J_L		        GPIO_Pin_3	//PF.03
+#define	PIN_SW_J_H		        GPIO_Pin_4	//PF.04
+#endif	// REV9E
+
+
 // ADC
 #define PIN_STK_J1                      GPIO_Pin_0  //PA.00              
 #define PIN_STK_J2                      GPIO_Pin_1  //PA.01
@@ -80,6 +96,14 @@
 #else
 #define RCC_AHB1Periph_GPIOADC          RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC
 #endif
+#ifdef REV9E
+#define PIN_FLAP3                      GPIO_Pin_8  //PF.08
+#define PIN_FLAP4                      GPIO_Pin_9  //PF.09
+#define PIN_FLAP5                      GPIO_Pin_10  //PF.10
+#define PIN_FLAP6                      GPIO_Pin_1  //PB.01
+#endif
+
+
 
 // DAC
 #define PIN_AUDIO_DAC                   GPIO_Pin_4  //PA.04

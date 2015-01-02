@@ -50,12 +50,24 @@
 #define SLIDE_L		14
 #define SLIDE_R		15
 #define BATTERY		10
-#define POT_3			12
+#define POT_3			9
+
+#ifdef REV9E
+#define FLAP_3		6
+#define FLAP_4		7
+#define FLAP_5		8
+#define FLAP_6		9
+
+#endif	// REV9E
+
+#ifdef REV9E
+void init_adc3( void ) ;
+#endif	// REV9E
 
 // Sample time should exceed 1uS
 #define SAMPTIME	2		// sample time = 15 cycles
 
-volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+volatile uint16_t Analog_values[NUMBER_ANALOG+NUM_EXTRA_ANALOG] ;
 
 void init_adc()
 {
@@ -64,7 +76,13 @@ void init_adc()
 	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
 	configure_pins( PIN_STK_J1 | PIN_STK_J2 | PIN_STK_J3 | PIN_STK_J4 |
 									PIN_FLP_J1 , PIN_ANALOG | PIN_PORTA ) ;
+
+#ifdef REV9E
+	configure_pins( PIN_FLP_J2 | PIN_FLAP6, PIN_ANALOG | PIN_PORTB ) ;
+#else	 
 	configure_pins( PIN_FLP_J2, PIN_ANALOG | PIN_PORTB ) ;
+#endif	// REV9E
+	
 	configure_pins( PIN_SLD_J1 | PIN_SLD_J2 | PIN_MVOLT, PIN_ANALOG | PIN_PORTC ) ;
 				
 
@@ -72,7 +90,11 @@ void init_adc()
 	ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_DMA | ADC_CR2_DDS ;
 	ADC1->SQR1 = (NUMBER_ANALOG-1) << 20 ;		// NUMBER_ANALOG Channels
 #ifdef REVPLUS
+ #ifdef REV9E
+	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) + (FLAP_6<<15) ;
+ #else	 
 	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) + (POT_3<<15) ;
+ #endif	// REV9E
 #else
 	ADC1->SQR2 = SLIDE_L + (SLIDE_R<<5) + (BATTERY<<10) ;
 #endif
@@ -88,6 +110,9 @@ void init_adc()
 	DMA2_Stream0->PAR = (uint32_t) &ADC1->DR ;
 	DMA2_Stream0->M0AR = (uint32_t) Analog_values ;
 	DMA2_Stream0->FCR = DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
+#ifdef REV9E
+	init_adc3() ;
+#endif	// REV9E
 }
 
 uint32_t read_adc()
@@ -100,6 +125,15 @@ uint32_t read_adc()
 	DMA2_Stream0->M0AR = (uint32_t) Analog_values ;
 	DMA2_Stream0->NDTR = NUMBER_ANALOG ;
 	DMA2_Stream0->CR |= DMA_SxCR_EN ;		// Enable DMA
+#ifdef REV9E
+	DMA2_Stream1->CR &= ~DMA_SxCR_EN ;		// Disable DMA
+	ADC3->SR &= ~(uint32_t) ( ADC_SR_EOC | ADC_SR_STRT | ADC_SR_OVR ) ;
+	DMA2->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 |DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1 ; // Write ones to clear bits
+	DMA2_Stream1->M0AR = (uint32_t) &Analog_values[NUMBER_ANALOG] ;
+	DMA2_Stream1->NDTR = NUM_EXTRA_ANALOG ;
+	DMA2_Stream1->CR |= DMA_SxCR_EN ;		// Enable DMA
+	ADC3->CR2 |= (uint32_t)ADC_CR2_SWSTART ;
+#endif	// REV9E
 	ADC1->CR2 |= (uint32_t)ADC_CR2_SWSTART ;
 	for ( i = 0 ; i < 10000 ; i += 1 )
 	{
@@ -143,6 +177,32 @@ void init_adc2( uint32_t channel )
 	TIM5->CCER = TIM_CCER_CC1E ;
 	TIM5->CR1 = TIM_CR1_CEN ;
 }
+
+#ifdef REV9E
+void init_adc3()
+{
+	RCC->APB2ENR |= RCC_APB2ENR_ADC3EN ;			// Enable clock
+	RCC->AHB1ENR |= RCC_AHB1Periph_GPIOADC ;	// Enable ports A&C clocks (and B for REVPLUS)
+	RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN ;		// Enable DMA2 clock
+	configure_pins( PIN_FLAP3 | PIN_FLAP4 | PIN_FLAP5, PIN_ANALOG | PIN_PORTF ) ;
+
+	ADC3->CR1 = ADC_CR1_SCAN ;
+	ADC3->CR2 = ADC_CR2_ADON | ADC_CR2_DMA | ADC_CR2_DDS ;
+	ADC3->SQR1 = (NUM_EXTRA_ANALOG-1) << 20 ;		// NUMBER_ANALOG Channels
+	ADC3->SQR3 = FLAP_3 + (FLAP_4<<5) + (FLAP_5<<10) ;
+	ADC3->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
+								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) ;
+	ADC3->SMPR2 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12) 
+								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) + (SAMPTIME<<27) ;
+	ADC->CCR = 0 ; //ADC_CCR_ADCPRE_0 ;		// Clock div 2
+	
+  // Enable the DMA channel here, DMA2 stream 1, channel 2
+	DMA2_Stream1->CR = DMA_SxCR_PL | DMA_SxCR_CHSEL_1 | DMA_SxCR_MSIZE_0 | DMA_SxCR_PSIZE_0 | DMA_SxCR_MINC ;
+	DMA2_Stream1->PAR = (uint32_t) &ADC3->DR ;
+	DMA2_Stream1->M0AR = (uint32_t) &Analog_values[NUMBER_ANALOG] ;
+	DMA2_Stream1->FCR = DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
+}
+#endif	// REV9E
 
 uint16_t RotaryAnalogValue ;
 

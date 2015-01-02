@@ -39,7 +39,11 @@
 #include <string.h>
 
 #ifdef PCBSKY
-#include "AT91SAM3S4.h"
+ #ifndef PCBDUE
+  #include "AT91SAM3S4.h"
+ #else
+	#include "sam3x8e.h"
+ #endif
 #endif
 
 #ifdef PCBX9D
@@ -59,7 +63,7 @@
 #include "debug.h"
 #include "file.h"
 #include "ff.h"
-#include "Audio.h"
+#include "audio.h"
 #include "timers.h"
 
 
@@ -67,6 +71,71 @@
 #include "CoOS.h"
 #endif
 
+
+void uputs( register char *string ) ;
+void crlf( void ) ;
+void p8hex( uint32_t value ) ;
+void p4hex( uint16_t value ) ;
+void p2hex( unsigned char c ) ;
+void hex_digit_send( unsigned char c ) ;
+
+uint8_t Dbg_Spi_tx_buf[32] ;
+uint8_t Dbg_Spi_rx_buf[32] ;
+
+uint8_t I2CwriteValue ;
+uint8_t I2CreadValue ;
+uint8_t LedWriteValue ;
+
+void uputs( register char *string )
+{
+	while ( *string )
+	{
+		txmit( *string++ ) ;		
+	}	
+}
+
+
+// Send a <cr><lf> combination to the serial port
+void crlf()
+{
+	txmit( 13 ) ;
+	txmit( 10 ) ;
+}
+
+// Send the 32 bit value to the RS232 port as 8 hex digits
+void p8hex( uint32_t value )
+{
+	p4hex( value >> 16 ) ;
+	p4hex( value ) ;
+}
+
+// Send the 16 bit value to the RS232 port as 4 hex digits
+void p4hex( uint16_t value )
+{
+	p2hex( value >> 8 ) ;
+	p2hex( value ) ;
+}
+
+// Send the 8 bit value to the RS232 port as 2 hex digits
+void p2hex( unsigned char c )
+{
+//	asm("swap %c") ;
+	hex_digit_send( c >> 4 ) ;
+//	asm("swap %c") ;
+	hex_digit_send( c ) ;
+}
+
+// Send a single 4 bit value to the RS232 port as a hex digit
+void hex_digit_send( unsigned char c )
+{
+	c &= 0x0F ;
+	if ( c > 9 )
+	{
+		c += 7 ;
+	}
+	c += '0' ;
+	txmit( c ) ;
+}
 
 extern "C" void utxmit( uint8_t c ) ;
 
@@ -81,6 +150,9 @@ extern "C" void up8hex( uint32_t value )
 {
 	p8hex( value ) ;
 }
+
+//extern void read_volume( void ) ;
+//extern uint8_t Volume_read ;
 
 #define YMODEM 				0
 #define VOICE_TEST		0
@@ -182,7 +254,7 @@ FATFS g_FATFS_Obj ;
 DIR Dir ;
 #endif
 
-extern uint16_t Captures[256] ;
+//extern uint16_t Captures[256] ;
 extern uint32_t Cap_index ;
 extern uint8_t Activated ;
 
@@ -203,12 +275,15 @@ void handle_serial(void* pdata)
 #endif
 	for(;;)
 	{
+#ifndef PCBDUE
 		while ( g_model.frskyComPort )		// Leave the port alone!
 		{
 			CoTickDelay(50) ;					// 100mS for now
 		}
+#endif
 		
 #if PCBSKY		
+#ifndef PCBDUE
 		if ( SoundCheck )
 		{
 			if ( queueTone( 610, 200, 30, 0 ) )
@@ -217,19 +292,24 @@ void handle_serial(void* pdata)
 			}			
 		}
 #endif
+#endif
 
 		while ( ( rxchar = rxuart() ) == 0xFFFF )
 		{
 			CoTickDelay(5) ;					// 10mS for now
+#ifndef PCBDUE
 			if ( g_model.frskyComPort )		// Leave the port alone!
 			{
 				break ;
 			}
+#endif
 		}
+#ifndef PCBDUE
 		if ( g_model.frskyComPort )		// Leave the port alone!
 		{
 			continue ;
 		}
+#endif
 		// Got a char, what to do with it?
 
 		if ( Memaddmode )
@@ -844,7 +924,7 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 //	extern uint8_t Coproc_read ;
 //	extern int8_t Coproc_valid ;
 	
-//		if ( rxchar == 'W' )
+//		if ( rxchar == ';' )
 //		{
 //			read_volume() ;
 //			txmit( 'W' ) ;
@@ -1032,36 +1112,176 @@ int32_t Ymodem_Receive( uint8_t *buf ) ;
 		}
 #endif
 
-	//		register uint8_t *p ;
-	//		register uint32_t x ;
-
-	//		txmit( 'E' ) ;
-	//		p = Spi_rx_buf ;
-	//		*(p+1) = 0 ;
-	//		*(p+2) = 0 ;
-
-	//		p = Spi_tx_buf ;
-	//		*p = 5 ;		// Read status command
-	//		*(p+1) = 0 ;
-	//		x = spi_operation( p, Spi_rx_buf, 2 ) ;
-
-	//		p8hex( x ) ;
-	//		txmit( ' ' ) ;
-	//		p = Spi_rx_buf ;
-	//		p2hex( *p ) ;
-	//		p2hex( *(p+1) ) ;
-	//		p2hex( *(p+2) ) ;
-	//		p2hex( *(p+3) ) ;
-	//		crlf() ;
-	//	}
-
-		if ( rxchar == 'F' )
+		if ( rxchar == 'i' )
 		{
-			txmit( 'F' ) ;
-			txmit( '-' ) ;
-  		p2hex( ( PIOB->PIO_PDSR & PIO_PB7 ) ? 0 : 1 ) ;
+			txmit( 'i' ) ;
+			init23008() ;
 			crlf() ;
-		}	
+		}
+
+		if ( rxchar == 'j' )
+		{
+			txmit( 'j' ) ;
+			I2CwriteValue += 4 ;
+			I2CwriteValue &= 0xFC ;
+			write23008( I2CwriteValue ) ;
+			crlf() ;
+		}
+
+		if ( rxchar == 'k' )
+		{
+			txmit( 'k' ) ;
+			read23008( &I2CreadValue ) ;
+			crlf() ;
+		}
+		
+extern uint8_t I2Cdebug ;
+		if ( rxchar == 'l' )
+		{
+			txmit( 'l' ) ;
+			p2hex( I2CreadValue & 3 ) ;
+			txmit( I2Cdebug ) ;
+			crlf() ;
+		}
+
+		if ( rxchar == 'p' )
+		{
+			txmit( 'p' ) ;
+			initLed() ;
+			txmit( I2Cdebug ) ;
+			crlf() ;
+		}
+
+		if ( rxchar == 'q' )
+		{
+			txmit( 'q' ) ;
+			LedWriteValue += 4 ;
+			writeLed( LedWriteValue ) ;
+			txmit( I2Cdebug ) ;
+			crlf() ;
+		}
+
+		if ( rxchar == 'r' )
+		{
+			txmit( 'r' ) ;
+			readLed( &I2CreadValue ) ;
+			p2hex( I2CreadValue ) ;
+			txmit( I2Cdebug ) ;
+			crlf() ;
+		}
+
+extern uint16_t SerTimes[] ;
+extern uint16_t SerValues[] ;
+extern uint16_t SerBitStates[] ;
+extern uint16_t SerBitCounts[] ;
+extern uint16_t SerBitInputs[] ;
+extern uint32_t SerIndex ;
+
+		if ( rxchar == 't' )
+		{
+			txmit( 'r' ) ;
+			crlf() ;
+			uint32_t i ;
+			uint32_t j ;
+			j = SerIndex ;
+			for ( i = 0 ; i < 64 ; i += 1 )
+			{
+				p4hex( SerTimes[j] ) ;
+				txmit( ' ' ) ;
+				p2hex( SerValues[j] ) ;
+				txmit( ' ' ) ;
+				p2hex( SerBitStates[j] ) ;
+				txmit( ' ' ) ;
+				p2hex( SerBitCounts[j] ) ;
+				txmit( ' ' ) ;
+				p2hex( SerBitInputs[j] ) ;
+				crlf() ;
+				j += 1 ;
+				if ( j > 63 )
+				{
+					j = 0 ;
+				}
+			}
+		}
+
+		if ( rxchar == 'm' )
+		{
+			register uint8_t *p ;
+			register uint32_t x ;
+			
+			txmit( 'm' ) ;
+			p = Dbg_Spi_rx_buf ;
+			*(p) = 1 ;
+			*(p+1) = 2 ;
+			*(p+2) = 3 ;
+			*(p+3) = 4 ;
+
+			eeprom_write_enable() ;
+
+			p = Dbg_Spi_tx_buf ;
+			*p = 2 ;		// Write command
+			*(p+1) = 0 ;
+			*(p+2) = 0 ;
+			*(p+3) = 0 ;
+
+			spi_PDC_action( p, Dbg_Spi_rx_buf, 0, 4, 4 ) ;
+
+			for ( x = 0 ; x < 100000 ; x += 1  )
+			{
+//				if ( Spi_complete )
+//				{
+//					break ;				
+//				}
+				asm("") ;
+			}
+
+			
+		}
+
+		if ( rxchar == 'o' )
+		{
+			register uint8_t *p ;
+			register uint32_t x ;
+
+			txmit( 'o' ) ;
+			p = Dbg_Spi_rx_buf ;
+			*(p) = 0 ;
+			*(p+1) = 0 ;
+			*(p+2) = 0 ;
+			*(p+3) = 0 ;
+
+			p = Dbg_Spi_tx_buf ;
+			*p = 3 ;		// Read command
+			*(p+1) = 0 ;
+			*(p+2) = 0 ;
+			*(p+3) = 0 ;
+			spi_PDC_action( p, 0, Dbg_Spi_rx_buf, 4, 24 ) ;
+			for ( x = 0 ; x < 100000 ; x += 1  )
+			{
+//				if ( Spi_complete )
+//				{
+//					break ;				
+//				}
+				asm("") ;
+			}
+
+			p8hex( x ) ;
+			txmit( ' ' ) ;
+			p = Dbg_Spi_rx_buf ;
+			p2hex( *p ) ;
+			p2hex( *(p+1) ) ;
+			p2hex( *(p+2) ) ;
+			p2hex( *(p+3) ) ;
+			crlf() ;
+		}
+
+//		if ( rxchar == 'F' )
+//		{
+//			txmit( 'F' ) ;
+//			txmit( '-' ) ;
+//  		p2hex( ( PIOB->PIO_PDSR & PIO_PB7 ) ? 0 : 1 ) ;
+//			crlf() ;
+//		}	
 	
 //		if ( rxchar == 'U' )
 //		{

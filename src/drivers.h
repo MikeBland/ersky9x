@@ -3,13 +3,13 @@
 
 
 
-struct t_fifo32
-{
-	uint8_t fifo[32] ;
-	uint32_t in ;
-	uint32_t out ;
-	volatile uint32_t count ;
-} ;
+//struct t_fifo32
+//{
+//	uint8_t fifo[32] ;
+//	uint32_t in ;
+//	uint32_t out ;
+//	volatile uint32_t count ;
+//} ;
 
 struct t_16bit_fifo32
 {
@@ -26,25 +26,37 @@ struct t_serial_tx
 	volatile uint16_t ready ;
 } ;
 
-struct t_serial_fifo64
+struct t_fifo64
 {
-	uint32_t fifo[64] ;
+	uint8_t fifo[64] ;
 	uint32_t in ;
 	uint32_t out ;
-	volatile uint32_t count ;
 } ;
 
-extern void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte ) ;
-extern int32_t get_fifo32( struct t_fifo32 *pfifo ) ;
+// Options in CaptureMode
+#define CAP_PPM				0
+#define CAP_SERIAL		1
+#define CAP_COM1			2
+
+extern uint8_t CaptureMode ;
+
+//extern void put_fifo32( struct t_fifo32 *pfifo, uint8_t byte ) ;
+//extern int32_t get_fifo32( struct t_fifo32 *pfifo ) ;
+extern void put_fifo64( struct t_fifo64 *pfifo, uint8_t byte ) ;
+extern int32_t get_fifo64( struct t_fifo64 *pfifo ) ;
 extern struct t_serial_tx Bt_tx ;
 extern uint32_t txPdcBt( struct t_serial_tx *data ) ;
+extern uint32_t txPdcCom2( struct t_serial_tx *data ) ;
 extern void end_bt_tx_interrupt() ;
+
+extern struct t_fifo64 Sbus_fifo ;
+extern struct t_fifo64 CaptureRx_fifo ;
 
 #ifdef REVX
 extern int32_t getJetiWord( void ) ;
-extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+extern volatile uint16_t Analog_values[] ;
 #else
-extern volatile uint16_t Analog_values[NUMBER_ANALOG] ;
+extern volatile uint16_t Analog_values[] ;
 #endif
 extern uint16_t Temperature ;		// Raw temp reading
 extern uint16_t Max_temperature ;
@@ -73,7 +85,9 @@ extern void UART2_9dataOdd1stop( void ) ;
 extern void UART2_timeout_enable( void ) ;
 extern void UART2_timeout_disable( void ) ;
 extern void UART_Sbus_configure( uint32_t masterClock ) ;
+extern void UART_Sbus57600_configure( uint32_t masterClock ) ;
 extern void jetiSendWord( uint16_t word ) ;
+extern void init_software_com1(uint32_t baudrate, uint32_t invert) ;
 //extern void UART_Stop( void ) ;
 //extern void Bt_UART_Stop( void ) ;
 extern void txmit( uint8_t c ) ;
@@ -122,7 +136,6 @@ extern void eeWriteBlockCmp(const void *i_pointer_ram, void *i_pointer_eeprom, s
 extern void eeprom_read_block( void *i_pointer_ram, const void *i_pointer_eeprom, register uint32_t size ) ;
 void start_ppm_capture( void ) ;
 void end_ppm_capture( void ) ;
-extern void processSbusInput( void ) ;
 extern void start_2Mhz_timer( void ) ;
 
 extern void disable_ssc( void ) ;

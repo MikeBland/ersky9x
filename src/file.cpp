@@ -35,7 +35,7 @@
 #ifdef REVX
 #include "sound.h"
 #endif
-#include "Stringidx.h"
+#include "stringidx.h"
 
 extern PROGMEM s9xsplash[] ;
 
@@ -133,7 +133,7 @@ uint32_t Eeprom32_data_size ;
 
 void handle_serial( void ) ;
 
-bool ee32ModelExists(uint8_t id) ;
+bool eeModelExists(uint8_t id) ;
 uint32_t get_current_block_number( uint32_t block_no, uint16_t *p_size, uint32_t *p_seq ) ;
 uint32_t read32_eeprom_data( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
 uint32_t write32_eeprom_block( uint32_t eeAddress, register uint8_t *buffer, uint32_t size, uint32_t immediate ) ;
@@ -289,14 +289,14 @@ bool ee32CopyModel(uint8_t dst, uint8_t src)
 #endif
 	}
 
-  read32_eeprom_data( (File_system[src].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.model_data, size, 0 ) ;
+  read32_eeprom_data( (File_system[src].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.sky_model_data, size, 0 ) ;
 
   if (size > sizeof(g_model.name))
-    memcpy( ModelNames[dst], Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
+    memcpy( ModelNames[dst], Eeprom_buffer.data.sky_model_data.name, sizeof(g_model.name)) ;
   else
     memset( ModelNames[dst], ' ', sizeof(g_model.name)) ;
 
-  Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.model_data ;		// Get data from here
+  Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.sky_model_data ;		// Get data from here
   Eeprom32_data_size = sizeof(g_model) ;																	// This much
   Eeprom32_file_index = dst ;																							// This file system entry
   Eeprom32_process_state = E32_BLANKCHECK ;
@@ -317,8 +317,8 @@ void ee32SwapModels(uint8_t id1, uint8_t id2)
 //  // block_no(id1) has been shifted now, but we have the size
   if (id2_size > sizeof(g_model.name))
 	{
-    read32_eeprom_data( (id2_block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.model_data, id2_size, 0 ) ;
-    memcpy( ModelNames[id1], Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
+    read32_eeprom_data( (id2_block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.sky_model_data, id2_size, 0 ) ;
+    memcpy( ModelNames[id1], Eeprom_buffer.data.sky_model_data.name, sizeof(g_model.name)) ;
   }
   else
 	{
@@ -326,7 +326,7 @@ void ee32SwapModels(uint8_t id1, uint8_t id2)
 		id2_size = 0 ;
   }
 
-  Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.model_data ;		// Get data from here
+  Eeprom32_source_address = (uint8_t *)&Eeprom_buffer.data.sky_model_data ;		// Get data from here
   Eeprom32_data_size = id2_size ;																					// This much
   Eeprom32_file_index = id1 ;																							// This file system entry
   Eeprom32_process_state = E32_BLANKCHECK ;
@@ -527,7 +527,8 @@ bool ee32LoadGeneral()
 //  }
 
   if(g_eeGeneral.myVers<MDVERS)
-      sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
+      sysFlags = sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
+//      sysFlags |= sysFLAG_OLD_EEPROM; // if old EEPROM - Raise flag
 
   g_eeGeneral.myVers   =  MDVERS; // update myvers
 
@@ -741,7 +742,7 @@ void ee32LoadModel(uint8_t id)
 	}
 }
 
-bool ee32ModelExists(uint8_t id)
+bool eeModelExists(uint8_t id)
 {
 	return ( File_system[id+1].size > 0 ) ;
 }
@@ -802,7 +803,9 @@ uint32_t ee32_check_finished()
 	if ( ( Eeprom32_process_state != E32_IDLE )
 			|| ( General_timer )
 			|| ( Model_timer )
-			|| ( Ee32_model_delete_pending) )
+			|| ( Ee32_model_delete_pending)
+			|| ( Ee32_general_write_pending)
+			|| ( Ee32_model_write_pending) )
 	{
 		if ( General_timer )
 		{
@@ -1118,7 +1121,7 @@ void convertModel( SKYModelData *dest, ModelData *source )
 		dst->carryTrim = src->carryTrim ;
 		dst->mltpx = src->mltpx ;
 		dst->mixWarn = src->mixWarn ;
-		dst->enableFmTrim = src->enableFmTrim ;
+		dst->disableExpoDr = src->enableFmTrim ;
 		dst->sOffset = src->sOffset ;
 	}
 	for ( i = 0 ; i < NUM_CHNOUT ; i += 1 )
@@ -1237,7 +1240,7 @@ void setModelFilename( uint8_t *filename, uint8_t modelIndex )
 	uint32_t i ;
 	
 	bptr = cpystr( filename, (uint8_t *)"/MODELS/" ) ;
-  memcpy( bptr, Eeprom_buffer.data.model_data.name, sizeof(g_model.name)) ;
+  memcpy( bptr, Eeprom_buffer.data.sky_model_data.name, sizeof(g_model.name)) ;
 	bptr += sizeof(g_model.name) - 1 ;
 	for ( i = 0 ; i < sizeof(g_model.name) ; i += 1 )
 	{
@@ -1257,6 +1260,8 @@ void setModelFilename( uint8_t *filename, uint8_t modelIndex )
 	}
 	cpystr( bptr, (uint8_t *)".eepm" ) ;		// ".eepm"
 }
+
+#ifndef PCBDUE
 
 static const uint8_t base64digits[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" ;
 
@@ -1278,7 +1283,7 @@ FRESULT writeXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *tota
 	total += written ;
   result = f_write( archiveFile, (BYTE *)"</Version>\n  <Name>", 19, &written) ;
 	total += written ;
-  result = f_write( archiveFile, (BYTE *)Eeprom_buffer.data.model_data.name, sizeof(g_model.name), &written) ;
+  result = f_write( archiveFile, (BYTE *)Eeprom_buffer.data.sky_model_data.name, sizeof(g_model.name), &written) ;
 	total += written ;
   result = f_write( archiveFile, (BYTE *)"</Name>\n  <Data><![CDATA[", 25, &written) ;
 	total += written ;
@@ -1313,6 +1318,9 @@ FRESULT writeXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *tota
 		}
 		bytes[i++] = ( size == 2 ) ? base64digits[(data[1] << 2) & 0x3c] : '=' ;
 		bytes[i++] = '=' ;
+	}
+	if ( i )
+	{
 		result = f_write( archiveFile, bytes, i, &written) ;
 		total += written ;
 	}
@@ -1396,7 +1404,16 @@ int32_t readXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *total
 		}
 		if ( i < nread )
 		{
-			stream[j++] = xmlDecode( bytes[i++] ) ;
+			uint8_t value = bytes[i] ;
+			if ( value == ']' )		// End of input data
+			{
+				stream[j++] = 0 ;
+			}
+			else
+			{
+				i += 1 ;
+				stream[j++] = xmlDecode( value ) ;
+			}
 		}
 		else
 		{
@@ -1439,7 +1456,7 @@ const char *ee32BackupModel( uint8_t modelIndex )
 
 
   size = File_system[modelIndex].size ;
-	 
+
 	while (ee32_check_finished() == 0)
 	{	// wait
 #ifndef SIMU
@@ -1455,6 +1472,7 @@ const char *ee32BackupModel( uint8_t modelIndex )
 #endif
 	}
 
+	memset(( uint8_t *)&Eeprom_buffer.data.sky_model_data, 0, sizeof(g_model));
   read32_eeprom_data( (File_system[modelIndex].block_no << 12) + sizeof( struct t_eeprom_header), ( uint8_t *)&Eeprom_buffer.data.sky_model_data, size, 0 ) ;
 
 	// Build filename
@@ -1549,5 +1567,6 @@ const char *ee32RestoreModel( uint8_t modelIndex, char *filename )
 
   return "MODEL RESTORED" ;
 }
+#endif
 
 

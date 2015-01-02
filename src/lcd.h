@@ -119,7 +119,7 @@ extern void backlight_set( uint16_t brightness ) ;
 #endif
 #endif
 
-#define BLINK_ON_PHASE (g_blinkTmr10ms & (1<<6))
+#define BLINK_ON_PHASE (g_blinkTmr10ms & (1<<5))
 #define BLINK_SYNC      g_blinkTmr10ms = (3<<5)
 
 #endif

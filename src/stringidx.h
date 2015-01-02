@@ -99,7 +99,7 @@
 #define STR_FMTRIMVAL       98
 #define STR_OFFSET          99
 #define STR_2FIX_OFFSET     100
-#define STR_FLMODETRIM      101
+#define STR_ENABLEEXPO	    101
 #define STR_2TRIM           102
 #define STR_15DIFF          103
 #define STR_Curve           104
@@ -312,6 +312,7 @@
 #define STR_BT_TRAINER			310
 
 #define STR_T_RANGE_TEST    311
+#define STR_EXTRA_SOURCE    312
 
 //"Current Source"
 //"\004----A1  A2  FASVSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "

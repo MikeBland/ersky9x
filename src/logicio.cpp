@@ -768,18 +768,31 @@ uint32_t keyState(EnumKeys enuk)
 #ifdef PCBX9D
 void init_keys()
 {
+#ifdef REV9E
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOFEN ; 		// Enable portF clock
+	configure_pins( 0x008C, PIN_INPUT | PIN_PULLUP | PIN_PORTD ) ;
+	configure_pins( 0x0001, PIN_INPUT | PIN_PULLUP | PIN_PORTF ) ;
+#else
 // Buttons PE10, 11, 12, PD2, 3, 7
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN ; 		// Enable portE clock
 	configure_pins( 0x1C00, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
 	configure_pins( 0x008C, PIN_INPUT | PIN_PULLUP | PIN_PORTD ) ;
+#endif // REV9E
 }
 
 void init_trims()
 {
 // Trims 
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN ; 		// Enable portE clock
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
+#ifdef REV9E
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOGEN ; 		// Enable portG clock
+	configure_pins( 0x0018, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
+	configure_pins( 0x0003, PIN_INPUT | PIN_PULLUP | PIN_PORTG ) ;
+#else
 	configure_pins( 0x0078, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
+#endif // REV9E
 	configure_pins( 0x200E, PIN_INPUT | PIN_PULLUP | PIN_PORTC ) ;
 }
 
@@ -790,6 +803,32 @@ uint32_t read_keys()
 	register uint32_t y ;
 
 	x = GPIOD->IDR ; // 7 MENU, 3 PAGE(UP), 2 EXIT
+	y = 0 ;
+
+#ifdef REV9E
+	if ( x & PIN_BUTTON_MENU )
+	{
+		y |= 0x02 << KEY_MENU ;			// MENU
+	}
+	if ( x & PIN_BUTTON_PAGE )
+	{
+		y |= 0x02 << KEY_LEFT ;		// LEFT
+	}
+	if ( x & PIN_BUTTON_EXIT )
+	{
+		y |= 0x02 << KEY_EXIT ;			// EXIT
+	}
+//	x = GPIOF->IDR ; // 10 RIGHT(+), 11 LEFT(-), 12 ENT(DOWN)
+//	if ( x & PIN_BUTTON_ENCODER )
+//	{
+//		y |= 0x02 << KEY_RIGHT ;		// RIGHT
+//	}
+
+	y |= 0x02 << KEY_RIGHT ;		// RIGHT
+	y |= 0x02 << KEY_UP ;			// up
+	y |= 0x02 << KEY_DOWN ;		// DOWN
+
+#else
 	
 	y = 0 ;
 	if ( x & PIN_BUTTON_MENU )
@@ -823,6 +862,7 @@ uint32_t read_keys()
 		y |= 0x02 << KEY_EXIT ;			// EXIT
 //		y |= 0x02 << KEY_RIGHT ;		// RIGHT
 	}
+#endif // REV9E
 	return y ;
 }
 
@@ -841,11 +881,13 @@ uint32_t read_trims()
 		trims |= 1 ;
 	}
     
+#ifndef REV9E
 // TRIM_LV_DOWN
 	if ( ( trima & 0x00000040 ) == 0 )
 	{
 		trims |= 4 ;
 	}
+#endif
 
 // TRIM_LH_UP
 	if ( ( trima & 0x00000008 ) == 0 )
@@ -853,11 +895,13 @@ uint32_t read_trims()
 		trims |= 2 ;
 	}
 
+#ifndef REV9E
 // TRIM_LV_UP
 	if ( ( trima & 0x00000020 ) == 0 )
 	{
 		trims |= 8 ;
 	}
+#endif
 
 	trima = GPIOC->IDR ;
 
@@ -886,6 +930,21 @@ uint32_t read_trims()
 		trims |= 0x80 ;
 	}
 
+#ifdef REV9E
+	trima = GPIOG->IDR ;
+// TRIM_LV_DOWN
+	if ( ( trima & 0x00000002 ) == 0 )
+	{
+		trims |= 4 ;
+	}
+
+// TRIM_LV_UP
+	if ( ( trima & 0x00000001 ) == 0 )
+	{
+		trims |= 8 ;
+	}
+#endif	// REV9E
+
 	return trims ;
 }
 
@@ -910,7 +969,11 @@ void setup_switches()
 #ifdef REVPLUS
 	configure_pins( PIN_SW_H, PIN_INPUT | PIN_PULLUP | PIN_PORTD ) ;
 #endif
-	
+
+#ifdef REV9E
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOFEN ; 		// Enable port F clock
+	configure_pins( PIN_SW_I_L | PIN_SW_I_H | PIN_SW_J_L | PIN_SW_J_H, PIN_INPUT | PIN_PULLUP | PIN_PORTF ) ;
+#endif	// REV9E
 }
 
 uint32_t hwKeyState( uint8_t key )
@@ -918,6 +981,9 @@ uint32_t hwKeyState( uint8_t key )
   register uint32_t a = GPIOA->IDR;
   register uint32_t b = GPIOB->IDR;
   register uint32_t e = GPIOE->IDR;
+#ifdef REV9E
+  register uint32_t f = GPIOF->IDR;
+#endif	// REV9E
 
   uint32_t xxx = 0 ;
   
@@ -1015,6 +1081,29 @@ uint32_t hwKeyState( uint8_t key )
 #endif
       break;
 
+#ifdef REV9E
+    case HSW_SI0:
+      xxx = ~f & PIN_SW_I_L ;
+      break;
+    case HSW_SI1:
+      xxx = (f & (PIN_SW_I_H | PIN_SW_I_L)) == (PIN_SW_I_H | PIN_SW_I_L) ;
+      break;
+    case HSW_SI2:
+      xxx = ~f & PIN_SW_I_H ;
+      break;
+
+    case HSW_SJ0:
+      xxx = ~f & PIN_SW_J_L ;
+      break;
+    case HSW_SJ1:
+      xxx = (f & (PIN_SW_J_H | PIN_SW_J_L)) == (PIN_SW_J_H | PIN_SW_J_L) ;
+      break;
+    case HSW_SJ2:
+      xxx = ~f & PIN_SW_J_H ;
+      break;
+#endif	// REV9E
+
+
     default:
       break;
   }
@@ -1031,7 +1120,7 @@ uint32_t hwKeyState( uint8_t key )
 uint32_t keyState(EnumKeys enuk)
 {
   register uint32_t a = GPIOA->IDR;
-  register uint32_t b = GPIOB->IDR;
+//  register uint32_t b = GPIOB->IDR;
   register uint32_t e = GPIOE->IDR;
 
   register uint32_t xxx = 0;
@@ -1141,7 +1230,12 @@ uint32_t keyState(EnumKeys enuk)
 }
 
 // Returns 0, 1 or 2 for ^ - or v
+#ifdef REV9E
+static const uint8_t SwitchIndices[] = {HSW_SA0,HSW_SB0,HSW_SC0,HSW_SD0,HSW_SE0,HSW_SF2,HSW_SG0,HSW_SH2,HSW_SI0,
+																 HSW_SJ0, HSW_SK0, HSW_SL0, HSW_SM0, HSW_SN0, HSW_SO0, HSW_SP0, HSW_SQ0, HSW_SR0 } ;
+#else
 static const uint8_t SwitchIndices[] = {HSW_SA0,HSW_SB0,HSW_SC0,HSW_SD0,HSW_SE0,HSW_SF2,HSW_SG0,HSW_SH2} ;
+#endif	// REV9E
 uint32_t switchPosition( uint32_t swtch )
 {
 	swtch = SwitchIndices[swtch] ;

@@ -71,9 +71,13 @@ void audioQueue::aqinit()
   t_queueRidx = 0;
   t_queueWidx = 0;
 
-  toneHaptic = 0;
-  hapticTick = 0;
+//  toneHaptic = 0;
+//  hapticTick = 0;
   hapticMinRun = 0;
+  buzzTimeLeft = 0 ;
+  buzzPause = 0 ;
+  t_hapticQueueRidx = 0;
+  t_hapticQueueWidx = 0;
 
 }
 
@@ -102,12 +106,45 @@ bool audioQueue::freeslots()
 void audioQueue::heartbeat()
 {
   //haptic switch off happens in separate loop
-  if(hapticMinRun == 0){
-	hapticOff();	
-  } else {
-	hapticMinRun--;	
-  }	
+//  if(hapticMinRun == 0){
+//	hapticOff();	
+//  } else {
+//	hapticMinRun--;	
+//  }	
 	
+  if ( buzzTimeLeft )
+	{
+		buzzTimeLeft -= 1 ; // time gets counted down
+#ifdef REVPLUS		
+ 		hapticOn(((g_eeGeneral.hapticStrength+5)) * 10); 
+#else			
+ 		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
+#endif 
+// 		hapticMinRun = HAPTIC_SPINUP;
+	}
+	else
+	{
+		hapticOff() ;
+    if (buzzPause > 0)
+		{
+      buzzPause -= 1 ;
+    }
+    else if (t_hapticQueueRidx != t_hapticQueueWidx)
+		{
+      buzzTimeLeft = queueHapticLength[t_hapticQueueRidx] ;
+			uint8_t hapticSpinup = g_eeGeneral.hapticMinRun + 20 ;
+			if ( buzzTimeLeft < hapticSpinup )
+			{
+				buzzTimeLeft = hapticSpinup ;
+			}
+      buzzPause = queueHapticPause[t_hapticQueueRidx] ;
+      if (!queueHapticRepeat[t_hapticQueueRidx]--)
+			{
+        t_hapticQueueRidx = (t_hapticQueueRidx + 1) & (HAPTIC_QUEUE_LENGTH-1);
+      }
+		}
+	}
+ 
   if (toneTimeLeft )
 	{
 		
@@ -122,19 +159,18 @@ void audioQueue::heartbeat()
 		// initial thoughts are a seconds queue to process haptic that gets
 		// fired from here.  end result is haptic events run for mix of 2 seconds?
 		
-		if (toneHaptic){
-#ifdef REVPLUS		
-	    		hapticOn(((g_eeGeneral.hapticStrength+5)) * 10); 
-#else			
-	    		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
-#endif 
-	    		hapticMinRun = HAPTIC_SPINUP;
-		}    
+//		if (toneHaptic)
+//		{
+//#ifdef REVPLUS		
+//	    		hapticOn(((g_eeGeneral.hapticStrength+5)) * 10); 
+//#else			
+//	    		hapticOn((g_eeGeneral.hapticStrength *  2 ) * 10); 
+//#endif 
+//	    		hapticMinRun = HAPTIC_SPINUP;
+//		}    
   }
   else
 	{
-	
-		
     if ( tonePause )
 		{
 			if ( queueTone( 0, tonePause * 10, 0, 0 ) )
@@ -150,8 +186,8 @@ void audioQueue::heartbeat()
         toneTimeLeft = queueToneLength[t_queueRidx];
         toneFreqIncr = queueToneFreqIncr[t_queueRidx];
         tonePause = queueTonePause[t_queueRidx];
-        toneHaptic = queueToneHaptic[t_queueRidx];
-        hapticTick = 0;
+//        toneHaptic = queueToneHaptic[t_queueRidx];
+//        hapticTick = 0;
         if (!queueToneRepeat[t_queueRidx]--)
 				{
           t_queueRidx = (t_queueRidx + 1) % AUDIO_QUEUE_LENGTH;
@@ -193,8 +229,18 @@ void audioQueue::playNow(uint8_t tFreq, uint8_t tLen, uint8_t tPause,
     toneFreq = (tFreq ? tFreq + g_eeGeneral.speakerPitch + BEEP_OFFSET : 0); // add pitch compensator
     toneTimeLeft = getToneLength(tLen);
     tonePause = tPause;
-    toneHaptic = tHaptic;
-    hapticTick = 0;
+		if ( tHaptic )
+		{
+  		buzzTimeLeft = toneTimeLeft ;
+			uint8_t hapticSpinup = g_eeGeneral.hapticMinRun + 20 ;
+			if ( buzzTimeLeft < hapticSpinup )
+			{
+				buzzTimeLeft = hapticSpinup ;
+			}
+			buzzPause = tPause ;
+		}
+//    toneHaptic = tHaptic;
+//    hapticTick = 0;
     toneFreqIncr = tFreqIncr;
     t_queueWidx = t_queueRidx;
 
@@ -207,17 +253,32 @@ void audioQueue::playNow(uint8_t tFreq, uint8_t tLen, uint8_t tPause,
 void audioQueue::playASAP(uint8_t tFreq, uint8_t tLen, uint8_t tPause,
     uint8_t tRepeat, uint8_t tHaptic, int8_t tFreqIncr)
 {
+			
+	if ( tHaptic )
+	{
+    uint8_t next_hqueueWidx = (t_hapticQueueWidx + 1) % HAPTIC_QUEUE_LENGTH ;
+		if (next_hqueueWidx != t_hapticQueueRidx)
+		{
+			queueHapticLength[t_hapticQueueWidx] = getToneLength(tLen) ;
+			queueHapticPause[t_hapticQueueWidx] = tPause ;
+			queueHapticRepeat[t_hapticQueueWidx] = tRepeat ;
+      t_hapticQueueWidx = next_hqueueWidx ;
+		}
+	}
+	
 	if(!freeslots()){
 			return;
 	}	
 	
-  if (g_eeGeneral.beeperVal) {
+  if (g_eeGeneral.beeperVal)
+	{
     uint8_t next_queueWidx = (t_queueWidx + 1) % AUDIO_QUEUE_LENGTH;
-    if (next_queueWidx != t_queueRidx) {
+    if (next_queueWidx != t_queueRidx)
+		{
       queueToneFreq[t_queueWidx] = (tFreq ? tFreq + g_eeGeneral.speakerPitch + BEEP_OFFSET : 0); // add pitch compensator
       queueToneLength[t_queueWidx] = getToneLength(tLen);
       queueTonePause[t_queueWidx] = tPause;
-      queueToneHaptic[t_queueWidx] = tHaptic;
+//      queueToneHaptic[t_queueWidx] = tHaptic;
       queueToneRepeat[t_queueWidx] = tRepeat;
       queueToneFreqIncr[t_queueWidx] = tFreqIncr;
       t_queueWidx = next_queueWidx;
@@ -229,7 +290,7 @@ void audioQueue::event(uint8_t e, uint8_t f, uint8_t hapticOff) {
 
   uint8_t beepVal = g_eeGeneral.beeperVal;
 	hapticOff = hapticOff ? 0 : 1 ;
-	if (t_queueRidx == t_queueWidx) {		
+//	if (t_queueRidx == t_queueWidx) {		
 	  switch (e) {
 		    case AU_WARNING1:
 		      playNow(BEEP_DEFAULT_FREQ, 10, 1, 0, hapticOff);
@@ -288,13 +349,13 @@ void audioQueue::event(uint8_t e, uint8_t f, uint8_t hapticOff) {
 	        playASAP(BEEP_DEFAULT_FREQ+50,5,50,2,hapticOff);
 	        break;
 	      case AU_HAPTIC1:
-	        playASAP(0,20,10,1,1);
+	        playASAP(0,20,10,0,1);
 	        break;
 	      case AU_HAPTIC2:
-	        playASAP(0,15,20,2,1);
+	        playASAP(0,15,20,1,1);
 	        break;
 	      case AU_HAPTIC3:
-	        playASAP(0,15,20,3,1);
+	        playASAP(0,15,20,2,1);
 	        break;
 		    case AU_ERROR:
 		      playNow(BEEP_DEFAULT_FREQ, 40, 1, 0, hapticOff);
@@ -367,7 +428,7 @@ void audioQueue::event(uint8_t e, uint8_t f, uint8_t hapticOff) {
 		    default:
 		      break;
 	  }
-	}  
+//	}  
 }
 
 void audioDefevent(uint8_t e)

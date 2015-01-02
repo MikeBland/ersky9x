@@ -24,7 +24,7 @@
 #include "myeeprom.h"
 #include "file.h"
 #include "debug.h"
-#include "Stringidx.h"
+#include "stringidx.h"
 
 #ifdef FRSKY
 #include "frsky.h"
@@ -64,7 +64,7 @@ void generalDefault()
 
 void modelDefault(uint8_t id)
 {
-  memset(&g_model, 0, sizeof(ModelData));
+  memset(&g_model, 0, sizeof(SKYModelData));
   strncpy_P(g_model.name,PSTR(STR_MODEL), 10 );
   g_model.name[5]='0'+(id+1)/10;
   g_model.name[6]='0'+(id+1)%10;
@@ -88,13 +88,13 @@ bool eeDuplicateModel(uint8_t id)
   uint32_t i;
   for( i=id+1; i<MAX_MODELS; i++)
   {
-    if(! ee32ModelExists(i) ) break;
+    if(! eeModelExists(i) ) break;
   }
   if(i>=MAX_MODELS)
 	{
   	for( i=0 ; i<id ; i++)
 		{
-    	if(! ee32ModelExists(i) ) break;
+    	if(! eeModelExists(i) ) break;
 		}
   	if(i>=id) return false; //no free space in directory left
 	}

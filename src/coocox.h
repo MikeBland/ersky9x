@@ -326,8 +326,10 @@ extern void    IRQ_DISABLE_SAVE(void);
 //#include <CoOS.h>
 
 
-#define  OsSchedLock()  OSSchedLock++;      /*!< Lock schedule                */
-extern   void OsSchedUnlock(void);
+//#define  OsSchedLock()  OSSchedLock++;      //!< Lock schedule
+//-#define OsSchedLock() OSSchedLock++;
+//#define OsSchedLock() { OSSchedLock++; asm volatile ("" : : : "memory"); } // !< Lock scheduleextern   void OsSchedUnlock(void);
+#define OsSchedLock() { asm(""); OSSchedLock++; asm volatile ("" : : : "memory"); } // !< Lock scheduleextern   void OsSchedUnlock(void);
 
 #endif
 

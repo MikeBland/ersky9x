@@ -18,7 +18,11 @@
 #include <coocox.h>
 
 #ifdef PCBSKY
-#include "AT91SAM3S4.h"
+ #ifndef PCBDUE
+  #include "AT91SAM3S4.h"
+ #else
+	#include "sam3x8e.h"
+ #endif
 #endif
 
 #ifdef PCBX9D

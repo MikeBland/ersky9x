@@ -153,7 +153,7 @@ const char * const German[] =
 	ISTR_FMTRIMVAL     ,
 	ISTR_OFFSET        ,
 	ISTR_2FIX_OFFSET   ,
-	ISTR_FLMODETRIM    ,
+	ISTR_ENABLEEXPO    ,
 	ISTR_2TRIM         ,
 	ISTR_15DIFF        ,
 	ISTR_Curve         ,
@@ -363,5 +363,6 @@ const char * const German[] =
 	ISTR_FADESLOSSHOLDS,
 	ISTR_DSM_CRITICAL	 ,
 	ISTR_BT_TRAINER		 ,
-	ISTR_T_RANGE_TEST
+	ISTR_T_RANGE_TEST	 ,
+	ISTR_EXTRA_SOURCE
 } ;
