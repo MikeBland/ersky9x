@@ -708,6 +708,11 @@ void lcd_char_inverse( uint8_t x, uint8_t y, uint8_t w, uint8_t blink )
 
 void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h )
 {
+	uint8_t oldPlotType = plotType ;
+	if ( oldPlotType != PLOT_WHITE )
+	{
+		plotType = PLOT_BLACK ;
+	}
   lcd_vline(x, y, h ) ;
 	if ( w > 1 )
 	{
@@ -715,6 +720,7 @@ void lcd_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h )
 	}
  	lcd_hline(x+1, y+h-1, w-2 ) ;
  	lcd_hline(x+1, y, w-2 ) ;
+	plotType = oldPlotType ;
 }
 
 void lcd_hline( uint8_t x, uint8_t y, int8_t w )
@@ -884,7 +890,9 @@ const static uint8_t Lcdinit[] =
 	0x2F,		// Internal power mode
 	0x25,		// Internal Vreg ratio high(ish)
 	0x81,	0x22,		// Contrast
+#ifndef REVX
 	0xAF		// Display on
+#endif
 } ;	
 
 
@@ -953,7 +961,7 @@ void lcd_init()
 	{
 		// Wait
 	}
-	for ( i = 0 ; i < 12 ; i += 1 )
+	for ( i = 0 ; i < sizeof(Lcdinit) ; i += 1 )
 	{
 	  lcdSendCtl( Lcdinit[i] ) ;
 	}
@@ -970,6 +978,26 @@ void lcd_init()
 //  lcdSendCtl(0x22); // 24 SV5 SV4 SV3 SV2 SV1 SV0 = 0x18
 //  lcdSendCtl(0xAF); //DON = 1: display ON
  // g_eeGeneral.contrast = 0x22;
+
+#ifdef REVX
+// 200mS delay (only if not wdt reset)
+
+extern uint16_t ResetReason ;
+	if ( ( ( ResetReason & RSTC_SR_RSTTYP ) != (2 << 8) ) && !unexpectedShutdown )	// Not watchdog
+	{
+		uint32_t j ;
+		for ( j = 0 ; j < 100 ; j += 1 )
+		{
+			TC0->TC_CHANNEL[0].TC_CCR = 5 ;	// Enable clock and trigger it (may only need trigger)
+			while ( TC0->TC_CHANNEL[0].TC_CV < 36000 )		// Value depends on MCK/2 (used 18MHz) give 2mS delay
+			{
+ 			  wdt_reset() ;
+				// Wait
+			}
+		}
+	}
+  lcdSendCtl(0xAF) ; //DON = 1: display ON
+#endif // REVB
 
 #ifdef REVB
 	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input

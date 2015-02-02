@@ -92,6 +92,7 @@
 #define PIN_FLP_J2                      GPIO_Pin_0  //PB.00
 #define PIN_MVOLT                       GPIO_Pin_0  //PC.00  
 #ifdef REVPLUS
+#define PIN_FLP_J3                      GPIO_Pin_1  //PB.01
 #define RCC_AHB1Periph_GPIOADC          RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOC
 #else
 #define RCC_AHB1Periph_GPIOADC          RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC

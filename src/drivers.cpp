@@ -265,6 +265,34 @@ volatile uint8_t  g_blinkTmr10ms;
 volatile uint16_t g_tmr10ms;
 extern uint8_t StickScrollTimer ;
 
+#ifdef PCBSKY
+struct t_serial_tx FmsTx ;
+uint8_t FmsTxBuffer[12] ;
+
+void doFms()
+{
+	uint32_t i ;
+	if ( g_tmr10ms & 1 )
+	{
+		// Send a Fms packet
+		FmsTxBuffer[0] = 0xFF ;
+		for ( i = 0 ; i < 8 ; i += 1 )
+		{
+			int32_t x = g_chans512[i] ;
+			x /= 12 ;
+			x += 128 ;
+		FmsTxBuffer[i+1] = x ;
+		}
+		FmsTx.size = 9 ;		
+		FmsTx.buffer = FmsTxBuffer ;
+		txPdcCom2( &FmsTx ) ;
+	}
+}
+
+#endif
+
+
+
 void per10ms()
 {
 	register uint32_t i ;
@@ -390,6 +418,13 @@ extern uint8_t AnaEncSw ;
 
 #ifdef PCBX9D
 	sdPoll10ms() ;
+#endif
+
+#ifdef PCBSKY
+	if ( g_model.com2Function == COM2_FUNC_FMS )
+	{
+		doFms() ;
+	}
 #endif
 
 }

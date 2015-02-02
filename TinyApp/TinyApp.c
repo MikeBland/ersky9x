@@ -20,7 +20,7 @@
 #define NOINLINE __attribute__ ((noinline))
 
 // Version number, sent in first byte of response
-#define VERSION				 0x06
+#define VERSION				 0x07
 
 /*****************************************************************************/
 // USI_TWI write states.
@@ -83,6 +83,24 @@ static uint8_t Command_Flag;
 // Slave Each page address values.
 //static uint16_t USI_TWI_SLAVE_PAGE_Address;
 
+// Tx_buffer entries:
+// 0: VERSION
+// 1: Second
+// 2: Minute
+// 3: Hour
+// 4: Date
+// 5: Month
+// 6: Year[0]
+// 7: Year[1]
+// 8: Temperature
+// 9: PINB & 0b01001010
+// 10: ADC[0]
+// 11: ADC[1]
+// 12: PORTA & 0x0F - Send back output settings
+
+// 20: T_offset
+// 21: T_gain
+
 uint8_t DataBuffer[DATA_SIZE];
 static uint8_t *bufferPtr ;
 static uint8_t Value;
@@ -122,12 +140,16 @@ void config_io()
 {
 	DDRB &= ~0b01001010 ;
 	PORTB |= 0b01001010 ;
+	DDRA = 0xF0 ;
+	PORTA = 0xF0 ;
 }
 
 void disable_io()
 {
 	DDRB &= ~0b01001010 ;
 	PORTB &= ~0b01001010 ;
+	DDRA = 0 ;
+	PORTA = 0 ;
 }
 
 
@@ -777,11 +799,24 @@ void USI_TWI_SLAVE_Process_Overflow_Condition(void)
         	  bufferPtr = &DataBuffer[DATA_SIZE-1] ;
         	}
 				}
+				
+				if ( DataBuffer[0] == TWI_SUBCMD_SETOUTPUTS )
+				{
+        	if (Value > 1 ) // Size of time structure+1
+					{
+						uint8_t t = PORTA & 0xF0 ;
+						PORTA = ( DataBuffer[1] & 0x0F ) | t ;
+        	  Value = 9 ;
+						Tx_buffer[12] = PORTA & 0x0F ;
+					}
+				}
+
 				if ( Value > DATA_SIZE )
 				{
           Value = DATA_SIZE ;
           bufferPtr = &DataBuffer[DATA_SIZE-1] ;	// Overwrite last byte
 				}
+
     }
     
 		// Set SDA for output.

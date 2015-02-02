@@ -130,10 +130,19 @@ void applyTemplate(uint8_t idx)
     //CC(STK)   -> vSTK
     //ICC(vSTK) -> STK
 #define ICC(x) icc[(x)-1]
-    uint8_t icc[4] = {0};
-    for(uint8_t i=1; i<=4; i++) //generate inverse array
-        for(uint8_t j=1; j<=4; j++) if(CC(i)==j) icc[j-1]=i;
+    uint8_t icc[4] ;
+//    for(uint8_t i=1; i<=4; i++) //generate inverse array
+//		{
+////        for(uint8_t j=1; j<=4; j++) if(CC(i)==j) icc[j-1]=i;
+//			icc[CC(i)-1] = i ;
+//		}
 
+		uint32_t bch = bchout_ar[g_eeGeneral.templateSetup] ;
+    for ( uint32_t i = 4 ; i > 0 ; i -= 1 )
+		{
+			icc[bch & 3] = i ;
+			bch >>= 2 ;
+		}
 
     uint8_t j = 0;
 
@@ -154,7 +163,7 @@ void applyTemplate(uint8_t idx)
     	SKYSafetySwData *sd = &g_model.safetySw[ICC(STK_THR)-1] ;
 			sd->opt.ss.mode = 0 ;
 			sd->opt.ss.swtch = DSW_THR ;
-			sd->opt.ss.val = -100 ;
+			sd->opt.ss.val = g_model.throttleIdle ? 0 : -100 ;
     }
 
     //sticky t-cut
@@ -170,7 +179,7 @@ void applyTemplate(uint8_t idx)
     	SKYSafetySwData *sd = &g_model.safetySw[ICC(STK_THR)-1] ;
 			sd->opt.ss.mode = 3 ;
 			sd->opt.ss.swtch = DSW_THR ;
-			sd->opt.ss.val = -100 ;
+			sd->opt.ss.val = g_model.throttleIdle ? 0 : -100 ;
     }
 
     //V-Tail

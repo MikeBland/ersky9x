@@ -53,6 +53,22 @@
 // Ä  use \304
 // Ö  use \305 
 
+#define FWx4		"\030"
+#define FWx5		"\036"
+#define FWx10		"\074"
+#define FWx11		"\102"
+#define FWx12		"\110"
+#define FWx13		"\116"
+#define FWx14		"\124"
+#define FWx15		"\132"
+#define FWx16		"\140"
+#define FWx17		"\146"
+#define FWx18		"\152"
+
+
+#define I_REMOVED						0
+
+#define ISTR_X_OFF_ON				FWx17"\001""\003"ISTR_OFF ISTR_ON
 
 #define ISTR_ON              "P\303 "
 #define ISTR_OFF             "AV "
@@ -100,7 +116,7 @@
 #ifdef PCBX9D
 #define ISTR_CHANS_GV        "\004P1  P2  SL  HALVFULLCYK1CYK2CYK3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8KN1 KN2 KN3 KN4 KN5 KN6 KN7 KN8 KN9 KN10KN11KN12KN13KN14KN15KN16KN17KN18KN19KN20KN21KN22KN23KN24SWCHGV1 GV2 GV3 GV4 GV5 GV6 GV7 THISSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #define ISTR_CHANS_RAW       "\004P1  P2  SL  HALVFULLCYK1CYK2CYK3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8KN1 KN2 KN3 KN4 KN5 KN6 KN7 KN8 KN9 KN10KN11KN12KN13KN14KN15KN16KN17KN18KN19KN20KN21KN22KN23KN24SWCH"
-#define ISTR_CHANS_EXTRA   "\004SR  P5  P6  P7  P8  "
+#define ISTR_CHANS_EXTRA   "\004SR  P3  P4  P5  P6  "
 #endif
 
 #define ISTR_CH              "KN"
@@ -138,7 +154,7 @@
 #define ISTR_TELEM_SHORT     "\004----TIM1TIM2BATTGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV              "GV"
 #define ISTR_OFF_ON          "AV P\304 "
-#define ISTR_HYPH_INV        "\003---INV"
+#define ISTR_HYPH_INV        FWx18"\001""\003---INV"
 #define ISTR_VERSION         "VERSION"
 #define ISTR_TRAINER         "TRAINER"
 #define ISTR_SLAVE           "\007Slav" 
@@ -177,7 +193,7 @@
 #endif
 #ifdef PCBX9D
 #define ISTR_GV_SOURCE       "\003---RtmEtmTtmAtmRENRodHjdGasSkeP1 P2 SL SR k1 k2 k3 k4 k5 k6 k7 k8 k9 k10k11k12k13k14k15k16k17k18k19k20k21k22k23k24SC1SC2SC3SC4SC5SC6SC7SC8O1 O2 O3 O4 O5 O6 O7 O8 O9 O10O11O12O13O14O15O16O17O18O19O20O21O22O23O24"
-#define ISTR_EXTRA_SOURCE   "\003SR P5 P6 P7 P8 "
+#define ISTR_EXTRA_SOURCE   "\003SR P3 P4 P5 P6 "
 #endif
 #define ISTR_TEMPLATES       "MALLAR"
 #define ISTR_CHAN_ORDER      "Kanalordning"
@@ -214,7 +230,7 @@
 #define ISTR_YES_NO          "\003JA \013NEJ"
 #define ISTR_MENU_EXIT       "\003[MENU]\013[EXIT]"
 #define ISTR_DELETE_MIX      "RADERA MIX?"
-#define ISTR_MIX_POPUP       "EDIT\0ADDERA\0KOPIA\0FLYTTA\0RADERA"
+#define ISTR_MIX_POPUP       "EDIT\0ADDERA\0KOPIA\0FLYTTA\0RADERA\0CLEAR ALL"
 #define ISTR_MIXER           "MIXER"
 // CHR_S S for Slow
 #define ICHR_S               "S"
@@ -241,9 +257,9 @@
 #define ISTR_COUNT_DOWN_UP   "\012R\301kna ned R\301kna upp "
 #define ISTR_T_TRIM          "GasTrim"
 #define ISTR_T_EXPO          "GasExpo"
-#define ISTR_TRIM_INC        "GasOkning"
+#define ISTR_TRIM_INC        "GasOkning""\037"ISTR_TRIM_SWITCH
 // ISTR_TRIM_OPTIONS indexed 6 chars each
-#define ISTR_TRIM_OPTIONS    "\006Exp   xFin  Fin   MediumGrov  "
+#define ISTR_TRIM_OPTIONS    FWx14"\004""\006Exp   xFin  Fin   MediumGrov  "
 #define ISTR_TRIM_SWITCH     "TrimBr."
 #define ISTR_BEEP_CENTRE     "Centerpip"
 #define ISTR_RETA123         "RHGS123"
@@ -274,6 +290,7 @@
 #define ISTR_SP_FM0          " FF0"
 #define ISTR_SP_FM           " FF"
 #define ISTR_HELI_SETUP      "HELIKOPTER"
+#define ISTR_HELI_TEXT			ISTR_SWASH_TYPE"\037"ISTR_COLLECTIVE"\037"ISTR_SWASH_RING"\037"ISTR_ELE_DIRECTION"\037"ISTR_AIL_DIRECTION"\037"ISTR_COL_DIRECTION
 #define ISTR_SWASH_TYPE      "Swash-typ"
 #define ISTR_COLLECTIVE      "Collective"
 #define ISTR_SWASH_RING      "Swash-ring"
@@ -363,7 +380,7 @@
 // CSWITCH_STR indexed 7 chars each
 #define ICSWITCH_STR         "\007----   v>val  v<val  |v|>val|v|<valAND    OR     XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop TimeOff1-Shot 1-ShotRv\140=val"
 
-#define ISWASH_TYPE_STR     "\004----""120 ""120X""140 ""90  "
+#define ISWASH_TYPE_STR      FWx17"\004""\004----""120 ""120X""140 ""90  "
 
 #define ISTR_STICK_NAMES     "\004Rod Hjd Gas Ske "
 
@@ -374,7 +391,7 @@
 #define ISTR_TTM             "TTm"
 #define ISTR_FUEL            "Tank"
 #define ISTR_12_RPM          "\012RPM"
-#define ISTR_LAT_EQ          "Lat="
+#define ISTR_LAT_EQ         "Lat=""\037"ISTR_LON_EQ"\037"ISTR_ALT_MAX"\037"ISTR_SPD_KTS_MAX
 #define ISTR_LON_EQ          "Lon="
 #define ISTR_ALT_MAX         "Hjd=\011m   Max="
 #define ISTR_SPD_KTS_MAX     "Kmh=\011kts Max="

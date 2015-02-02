@@ -10,6 +10,83 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 02-Feb-2015  MPB (r214)
+Complete Model index menu
+Add second custom telemetry screen
+Rename logical switches to Lx (for Logical)
+Add 9XR-PRO DSM bit-bang serial input to SKY
+Fix DSM telemetry bugs
+Allow SBUS trainer input on COM2 and Bluetooth
+Add TmOK value to telemetry items
+FiFos don't disable interrupts, some are larger
+Add Menu Popups on main screen
+Move templates to the end of the mixer menu
+Allow selective disabling of Expo and Dual rates on a mix
+Allow inclusion of safety and limits in a mix where a channel is the source
+Allow Expo on a mix instead of a curve or differential
+Add option for serial to Bluetooth 'pass through'
+Allow MENU HOLD to enable larger changes in edited values
+Use "VERY LONG MENU" to toggle values to/from a GVAR
+I2C code to support Hack addon of MCP23008 and LED drivers
+Taranis - alter internal codes for pots/sliders - UPSETS existing models
+Allow an odd number of channels on PPM
+SKY/PRO - Add FMS serial output on COM2
+9XR-PRO - add LCD delay at power on.
+Taranis - support rotaryencoder on analog input
+Allow model specific throttle reverse
+Support for 6-position switch
+Debug tests for I2C expansion
+
+******************************************
+CHANGELOG: 04-Oct-2014  MPB (r213, source only)
+Change haptic handling
+Improve SPort RXRSSI detection
+bootloader improve trim switch detection
+More on JETI/MAVLINK
+Store BT as trainer status
+Add throttle idle at 0% option
+HC-05 BT baudrate setting improvements
+Add stick names option
+Log more telemetry items
+Allow up to 16 channels on trainer input
+
+******************************************
+CHANGELOG: 25-Sep-2014  MPB (r212, source only)
+Start to extra telemetry protocols
+FrSky telemetry detection on SPort changed
+Add files jeti.h, mavlink.cpp, mavlink.h
+Rename logical switches as Sx not SWx
+Rename ofs to val in custom and voice switches
+Rename TSSI to SWR when SPort in use
+Add more items to model edit index
+Add use of COM2 as SBUS trainer input
+Taranis - add SPort pin use for CPPM or SBUS trainer input
+Add 8 extra trainer inputs for when SBUS is in use
+Fix insta-trim bug in modes 3 and 4
+Rotary encoder enabled in maintenance mode
+
+******************************************
+CHANGELOG: 23-Aug-2014  MPB (r211, source only)
+SPort GPS processing and GPS logging
+Extra 3-POS switches support
+Jump to EXPO/DR editing from mix editor
+DSM telemetry fades/losses/holds monitoring
+Add 57600 baudrate to bluetooth
+Add bluetooth to trainer mapping option
+Sticky throttle switch handles trainer throttle
+Trainer weight resolution improved and more switches allowed
+From R204, DSM Rx number always sent as 1
+X9D PLUS supported
+Add persistant total ON time
+Add model specific backlight switch
+Add Ntimer custom switch
+Add 1-Shot and 1-ShotR to custom switches
+Add v~=ofs to custom switches
+Add named voice files for model name and system messages
+Add voice warning for throttle check and switch check
+Add open drain drive option for PPM output
+
+******************************************
 CHANGELOG: 30-Apr-2014  MPB (r203)
 X9D handle DJT telemetry
 X9D allow SPort port in maintenance mode
@@ -323,7 +400,7 @@ Fix model move in modelselect menu, X9D add PXX
 
 ******************************************
 CHANGELOG: 19-Jan-2013  MPB
-Fix voice temps in degF, X9D voice, X9D lcd speedup
+Fix voice temps in degFW, X9D voice, X9D lcd speedup
 
 ******************************************
 CHANGELOG: 17-Jan-2013  MPB

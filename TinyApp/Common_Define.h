@@ -9,6 +9,8 @@
 #define TWI_CMD_REBOOT							0x55	// TWI Command to restart back in the bootloader
 
 #define TWI_SUBCMD_SETDATETIME     	0x74	// TWI Command to set the date and time
+
+#define TWI_SUBCMD_SETOUTPUTS     	0x75	// TWI Command to set outputs
 //#define TWI_CMD_BVERSION          	0x04	// TWI Command to get the bootloader revision identifier
 //#define TWI_CMD_ERASEFLASH        	0x05	// TWI Command to erase the entire application section of flash memory
 //#define TWI_CMD_GETERRCONDN             0x07    // TWI Command to get Error condition

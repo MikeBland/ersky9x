@@ -16,7 +16,7 @@
 extern volatile uint16_t Analog_values[] ;
 
 extern void init_adc( void ) ;
-extern void init_adc2( uint32_t channel ) ;
+extern void init_adc2() ;
 extern uint32_t read_adc( void ) ;
 extern void stop_adc( void ) ;
 

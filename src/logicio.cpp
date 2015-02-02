@@ -986,6 +986,18 @@ uint32_t hwKeyState( uint8_t key )
 #endif	// REV9E
 
   uint32_t xxx = 0 ;
+  uint32_t analog = 0 ;
+	
+	if ( g_eeGeneral.analogMapping & MASK_6POS )
+	{
+  	analog = ( g_eeGeneral.analogMapping & MASK_6POS ) >> 2 ;
+		analog += 3 ;
+		if ( analog > 5 )
+		{
+			analog = 9 ;
+		}
+		analog = Analog_values[analog] ;
+	}
   
 	if( key > HSW_MAX )  return 0 ;
 
@@ -1101,8 +1113,33 @@ uint32_t hwKeyState( uint8_t key )
     case HSW_SJ2:
       xxx = ~f & PIN_SW_J_H ;
       break;
+
+// Need to add remaining X9E switches here
 #endif	// REV9E
 
+		case HSW_Ele6pos0 :
+				xxx = analog < 417 ;
+    break ;
+			
+		case HSW_Ele6pos1 :
+				xxx = ( analog <= 938 ) && ( analog >= 417 ) ;
+    break ;
+			
+		case HSW_Ele6pos2 :
+				xxx = ( analog <= 1211 ) && ( analog >= 938 ) ;
+    break ;
+			
+		case HSW_Ele6pos3 :
+				xxx = ( analog <= 1721 ) && ( analog >= 1211 ) ;
+    break ;
+			
+		case HSW_Ele6pos4 :
+				xxx = ( analog <= 3050 ) && (+ analog >= 1721 ) ;
+    break ;
+			
+		case HSW_Ele6pos5 :
+				xxx = analog > 3050 ;
+    break ;
 
     default:
       break;
@@ -1238,7 +1275,10 @@ static const uint8_t SwitchIndices[] = {HSW_SA0,HSW_SB0,HSW_SC0,HSW_SD0,HSW_SE0,
 #endif	// REV9E
 uint32_t switchPosition( uint32_t swtch )
 {
-	swtch = SwitchIndices[swtch] ;
+	if ( swtch < sizeof(SwitchIndices) )
+	{
+		swtch = SwitchIndices[swtch] ;
+	}
 
 	if ( swtch == HSW_SF2 )
 	{
@@ -1265,24 +1305,24 @@ uint32_t switchPosition( uint32_t swtch )
 	{
 		return 1 ;			
 	}
-//	if ( swtch == HSW_Ele6pos1 )
-//	{
-//		swtch += 2 ;
-//		if ( hwKeyState( swtch ) )
-//		{
-//			return 3 ;
-//		}
-//		swtch += 1 ;
-//		if ( hwKeyState( swtch ) )
-//		{
-//			return 4 ;
-//		}
-//		swtch += 1 ;
-//		if ( hwKeyState( swtch ) )
-//		{
-//			return 5 ;
-//		}
-//	}
+	if ( swtch == HSW_Ele6pos1 )
+	{
+		swtch += 2 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 3 ;
+		}
+		swtch += 1 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 4 ;
+		}
+		swtch += 1 ;
+		if ( hwKeyState( swtch ) )
+		{
+			return 5 ;
+		}
+	}
 	return 2 ;
 	
 //	swtch *= 3 ;

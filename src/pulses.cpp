@@ -134,8 +134,8 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 
 	pwmptr = PWM ;
 	// PWM3 for PPM output	 
-	pwmptr->PWM_CH_NUM[3].PWM_CMR = 0x0000000B ;	// CLKA
-	if (g_model.pulsePol)
+	pwmptr->PWM_CH_NUM[3].PWM_CMR = 0x0004000B ;	// CLKA
+	if (g_model.pulsePol == 0)
 	{
 		pwmptr->PWM_CH_NUM[3].PWM_CMR |= 0x00000200 ;	// CPOL
 	}
@@ -155,7 +155,7 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 #ifdef REVB
 	// PWM1 for PPM2
 	pwmptr->PWM_CH_NUM[1].PWM_CMR = 0x0000000B ;	// CLKB
-	if (g_model.pulsePol)
+	if (g_model.pulsePol == 0)
 	{
 		pwmptr->PWM_CH_NUM[1].PWM_CMR |= 0x00000200 ;	// CPOL
 	}
@@ -614,7 +614,7 @@ void setupPulsesPPM()			// Don't enable interrupts through here
     
 	pwmptr->PWM_CH_NUM[3].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	
-	if (g_model.pulsePol)
+	if (g_model.pulsePol == 0)
 	{
 		pwmptr->PWM_CH_NUM[3].PWM_CMR |= 0x00000200 ;	// CPOL
 	}
@@ -690,7 +690,7 @@ void setupPulsesPPM2()
 
 	pwmptr->PWM_CH_NUM[1].PWM_CDTYUPD = (g_model.ppmDelay*50+300)*2; //Stoplen *2
 	
-	if (g_model.pulsePol)
+	if (g_model.pulsePol == 0)
 	{
 		pwmptr->PWM_CH_NUM[1].PWM_CMR &= ~0x00000200 ;	// CPOL
 	}

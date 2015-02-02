@@ -30,6 +30,72 @@
 #include "frsky.h"
 #endif
 
+int16_t *const CalibMid[] =
+{ 
+	&g_eeGeneral.calibMid[0],
+	&g_eeGeneral.calibMid[1],
+	&g_eeGeneral.calibMid[2],
+	&g_eeGeneral.calibMid[3],
+	&g_eeGeneral.calibMid[4],
+	&g_eeGeneral.calibMid[5],
+	&g_eeGeneral.calibMid[6],
+#ifdef PCBX9D
+	&g_eeGeneral.x9dcalibMid,
+#if REVPLUS
+#ifdef REV9E
+	&g_eeGeneral.xcalibMid[0],
+	&g_eeGeneral.xcalibMid[1],
+	&g_eeGeneral.xcalibMid[2],
+#endif
+	&g_eeGeneral.x9dPcalibMid
+#endif
+#endif
+} ;
+
+int16_t *const CalibSpanPos[] =
+{ 
+	&g_eeGeneral.calibSpanPos[0],
+	&g_eeGeneral.calibSpanPos[1],
+	&g_eeGeneral.calibSpanPos[2],
+	&g_eeGeneral.calibSpanPos[3],
+	&g_eeGeneral.calibSpanPos[4],
+	&g_eeGeneral.calibSpanPos[5],
+	&g_eeGeneral.calibSpanPos[6],
+#ifdef PCBX9D
+	&g_eeGeneral.x9dcalibSpanPos,
+#if REVPLUS
+#ifdef REV9E
+	&g_eeGeneral.xcalibSpanPos[0],
+	&g_eeGeneral.xcalibSpanPos[1],
+	&g_eeGeneral.xcalibSpanPos[2],
+#endif
+	&g_eeGeneral.x9dPcalibSpanPos
+#endif
+#endif
+} ;
+
+int16_t *const CalibSpanNeg[] =
+{
+	&g_eeGeneral.calibSpanNeg[0],
+	&g_eeGeneral.calibSpanNeg[1],
+	&g_eeGeneral.calibSpanNeg[2],
+	&g_eeGeneral.calibSpanNeg[3],
+	&g_eeGeneral.calibSpanNeg[4],
+	&g_eeGeneral.calibSpanNeg[5],
+	&g_eeGeneral.calibSpanNeg[6],
+#ifdef PCBX9D
+	&g_eeGeneral.x9dcalibSpanNeg,
+#if REVPLUS
+#ifdef REV9E
+	&g_eeGeneral.xcalibSpanNeg[0],
+	&g_eeGeneral.xcalibSpanNeg[1],
+	&g_eeGeneral.xcalibSpanNeg[2],
+#endif
+	&g_eeGeneral.x9dPcalibSpanNeg
+#endif
+#endif
+} ;
+
 uint16_t evalChkSum()
 {
   uint16_t sum=0;
@@ -53,10 +119,15 @@ void generalDefault()
 	g_eeGeneral.disablePotScroll=  1;
 	g_eeGeneral.bright = 50 ;
 	g_eeGeneral.volume = 2 ;
-  for (int i = 0; i < 7; ++i) {
-    g_eeGeneral.calibMid[i]     = 0x400;
-    g_eeGeneral.calibSpanNeg[i] = 0x300;
-    g_eeGeneral.calibSpanPos[i] = 0x300;
+
+  for (int i = 0; i < NUM_ANALOG_CALS ; ++i )
+	{
+		*CalibMid[i] = 0x400 ;
+		*CalibSpanPos[i] = 0x300 ;
+		*CalibSpanNeg[i] = 0x300 ;
+//    g_eeGeneral.calibMid[i]     = 0x400;
+//    g_eeGeneral.calibSpanNeg[i] = 0x300;
+//    g_eeGeneral.calibSpanPos[i] = 0x300;
   }
   strncpy_P(g_eeGeneral.ownerName,PSTR(STR_ME), 10);
   g_eeGeneral.chkSum = evalChkSum() ;

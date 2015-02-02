@@ -63,11 +63,12 @@
 //#define STR2(s) #s
 //#define DEFNUMSTR(s)  STR2(s)
 
-extern const char stamp1[] ;
-extern const char stamp2[] ;
-extern const char stamp3[] ;
-extern const char stamp4[] ;
-extern const char stamp5[] ;
+//extern const char stamp1[] ;
+//extern const char stamp2[] ;
+//extern const char stamp3[] ;
+//extern const char stamp4[] ;
+//extern const char stamp5[] ;
+extern const char Stamps[] ;
 
 //extern const char *Str_OFF ;
 //extern const char *Str_ON ;
@@ -337,6 +338,16 @@ int8_t switchMap( int8_t x ) ;
 #define HSW_MAX				65
 #endif	// REV9E
 
+//Bitfield for hardware analog mapping
+#define	USE_P1_ENC	0x01
+#define	USE_P2_ENC	0x02
+#define	USE_P3_ENC	0x03
+#define ENC_MASK		0x03
+#define	USE_P1_6POS	0x04
+#define	USE_P2_6POS	0x08
+#define	USE_P3_6POS	0x0C
+#define MASK_6POS		0x0C
+
 
 #define HSW_OFFSET ( HSW_SB0 - ( HSW_SH2 + NUM_SKYCSW + 1 ) )
 
@@ -523,7 +534,11 @@ uint8_t CS_STATE( uint8_t x) ;
 #ifdef REV9E
 #define	NUM_EXTRA_POTS 5
 #else
+ #ifdef REVPLUS
+#define	NUM_EXTRA_POTS 2
+#else
 #define	NUM_EXTRA_POTS 1
+#endif	// REVPLUS
 #endif	// REV9E
 #endif
 
@@ -725,17 +740,37 @@ extern void backlight_w_off( void ) ;
 #define NO_MENU		1
 #define MENUS			0
 
+extern int16_t *const CalibMid[] ;
+extern int16_t *const CalibSpanPos[] ;
+extern int16_t *const CalibSpanNeg[] ;
+
+#ifdef PCBX9D
+ #if REVPLUS
+  #ifdef REV9E
+	 #define NUM_ANALOG_CALS	12
+	#else
+	 #define NUM_ANALOG_CALS	9
+	#endif
+ #else
+  #define NUM_ANALOG_CALS	8
+ #endif
+#else
+ #define NUM_ANALOG_CALS	7
+#endif
+
+
 extern uint16_t evalChkSum( void ) ;
 
 struct t_calib
 {
-	int16_t midVals[8];
-	int16_t loVals[8];
-	int16_t hiVals[8];
+	int16_t midVals[NUM_ANALOG_CALS];
+	int16_t loVals[NUM_ANALOG_CALS];
+	int16_t hiVals[NUM_ANALOG_CALS];
 	uint8_t idxState;
 } ;
 
 #define menuPressed() ( ( read_keys() & 2 ) == 0 )
+
 
 union t_xmem
 {
@@ -771,32 +806,32 @@ extern t_time Time ;
 extern bool    checkIncDec_Ret;//global helper vars
 extern uint8_t s_editMode;     //global editmode
 
-int16_t checkIncDec16(uint8_t event, int16_t i_pval, int16_t i_min, int16_t i_max, uint8_t i_flags);
-int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
-int8_t checkIncDecSwitch(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
-int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
-int8_t checkIncDec_vm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
-int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
-int8_t checkIncDec_hg0(uint8_t event, int8_t i_val, int8_t i_max);
-int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max);
+int16_t checkIncDec16( int16_t i_pval, int16_t i_min, int16_t i_max, uint8_t i_flags);
+int8_t checkIncDec( int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
+int8_t checkIncDecSwitch( int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags);
+int8_t checkIncDec_hm( int8_t i_val, int8_t i_min, int8_t i_max);
+//int8_t checkIncDec_vm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max);
+int8_t checkIncDec_hg( int8_t i_val, int8_t i_min, int8_t i_max);
+int8_t checkIncDec_hg0( int8_t i_val, int8_t i_max);
+int8_t checkIncDec_hm0( int8_t i_val, int8_t i_max);
 
-#define CHECK_INCDEC_H_GENVAR( event, var, min, max)     \
-    var = checkIncDec_hg(event,var,min,max)
+#define CHECK_INCDEC_H_GENVAR( var, min, max)     \
+    var = checkIncDec_hg(var,min,max)
 
-#define CHECK_INCDEC_H_GENVAR_0( event, var, max)     \
-    var = checkIncDec_hg0( event, var, max )
+#define CHECK_INCDEC_H_GENVAR_0( var, max)     \
+    var = checkIncDec_hg0( var, max )
 
-#define CHECK_INCDEC_H_MODELVAR( event, var, min, max)     \
-    var = checkIncDec_hm(event,var,min,max)
+#define CHECK_INCDEC_H_MODELVAR( var, min, max)     \
+    var = checkIncDec_hm(var,min,max)
 
-#define CHECK_INCDEC_H_MODELVAR_0(  event, var, max)     \
-    var = checkIncDec_hm0( event, var,max)
+#define CHECK_INCDEC_H_MODELVAR_0( var, max)     \
+    var = checkIncDec_hm0( var,max)
 
-#define CHECK_INCDEC_MODELSWITCH(event, var, min, max) \
-  var = checkIncDecSwitch(event,var,min,max,EE_MODEL|INCDEC_SWITCH)
+#define CHECK_INCDEC_MODELSWITCH( var, min, max) \
+  var = checkIncDecSwitch(var,min,max,EE_MODEL|INCDEC_SWITCH)
 
 #define CHECK_INCDEC_GENERALSWITCH( event, var, min, max) \
-  var = checkIncDecSwitch(event,var,min,max,EE_GENERAL|INCDEC_SWITCH)
+  var = checkIncDecSwitch(var,min,max,EE_GENERAL|INCDEC_SWITCH)
 
 
 extern uint8_t heartbeat ;
@@ -885,6 +920,7 @@ void    popMenu(bool uppermost=false);
 // Timeout, in seconds, stick scroll remains active
 #define STICK_SCROLL_TIMEOUT		5
 
+extern bool getSwitch00( int8_t swtch ) ;
 extern bool getSwitch(int8_t swtch, bool nc, uint8_t level = 0 ) ;
 extern int8_t getMovedSwitch( void ) ;
 extern uint8_t g_vbat100mV ;
@@ -947,6 +983,8 @@ extern struct t_timer s_timer[] ;
 
 extern uint8_t RotaryState ;		// Defaults to ROTARY_MENU_LR
 extern void valueprocessAnalogEncoder( uint32_t x ) ;
+
+extern uint8_t Tevent ;
 
 #if GVARS
 extern int8_t REG(int8_t x, int8_t min, int8_t max) ;
@@ -1017,11 +1055,14 @@ extern uint8_t AlertType ;
 #define COM2_FUNC_SBUS57600		2
 #ifdef PCBSKY
 #define COM2_FUNC_BTDIRECT		3
+#define COM2_FUNC_FMS					4
 #endif
 #ifdef PCBX9D
 #define COM2_FUNC_CPPMTRAIN		3
 #endif
 
 extern uint8_t TmOK ;
+
+uint8_t throttleReversed( void ) ;
 
 #endif

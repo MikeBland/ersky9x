@@ -192,6 +192,8 @@ int8_t RotaryControl ;
 uint8_t ppmInValid = 0 ;
 uint8_t Activated = 0 ;
 
+uint8_t Tevent ;
+
 
 #ifdef PCBSKY
 void tmrBt_Handle( void ) ;
@@ -426,6 +428,11 @@ extern void initWatchdog( void ) ;
 void init_i2s1( void ) ;
 #endif
 
+uint8_t throttleReversed()
+{
+	return g_model.throttleReversed ^	g_eeGeneral.throttleReversed ;
+}
+
 void setLanguage()
 {
 	switch ( g_eeGeneral.language )
@@ -500,18 +507,18 @@ void clearKeyEvents()
 //				break ;
 //			}
 #endif
-			if ( heartbeat_running )
-			{
-  			if(heartbeat == 0x3)
-  			{
-  			  heartbeat = 0;
-  			  wdt_reset();
-  			}
-			}
-			else
-			{
+//			if ( heartbeat_running )
+//			{
+//  			if(heartbeat == 0x3)
+//  			{
+//  			  heartbeat = 0;
+//  			  wdt_reset();
+//  			}
+//			}
+//			else
+//			{
 				wdt_reset() ;
-			}
+//			}
 		}	
     putEvent(0);
 }
@@ -824,7 +831,6 @@ int main( void )
 	I2C_EE_Init() ;
 	initHaptic() ;
 	start_2Mhz_timer() ;
-//	init_adc2( 8 ) ;
 #endif
 #ifdef PCBSKY
 	init_spi() ;
@@ -852,6 +858,7 @@ int main( void )
 #endif
 #ifdef PCBX9D
 	lcdSetRefVolt(g_eeGeneral.contrast) ;
+	init_adc2() ;
 #endif
 
 	createSwitchMapping() ;
@@ -1564,7 +1571,7 @@ void log_task(void* pdata)
 
 		if ( g_model.logSwitch )
 		{
-			if ( getSwitch( g_model.logSwitch, 0, 0 ) )
+			if ( getSwitch00( g_model.logSwitch ) )
 			{	// logs ON
 				if ( ( LogsRunning & 1 ) == 0 )
 				{	// were off
@@ -1998,7 +2005,7 @@ static void processVoiceAlarms()
 // End of invalid telemetry detection
 			if ( pvad->swtch )
 			{
-				if ( getSwitch( pvad->swtch, 0 ) == 0 )
+				if ( getSwitch00( pvad->swtch ) == 0 )
 				{
 					x = 0 ;
 				}
@@ -2016,7 +2023,7 @@ static void processVoiceAlarms()
 		{
 			if ( pvad->swtch )
 			{
-				curent_state = getSwitch( pvad->swtch, 0 ) ;
+				curent_state = getSwitch00( pvad->swtch ) ;
 				if ( curent_state == 0 )
 				{
 //							Nvs_state[i] = 0 ;
@@ -2459,7 +2466,7 @@ void mainSequence( uint32_t no_menu )
 				{
 					if ( AlarmTimers[i] == 0 )
 					{
-						if(getSwitch( sd->opt.ss.swtch,0))
+						if(getSwitch00( sd->opt.ss.swtch))
 						{
 							audio.event( /*((g_eeGeneral.speakerMode & 1) == 0) ? 1 :*/ sd->opt.ss.val ) ;
 							AlarmTimers[i] = 40 ;
@@ -2494,7 +2501,7 @@ void mainSequence( uint32_t no_menu )
 					}
 					else if ( ( periodCounter & 3 ) == 0 )		// Every 4 seconds
 					{
-						if(getSwitch( sd->opt.ss.swtch,0))
+						if(getSwitch00( sd->opt.ss.swtch))
 						{
 							putVoiceQueue( sd->opt.ss.val + 128 ) ;
 						}
@@ -2591,7 +2598,7 @@ void mainSequence( uint32_t no_menu )
 					{
 						if ( AlarmTimers[i] == 0 )
 						{
-							if(getSwitch( sd->opt.ss.swtch,0))
+							if(getSwitch00( sd->opt.ss.swtch))
 							{
 								putVoiceQueue( sd->opt.ss.val + 128 ) ;
 								AlarmTimers[i] = 40 ;		// 4 seconds
@@ -2625,7 +2632,7 @@ void mainSequence( uint32_t no_menu )
 			
 			if ( sd->opt.vs.vswtch )		// Configured
 			{
-				curent_state = getSwitch( sd->opt.vs.vswtch, 0 ) ;
+				curent_state = getSwitch00( sd->opt.vs.vswtch ) ;
 				if ( ( VoiceCheckFlag & 2 ) == 0 )
 				{
 					if ( ( mode == 0 ) || ( mode == 2 ) )
@@ -2725,7 +2732,7 @@ void mainSequence( uint32_t no_menu )
 					int8_t x = getAndSwitch( cs ) ;
 					if ( x )
 					{
-		        if (getSwitch( x, 0, 0) == 0 )
+		        if (getSwitch00( x) == 0 )
 					  {
 							Last_switch[i] = 0 ;
 							if ( cs.func == CS_NTIME )
@@ -2756,13 +2763,13 @@ void mainSequence( uint32_t no_menu )
 				}
 				if ( cs.func == CS_LATCH )
 				{
-		      if (getSwitch( cs.v1, 0, 0) )
+		      if (getSwitch00( cs.v1) )
 					{
 						Last_switch[i] = 1 ;
 					}
 					else
 					{
-			      if (getSwitch( cs.v2, 0, 0) )
+			      if (getSwitch00( cs.v2) )
 						{
 							Last_switch[i] = 0 ;
 						}
@@ -2770,12 +2777,12 @@ void mainSequence( uint32_t no_menu )
 				}
 				if ( cs.func == CS_FLIP )
 				{
-		      if (getSwitch( cs.v1, 0, 0) )
+		      if (getSwitch00( cs.v1) )
 					{
 						if ( ( Last_switch[i] & 2 ) == 0 )
 						{
 							// Clock it!
-			      	if (getSwitch( cs.v2, 0, 0) )
+			      	if (getSwitch00( cs.v2) )
 							{
 								Last_switch[i] = 3 ;
 							}
@@ -2803,7 +2810,7 @@ void mainSequence( uint32_t no_menu )
 						andSwOn = getAndSwitch( cs ) ;
 						if ( andSwOn )
 						{
-							andSwOn = getSwitch( andSwOn, 0, 0) ;
+							andSwOn = getSwitch00( andSwOn) ;
 						}
 						else
 						{
@@ -2811,7 +2818,7 @@ void mainSequence( uint32_t no_menu )
 						}
 					}
 					
-		      if (getSwitch( cs.v1, 0, 0) )
+		      if (getSwitch00( cs.v1) )
 					{
 						if ( ( Last_switch[i] & 2 ) == 0 )
 						{
@@ -2898,7 +2905,7 @@ void mainSequence( uint32_t no_menu )
 
 			if ( g_model.varioData.varioSource ) // Vario enabled
 			{
-				if ( getSwitch( g_model.varioData.swtch, 0, 0 ) )
+				if ( getSwitch00( g_model.varioData.swtch ) )
 				{
 					uint8_t new_rate = 0 ;
 					if ( varioRepeatRate )
@@ -3101,7 +3108,7 @@ uint32_t check_power_or_usb()
 
 void check_backlight()
 {
-  if(getSwitch(g_eeGeneral.lightSw,0) || getSwitch(g_model.mlightSw, 0 ) || g_LightOffCounter)
+  if(getSwitch00(g_eeGeneral.lightSw) || getSwitch00(g_model.mlightSw ) || g_LightOffCounter)
 	{
 		BACKLIGHT_ON ;
 	}
@@ -3227,13 +3234,16 @@ void doSplash()
 bool    checkIncDec_Ret;
 struct t_p1 P1values ;
 static uint8_t LongMenuTimer ;
+uint8_t StepSize ;
 
-int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
+//int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
+int16_t checkIncDec16( int16_t val, int16_t i_min, int16_t i_max, uint8_t i_flags)
 {
   int16_t newval = val;
   uint8_t kpl=KEY_RIGHT, kmi=KEY_LEFT, kother = -1;
 //	uint8_t skipPause = 0 ;
 
+		uint8_t event = Tevent ;
 //  if(event & _MSK_KEY_DBL){
 //    uint8_t hlp=kpl;
 //    kpl=kmi;
@@ -3352,15 +3362,15 @@ int16_t checkIncDec16(uint8_t event, int16_t val, int16_t i_min, int16_t i_max, 
   return newval;
 }
 
-int8_t checkIncDec(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
+int8_t checkIncDec( int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
 {
-  return checkIncDec16(event,i_val,i_min,i_max,i_flags);
+  return checkIncDec16(i_val,i_min,i_max,i_flags);
 }
 
-int8_t checkIncDecSwitch(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
+int8_t checkIncDecSwitch( int8_t i_val, int8_t i_min, int8_t i_max, uint8_t i_flags)
 {
 	i_val = switchUnMap( i_val ) ;
-  return switchMap( checkIncDec16(event,i_val,i_min,i_max,i_flags) ) ;
+  return switchMap( checkIncDec16(i_val,i_min,i_max,i_flags) ) ;
 //#if PCBSKY
 //	i_val = switchUnMap( i_val ) ;
 //  return switchMap( checkIncDec16(event,i_val,i_min,i_max,i_flags) ) ;
@@ -3372,24 +3382,24 @@ int8_t checkIncDecSwitch(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max
 //#endif
 }
 
-int8_t checkIncDec_hm(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+int8_t checkIncDec_hm( int8_t i_val, int8_t i_min, int8_t i_max)
 {
-  return checkIncDec(event,i_val,i_min,i_max,EE_MODEL);
+  return checkIncDec(i_val,i_min,i_max,EE_MODEL);
 }
 
-int8_t checkIncDec_hm0(uint8_t event, int8_t i_val, int8_t i_max)
+int8_t checkIncDec_hm0( int8_t i_val, int8_t i_max)
 {
-  return checkIncDec(event,i_val,0,i_max,EE_MODEL);
+  return checkIncDec(i_val,0,i_max,EE_MODEL);
 }
 
-int8_t checkIncDec_hg(uint8_t event, int8_t i_val, int8_t i_min, int8_t i_max)
+int8_t checkIncDec_hg( int8_t i_val, int8_t i_min, int8_t i_max)
 {
-  return checkIncDec(event,i_val,i_min,i_max,EE_GENERAL);
+  return checkIncDec(i_val,i_min,i_max,EE_GENERAL);
 }
 
-int8_t checkIncDec_hg0(uint8_t event, int8_t i_val, int8_t i_max)
+int8_t checkIncDec_hg0( int8_t i_val, int8_t i_max)
 {
-  return checkIncDec(event,i_val,0,i_max,EE_GENERAL);
+  return checkIncDec(i_val,0,i_max,EE_GENERAL);
 }
 
 //int8_t *TrimPtr[4] = 
@@ -3795,7 +3805,7 @@ void perMain( uint32_t no_menu )
 			uint8_t src = g_model.gvars[i].gvsource ;
 			if ( g_model.gvswitch[i] )
 			{
-				if ( !getSwitch( g_model.gvswitch[i], 0, 0 ) )
+				if ( !getSwitch00( g_model.gvswitch[i] ) )
 				{
 					continue ;
 				}
@@ -3914,6 +3924,9 @@ void perMain( uint32_t no_menu )
 				EnterMenu = 0 ;
 				audioDefevent(AU_MENUS);
 			}
+	 		StepSize = 20 ;
+	 		Tevent = evt ;
+			
 			g_menuStack[g_menuStackPtr](evt);
 		}
 #ifdef PCBX9D
@@ -4192,6 +4205,12 @@ uint16_t anaIn(uint8_t chan)
 			LastAnaIn[chan] = temp ;
 		}
 	}
+#ifdef PCBX9D
+		if ( chan == 5 )
+		{
+			temp = 2048 - temp ;
+		}
+#endif
   return temp ;
 }
 #endif
@@ -4222,10 +4241,23 @@ void getADC_single()
 		}
 #endif
 		S_anaFilt[x] = temp >> 1 ;
+//		S_anaFilt[x] = temp ;
 	}
 }
 
-
+#ifdef PCBSKY
+#define OSMP_SAMPLES	4
+#define OSMP_TOTAL		16384
+#define OSMP_SHIFT		3
+#endif
+#ifdef PCBX9D
+#define OSMP_SAMPLES	4
+#define OSMP_TOTAL		16384
+#define OSMP_SHIFT		3
+//#define OSMP_SAMPLES	8
+//#define OSMP_TOTAL		32768
+//#define OSMP_SHIFT		4
+#endif
 void getADC_osmp()
 {
 	register uint32_t x ;
@@ -4236,7 +4268,7 @@ void getADC_osmp()
 	{
 		temp[x] = 0 ;
 	}
-	for( y = 0 ; y < 4 ; y += 1 )
+	for( y = 0 ; y < OSMP_SAMPLES ; y += 1 )
 	{
 #ifdef PCBSKY
 		read_9_adc() ;
@@ -4244,18 +4276,19 @@ void getADC_osmp()
 #ifdef PCBX9D
 		read_adc() ;
 #endif
-		for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
+		for( x = 0 ; x < NUMBER_ANALOG+NUM_EXTRA_ANALOG ; x += 1 )
 		{
 			temp[x] += Analog_values[x] ;
 		}
 	}
 #ifdef PCBX9D
-	temp[1] = 16384 - temp[1] ;
-	temp[3] = 16384 - temp[3] ;
+	temp[1] = OSMP_TOTAL - temp[1] ;
+	temp[3] = OSMP_TOTAL - temp[3] ;
 #endif
-	for( x = 0 ; x < NUMBER_ANALOG ; x += 1 )
+	for( x = 0 ; x < NUMBER_ANALOG+NUM_EXTRA_ANALOG ; x += 1 )
 	{
-		S_anaFilt[x] = temp[x] >> 3 ;
+		S_anaFilt[x] = temp[x] >> OSMP_SHIFT ;
+//		S_anaFilt[x] = temp[x] >> 2 ;
 	}
 }
 
@@ -4279,13 +4312,16 @@ void getADC_filt()
 		if ( (x==1) || (x==3) )
 		{
 			temp = 2048 - temp ;
+//			temp = 4096 - temp ;
 		}
 #endif
 		temp = temp/2 + (t_ana[1][x] >> 2 ) ;
+//		temp = temp/2 + (t_ana[1][x] >> 1 ) ;
 #ifdef PCBX9D
 		if ( (x==1) || (x==3) )
 		{
 			temp = 2048 - temp ;
+//			temp = 4096 - temp ;
 		}
 #endif
 		S_anaFilt[x] = temp ;
@@ -4301,7 +4337,7 @@ uint32_t getFlightPhase()
   for ( i = 0 ; i < MAX_MODES ; i += 1 )
 	{
     PhaseData *phase = &g_model.phaseData[i];
-    if ( phase->swtch && getSwitch( phase->swtch, 0 ) )
+    if ( phase->swtch && getSwitch00( phase->swtch ) )
 		{
       return i + 1 ;
     }
@@ -4419,7 +4455,7 @@ static uint8_t checkTrim(uint8_t event)
 #endif
 		bool thro = (thrChan && (g_model.thrTrim));
     if(thro) v = 2; // if throttle trim and trim trottle then step=2
-    if(thrChan && g_eeGeneral.throttleReversed) v = -v;  // throttle reversed = trim reversed
+    if(thrChan && throttleReversed()) v = -v;  // throttle reversed = trim reversed
     int16_t x = (k&1) ? tm + v : tm - v;   // positive = k&1
 
     if(((x==0)  ||  ((x>=0) != (tm>=0))) && (!thro) && (tm!=0))
@@ -4789,6 +4825,16 @@ void createSwitchMapping()
 	*p++ = HSW_SR1 ;
 	*p++ = HSW_SR2 ;
 #endif	// REV9E
+
+	if ( g_eeGeneral.analogMapping & MASK_6POS )
+	{
+		*p++ = HSW_Ele6pos0 ;
+		*p++ = HSW_Ele6pos1 ;
+		*p++ = HSW_Ele6pos2 ;
+		*p++ = HSW_Ele6pos3 ;
+		*p++ = HSW_Ele6pos4 ;
+		*p++ = HSW_Ele6pos5 ;
+	}
 	 
 	for ( uint32_t i = 10 ; i <=33 ; i += 1  )
 	{
@@ -5027,6 +5073,10 @@ int16_t getValue(uint8_t i)
 
 
 
+bool getSwitch00( int8_t swtch )
+{
+	return getSwitch( swtch, 0, 0 ) ;
+}
 
 bool getSwitch(int8_t swtch, bool nc, uint8_t level)
 {
@@ -5319,7 +5369,7 @@ int8_t getMovedSwitch()
 				}
 				else
 				{
-			  	next = getSwitch(i, 0, 0) ;
+			  	next = getSwitch00(i) ;
 				}
 			break ;
 
@@ -5331,14 +5381,14 @@ int8_t getMovedSwitch()
 				}
 				else
 				{
-			  	next = getSwitch(i, 0, 0) ;
+			  	next = getSwitch00(i) ;
 				}
 			break ;
 
 			case 6 :// ID2
 			case 5 :// ID1
 			case 4 :// ID0
-			  next = getSwitch(i, 0, 0) ;
+			  next = getSwitch00(i) ;
 			break ;
 			 
 			case 3 :// ELE
@@ -5358,7 +5408,7 @@ int8_t getMovedSwitch()
 				}
 				else
 				{
-			  	next = getSwitch(i, 0, 0) ;
+			  	next = getSwitch00(i) ;
 				}
 			break ;
 
@@ -5370,7 +5420,7 @@ int8_t getMovedSwitch()
 				}
 				else
 				{
-			  	next = getSwitch(i, 0, 0) ;
+			  	next = getSwitch00(i) ;
 				}
 			break ;
 			
@@ -5382,7 +5432,7 @@ int8_t getMovedSwitch()
 				}
 				else
 				{
-			  	next = getSwitch(i, 0, 0) ;
+			  	next = getSwitch00(i) ;
 				}
 			break ;
 		}
@@ -5427,7 +5477,7 @@ int8_t getMovedSwitch()
   }
 	if ( result == 0 )
 	{
-		mask = getSwitch( 9, 0, 0 ) ;
+		mask = getSwitch00( 9 ) ;
 		if ( mask && ( trainer_state  == 0 ) )
 		{
 			result = 9 ;
@@ -5584,7 +5634,7 @@ void alert(const char * s, bool defaults)
     }
     wdt_reset();
 		if ( check_power_or_usb() ) return ;		// Usb on or power off
-    if(getSwitch(g_eeGeneral.lightSw,0) || getSwitch(g_model.mlightSw, 0 ) || g_eeGeneral.lightAutoOff || defaults)
+    if(getSwitch00(g_eeGeneral.lightSw) || getSwitch00(g_model.mlightSw) || g_eeGeneral.lightAutoOff || defaults)
       {BACKLIGHT_ON;}
     else
       {BACKLIGHT_OFF;}
@@ -5597,42 +5647,71 @@ void message(const char * s)
 //  lcdSetRefVolt(g_eeGeneral.contrast);
 }
 
-int16_t tanaIn( uint8_t chan )
+//int16_t tanaIn( uint8_t chan )
+//{
+// 	int16_t v = anaIn(chan) ;
+//	return  (g_eeGeneral.throttleReversed) ? -v : v ;
+//}
+
+uint8_t checkThrottlePosition()
 {
- 	int16_t v = anaIn(chan) ;
-	return  (g_eeGeneral.throttleReversed) ? -v : v ;
+  uint8_t thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
+	int16_t v = scaleAnalog( anaIn(thrchn), thrchn ) ;
+	
+//	if ( g_model.throttleIdle == 2 )
+//	{
+//  	if(v >= RESX - THRCHK_DEADBAND  )
+//  	{
+//  		return 1 ;
+//  	}
+//	}
+//	else 
+	if ( g_model.throttleIdle )
+	{
+		if ( abs( v ) < THRCHK_DEADBAND )
+		{
+			return 1 ;
+		}
+	}
+	else
+	{
+  	if(v <= -RESX + THRCHK_DEADBAND )
+  	{
+  		return 1 ;
+  	}
+	}
+	return 0 ;
 }
 
 void checkTHR()
 {
   if(g_eeGeneral.disableThrottleWarning) return;
 
-  uint8_t thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
+//  uint8_t thrchn=(2-(g_eeGeneral.stickMode&1));//stickMode=0123 -> thr=2121
 
-#ifdef SIMU
-  int16_t lowLim = THRCHK_DEADBAND - 1024 ;
-#else
+//#ifdef SIMU
+//  int16_t lowLim = THRCHK_DEADBAND - 1024 ;
+//#else
+#ifndef SIMU
   getADC_single();   // if thr is down - do not display warning at all
-	int16_t lowLim = g_eeGeneral.calibMid[thrchn] ;
-
-	lowLim = (g_eeGeneral.throttleReversed ? (- lowLim) - g_eeGeneral.calibSpanPos[thrchn] : lowLim - g_eeGeneral.calibSpanNeg[thrchn]);
-	lowLim += THRCHK_DEADBAND ;
 #endif
+//	int16_t lowLim = g_eeGeneral.calibMid[thrchn] ;
 
-  int16_t v = tanaIn(thrchn);
-	if ( g_model.throttleIdle )
+//	lowLim = (( g_eeGeneral.throttleReversed || ( g_model.throttleIdle == 2 ) ) ? (- lowLim) - g_eeGeneral.calibSpanPos[thrchn] : lowLim - g_eeGeneral.calibSpanNeg[thrchn]);
+//	if ( g_model.throttleIdle == 2 )
+//	{
+//		lowLim = -lowLim ;
+//		lowLim -= THRCHK_DEADBAND ;
+//	}
+//	else
+//	{
+//		lowLim += THRCHK_DEADBAND ;
+//	}
+//#endif
+
+	if ( checkThrottlePosition() )
 	{
-		if ( abs( v - g_eeGeneral.calibMid[thrchn] ) < THRCHK_DEADBAND )
-		{
-			return ;
-		}
-	}
-	else
-	{
-  	if(v<=lowLim)
-  	{
-  	  return;
-  	}
+		return ;
 	}
 
   // first - display warning
@@ -5653,24 +5732,13 @@ void checkTHR()
 #endif
 			check_backlight() ;
 
-      int16_t v = tanaIn(thrchn);
-			if ( g_model.throttleIdle )
+			if ( checkThrottlePosition() )
 			{
-				if ( abs( v - g_eeGeneral.calibMid[thrchn] ) < THRCHK_DEADBAND )
-				{
-					return ;
-				}
+				return ;
 			}
-			else
-			{
-  			if(v<=lowLim)
-  			{
-  			  return;
-  			}
-			}
-
       if( keyDown() )
       {
+			  clearKeyEvents() ;
         return;
       }
       wdt_reset();

@@ -1562,6 +1562,13 @@ void FRSKY_Init( uint8_t brate )
 			return ;
 		}
 	}
+#ifdef PCBSKY
+	if ( g_model.com2Function == COM2_FUNC_FMS )
+	{
+		UART_Configure( 19200, Master_frequency ) ;
+		return ;
+	}
+#endif
 
 #ifdef PCBSKY
 	
@@ -1582,11 +1589,7 @@ void FRSKY_Init( uint8_t brate )
 		}
 		
 	}
-#ifdef REVX
 	else if ( brate == 1 )
-#else
-	else
-#endif
 	{
 		if ( g_model.frskyComPort == 0 )
 		{
@@ -1619,8 +1622,11 @@ void FRSKY_Init( uint8_t brate )
 //		}
 	}
 #else
+	else
+	{
 		FrskyComPort = g_model.frskyComPort = 0 ;
 		init_software_com1( 115200, 1 ) ;
+	}
 #endif
   // clear frsky variables
 #endif

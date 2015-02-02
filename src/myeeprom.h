@@ -175,9 +175,10 @@ PACK(typedef struct t_EEGeneral {
 	uint8_t		BtType ;
 	uint8_t		trainerSource ;
 	uint8_t		customStickNames[16] ;
-  int16_t   xcalibMid[3];
-  int16_t   xcalibSpanNeg[3];
-  int16_t   xcalibSpanPos[3];
+  int16_t   xcalibMid[3];				// X9E
+  int16_t   xcalibSpanNeg[3]; 	// X9E
+  int16_t   xcalibSpanPos[3]; 	// X9E
+	uint8_t		analogMapping ;			// X9D / X9DP
 }) EEGeneral;
 
 
@@ -605,7 +606,8 @@ PACK(typedef struct te_ModelData {
 	uint8_t telemetryBaudrate:4 ;	// May be useful
 	uint8_t com2Baudrate:4 ;
 	uint8_t throttleSource:3 ;
-	uint8_t throttleIdle:2 ;
+	uint8_t throttleIdle:1 ;
+  uint8_t throttleReversed:1;
 	uint8_t thrSpare:3 ;
 	uint8_t BTfunction ;
 	uint32_t totalTime ;

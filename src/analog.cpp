@@ -39,6 +39,7 @@
 #include "timers.h"
 #include "logicio.h"
 #include "analog.h"
+#include "myeeprom.h"
 
 
 #define STICK_LV	3
@@ -65,7 +66,8 @@ void init_adc3( void ) ;
 #endif	// REV9E
 
 // Sample time should exceed 1uS
-#define SAMPTIME	2		// sample time = 15 cycles
+//#define SAMPTIME	2		// sample time = 28 cycles
+#define SAMPTIME	3		// sample time = 56 cycles
 
 volatile uint16_t Analog_values[NUMBER_ANALOG+NUM_EXTRA_ANALOG] ;
 
@@ -80,7 +82,11 @@ void init_adc()
 #ifdef REV9E
 	configure_pins( PIN_FLP_J2 | PIN_FLAP6, PIN_ANALOG | PIN_PORTB ) ;
 #else	 
+ #ifdef REVPLUS
+	configure_pins( PIN_FLP_J2 | PIN_FLP_J3, PIN_ANALOG | PIN_PORTB ) ;
+ #else	 
 	configure_pins( PIN_FLP_J2, PIN_ANALOG | PIN_PORTB ) ;
+ #endif	// REVPLUS
 #endif	// REV9E
 	
 	configure_pins( PIN_SLD_J1 | PIN_SLD_J2 | PIN_MVOLT, PIN_ANALOG | PIN_PORTC ) ;
@@ -147,35 +153,50 @@ uint32_t read_adc()
 }
 
 // This to read a single channel for use as a rotary encoder
-// Channel is POT_L (6) or POT_R (8)
-void init_adc2( uint32_t channel )
+// Channel is POT_L (6) or POT_R (8) or POT_3 (9)
+void init_adc2()
 {
-	RCC->APB2ENR |= RCC_APB2ENR_ADC2EN ;			// Enable clock
+	ADC2->CR2 = 0 ;
+	TIM5->CR1 = 0 ;
+	if ( g_eeGeneral.analogMapping & ENC_MASK )
+	{
+		uint32_t channel = (g_eeGeneral.analogMapping & ENC_MASK ) + 5 ; // gives 6, 7 or 8
+		if ( channel > 6 )
+		{
+			channel += 1 ;	// 7->8 and 8->9
+		}
+		RCC->APB2ENR |= RCC_APB2ENR_ADC2EN ;			// Enable clock
 
-	ADC2->CR1 = ADC_CR1_SCAN | ADC_CR1_EOCIE ;
-	ADC2->SQR1 = (1-1) << 20 ;		// NUMBER_ANALOG Channels
-	ADC2->SQR2 = 0 ;
-	ADC2->SQR3 = channel ;
+		ADC2->CR1 = ADC_CR1_SCAN | ADC_CR1_EOCIE ;
+		ADC2->SQR1 = (1-1) << 20 ;		// NUMBER_ANALOG Channels
+		ADC2->SQR2 = 0 ;
+		ADC2->SQR3 = channel ;
 
-	ADC2->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
-								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) ;
-	ADC2->SMPR2 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12) 
-								+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) + (SAMPTIME<<27) ;
+		ADC2->SMPR1 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12)
+									+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) ;
+		ADC2->SMPR2 = SAMPTIME + (SAMPTIME<<3) + (SAMPTIME<<6) + (SAMPTIME<<9) + (SAMPTIME<<12) 
+									+ (SAMPTIME<<15) + (SAMPTIME<<18) + (SAMPTIME<<21) + (SAMPTIME<<24) + (SAMPTIME<<27) ;
 
-	ADC2->CR2 = ADC_CR2_ADON | ADC_CR2_EXTSEL_3 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTEN_0 ;
+		ADC2->CR2 = ADC_CR2_ADON | ADC_CR2_EXTSEL_3 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTEN_0 ;
 	
-  NVIC_SetPriority(ADC_IRQn, 7);
-	NVIC_EnableIRQ(ADC_IRQn) ;
+  	NVIC_SetPriority(ADC_IRQn, 7);
+		NVIC_EnableIRQ(ADC_IRQn) ;
 
-// TIM5, CC1 event is ADC2 trigger
-	RCC->APB1ENR |= RCC_APB1ENR_TIM5EN ;		// Enable clock
-	TIM5->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
-	TIM5->ARR = 1999 ;
-	TIM5->CCR1 = 1000 ;
-	TIM5->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 ;
-	TIM5->EGR = TIM_EGR_CC1G ;
-	TIM5->CCER = TIM_CCER_CC1E ;
-	TIM5->CR1 = TIM_CR1_CEN ;
+	// TIM5, CC1 event is ADC2 trigger
+		RCC->APB1ENR |= RCC_APB1ENR_TIM5EN ;		// Enable clock
+		TIM5->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+		TIM5->ARR = 1999 ;
+		TIM5->CCR1 = 1000 ;
+		TIM5->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 ;
+		TIM5->EGR = TIM_EGR_CC1G ;
+		TIM5->CCER = TIM_CCER_CC1E ;
+		TIM5->CR1 = TIM_CR1_CEN ;
+	}
+	else
+	{
+		RCC->APB2ENR &= ~RCC_APB2ENR_ADC2EN ;		// Disable clock
+		RCC->APB1ENR &= ~RCC_APB1ENR_TIM5EN ;		// Disable clock
+	}
 }
 
 #ifdef REV9E
@@ -205,11 +226,13 @@ void init_adc3()
 #endif	// REV9E
 
 uint16_t RotaryAnalogValue ;
+uint16_t REDebug1 ;
 
 extern "C" void ADC_IRQHandler()
 {
 	uint32_t x ;
 	x = ADC2->DR ;
+	REDebug1 = x ;
 	int32_t diff = x - RotaryAnalogValue ;
 	if ( diff < 0 )
 	{

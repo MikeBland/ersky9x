@@ -66,6 +66,21 @@ v.xx.01-german
 // ü für ue benutze \305
 // ß für ss benutze \306
 
+#define FWx4		"\030"
+#define FWx5		"\036"
+#define FWx10		"\074"
+#define FWx11		"\102"
+#define FWx12		"\110"
+#define FWx13		"\116"
+#define FWx14		"\124"
+#define FWx15		"\132"
+#define FWx16		"\140"
+#define FWx17		"\146"
+#define FWx18		"\152"
+
+#define I_REMOVED						0
+
+#define ISTR_X_OFF_ON				FWx17"\001""\003"ISTR_OFF ISTR_ON
 
 #define ISTR_ON             "AN "
 #define ISTR_OFF            "AUS"
@@ -114,7 +129,7 @@ v.xx.01-german
 #ifdef PCBX9D
 #define ISTR_CHANS_GV	     "\004P1  P2  SL  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH24SWCHGV1 GV2 GV3 GV4 GV5 GV6 GV7 THISSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "
 #define ISTR_CHANS_RAW	   "\004P1  P2  SL  HALBVOLLCYC1CYC2CYC3PPM1PPM2PPM3PPM4PPM5PPM6PPM7PPM8CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10CH11CH12CH13CH14CH15CH16CH17CH18CH19CH20CH21CH22CH23CH24SWCH"
-#define ISTR_CHANS_EXTRA   "\004SR  P5  P6  P7  P8  "
+#define ISTR_CHANS_EXTRA   "\004SR  P3  P4  P5  P6  "
 #endif
 #define ISTR_CH	           "CH"
 #define ISTR_TMR_MODE	     "\003AUSON Se0Se%Ho0Ho%Ga0Ga%Qu0Qu%P1 P1%P2 P2%P3 P3%" // OFF=AUS=Timer aus ; ABS=AN=Timer an ; RUs=Se0=Seite bei 0 ; Ru%=Se%=Seite bei x% usw.
@@ -151,7 +166,7 @@ v.xx.01-german
 #define ISTR_TELEM_SHORT    "\004----TIM1TIM2AKKUGvr1Gvr2Gvr3Gvr4Gvr5Gvr6Gvr7"
 #define ISTR_GV             "GV"
 #define ISTR_OFF_ON         "AUSAN "
-#define ISTR_HYPH_INV       "\003---UMK" // Umkehren
+#define ISTR_HYPH_INV       FWx18"\001""\003---UMK" // Umkehren
 #define ISTR_VERSION        "VERSION"
 #define ISTR_TRAINER        "TRAINER"
 #define ISTR_SLAVE          "\007Slave" 
@@ -190,7 +205,7 @@ v.xx.01-german
 #endif
 #ifdef PCBX9D
 #define ISTR_GV_SOURCE      "\003---StmHtmGtmQtmRENSeiH\302hGasQueP1 P2 SL SR c1 c2 c3 c4 c5 c6 c7 c8 c9 c10c11c12c13c14c15c16c17c18c19c20c21c22c23c24SC1SC2SC3SC4SC5SC6SC7SC8O1 O2 O3 O4 O5 O6 O7 O8 O9 O10O11O12O13O14O15O16O17O18O19O20O21O22O23O24" // xtm=Trim for channel "x" REN=Rotary Encoder  ... = Variablennamen
-#define ISTR_EXTRA_SOURCE   "\003SR P5 P6 P7 P8 "
+#define ISTR_EXTRA_SOURCE   "\003SR P3 P4 P5 P6 "
 #endif
 #define ISTR_TEMPLATES      "VORLAGEN"
 #define ISTR_CHAN_ORDER     "Kanal Reihenfolge"
@@ -227,7 +242,7 @@ v.xx.01-german
 #define ISTR_YES_NO         "\003JA \013NEIN"
 #define ISTR_MENU_EXIT      "\003[MENU]\013[EXIT]"
 #define ISTR_DELETE_MIX     "L\302SCHE MISCHER?"
-#define ISTR_MIX_POPUP      "BEARBEI\0EINF\305GE\0KOPIER\0BEWEGE\0L\302SCHE"
+#define ISTR_MIX_POPUP      "BEARBEI\0EINF\305GE\0KOPIER\0BEWEGE\0L\302SCHE\0CLEAR ALL"
 #define ISTR_MIXER          "MISCHER"
 // CHR_S S for Slow / Langsam
 #define ICHR_S              "L"
@@ -254,9 +269,9 @@ v.xx.01-german
 #define ISTR_COUNT_DOWN_UP  "\012Z\301hl runteZ\301hl hoch"
 #define ISTR_T_TRIM         "T-Trim"
 #define ISTR_T_EXPO         "T-Expo"
-#define ISTR_TRIM_INC       "Trim Ink"
+#define ISTR_TRIM_INC       "Trim Ink""\037"ISTR_TRIM_SWITCH
 // ISTR_TRIM_OPTIONS indexed 6 chars each
-#define ISTR_TRIM_OPTIONS   "\006Expon ExFeinFein  MittelGrob  "
+#define ISTR_TRIM_OPTIONS   FWx14"\004""\006Expon ExFeinFein  MittelGrob  "
 #define ISTR_TRIM_SWITCH    "Trim Sch"
 #define ISTR_BEEP_CENTRE    "Piep Frq" //TonhÃ¶he Frequenz
 #define ISTR_RETA123        "SHGQ123"
@@ -287,6 +302,7 @@ v.xx.01-german
 #define ISTR_SP_FM0         " FM0"
 #define ISTR_SP_FM          " FM"
 #define ISTR_HELI_SETUP     "HELI EINST"
+#define ISTR_HELI_TEXT			ISTR_SWASH_TYPE"\037"ISTR_COLLECTIVE"\037"ISTR_SWASH_RING"\037"ISTR_ELE_DIRECTION"\037"ISTR_AIL_DIRECTION"\037"ISTR_COL_DIRECTION
 #define ISTR_SWASH_TYPE     "Taumel Typ" 
 #define ISTR_COLLECTIVE     "Kollektive"
 #define ISTR_SWASH_RING     "Taumel Ring"
@@ -307,7 +323,7 @@ v.xx.01-german
 #define ISTR_ANA            "ANA" // Analog Input und Batterie Spannung Kalibrierung
 #define ISTR_DIAG           "DIAG" // Diagnostics
 // ISTR_KEYNAMES indexed 5 chars each
-#define ISTR_KEYNAMES       "\005Men\305 ExitRuntr HochRechtLinks"
+#define ISTR_KEYNAMES       "\005 Men\305 ExitRuntr HochRechtLinks"
 #define ISTR_TRIM_M_P       "Trim- +"
 // ISTR_OFF_PLUS_EQ indexed 3 chars each
 #define ISTR_OFF_PLUS_EQ    "\003aus += :="
@@ -376,7 +392,7 @@ v.xx.01-german
 // CSWITCH_STR indexed 7 chars each
 #define ICSWITCH_STR        "\007----   v>val  v<val  |v|>val|v|<valUND    ODER   XOR    ""v1==v2 ""v1!=v2 ""v1>v2  ""v1<v2  ""Latch  F-Flop ZeitAus1-Shot 1-ShotRv\140=val"
 
-#define ISWASH_TYPE_STR     "\004----""120 ""120X""140 ""90  "
+#define ISWASH_TYPE_STR     FWx17"\004""\004----""120 ""120X""140 ""90  "
 
 #define ISTR_STICK_NAMES    "\004Sei H\302h Gas Que "
 
@@ -387,7 +403,7 @@ v.xx.01-german
 #define ISTR_TTM            "GTm" // Gas Trim
 #define ISTR_FUEL           "TANK"
 #define ISTR_12_RPM         "\012UPM"
-#define ISTR_LAT_EQ         "Bre="
+#define ISTR_LAT_EQ         "Bre=""\037"ISTR_LON_EQ"\037"ISTR_ALT_MAX"\037"ISTR_SPD_KTS_MAX
 #define ISTR_LON_EQ         "L\301n="
 #define ISTR_ALT_MAX        "H\302h=\011m   Max="
 #define ISTR_SPD_KTS_MAX    "Ges=\011kts Max="

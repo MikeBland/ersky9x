@@ -165,12 +165,12 @@
 #define STR_SP_FM0          164
 #define STR_SP_FM           165
 #define STR_HELI_SETUP      166
-#define STR_SWASH_TYPE      167
-#define STR_COLLECTIVE      168
-#define STR_SWASH_RING      169
-#define STR_ELE_DIRECTION   170
-#define STR_AIL_DIRECTION   171
-#define STR_COL_DIRECTION   172
+#define STR_X_OFF_ON      	167
+#define STR_ZCOLLECTIVE      168
+#define STR_ZSWASH_RING      169
+#define STR_ZELE_DIRECTION   170
+#define STR_ZAIL_DIRECTION   171
+#define STR_ZCOL_DIRECTION   172
 #define STR_MODEL_POPUP     173
 #define STR_MODELSEL        174
 #define STR_11_FREE         175
@@ -313,6 +313,8 @@
 
 #define STR_T_RANGE_TEST    311
 #define STR_EXTRA_SOURCE    312
+
+#define STR_HELI_TEXT			  313
 
 //"Current Source"
 //"\004----A1  A2  FASVSC1 SC2 SC3 SC4 SC5 SC6 SC7 SC8 "

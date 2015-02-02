@@ -428,16 +428,21 @@ ifeq ($(PHASES), 1)
  CPPDEFS += -DPHASES
 endif
 
+ifeq ($(PCB), X9D)
 # If Taranis+
-ifeq ($(REVPLUS), 1)
- CPPDEFS += -DREVPLUS
-endif
-
+ ifeq ($(REVPLUS), 1)
+  CPPDEFS += -DREVPLUS
+  EXT_MOD=X9DP
+ else
 # If Taranis X9E
-ifeq ($(REV9E), 1)
- CPPDEFS += -DREVPLUS
- CPPDEFS += -DREV9E
- EXT_MOD=X9E
+  ifeq ($(REV9E), 1)
+   CPPDEFS += -DREVPLUS
+   CPPDEFS += -DREV9E
+   EXT_MOD=X9E
+  else
+   EXT_MOD=X9D
+  endif
+ endif
 endif
 
 CPPDEFS += -DFRSKY
@@ -480,13 +485,16 @@ stamp:
 	@echo "#define SUB_VERS $(VER)-$(USER)" >> stamp-ersky9x.h
  ifeq ($(PCB), X9D)
 	@echo "#define SVN_VERS \"erx9d-r$(REV)\"" >> stamp-ersky9x.h
-	@echo "#define MOD_VERS \"X9D\"" >> stamp-ersky9x.h
+	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
  else	
 	@echo "#define SVN_VERS \"ersky9x-r$(REV)\"" >> stamp-ersky9x.h
 	@echo "#define MOD_VERS \"$(EXT_MOD)\"" >> stamp-ersky9x.h
  endif
 #	@cat stamp-ersky9x.h
 #endif
+
+$(OBJDIR):
+	test -d $(OBJDIR) || $(shell mkdir -p $(OBJDIR) )
 
 #$(OBJDIR)/%.o : %.cpp
 #	$(CC) -c $(CPPFLAGS) -fno-exceptions -I . $(INCDIR) $< -o $@
