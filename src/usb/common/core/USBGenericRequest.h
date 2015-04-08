@@ -192,24 +192,25 @@
 //------------------------------------------------------------------------------
 /// Generic USB SETUP request sent over Control endpoints.
 //------------------------------------------------------------------------------
-typedef struct {
 
-    /// Type of request
-    /// \sa "USB Request Recipients"
-    /// \sa "USB Request Types"
-    /// \sa "USB Request Directions"
-    unsigned char bmRequestType:8;
-    /// Request code
-    /// \sa "USB Request Codes"
-    unsigned char bRequest:8;
-    /// Request-specific value parameter.
-    unsigned short wValue:16;
-    /// Request-specific index parameter.
-    unsigned short wIndex:16;
-    /// Expected length (in bytes) of the data phase.
-    unsigned short wLength:16;
+//typedef struct {
 
-} USBGenericRequest;
+//    /// Type of request
+//    /// \sa "USB Request Recipients"
+//    /// \sa "USB Request Types"
+//    /// \sa "USB Request Directions"
+//    uint8_t bmRequestType:8;
+//    /// Request code
+//    /// \sa "USB Request Codes"
+//    uint8_t bRequest:8;
+//    /// Request-specific value parameter.
+//    uint16_t wValue:16;
+//    /// Request-specific index parameter.
+//    uint16_t wIndex:16;
+//    /// Expected length (in bytes) of the data phase.
+//    uint16_t wLength:16;
+
+//} USBGenericRequest;
 
 //------------------------------------------------------------------------------
 //         Exported functions

@@ -24,6 +24,7 @@
 #ifndef SIMU
 #include "CoOS.h"
 #endif
+#include <stdlib.h>
 
 //#define	WriteData(x)	 AspiData(x)
 //#define	WriteCommand(x)	 AspiCmd(x)
@@ -152,7 +153,6 @@ void convertDisplay()
 #ifdef REVPLUS
 void refreshDisplay()
 {
-	
 	Set_Address( 0, 0 ) ;
 	
   LCD_NCS_LOW() ;  
@@ -363,22 +363,38 @@ uint16_t BacklightBrightness_white ;
 
 void backlight_w_on()
 {
+#ifdef REV9E
+	TIM9->CCR2 = 100 - BacklightBrightness_white ;
+#else
 	TIM4->CCR4 = 100 - BacklightBrightness_white ;
+#endif
 }
 
 void backlight_w_off()
 {
+#ifdef REV9E
+	TIM9->CCR2 = 0 ;
+#else
 	TIM4->CCR4 = 0 ;
+#endif
 }
 
 void backlight_on()
 {
+#ifdef REV9E
+	TIM9->CCR1 = 100 - BacklightBrightness ;
+#else
 	TIM4->CCR2 = 100 - BacklightBrightness ;
+#endif
 }
 
 void backlight_off()
 {
+#ifdef REV9E
+	TIM9->CCR1 = 0 ;
+#else
 	TIM4->CCR2 = 0 ;
+#endif
 }
 
 void backlight_set( uint16_t brightness, uint16_t w_or_b )
@@ -386,12 +402,20 @@ void backlight_set( uint16_t brightness, uint16_t w_or_b )
 	if ( w_or_b )
 	{ // blue
 		BacklightBrightness = brightness ;
+#ifdef REV9E
+		TIM9->CCR1 = 100 - BacklightBrightness ;
+#else
 		TIM4->CCR2 = 100 - BacklightBrightness ;
+#endif
 	}
 	else
 	{ // white
 		BacklightBrightness_white = brightness ;
+#ifdef REV9E
+		TIM9->CCR2 = 100 - BacklightBrightness_white ;
+#else
 		TIM4->CCR4 = 100 - BacklightBrightness_white ;
+#endif
 	}
 }
 
@@ -408,8 +432,11 @@ static void LCD_BL_Config()
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOBL, &GPIO_InitStructure);
 
+#ifdef REV9E
+  GPIO_PinAFConfig(GPIOBL, GPIO_PinSource_BL ,GPIO_AF_TIM9);
+#else
   GPIO_PinAFConfig(GPIOBL, GPIO_PinSource_BL ,GPIO_AF_TIM4);
-
+#endif
   GPIO_InitStructure.GPIO_Pin =GPIO_Pin_BLW;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -417,20 +444,37 @@ static void LCD_BL_Config()
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOBLW, &GPIO_InitStructure);
 
+#ifdef REV9E
+  GPIO_PinAFConfig(GPIOBLW, GPIO_PinSource_BLW ,GPIO_AF_TIM9);
+#else
   GPIO_PinAFConfig(GPIOBLW, GPIO_PinSource_BLW ,GPIO_AF_TIM4);
+#endif
 
+	BacklightBrightness = 40 ;
+#ifdef REV9E
+  RCC->APB2ENR |= RCC_APB2ENR_TIM9EN ;    // Enable clock
+	TIM9->ARR = 100 ;
+	TIM9->PSC = (PeripheralSpeeds.Peri2_frequency*PeripheralSpeeds.Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
+	TIM9->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2 ;	// PWM
+	TIM9->CCER = TIM_CCER_CC1E | TIM_CCER_CC2E ;
+	
+	TIM9->CCR1 = BacklightBrightness ;
+	TIM9->CCR2 = BacklightBrightness_white ;
+	TIM9->EGR = 0 ;
+	TIM9->CR1 = TIM_CR1_CEN ;				// Counter enable
+#else
   RCC->APB1ENR |= RCC_APB1ENR_TIM4EN ;    // Enable clock
 	TIM4->ARR = 100 ;
-	TIM4->PSC = (Peri1_frequency*Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
+	TIM4->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
 	TIM4->CCMR1 = TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2 ;	// PWM
 	TIM4->CCMR2 = TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2 ;	// PWM
 	TIM4->CCER = TIM_CCER_CC4E | TIM_CCER_CC2E ;
 	
-	BacklightBrightness = 40 ;
 	TIM4->CCR2 = BacklightBrightness ;
 	TIM4->CCR4 = BacklightBrightness_white ;
 	TIM4->EGR = 0 ;
 	TIM4->CR1 = TIM_CR1_CEN ;				// Counter enable
+#endif
 }
 
 // Init the Haptic
@@ -449,7 +493,7 @@ void initHaptic()
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM10EN ;		// Enable clock
 	TIM10->ARR = 100 ;
-	TIM10->PSC = (Peri2_frequency*Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
+	TIM10->PSC = (PeripheralSpeeds.Peri2_frequency*PeripheralSpeeds.Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
 	TIM10->CCMR1 = TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 ;	// PWM
 	TIM10->CCER = TIM_CCER_CC1E ;
 	
@@ -508,7 +552,7 @@ static void LCD_BL_Config()
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM10EN ;		// Enable clock
 	TIM10->ARR = 100 ;
-	TIM10->PSC = (Peri2_frequency*Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
+	TIM10->PSC = (PeripheralSpeeds.Peri2_frequency*PeripheralSpeeds.Timer_mult2) / 10000 - 1 ;		// 100uS from 30MHz
 	TIM10->CCMR1 = 0x60 ;	// PWM
 	TIM10->CCER = 1 ;	
 	
@@ -720,4 +764,405 @@ void lcdSetRefVolt(uint8_t val)
   AspiCmd(val+CONTRAST_OFS);		//0--255
 
 }
+
+#ifdef REV9E
+// Top LCD
+
+void delay1_7us()
+{
+	hw_delay( 17 ) ; // units of 0.1uS
+}
+
+#define CS1_LOW		(GPIO_TOPLCD->BSRRH = PIN_TOPLCD_CS1)
+#define CS1_HIGH	(GPIO_TOPLCD->BSRRL = PIN_TOPLCD_CS1)
+#define CS2_LOW		(GPIO_TOPLCD->BSRRH = PIN_TOPLCD_CS2)
+#define CS2_HIGH	(GPIO_TOPLCD->BSRRL = PIN_TOPLCD_CS2)
+#define DATA_LOW	(GPIO_TOPLCD->BSRRH = PIN_TOPLCD_DATA)
+#define DATA_HIGH	(GPIO_TOPLCD->BSRRL = PIN_TOPLCD_DATA)
+#define WR_LOW		(GPIO_TOPLCD->BSRRH = PIN_TOPLCD_WR)
+#define WR_HIGH		(GPIO_TOPLCD->BSRRL = PIN_TOPLCD_WR)
+
+#define VA_BL_ON 	(GPIO_TOPLCD->BSRRL = PIN_TOPLCD_LED)
+#define VA_BL_OFF	(GPIO_TOPLCD->BSRRH = PIN_TOPLCD_LED)
+
+// States:
+#define TOP_LCD_IDLE		0
+#define TOP_LCD_CKLOW		1
+#define TOP_LCD_CKHI		2
+#define TOP_LCD_END			3
+#define TOP_LCD_1CKLOW	4
+#define TOP_LCD_1CKHI		5
+
+struct t_top_lcd_control
+{
+	uint8_t *data ;
+	uint8_t *data2 ;
+	uint16_t chip ;
+	uint16_t count ;
+	uint16_t count2 ;
+	uint16_t state ;
+	uint16_t bitCount ;
+} TopLcdControl ;
+
+void sendToplcdCommand( uint8_t command, uint8_t chip )
+{
+  uint32_t i ;
+    
+	WR_HIGH;
+	if ( chip	) CS2_LOW ; else CS1_LOW ;
+	delay1_7us() ;
+	WR_LOW ;      //PRESENT 100 COMMAND CODE 
+	DATA_HIGH ;
+	delay1_7us() ;
+	WR_HIGH ;
+	delay1_7us() ;
+	WR_LOW ;
+	DATA_LOW ;
+	delay1_7us() ;
+	WR_HIGH ;
+	delay1_7us() ;
+	WR_LOW ;
+	delay1_7us() ;
+	WR_HIGH ;
+	delay1_7us() ;
+	for (i =0;i<=7;i++) 
+	{
+		WR_LOW ;
+		if ((command & 0x80) !=0)  
+		{
+	    DATA_HIGH ;
+		}
+		else 
+		{
+			DATA_LOW ;
+		}
+		delay1_7us() ;
+		WR_HIGH ;
+		delay1_7us() ;
+		command = command << 1 ;
+	}
+	WR_LOW ;
+	delay1_7us() ;
+	WR_HIGH ;
+	delay1_7us() ;
+	if ( chip	) CS2_HIGH ; else CS1_HIGH ;
+	delay1_7us() ;
+} 
+
+// Send up to 1 byte of data, CS already valid
+//void ht1621WrData( uint8_t data, uint8_t count )
+//{
+//	while ( count )
+//	{
+//		WR_LOW ;
+//		if ( data & 0x80 )
+//		{
+//			DATA_HIGH ;
+//		}
+//		else  
+//		{
+//			DATA_LOW ;
+//		}
+//		delay1_7us() ;
+//		WR_HIGH ;
+//		delay1_7us() ;
+//	  data <<= 1 ;
+//		count -= 1 ;
+//	}
+//}
+
+//void ht1621WrAllData( uint8_t *pData, uint8_t chip )
+//{ 
+//	uint32_t i ; 
+//	uint32_t j ; 
+//	if ( chip	) CS2_LOW ; else CS1_LOW ;
+//	delay1_7us() ;
+//  ht1621WrData( 0xa0, 3 ) ;
+//  ht1621WrData( 0, 6 ) ; // HT1621 6 bit,left 2 bit;
+//	j = chip ? 7 : 11 ;
+//	for ( i = 0 ; i < j ; i += 1 ) 
+//	{ 
+//		ht1621WrData( *pData++, 8 ) ;
+//	} 
+//	if ( chip	) CS2_HIGH ; else CS1_HIGH ;
+//	delay1_7us() ;
+//} 
+
+void updateTopLCD( uint32_t time, uint32_t batteryState ) ;
+
+const uint8_t TimeLCDsegs[] = {	0xAF, 0x06, 0x6D, 0x4F, 0xC6, 0xCB, 0xEB, 0x0E, 0xEF, 0xCF } ;
+const uint8_t RssiLCDsegs[] = {	0xFA, 0x60, 0xBC, 0xF4, 0x66, 0xD6, 0xDE, 0x70, 0xFE, 0xF6 } ;
+const uint8_t OpTimeLCDsegs[] = {	0x5F, 0x06, 0x6B, 0x2F, 0x36, 0x3D, 0x7D, 0x07, 0x7F, 0x3F } ;
+static uint8_t Ht1621Data1[12] ;
+static uint8_t Ht1621Data2[8] ;
+static uint8_t RssiValue ;
+
+void initTimerTopLcd()
+{
+	// Timer12
+	RCC->APB1ENR |= RCC_APB1ENR_TIM12EN ;		// Enable clock
+	TIM12->ARR = 17 ;	// 1.7uS
+	TIM12->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 10000000 - 1 ;		// 0.1uS from 30MHz
+	TIM12->CCER = 0 ;	
+	TIM12->CCMR1 = 0 ;
+	TIM12->EGR = 0 ;
+	TIM12->CR1 = 5 ;
+  NVIC_SetPriority(TIM8_BRK_TIM12_IRQn, 2 ) ;
+	NVIC_EnableIRQ(TIM8_BRK_TIM12_IRQn) ;
+}
+
+void initTopLcd()
+{
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_TOPLCD, ENABLE);
+	GPIO_TOPLCD->BSRRL = PIN_TOPLCD_CS1 | PIN_TOPLCD_CS2 ;
+	configure_pins( PIN_TOPLCD_LED | PIN_TOPLCD_CS1 | PIN_TOPLCD_CS2 | PIN_TOPLCD_WR | PIN_TOPLCD_DATA,
+									 PIN_OUTPUT | PIN_PORTG| PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+
+  sendToplcdCommand(0x03, 0) ;
+  sendToplcdCommand(0x01, 0) ;
+  sendToplcdCommand(0x29, 0) ;
+  sendToplcdCommand(0x03, 1) ;
+  sendToplcdCommand(0x01, 1) ;
+  sendToplcdCommand(0x29, 1) ;
+
+	initTimerTopLcd() ;
+
+	VA_BL_ON ;
+	updateTopLCD( 0, 0 ) ;
+	TIM12->DIER |= 1 ;		// First write to blank segments
+}
+
+
+extern "C" void TIM8_BRK_TIM12_IRQHandler()
+{
+	struct t_top_lcd_control *pc ;
+	TIM12->SR &= ~TIM_SR_UIF ;
+	pc = &TopLcdControl ;
+
+	if ( pc->state == TOP_LCD_CKLOW )
+	{
+		WR_LOW ;      //PRESENT 100 COMMAND CODE 
+		if ((*pc->data & 0x80) !=0)  
+		{
+			DATA_HIGH ;
+		}
+		else 
+		{
+			DATA_LOW ;
+		}
+		*pc->data <<= 1 ;
+		pc->state = TOP_LCD_CKHI ;
+	}
+	else if ( pc->state == TOP_LCD_CKHI )
+	{
+		WR_HIGH ;
+		if ( --pc->count == 0 )
+		{
+			pc->state = TOP_LCD_END ;
+		}
+		else
+		{
+			pc->state = TOP_LCD_CKLOW ;
+			if ( ( ++pc->bitCount & 7) == 0 )
+			{
+				pc->data += 1 ;	// next byte
+			}
+		}
+	}
+	else if ( pc->state == TOP_LCD_END )
+	{
+		if ( pc->chip	)
+		{
+			CS2_HIGH ;
+			pc->state = TOP_LCD_IDLE ;
+			TIM12->DIER &= ~1 ;
+		}
+		else
+		{
+			CS1_HIGH ;
+			pc->chip = 1 ;
+			pc->data = pc->data2 ;
+			pc->count = pc->count2 ;
+			pc->bitCount = 0 ;
+			pc->state = TOP_LCD_IDLE ;
+		}
+	}
+	else if ( pc->state == TOP_LCD_IDLE )
+	{
+		WR_HIGH;
+		if ( pc->chip	) CS2_LOW ; else CS1_LOW ;
+		pc->bitCount = 0 ;
+		pc->state = TOP_LCD_1CKLOW ;
+	}
+	else if ( pc->state == TOP_LCD_1CKLOW )
+	{
+		WR_LOW ;
+		DATA_HIGH ;		// First 1 bit
+		pc->state = TOP_LCD_1CKHI ;
+	}
+	else if ( pc->state == TOP_LCD_1CKHI )
+	{
+		WR_HIGH ;
+		pc->state = TOP_LCD_CKLOW ;
+	}
+}
+
+
+void setTopTime( uint32_t time )
+{
+	div_t qr ;
+	uint32_t r ;
+	qr = div( time, 60 ) ;
+	r = qr.rem ;
+
+	qr = div( qr.quot, 10 ) ;
+
+	Ht1621Data1[1] = TimeLCDsegs[qr.quot] ;
+	Ht1621Data1[2] = TimeLCDsegs[qr.rem] ;
+	
+	qr = div( r, 10 ) ;
+	Ht1621Data1[3] = TimeLCDsegs[qr.quot] | 0x10 ; // ":"
+	Ht1621Data1[4] = TimeLCDsegs[qr.rem] | 0x10 ; // "Operation Time"
+}
+
+void setTopRssi( uint32_t rssi )
+{
+	div_t qr ;
+	uint32_t r = 0 ;
+	RssiValue = rssi ;
+	qr = div( rssi, 10 ) ;
+	if ( qr.quot > 9 )
+	{
+		r = 1 ;
+		qr.quot -= 10 ;
+	}
+	Ht1621Data2[3] = r ? RssiLCDsegs[1] : 0 ;
+	Ht1621Data2[2] = ( r || qr.quot ) ? RssiLCDsegs[qr.quot] : 0 ;
+	Ht1621Data2[1] = RssiLCDsegs[qr.rem] ;
+	Ht1621Data1[5] |= 0x10 ;	// "RSSI"
+
+}
+
+void setTopVoltage( uint32_t volts )
+{
+	div_t qr ;
+	uint32_t r = 0 ;
+	uint32_t segs ;
+	qr = div( volts, 10 ) ;
+	if ( qr.quot > 9 )
+	{
+		r = 1 ;
+		qr.quot -= 10 ;
+	}
+	segs = r ? RssiLCDsegs[1] : 0 ;
+	Ht1621Data2[4] = ((segs & 7) << 1 ) | 1 ;	// "DB"
+	Ht1621Data2[5] = segs & 0xF0 ;
+	segs = ( r || qr.quot ) ? RssiLCDsegs[qr.quot] : 0 ;
+	Ht1621Data2[5] |= (segs & 0x0E) | 1 ;	// Horizontal line
+	Ht1621Data2[6] = segs & 0xF0 ;
+	segs = RssiLCDsegs[qr.rem] ;
+	Ht1621Data2[6] |= (segs & 0x0E) | 1 ;	// Decimal point
+	Ht1621Data2[7] = segs & 0xF0 ;
+}
+
+void setTopOpTime( uint32_t hours, uint32_t mins, uint32_t secs )
+{
+	div_t qr ;
+	uint32_t segs ;
+	uint32_t segs2 ;
+	
+	qr = div( secs, 10 ) ;
+	segs = OpTimeLCDsegs[qr.rem] ;
+	Ht1621Data1[5] = (segs & 0x0F) | 0x70 ;
+	segs &= 0x70 ;
+	segs2 = OpTimeLCDsegs[qr.quot] ;
+	Ht1621Data1[6] = segs | (segs2 & 0x0F) ;
+
+	qr = div( mins, 10 ) ;
+	segs = OpTimeLCDsegs[qr.rem] ;
+	segs2 &= 0x70 ;
+	Ht1621Data1[7] = segs2 | (segs & 0x0F ) | 0x80 ; // ":"
+	segs &= 0x70 ;
+	segs2 = OpTimeLCDsegs[qr.quot] ;
+	Ht1621Data1[8] = segs | (segs2 & 0x0F) ;
+	
+	qr = div( hours, 10 ) ;
+	segs = OpTimeLCDsegs[qr.rem] ;
+	segs2 &= 0x70 ;
+	Ht1621Data1[9] = segs2 | (segs & 0x0F ) | 0x80 ; // ":"
+	segs &= 0x70 ;
+	segs2 = OpTimeLCDsegs[qr.quot] ;
+	Ht1621Data1[10] = segs | (segs2 & 0x0F) ;
+	Ht1621Data1[11] = segs2 & 0xF0 ;
+}
+
+void updateTopLCD( uint32_t time, uint32_t batteryState )
+{
+	uint32_t x ;
+	setTopTime( time ) ;
+	if ( batteryState )
+	{
+		Ht1621Data1[8] |= 0x80 ;
+	}
+	if ( batteryState > 1 )
+	{
+		Ht1621Data1[10] |= 0x80 ;
+	}
+	if ( batteryState > 2 )
+	{
+		Ht1621Data1[6] |= 0x80 ;
+	}
+	if ( batteryState > 3 )
+	{
+		Ht1621Data1[11] |= 0x80 ;
+	}
+	if ( batteryState > 4 )
+	{
+		Ht1621Data1[5] |= 0x80 ;
+	}
+
+	x = RssiValue ;
+	if ( x > 42 )
+	{
+		Ht1621Data2[3] |= 1 ;
+	}
+	if ( x > 45 )
+	{
+		Ht1621Data2[2] |= 1 ;
+	}
+	if ( x > 50 )
+	{
+		Ht1621Data2[1] |= 1 ;
+	}
+	if ( x > 60 )
+	{
+		Ht1621Data2[4] |= 0x10 ;
+	}
+	if ( x > 70 )
+	{
+		Ht1621Data2[4] |= 0x20 ;
+	}
+	if ( x > 80 )
+	{
+		Ht1621Data2[4] |= 0x40 ;
+	}
+	if ( x > 90 )
+	{
+		Ht1621Data2[4] |= 0x80 ;
+	}
+
+	Ht1621Data1[0] = 0x40 ;	// last 2 bits command and 6 bits 0 address
+	Ht1621Data2[0] = 0x40 ;	// last 2 bits command and 6 bits 0 address
+	
+	TopLcdControl.data = Ht1621Data1 ;
+	TopLcdControl.data2 = Ht1621Data2 ;
+	TopLcdControl.chip = 0 ;
+	TopLcdControl.count = 12*8-4 ;
+	TopLcdControl.count2 = 8*8-4 ;
+	TopLcdControl.state = TOP_LCD_IDLE ;
+	TIM12->DIER |= 1 ;
+}
+
+
+#endif
 

@@ -105,8 +105,8 @@ int16_t WholeAltitude ;
 
 #define FRSKY_SPORT_PACKET_SIZE		9
 
-uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
-uint8_t frskyTxBuffer[19];   // Ditto for transmit buffer
+uint8_t frskyRxBuffer[20];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
+uint8_t frskyTxBuffer[20];   // Ditto for transmit buffer
 //uint8_t frskyTxBufferCount = 0;
 //uint8_t FrskyRxBufferReady = 0;
 uint8_t frskyStreaming = 0;
@@ -191,6 +191,21 @@ void evalVario(int16_t altitude_bp, uint16_t altitude_ap)
   vptr->VarioAltitude_cm = varioAltitude_cm;
   vptr->VarioSpeed += vptr->VarioAltitudeQueue[varioAltitudeQueuePointer] ;
 #endif
+}
+
+void dsmTelemetryStartReceive()
+{
+	numPktBytes = 0 ;
+}
+
+uint16_t convertRxv( uint16_t value )
+{
+	if ( FrskyTelemetryType != 2 )		// DSM telemetry
+	{
+		value *= g_model.rxVratio ;
+		value /= 255 ;
+	}
+ 	return value ;
 }
 
 void store_hub_data( uint8_t index, uint16_t value ) ;
@@ -690,7 +705,7 @@ void processFrskyPacket(uint8_t *packet)
 //8[08] Unknown
 //9[09] Unknown
 //10[0A] Unknown
-//11[0B] Unknown
+//11[0B] Unknown	// Assan when 7E type is Rx RSSI
 //12[0C] Unknown
 //13[0D] Unknown
 //14[0E] Unknown
@@ -748,23 +763,165 @@ void processFrskyPacket(uint8_t *packet)
 
 //===============================================================
 
-uint8_t DsmDebug[18] ;
-uint8_t DsmControlDebug[18] ;
+uint8_t DsmDebug[20] ;
+uint8_t DsmControlDebug[20] ;
 uint16_t DsmControlCounter ;
-uint16_t DsmDbgCounters[18] ;
-extern uint8_t DsmFrameRequired ;
+uint16_t DsmDbgCounters[20] ;
+extern uint16_t DsmFrameRequired ;
 uint16_t TelemetryDebug ;
 uint16_t TelemetryDebug1 ;
 uint16_t TelemetryDebug2 ;
+uint16_t TelemetryDebug3 ;
+uint16_t TelemetryDebug4 ;
 
+//#ifdef ASSAN
+//extern void putProtocolDebug( uint8_t byte ) ;
+//#endif
 
 void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 {
 	int32_t ivalue ;
-	packet += 1 ;			// Skip the 0xAA
-	uint32_t type = *packet++ ;
+	uint32_t type ;
+#ifdef ASSAN
+	static uint8_t newMode ;
+	static uint8_t newCount ;
+#endif
+	TelemetryDebug1 += 1 ;
 
-	if ( type && type < 0x20 )
+//extern uint16_t AssanDebug1 ;
+
+//		AssanDebug1 += 1 ;
+
+	DsmDbgCounters[10] = packet[0] ;
+	DsmDbgCounters[11] = packet[1] ;
+	DsmDbgCounters[12] = packet[2] ;
+	DsmDbgCounters[13] = packet[3] ;
+
+#ifdef ASSAN
+#ifdef PCBSKY
+		if ( g_model.protocol == PROTO_ASSAN )
+#endif
+#ifdef PCBX9D
+		if ( g_model.xprotocol == PROTO_ASSAN )
+#endif
+	{
+		uint8_t *p = packet ;
+
+
+extern struct t_fifo64 HexStreamFifo ;
+	for ( type = 0 ; type < byteCount ; type += 1 )
+	{
+		put_fifo64( &HexStreamFifo, p[type] ) ;
+	}
+
+//		TelemetryDebug2 = byteCount ;
+		if ( byteCount >= 20 )
+		{
+			uint16_t csum = 0 ;
+			uint8_t *q = packet ;
+			uint32_t i ;
+			for ( i = 0 ; i < 18 ; i += 1 )
+			{
+				csum += *q++ ;
+			}
+			TelemetryDebug3 = csum ;
+			csum = *q++ << 8 ;
+			csum |= *q ;
+			TelemetryDebug4 = csum ;
+		}
+#ifdef PCBX9D
+		if ( TelemetryDebug3 != TelemetryDebug4 )
+		{
+			return ;
+		}
+#endif
+		
+//putProtocolDebug( '<' ) ;
+//putProtocolDebug( p[0] ) ;
+//putProtocolDebug( p[1] ) ;
+//putProtocolDebug( p[2] ) ;
+//putProtocolDebug( p[3] ) ;
+//putProtocolDebug( p[4] ) ;
+//putProtocolDebug( p[5] ) ;
+//putProtocolDebug( p[6] ) ;
+		
+//		DsmDebug[0] = *packet++ ;	// Work mode
+
+		if (p[0] & ORTX_BIND_FLAG )
+		{
+			if ( p[2] == 3 )
+			{
+				newMode = p[3] & 0x0F ;
+				newCount += 1 ;
+				if ( newCount > 4 )
+				{
+					dsmBindResponse( newMode, 12 ) ;
+				}
+			}
+		}
+		else
+		{
+			newCount = 0 ;
+		}
+
+// 2-17 if RSSI > 0 telemetry packet		 
+// 2-17 if RSSI == 0 2-5 ID, 6,7 version
+
+// Binding, 2 is 1=broadcasting, 2=receiving, 3=binding success,4=binding fail
+// Binding, when byte 2 is success, 3 is work mode		 
+// 4-17 unused
+// 18,19 are checksum		 
+
+		ivalue = *packet ;	// status + RSSI
+		if ( (ivalue & 0x1F) == 0 )
+		{
+			for ( ivalue = 0 ; ivalue < 16 ; ivalue += 1 )
+			{
+				DsmControlDebug[ivalue] = *packet++ ;
+			}
+		}
+//		else
+//		{
+//			for ( ivalue = 2 ; ivalue < 18 ; ivalue += 1 )
+//			{
+//				DsmDebug[ivalue] = *packet++ ;
+//			}
+////			TelemetryDebug = *packet++ ;
+////			TelemetryDebug1 = *packet++ ;
+//		}
+//		return ;
+		packet = p + 1 ;
+		type = *packet++ & 0x1F ;
+		if ( type == 0 )
+		{
+			if ( *p & ORTX_USE_TM )
+			{
+				type = 0x01E ;
+			}
+		}
+	}
+	else
+#endif
+	{
+		
+//#ifdef ASSAN
+//uint8_t *p = packet ;
+//putProtocolDebug( '<' ) ;
+//putProtocolDebug( p[0] ) ;
+//putProtocolDebug( p[1] ) ;
+//putProtocolDebug( p[2] ) ;
+//putProtocolDebug( p[3] ) ;
+//putProtocolDebug( p[4] ) ;
+//putProtocolDebug( p[5] ) ;
+//putProtocolDebug( p[6] ) ;
+//#endif //ASSAN		
+		packet += 1 ;			// Skip the 0xAA
+		type = *packet++ ;
+	}
+
+	TelemetryDebug = (type << 8 ) | *packet ;
+
+	if ( type && (type < 0x20) )
 	{
 		
    	frskyUsrStreaming = FRSKY_USR_TIMEOUT10ms ; // reset counter only if valid packets are being detected
@@ -772,7 +929,9 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 
 		
 		// Debug code
-		if ( *packet == DsmFrameRequired )
+		uint16_t temp = *packet ;
+		temp |= packet[1] << 8 ;
+		if ( temp == DsmFrameRequired )
 		{
 			uint8_t *p = packet ;
 			uint8_t i ;
@@ -787,7 +946,30 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 		 
 		ivalue = (int16_t) ( (packet[2] << 8 ) | packet[3] ) ;
 		// Telemetry
+#ifdef ASSAN
+#ifdef PCBSKY
+		if ( g_model.protocol == PROTO_ASSAN )
+		{
+    	frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
+		}
+		else
+		{
+    	frskyTelemetry[2].set(type, FR_RXRSI_COPY );	// RSSI
+		}
+#endif
+#ifdef PCBX9D
+		if ( g_model.xprotocol == PROTO_ASSAN )
+		{
+    	frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
+		}
+		else
+		{
+    	frskyTelemetry[2].set(type, FR_RXRSI_COPY );	// RSSI
+		}
+#endif
+#else
     frskyTelemetry[2].set(type, FR_RXRSI_COPY );	// RSSI
+#endif		
 		switch ( *packet )
 		{
 			case DSM_ALT :
@@ -849,6 +1031,23 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				// temp
 				ivalue = (int16_t) ( (packet[6] << 8 ) | packet[7] ) ;
 				FrskyHubData[FR_TEMP1] = (ivalue-32)*5/9 ;
+
+#ifdef ASSAN
+#ifdef PCBSKY
+				if ( g_model.protocol == PROTO_ASSAN )
+#endif
+#ifdef PCBX9D
+				if ( g_model.xprotocol == PROTO_ASSAN )
+#endif
+#endif
+				{
+					if ( ( *packet = DSM_VTEMP1 ) && ( packet[1] == 1 ) )
+					{
+						ivalue = (int16_t) packet[11] ;	// Rx RSSI
+						FrskyHubData[FR_TEMP2] = ivalue ;	// Put here for now					
+    				frskyTelemetry[2].set(ivalue, FR_RXRSI_COPY ) ;	// RSSI
+					}
+				}	
 			break ;
 
 			case DSM_STAT1 :
@@ -869,9 +1068,9 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 				ivalue = (int16_t) ( (packet[14] << 8 ) | packet[15] ) ;
 				{
 					uint32_t x = (uint16_t)ivalue ;
-					x *= 128 ;
-					x /= 717 ;		// was 1155 ;
-					store_hub_data( FR_RXV, x ) ;
+//					x *= 128 ;
+//					x /= 717 ;		// was 1155 ;
+					store_hub_data( FR_RXV, x / 10 ) ;
 				}
 			break ;
 
@@ -914,12 +1113,33 @@ void processDsmPacket(uint8_t *packet, uint8_t byteCount)
 		DsmManCode[2] = *packet++ ;
 		DsmManCode[3] = *packet ;
 	}
+	else if (type == 0 )
+	{
+#ifdef PCBSKY
+		if ( g_model.protocol != PROTO_ASSAN )
+#endif
+#ifdef PCBX9D
+		if ( g_model.xprotocol != PROTO_ASSAN )
+#endif
+		{
+    	frskyTelemetry[2].set(type, FR_RXRSI_COPY ) ;	// RSSI
+		}
+		else
+		{
+  		if ( frskyStreaming == 0 )
+			{
+    		frskyTelemetry[2].set(type, FR_RXRSI_COPY ) ;	// RSSI
+			}
+		}
+	}
+
+
   dataState = frskyDataIdle ;
 
 }
 
 
-#ifndef DISABLE_PXX_SPORT
+//#ifndef DISABLE_PXX_SPORT
 //#ifndef REVX
 static bool checkSportPacket()
 {
@@ -1148,7 +1368,7 @@ void processSportPacket()
 		}
 	}
 }
-#endif
+//#endif
 
 /*
    Receive serial (RS-232) characters, detecting and storing each Fr-Sky 
@@ -1156,6 +1376,11 @@ void processSportPacket()
    received, process its data into storage variables. Characters are
    received using dma, and sent here every 10 mS.
 */
+
+//void dsm_start_receive()
+//{
+//	numPktBytes = 0 ;
+//}
 
 
 void frsky_receive_byte( uint8_t data )
@@ -1180,45 +1405,80 @@ void frsky_receive_byte( uint8_t data )
 
 	if ( FrskyTelemetryType == 2 )		// DSM telemetry
 	{
-    switch (dataState) 
+#ifdef ASSAN
+#ifdef PCBSKY
+		if ( g_model.protocol == PROTO_ASSAN )
+#endif
+#ifdef PCBX9D
+		if ( g_model.xprotocol == PROTO_ASSAN )
+#endif
 		{
-      case frskyDataIdle:
-        if (data == 0xAA)
-				{
-         	dataState = frskyDataInFrame ;
-          numbytes = 0 ;
-	        frskyRxBuffer[numbytes++] = data ;
-				}
-			break ;
+    	switch (dataState) 
+			{
+    	  case frskyDataIdle:
+   	     	dataState = frskyDataInFrame ;
+   	      numbytes = 0 ;
+  	      frskyRxBuffer[numbytes++] = data ;
+				break ;
 
-      case frskyDataInFrame:
-        if (numbytes < 19)
-				{
-	        frskyRxBuffer[numbytes++] = data ;
-					if ( numbytes >= 18 )
+    	  case frskyDataInFrame:
+    	    if (numbytes < 20)
 					{
-						processDsmPacket( frskyRxBuffer, numbytes ) ;
-						numbytes = 0 ;
+	  	      frskyRxBuffer[numbytes++] = data ;
+						if ( numbytes > 19 )
+						{
+							processDsmPacket( frskyRxBuffer, numbytes ) ;
+							numbytes = 0 ;
+						}
 					}
-				}
-      break ;
+    	  break ;
+			}
 		}
+		else // not ASSAN
+		{
+#endif
+    	switch (dataState) 
+			{
+    	  case frskyDataIdle:
+    	    if (data == 0xAA)
+					{
+    	     	dataState = frskyDataInFrame ;
+    	      numbytes = 0 ;
+	  	      frskyRxBuffer[numbytes++] = data ;
+					}
+				break ;
+
+    	  case frskyDataInFrame:
+    	    if (numbytes < 19)
+					{
+	  	      frskyRxBuffer[numbytes++] = data ;
+						if ( numbytes >= 18 )
+						{
+							processDsmPacket( frskyRxBuffer, numbytes ) ;
+							numbytes = 0 ;
+						}
+					}
+    	  break ;
+			}
+#ifdef ASSAN
+		}
+#endif
 	}
-	else
+	else // Not DSM
 	{
     switch (dataState) 
     {
       case frskyDataStart:
         if (data == START_STOP)
 				{
-#ifndef DISABLE_PXX_SPORT
+//#ifndef DISABLE_PXX_SPORT
 //#ifndef REVX
 					if ( FrskyTelemetryType )		// SPORT
 					{
          		dataState = frskyDataInFrame ;
            	numbytes = 0 ;
 					}
-#endif
+//#endif
 					break ; // Remain in userDataStart if possible 0x7e,0x7e doublet found.
 				}
         dataState = frskyDataInFrame;
@@ -1234,11 +1494,11 @@ void frsky_receive_byte( uint8_t data )
         }
         if (data == START_STOP) // end of frame detected
         {
-#ifdef DISABLE_PXX_SPORT
+//#ifdef DISABLE_PXX_SPORT
 //#ifdef REVX
-	          processFrskyPacket(frskyRxBuffer); // FrskyRxBufferReady = 1;
-  	        dataState = frskyDataIdle;
-#else
+//	          processFrskyPacket(frskyRxBuffer); // FrskyRxBufferReady = 1;
+//  	        dataState = frskyDataIdle;
+//#else
 					if ( FrskyTelemetryType )		// SPORT
 					{						
          		dataState = frskyDataInFrame ;
@@ -1249,7 +1509,7 @@ void frsky_receive_byte( uint8_t data )
 	          processFrskyPacket(frskyRxBuffer); // FrskyRxBufferReady = 1;
   	        dataState = frskyDataIdle;
 					}
-#endif
+//#endif
           break;
         }
         if (numbytes < 19)
@@ -1272,7 +1532,7 @@ void frsky_receive_byte( uint8_t data )
 
     } // switch
   }
-#ifndef DISABLE_PXX_SPORT
+//#ifndef DISABLE_PXX_SPORT
 //#ifndef REVX
 	if ( FrskyTelemetryType == 1 )		// SPORT
 	{
@@ -1282,8 +1542,22 @@ void frsky_receive_byte( uint8_t data )
 		  numbytes = 0 ;
 			dataState = frskyDataIdle;
 		}
-	}
+#if 0
+// Detect polling for sending data out
+		else
+		{
+		  if ( numbytes == 1 )
+			{
+				if ( data == 0xBA )
+				{
+					// Treat this as a poll for data
+				}
+			}
+			
+		}
 #endif
+	}
+//#endif
   numPktBytes = numbytes ;
 }
 
@@ -1543,16 +1817,20 @@ void telemetry_init( uint8_t telemetryType )
 		case TEL_DSM :
 			FRSKY_Init( 2 ) ;
 		break ;
-
+		
+#ifdef ASSAN
+		case TEL_ASSAN :
+			FRSKY_Init( 3 ) ;
+		break ;
+#endif	
 	}
-
 }
 
 void FRSKY_Init( uint8_t brate )
 {
 	
 	FrskyComPort = g_model.frskyComPort ;
-	FrskyTelemetryType = brate ;
+	FrskyTelemetryType = brate == 3 ? 2 : brate ;
 
 	if ( ( g_model.com2Function == COM2_FUNC_SBUSTRAIN ) || ( g_model.com2Function == COM2_FUNC_SBUS57600 ) )
 	{
@@ -1605,6 +1883,19 @@ void FRSKY_Init( uint8_t brate )
 			UART_Configure( 57600, Master_frequency ) ;
 		}
 	}
+#ifdef ASSAN
+	else if ( brate == 3 )
+	{
+		FrskyComPort = g_model.frskyComPort = 0 ;
+		UART2_Configure( 115200, Master_frequency ) ;
+//		UART2_Configure( 111111, Master_frequency ) ;
+		UART2_timeout_enable() ;
+#ifdef REVX
+		g_model.telemetryRxInvert = 0 ;
+		setMFP() ;
+#endif
+	}
+#endif
 #ifdef REVX
 	else
 	{
@@ -1629,13 +1920,27 @@ void FRSKY_Init( uint8_t brate )
 	}
 #endif
   // clear frsky variables
-#endif
+#endif // PCBSKY
 
 #ifdef PCBX9D
 	if ( brate == 0 )
 	{
-		x9dSPortInit( 1 ) ;
+		if ( g_model.frskyComPort == 1 )
+		{
+			x9dConsoleInit() ;
+			USART3->BRR = PeripheralSpeeds.Peri1_frequency / 9600 ;
+		}
+		else
+		{
+			x9dSPortInit( 1 ) ;
+		}
 	}
+#ifdef ASSAN
+	else if ( brate == 3 )
+	{
+		x9dSPortInit( 115200 ) ;		// ASSAN
+	}
+#endif
 	else
 	{
 		x9dSPortInit( 0 ) ;
@@ -1745,11 +2050,17 @@ uint8_t decodeTelemetryType( uint8_t telemetryType )
 #endif
 
 #ifdef PCBX9D
-	telemetryType = g_model.protocol == PROTO_PXX ;
+	type = g_model.protocol == PROTO_PXX ;
 	if ( g_model.protocol == PROTO_OFF )
 	{
-		telemetryType = g_model.xprotocol == PROTO_PXX ;
+		type = g_model.xprotocol == PROTO_PXX ;
 	}
+#ifdef ASSAN
+	if ( g_model.xprotocol == PROTO_ASSAN )
+	{
+		type = TEL_ASSAN ;
+	}
+#endif
 #endif
 
 #ifdef PCBSKY
@@ -1757,6 +2068,13 @@ uint8_t decodeTelemetryType( uint8_t telemetryType )
 	{
 		type = TEL_DSM ;
 	}
+#ifdef ASSAN
+	if ( g_model.protocol == PROTO_ASSAN )
+	{
+		type = TEL_ASSAN ;
+	}
+#endif
+
 #endif
 	
 	switch ( telemetryType )
@@ -1772,8 +2090,11 @@ uint8_t decodeTelemetryType( uint8_t telemetryType )
 	return type ;
 }
 
+uint8_t TelDebug1 ;
+uint8_t TelDebug2 ;
+
 // Called every 10 mS in interrupt routine
-void check_frsky()
+void check_frsky( uint32_t fivems )
 {
   // Used to detect presence of valid FrSky telemetry packets inside the
   // last FRSKY_TIMEOUT10ms 10ms intervals
@@ -1782,6 +2103,8 @@ void check_frsky()
 	uint8_t type ;
 
 	type = decodeTelemetryType( telemetryType ) ;
+	TelDebug1 = type ;
+	TelDebug2 = telemetryType ;
 
 #ifdef PCBSKY
 	if ( ( type != TelemetryType )
@@ -1791,7 +2114,19 @@ void check_frsky()
 	if ( telemetryType != FrskyTelemetryType )
 #endif
 	{
-		telemetry_init( type ) ;
+#ifdef ASSAN
+		if ( g_model.xprotocol == PROTO_ASSAN )
+		{
+			if ( type != TelemetryType )
+			{
+				telemetry_init( type ) ;
+			}
+		}
+		else
+#endif
+		{
+			telemetry_init( type ) ;
+		}
 	}
 
 #ifdef PCBSKY
@@ -1900,7 +2235,12 @@ void check_frsky()
 		}
 	}
 #endif
-	 
+
+	if ( fivems )
+	{
+  	return ;
+	}
+
 	uint8_t lTmOK ;
 	if (frskyStreaming > 0)
 	{

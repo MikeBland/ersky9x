@@ -119,15 +119,13 @@ void generalDefault()
 	g_eeGeneral.disablePotScroll=  1;
 	g_eeGeneral.bright = 50 ;
 	g_eeGeneral.volume = 2 ;
+	g_eeGeneral.lightSw = MAX_SKYDRSWITCH ;	// ON
 
   for (int i = 0; i < NUM_ANALOG_CALS ; ++i )
 	{
 		*CalibMid[i] = 0x400 ;
 		*CalibSpanPos[i] = 0x300 ;
 		*CalibSpanNeg[i] = 0x300 ;
-//    g_eeGeneral.calibMid[i]     = 0x400;
-//    g_eeGeneral.calibSpanNeg[i] = 0x300;
-//    g_eeGeneral.calibSpanPos[i] = 0x300;
   }
   strncpy_P(g_eeGeneral.ownerName,PSTR(STR_ME), 10);
   g_eeGeneral.chkSum = evalChkSum() ;

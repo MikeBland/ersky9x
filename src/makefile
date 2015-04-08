@@ -290,6 +290,12 @@ SRC  = core_cm3.c \
        port.c \
        coos.c
 
+#       usb/hid_device_descriptor.c \
+#       usb/hidJoystick.c \
+#       usb/HIDDMouseDriver.c \
+#       usb/USBDDriver.c \
+
+
 #       usb/device/core/USBD_UDP.c usb/device/core/USBDDriver.c usb/device/core/USBDCallbacks.c \
 #       usb/device/massstorage/MSDDriver.c usb/device/massstorage/MSDDStateMachine.c usb/device/massstorage/MSDLun.c usb/device/massstorage/MSDDriverDescriptors.c usb/device/massstorage/SBCMethods.c \
 #       usb/common/core/USBEndpointDescriptor.c usb/common/core/USBGenericRequest.c usb/common/core/USBFeatureRequest.c usb/common/core/USBInterfaceRequest.c usb/common/core/USBGetDescriptorRequest.c \

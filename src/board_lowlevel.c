@@ -41,7 +41,8 @@
 
 #include "board.h"
 
-//#define	USE_54_MHZ	1
+#define	USE_54_MHZ	1
+//#define	USE_64_MHZ	1
 
 /*----------------------------------------------------------------------------
  *        Local definitions
@@ -120,9 +121,15 @@ static uint32_t BOARD_ConfigurePmc(void)
 #define BOARD_PLLR ((1 << 29) | (0x8 << AT91C_CKGR_MUL_SHIFT) \
          | (0x1 << AT91C_CKGR_PLLCOUNT_SHIFT) | (0x2 << AT91C_CKGR_DIV_SHIFT))
 #else
-#define BOARD_PLLR ((1 << 29) | (0x5 << AT91C_CKGR_MUL_SHIFT) \
+ #ifdef USE_64_MHZ
+  #define BOARD_PLLR ((1 << 29) | (0x0F << AT91C_CKGR_MUL_SHIFT) \
+         | (0x1 << AT91C_CKGR_PLLCOUNT_SHIFT) | (0x3 << AT91C_CKGR_DIV_SHIFT))
+ #else
+  #define BOARD_PLLR ((1 << 29) | (0x5 << AT91C_CKGR_MUL_SHIFT) \
          | (0x1 << AT91C_CKGR_PLLCOUNT_SHIFT) | (0x2 << AT91C_CKGR_DIV_SHIFT))
+ #endif
 #endif
+
 #define BOARD_MCKR (PMC_MCKR_CSS_PLLA_CLK)
 
 // Define clock timeout
@@ -195,7 +202,11 @@ static uint32_t BOARD_ConfigurePmc(void)
 #ifdef USE_54_MHZ
 	return 54000000L ;		// Master_frequency
 #else	
+ #ifdef USE_64_MHZ
+	return 64000000L ;		// Master_frequency
+ #else	
 	return 36000000L ;		// Master_frequency
+ #endif
 #endif
 }
 
@@ -283,9 +294,13 @@ uint32_t SystemInit (void)
 		// Max clock is 64 MHz (1.8V VVDCORE)
    EFC->EEFC_FMR = (2 << 8) ;
 #else
+ #ifdef USE_64_MHZ
+   EFC->EEFC_FMR = (3 << 8) ;
+ #else
     /** Set 2 cycle (1 WS) for Embedded Flash Access */
 		// Max clock is 38 MHz (1.8V VVDCORE)
    EFC->EEFC_FMR = (1 << 8) ;
+ #endif
 #endif
 
    /** Configure PMC */

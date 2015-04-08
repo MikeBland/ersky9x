@@ -184,7 +184,7 @@ void init_adc2()
 
 	// TIM5, CC1 event is ADC2 trigger
 		RCC->APB1ENR |= RCC_APB1ENR_TIM5EN ;		// Enable clock
-		TIM5->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+		TIM5->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;		// 0.5uS
 		TIM5->ARR = 1999 ;
 		TIM5->CCR1 = 1000 ;
 		TIM5->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 ;

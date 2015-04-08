@@ -60,6 +60,26 @@
 #include "drivers.h"
 #include "pulses.h"
 
+//#ifdef ASSAN
+//uint8_t ProtocolDebug[16384] ;
+//uint32_t ProtocolCount ;
+//uint32_t ProtocolIn ;
+
+//void putProtocolDebug( uint8_t byte )
+//{
+//	if ( ProtocolCount == 0xFFFFFFFF )
+//	{
+//		return ;
+//	}
+//	if ( ProtocolCount < 16384 )
+//	{
+//		ProtocolCount += 1 ;
+//	}
+//	ProtocolDebug[ProtocolIn] = byte ;
+//	ProtocolIn += 1 ;
+//	ProtocolIn &= 16383 ;
+//}
+//#endif
 
 uint8_t Bit_pulses[64] ;			// Likely more than we need
 uint8_t *Pulses2MHzptr ;
@@ -88,7 +108,7 @@ volatile uint32_t Pulses2_index = 0 ;		// Modified in interrupt routine
 #define DsmxBit  0x08
 #define BadData 0x47
 
-static uint8_t pass ;		// For PXX and DSM-9XR
+static uint8_t pass ;		// For PXX and DSM-9XR and ASSAN
 uint8_t DebugDsmPass ;
 
 void module_output_low()
@@ -167,7 +187,7 @@ void init_main_ppm( uint32_t period, uint32_t out_enable )
 #endif
 
 	pwmptr->PWM_IER1 = PWM_IER1_CHID1 ;
-  NVIC_SetPriority(PWM_IRQn, 1 ) ;
+  NVIC_SetPriority(PWM_IRQn, 3 ) ;
 	NVIC_EnableIRQ(PWM_IRQn) ;
 
 }
@@ -247,18 +267,19 @@ extern "C" void PWM_IRQHandler (void)
 			break ;
 
       case PROTO_DSM2:
+      case PROTO_ASSAN:
 				// Alternate periods of 19.5mS/8.5mS and 2.5 mS
 				period = pwmptr->PWM_CH_NUM[3].PWM_CPDR ;
 				if ( period == 5000 )	// 2.5 mS
 				{
-					if ( Dsm_9xr )
-					{
+//					if ( Dsm_9xr )
+//					{
 						period = 8500*2 ;		// Total 11 mS
-					}
-					else
-					{
-						period = 19500*2 ;
-					}	 
+//					}
+//					else
+//					{
+//						period = 19500*2 ;
+//					}	 
 				}
 				else
 				{
@@ -272,10 +293,22 @@ extern "C" void PWM_IRQHandler (void)
 				else
 				{
 					// Kick off serial output here
+					if ( Current_protocol == PROTO_ASSAN )
+					{
+						// Enable SSC, output
+						PIOA->PIO_PDR = PIO_PA17 ;	// Assign A17 to Peripheral
+						USART0->US_CR = US_CR_RXDIS ;
+//						PIOA->PIO_PER = PIO_PA5 ;		// Assign A5 to PIO
+					}
 					sscptr = SSC ;
 					sscptr->SSC_TPR = (uint32_t) Bit_pulses ;
 					sscptr->SSC_TCR = Serial_byte_count ;
 					sscptr->SSC_PTCR = SSC_PTCR_TXTEN ;	// Start transfers
+					if ( Current_protocol == PROTO_ASSAN )
+					{
+						// Enable termination interrupt
+						sscptr->SSC_IER = SSC_IER_TXBUFE ;
+					}
 				}
 			break ;
 		}
@@ -302,7 +335,18 @@ void put_serial_bit( uint8_t bit )
 	}
 	if ( ++Serial_bit_count >= 8 )
 	{
+#ifdef ASSAN
+	if ( g_model.protocol == PROTO_ASSAN )
+	{
+    *Pulses2MHzptr++ = ~Serial_byte ;
+	}
+	else
+	{
     *Pulses2MHzptr++ = Serial_byte ;
+	}
+#else
+    *Pulses2MHzptr++ = Serial_byte ;
+#endif
 		Serial_bit_count = 0 ;
 		Serial_byte_count += 1 ;
 	}
@@ -310,10 +354,17 @@ void put_serial_bit( uint8_t bit )
 
 uint8_t DsmPass1[10] ;
 uint32_t DsmPassIndex ;
+#ifdef ASSAN
+uint16_t DsmChecksum ;
+#endif
 
 #define BITLEN_DSM2 (8*2) //125000 Baud => 8uS per bit
 void sendByteDsm2(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
+#ifdef ASSAN
+	DsmChecksum += b ;
+#endif
+	
 	if ( DsmPassIndex < 10 )
 	{
 		DsmPass1[DsmPassIndex++] = b ;
@@ -338,14 +389,28 @@ void dsmBindResponse( uint8_t mode, int8_t channels )
 	// Process mode here
 	uint8_t dsm_mode_response ;
 //	Dsm_9xr_channels = channels ;
-	dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE | ORTX_USE_TM ) ;
+#ifdef ASSAN
+	if ( g_model.protocol == PROTO_ASSAN )
+	{
+		dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_USE_TM ) ;
+//		g_model.ppmNCH = channels ;
+		g_model.dsmMode = dsm_mode_response ;
+  	STORE_MODELVARS ;
+		pxxFlag &= ~PXX_BIND ;
+	}
+	else
+#endif
+	{
+		dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
 //	channels -= 8 ;
 //	channels /= 2 ;
-	if ( ( g_model.ppmNCH != channels ) || ( (g_model.dsmMode & 0x7F) != dsm_mode_response ) )
-	{
-		g_model.ppmNCH = channels ;
-		g_model.dsmMode = dsm_mode_response | 0x80 ;
-	  STORE_MODELVARS ;
+		if ( ( g_model.ppmNCH != channels ) || ( g_model.dsmMode != ( dsm_mode_response | 0x80 ) ) )
+		{
+			g_model.ppmNCH = channels ;
+			g_model.dsmMode = dsm_mode_response | 0x80 ;
+
+	  	STORE_MODELVARS ;
+		}
 	}
 }
 
@@ -363,6 +428,15 @@ void setupPulsesDsm2(uint8_t chns)
   //	CSwData &cs = g_model.customSw[NUM_SKYCSW-1];
 
 	required_baudrate = SCC_BAUD_125000 ;
+#ifdef ASSAN
+	if ( g_model.protocol == PROTO_ASSAN )
+	{
+		required_baudrate = SCC_BAUD_115200 ;
+		Dsm_9xr = 2 ;
+		DsmChecksum = 0 ;
+	}
+	else
+#endif
 	if ( g_model.sub_protocol == DSM_9XR )
 	{
 		required_baudrate = SCC_BAUD_115200 ;
@@ -373,6 +447,7 @@ void setupPulsesDsm2(uint8_t chns)
 	{
 		Dsm_9xr = 0 ;
 	}
+	
 	if ( required_baudrate != Scc_baudrate )
 	{
 		init_ssc( required_baudrate ) ;
@@ -385,15 +460,27 @@ void setupPulsesDsm2(uint8_t chns)
     
 	if ( Dsm_9xr )
 	{
+#ifdef ASSAN
+		uint8_t channels = (Dsm_9xr == 2) ? 7 : 12 ;
+#else
 		uint8_t channels = 12 ;
+#endif
 		uint8_t flags = g_model.dsmMode ;
 		if ( flags == 0 )
 		{
-			flags = ORTX_AUTO_MODE ;
+//			flags = ORTX_USE_11mS | ORTX_USE_11bit | ORTX_USE_DSMX | ORTX_USE_TM ;
+			if ( Dsm_9xr == 1 )
+			{
+				flags = ORTX_AUTO_MODE ;
+			}
 		}
 		else
 		{
+#ifdef ASSAN
+			flags &= (Dsm_9xr == 2) ? 0x0F : 0x7F ;
+#else
 			flags &= 0x7F ;
+#endif
 			channels = g_model.ppmNCH ;
 		}
 			 
@@ -401,11 +488,97 @@ void setupPulsesDsm2(uint8_t chns)
 		{
 			dsmDat[0] &= ~BindBit	;
 		}
+
+		uint8_t startChan = g_model.startChannel ;
+#ifdef ASSAN
+		if ( Dsm_9xr == 2 )
+		{
+			if ( (pxxFlag & PXX_BIND) || (dsmDat[0]&BindBit) )
+			{
+//				flags |= ORTX_AUTO_MODE | ORTX_BIND_FLAG ;
+				flags = ORTX_BIND_FLAG | ORTX_USE_11mS | ORTX_USE_11bit ;
+				if ( pxxFlag & PXX_DSMX )
+				{
+					flags |= ORTX_USE_DSMX ;
+				}
+				pass = 0 ;
+//				| ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_USE_TM ;
+			}
+			// Need to choose dsmx/dsm2 as well
+//putProtocolDebug( '>' ) ;
+
+  		sendByteDsm2( flags ) ;
+//putProtocolDebug( flags ) ;
+//  		sendByteDsm2( 0x80 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;		// 
+//putProtocolDebug( 0x80 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;
+  		sendByteDsm2( 0 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;		// 
+//putProtocolDebug( 0 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;
+  		sendByteDsm2( 0 ) ;
+//putProtocolDebug( 0 ) ;
+  		sendByteDsm2( 1 ) ;	// Model number
+//putProtocolDebug( 1 ) ;
+			pass &= 0x80 ;
+			if ( pass )
+			{
+				startChan += 7 ;
+			}
+			for(uint8_t i=0 ; i<7 ; i += 1 )
+			{
+				uint16_t pulse ;
+				int16_t value = g_chans512[startChan] ;
+				if ( ( flags & ORTX_USE_11bit ) == 0 )
+				{
+					pulse = limit(0, ((value*13)>>5)+512,1023) | (startChan << 10) ;
+				}
+				else
+				{
+					pulse = limit(0, ((value*349)>>9)+1024,2047) | (startChan << 11) ;
+				}
+				startChan += 1 ;
+				if ( startChan <= channels )
+				{
+//if ( i < 3 )
+//{
+//putProtocolDebug( ( pulse >> 8 ) | pass ) ;
+//}
+  		  	sendByteDsm2( ( pulse >> 8 ) | pass ) ;
+    			sendByteDsm2( pulse & 0xff ) ;
+				}
+				else
+				{
+    			sendByteDsm2( 0xff ) ;
+    			sendByteDsm2( 0xff ) ;
+				}
+			}
+			uint16_t csum = DsmChecksum ;
+    	sendByteDsm2( csum >> 8 ) ;
+    	sendByteDsm2( csum ) ;
+			if ( pass )
+			{
+				pass = 0 ;
+			}
+			else
+			{
+				pass = ( channels > 7 ) ? 0x80 : 0 ;
+			}
+		}
+		else
+		{
+#endif // ASSAN
 		DebugDsmPass = pass ;
+//#ifdef ASSAN
+//putProtocolDebug( '>' ) ;
+//#endif // ASSAN
 		sendByteDsm2( 0xAA );
+//#ifdef ASSAN
+//putProtocolDebug( 0xAA ) ;
+//#endif // ASSAN
 		if ( pass == 0 )
 		{
   		sendByteDsm2( pass ) ;		// Actually is a 0
+//#ifdef ASSAN
+//putProtocolDebug( pass ) ;
+//#endif // ASSAN
 			// Do init packet
 			if ( (pxxFlag & PXX_BIND) || (dsmDat[0]&BindBit) )
 			{
@@ -414,28 +587,34 @@ void setupPulsesDsm2(uint8_t chns)
 
 			// Need to choose dsmx/dsm2 as well
   		sendByteDsm2( flags ) ;
+//#ifdef ASSAN
+//putProtocolDebug( flags ) ;
+//#endif // ASSAN
   		sendByteDsm2( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ;		// 
-//			if ( flags & ORTX_USE_DSMX )
-//			{
-  			sendByteDsm2( channels ) ;			// Max channels
-//			}
-//			else
-//			{
-//  			sendByteDsm2( 12 ) ;			// Max channels
-//			}
+//#ifdef ASSAN
+//putProtocolDebug( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ;
+//#endif // ASSAN
+  		sendByteDsm2( channels ) ;			// Max channels
 //  		sendByteDsm2( g_model.pxxRxNum ) ;		// Rx Num
   		sendByteDsm2( 1 ) ;		// 'Model Match' disabled
+//#ifdef ASSAN
+//putProtocolDebug( 1 ) ;
+//putProtocolDebug( 0 ) ;
+//putProtocolDebug( 0 ) ;
+//#endif // ASSAN
 			pass = 1 ;
 		}
 		else
 		{
-			uint8_t startChan = g_model.startChannel ;
 			DsmPassIndex = 0 ;
 			if ( pass == 2 )
 			{
 				startChan += 7 ;
 			}
   		sendByteDsm2( pass );
+//#ifdef ASSAN
+//putProtocolDebug( pass ) ;
+//#endif // ASSAN
 
 			for(uint8_t i=0 ; i<7 ; i += 1 )
 			{
@@ -453,6 +632,12 @@ void setupPulsesDsm2(uint8_t chns)
 				if ( startChan <= channels )
 				{
   		  	sendByteDsm2( pulse >> 8 ) ;
+//#ifdef ASSAN
+//if ( i < 5 )
+//{
+//	putProtocolDebug( pulse >> 8 ) ;
+//}																				 
+//#endif // ASSAN
     			sendByteDsm2( pulse & 0xff ) ;
 				}
 				else
@@ -480,6 +665,9 @@ void setupPulsesDsm2(uint8_t chns)
 				pass = 0 ;		// Stay here
 			}
 		}
+#ifdef ASSAN
+		}
+#endif
 	}
 	else
 	{
@@ -546,6 +734,11 @@ void setupPulses()
       case PROTO_DSM2:
 				disable_ssc() ;
       break;
+#ifdef ASSAN
+      case PROTO_ASSAN :
+				disable_ssc() ;
+      break;
+#endif
     }
 		
     Current_protocol = g_model.protocol ;
@@ -558,6 +751,9 @@ void setupPulses()
 				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
 				init_ssc(SCC_BAUD_125000) ;
       break;
+#ifdef ASSAN
+      case PROTO_ASSAN :
+#endif
       case PROTO_DSM2:
 				init_main_ppm( 5000, 0 ) ;		// Initial period 2.5 mS, output off
 				init_ssc(SCC_BAUD_125000) ;
@@ -584,6 +780,11 @@ void setupPulses()
 //      sei() ;							// Interrupts allowed here
       setupPulsesDsm2( ( g_model.sub_protocol == DSM_9XR ) ? 12 : 6 ) ; 
     break;
+#ifdef ASSAN
+    case PROTO_ASSAN :
+      setupPulsesDsm2( 12 ) ;
+    break;
+#endif
   }
 }
 
@@ -842,14 +1043,14 @@ uint16_t scaleForPXX( uint8_t i )
 {
 	int16_t value ;
 
-#ifdef DISABLE_PXX_SPORT
+//#ifdef DISABLE_PXX_SPORT
 //#ifdef REVX
-  value = g_chans512[i] *3 / 4 + 2250 ;
-	return value ;
-#else 
+//  value = g_chans512[i] *3 / 4 + 2250 ;
+//	return value ;
+//#else 
 	value = ( i < 24 ) ? g_chans512[i] *3 / 4 + 1024 : 0 ;
 	return limit( (int16_t)1, value, (int16_t)2046 ) ;
-#endif
+//#endif
 }
 
 
@@ -874,10 +1075,10 @@ void setupPulsesPXX()
     putPcmHead(  ) ;  // sync byte
     putPcmByte( g_model.pxxRxNum ) ;
     
-#ifdef DISABLE_PXX_SPORT
+//#ifdef DISABLE_PXX_SPORT
 //#ifdef REVX
-		putPcmByte( pxxFlag ) ;     // First byte of flags
-#else
+//		putPcmByte( pxxFlag ) ;     // First byte of flags
+//#else
   	uint8_t flag1;
   	if (pxxFlag & PXX_BIND)
 		{
@@ -888,12 +1089,12 @@ void setupPulsesPXX()
   	  flag1 = (g_model.sub_protocol << 6) | pxxFlag ;
 		}	
 		 putPcmByte( flag1 ) ;     // First byte of flags
-#endif
+//#endif
     putPcmByte( 0 ) ;     // Second byte of flags
-#ifdef DISABLE_PXX_SPORT
+//#ifdef DISABLE_PXX_SPORT
 //#ifdef REVX
-    pxxFlag = 0;          // reset flag after send
-#endif
+//    pxxFlag = 0;          // reset flag after send
+//#endif
 		uint8_t startChan = g_model.startChannel ;
 		if ( lpass & 1 )
 		{
@@ -917,10 +1118,10 @@ void setupPulsesPXX()
 			putPcmByte( ( ( chan >> 8 ) & 0x0F ) | ( chan_1 << 4) ) ;  // 4 bits each from 2 channels
       putPcmByte( chan_1 >> 4 ) ;  // High byte of channel
     }
-#ifndef DISABLE_PXX_SPORT
+//#ifndef DISABLE_PXX_SPORT
 //#ifndef REVX
 		putPcmByte( 0 ) ;
-#endif
+//#endif
     chan = PcmCrc ;		        // get the crc
     putPcmByte( chan >> 8 ) ; // Checksum hi
     putPcmByte( chan ) ; 			// Checksum lo

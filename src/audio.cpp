@@ -902,6 +902,11 @@ void voice_task(void* pdata)
 										nread /= 2 ;
 										wavU16Convert( (uint16_t*)&FileData[0], VoiceBuffer[x].dataw, nread ) ;
 									}
+									if ( nread == 1 )
+									{
+										nread = 2 ;
+										VoiceBuffer[x].dataw[1] = VoiceBuffer[x].dataw[0] ;
+									}
 									VoiceBuffer[x].count = nread ;
 									VoiceBuffer[x].frequency = currentFrequency ;
 									appendVoice( x ) ;		// index of next buffer

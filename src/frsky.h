@@ -333,8 +333,11 @@ void FRSKY_Init( uint8_t brate ) ;
 void telemetry_init( uint8_t telemetryType ) ;
 void FRSKY10mspoll(void);
 uint32_t FRSKY_setTxPacket( uint8_t type, uint8_t value, uint8_t p1, uint8_t p2 ) ;
-void check_frsky( void ) ;
+void check_frsky( uint32_t fivems ) ;
 uint8_t decodeTelemetryType( uint8_t telemetryType ) ;
+
+void dsmTelemetryStartReceive( void ) ;
+uint16_t convertRxv( uint16_t value ) ;
 
 void FRSKY_setModelAlarms(void) ;
 
@@ -360,6 +363,7 @@ struct t_hub_max_min
 #define TEL_MAVLINK			3
 #define TEL_ARDUPILOT		4
 #define TEL_DSM					5
+#define TEL_ASSAN	      6
 extern uint8_t TelemetryType ;
 
 // Values in EEPROM

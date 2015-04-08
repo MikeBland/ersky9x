@@ -613,8 +613,14 @@ void appendVoice( uint32_t index )		// index of next buffer
 	{
 		Sound_g.VoiceActive = 1 ;
 		uint32_t x ;
+		uint32_t y ;
 		x = dacptr->DACC_TPR = (uint32_t) VoiceBuffer[index].dataw ;
-		dacptr->DACC_TCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+		y = VoiceBuffer[index].count / 2 ;
+		if ( y == 0 )
+		{
+			y = 1 ;
+		}
+		dacptr->DACC_TCR = y ;		// words, 100 16 bit values
 		dacptr->DACC_TPR = x ;		// Goes wrong without this!!!
 		dacptr->DACC_PTCR = DACC_PTCR_TXTEN ;
 		dacptr->DACC_IER = DACC_IER_TXBUFE ;		// Only one buffer
@@ -623,8 +629,14 @@ void appendVoice( uint32_t index )		// index of next buffer
 	{
 		if ( VoiceCount == 2 )
 		{
+			uint32_t y ;
 			dacptr->DACC_TNPR = CONVERT_PTR(VoiceBuffer[index].dataw);
-			dacptr->DACC_TNCR = VoiceBuffer[index].count / 2 ;		// words, 100 16 bit values
+			y = VoiceBuffer[index].count / 2 ;
+			if ( y == 0 )
+			{
+				y = 1 ;
+			}
+			dacptr->DACC_TNCR = y ;		// words, 100 16 bit values
 			dacptr->DACC_IDR = DACC_IDR_TXBUFE ;
 			dacptr->DACC_IER = DACC_IER_ENDTX ;
 		}
@@ -707,6 +719,7 @@ void init_twi()
 	TWI0->TWI_CWGR = 0x00040000 | timing ;			// TWI clock set
 	TWI0->TWI_CR = TWI_CR_MSEN | TWI_CR_SVDIS ;		// Master mode enable
 	TWI0->TWI_MMR = 0x002F0000 ;		// Device 5E (>>1) and master is writing
+  NVIC_SetPriority(TWI0_IRQn, 4 ) ;
 	NVIC_EnableIRQ(TWI0_IRQn) ;
 }
 

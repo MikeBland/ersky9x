@@ -1356,7 +1356,6 @@ static uint8_t TxPhyPacket[16] ;
 static uint8_t SportTimer ;
 
 
-
 void writePacket( uint8_t *buffer )
 {
 	uint8_t *ptr = TxPhyPacket ;

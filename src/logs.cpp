@@ -292,7 +292,7 @@ void writeLogs()
 
 			qr = div( g_vbat100mV, 10);
 			f_printf(&g_oLogFile, "%d.%d,%d,", qr.quot, qr.rem, FrskyHubData[FR_VSPD] ) ;
-			value = FrskyHubData[FR_RXV] * g_model.rxVratio / 255 ;
+			value = convertRxv( FrskyHubData[FR_RXV] ) ;
 			qr = div( value, 10);
 			f_printf(&g_oLogFile, "%d.%d,", qr.quot, qr.rem ) ;
 			f_printf(&g_oLogFile, "%d.%04d%c,%d.%04d%c,", FrskyHubData[FR_GPS_LAT],FrskyHubData[FR_GPS_LATd],FrskyHubData[FR_LAT_N_S],FrskyHubData[FR_GPS_LONG],FrskyHubData[FR_GPS_LONGd],FrskyHubData[FR_LONG_E_W] ) ;

@@ -39,9 +39,14 @@
 
 extern int16_t g_chans512[] ;
 
+uint16_t AssanDebug1 ;
+uint16_t AssanDebug2 ;
 
 extern void init_pxx(uint32_t port) ;
 extern void disable_pxx(uint32_t port) ;
+
+#define BindBit 0x80
+
 
 // TC0 - hardware timer
 // TC1 - DAC clock
@@ -50,6 +55,30 @@ extern void disable_pxx(uint32_t port) ;
 // TC4 - input capture clock
 // TC5 - Spare
 
+#ifdef PCBX9D
+uint8_t DebugDsmPass ;
+
+//#ifdef ASSAN
+//uint8_t ProtocolDebug[16384] ;
+//uint32_t ProtocolCount ;
+//uint32_t ProtocolIn ;
+
+//void putProtocolDebug( uint8_t byte )
+//{
+//	if ( ProtocolCount == 0xFFFFFFFF )
+//	{
+//		return ;
+//	}
+//	if ( ProtocolCount < 16384 )
+//	{
+//		ProtocolCount += 1 ;
+//	}
+//	ProtocolDebug[ProtocolIn] = byte ;
+//	ProtocolIn += 1 ;
+//	ProtocolIn &= 16383 ;
+//}
+//#endif
+#endif
 // Starts TIMER at 200Hz, 5mS period
 #ifdef PCBSKY
 void init5msTimer()
@@ -71,7 +100,7 @@ void init5msTimer()
 																						// MCK/128, set @ RA, Clear @ RC waveform
 	ptc->TC_CHANNEL[2].TC_CCR = 5 ;		// Enable clock and trigger it (may only need trigger)
 	
-  NVIC_SetPriority(TC2_IRQn, 1) ;
+  NVIC_SetPriority(TC2_IRQn, 3) ;
 	NVIC_EnableIRQ(TC2_IRQn) ;
 	TC0->TC_CHANNEL[2].TC_IER = TC_IER0_CPCS ;
 }
@@ -229,13 +258,13 @@ void init5msTimer()
 	// Timer14
 	RCC->APB1ENR |= RCC_APB1ENR_TIM14EN ;		// Enable clock
 	TIM14->ARR = 4999 ;	// 5mS
-	TIM14->PSC = (Peri1_frequency*Timer_mult1) / 1000000 - 1 ;		// 1uS from 30MHz
+	TIM14->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 1000000 - 1 ;		// 1uS from 30MHz
 	TIM14->CCER = 0 ;	
 	TIM14->CCMR1 = 0 ;
 	TIM14->EGR = 0 ;
 	TIM14->CR1 = 5 ;
 	TIM14->DIER |= 1 ;
-  NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 1 ) ;
+  NVIC_SetPriority(TIM8_TRG_COM_TIM14_IRQn, 3 ) ;
 	NVIC_EnableIRQ(TIM8_TRG_COM_TIM14_IRQn) ;
 }
 
@@ -282,10 +311,18 @@ void startPulses()
 	pass_x = 0 ;		// Force a type 0 packet
 }
 
+#ifdef REV9E
+uint16_t SuCount ;
+#endif
 
 void setupPulses(unsigned int port)
 {
   heartbeat |= HEART_TIMER_PULSES ;
+#ifdef REV9E
+	SuCount += 1 ;
+//	progress( 0xA000 + port + ( SuCount << 4 ) ) ;
+//	return ;
+#endif
 	
 	if ( port == 0 )
 	{
@@ -363,6 +400,11 @@ void setupPulses(unsigned int port)
 	      case PROTO_DSM2:
 					disable_dsm2(EXTERNAL_MODULE) ;
 	      break;
+#ifdef ASSAN
+	      case PROTO_ASSAN :
+					disable_assan(EXTERNAL_MODULE) ;
+	      break;
+#endif
 	//      case PROTO_PPM16 :
 	//				disable_main_ppm() ;
 	//      break ;
@@ -384,6 +426,11 @@ void setupPulses(unsigned int port)
 	      case PROTO_DSM2:
 					init_dsm2(EXTERNAL_MODULE) ;
 	      break;
+#ifdef ASSAN
+	      case PROTO_ASSAN :
+					init_assan(EXTERNAL_MODULE) ;
+	      break;
+#endif
 	//      case PROTO_PPM16 :
 	//				init_main_ppm( 3000, 1 ) ;		// Initial period 1.5 mS, output on
 	//      break ;
@@ -403,12 +450,16 @@ void setupPulses(unsigned int port)
 	//      sei() ;							// Interrupts allowed here
 	      setupPulsesDsm2(6); 
 	    break;
+#ifdef ASSAN
+	    case PROTO_ASSAN :
+	      setupPulsesDsm2(g_model.xppmNCH) ; 
+	    break;
+#endif
 	//  	case PROTO_PPM16 :
 	//      setupPulsesPPM();		// Don't enable interrupts through here
 	////      // PPM16 pulses are set up automatically within the interrupts
 	////    break ;
   	}
-		
 	}
 }
 
@@ -1037,7 +1088,7 @@ void init_hw_timer()
 	// Timer13
 	RCC->APB1ENR |= RCC_APB1ENR_TIM13EN ;		// Enable clock
 	TIM13->ARR = 65535 ;
-	TIM13->PSC = (Peri1_frequency*Timer_mult1) / 10000000 - 1 ;		// 0.1uS from 30MHz
+	TIM13->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 10000000 - 1 ;		// 0.1uS from 30MHz
 	TIM13->CCER = 0 ;	
 	TIM13->CCMR1 = 0 ;
 	TIM13->EGR = 0 ;
@@ -1100,7 +1151,7 @@ void init_trainer_ppm()
   RCC->APB1ENR |= RCC_APB1ENR_TIM3EN ;            // Enable clock
 	
   TIM3->ARR = *TrainerPulsePtr++ ;
-  TIM3->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;               // 0.5uS
+  TIM3->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;               // 0.5uS
   TIM3->CCER = TIM_CCER_CC4E ;
 	
   TIM3->CCMR2 = TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2 | TIM_CCMR2_OC4PE ;                   // PWM mode 1
@@ -1136,7 +1187,7 @@ void init_trainer_capture()
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN ;		// Enable clock
 	
 	TIM3->ARR = 0xFFFF ;
-	TIM3->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM3->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;		// 0.5uS
 	TIM3->CR2 = 0 ;
 	TIM3->CCMR2 = TIM_CCMR2_IC3F_0 | TIM_CCMR2_IC3F_1 | TIM_CCMR2_CC3S_0 ;
 	TIM3->CCER = TIM_CCER_CC3E ;	 
@@ -1161,7 +1212,7 @@ void init_serial_trainer_capture()
 	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN ;		// Enable clock
 	
 	TIM2->ARR = 0xFFFF ;
-	TIM2->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM2->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;		// 0.5uS
 	TIM2->CR2 = 0 ;
 	TIM2->CCMR2 = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_CC4S_0 ;
 	TIM2->CCER = TIM_CCER_CC4E ;
@@ -1231,7 +1282,7 @@ void init_cppm_on_heartbeat_capture()
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN ;		// Enable clock
 	
 	TIM3->ARR = 0xFFFF ;
-	TIM3->PSC = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;		// 0.5uS
+	TIM3->PSC = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;		// 0.5uS
 	TIM3->CR2 = 0 ;
 	TIM3->CCMR1 = TIM_CCMR1_IC2F_0 | TIM_CCMR1_IC2F_1 | TIM_CCMR1_CC2S_0 ;
 	TIM3->CCER = TIM_CCER_CC2E ;	 
@@ -1332,11 +1383,31 @@ extern "C" void TIM3_IRQHandler()
 void dsmBindResponse( uint8_t mode, int8_t channels )
 {
 	// Process mode here
-	
-	
-	g_model.ppmNCH = channels/2 - 8 ;
-// To Do
-//  STORE_MODELVARS ;
+	uint8_t dsm_mode_response ;
+//	Dsm_9xr_channels = channels ;
+#ifdef ASSAN
+	if ( g_model.xprotocol == PROTO_ASSAN )
+	{
+		dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_USE_TM ) ;
+//		g_model.ppmNCH = channels ;
+		g_model.dsmMode = dsm_mode_response ;
+  	STORE_MODELVARS ;
+		pxxFlag_x &= ~PXX_BIND ;
+	}
+	else
+#endif
+	{
+		dsm_mode_response = mode & ( ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_AUTO_MODE ) ;
+//	channels -= 8 ;
+//	channels /= 2 ;
+		if ( ( g_model.ppmNCH != channels ) || ( g_model.dsmMode != ( dsm_mode_response | 0x80 ) ) )
+		{
+			g_model.ppmNCH = channels ;
+			g_model.dsmMode = dsm_mode_response | 0x80 ;
+
+	  	STORE_MODELVARS ;
+		}
+	}
 }
 
 extern uint16_t dsm2Stream[] ;
@@ -1359,8 +1430,22 @@ void _send_1(uint8_t v)
 
 #define BITLEN_DSM2	(8*2)
 
+#ifdef ASSAN
+uint16_t DsmChecksum ;
+uint8_t *AssanStreamPtr ;
+#endif
+
 void sendByteDsm2(uint8_t b) //max 10 changes 0 10 10 10 10 1
 {
+#ifdef ASSAN
+	if ( g_model.xprotocol == PROTO_ASSAN )
+	{
+		DsmChecksum += b ;
+		*AssanStreamPtr++ = b ;
+		return ;
+	}
+#endif
+
     bool lev = 0;
     uint8_t len = BITLEN_DSM2; //max val: 9*16 < 256
     for (uint8_t i=0; i<=8; i++) { //8Bits + Stop=1
@@ -1387,44 +1472,130 @@ void setupPulsesDsm2(uint8_t channels)
 {
   static uint8_t dsmDat[2+6*2]={0xFF,0x00, 0x00,0xAA, 0x05,0xFF, 0x09,0xFF, 0x0D,0xFF, 0x13,0x54, 0x14,0xAA};
   
-	dsm2Value = 0;
-  dsm2Index = 1;
-	
-  dsm2StreamPtr = dsm2Stream;
-
-  dsm2Value = 100;
-  *dsm2StreamPtr++ = dsm2Value;
-
-  switch(g_model.sub_protocol)
-  {
-  	case LPXDSM2:
-  	  dsmDat[0]= 0x00;
-  	break;
-  	case DSM2only:
-  	  dsmDat[0]=0x10;
-  	break;
-  	default:
-  	  dsmDat[0]=0x18;  //dsmx, bind mode
-  	break;
-  }
-  
-// 	if((dsmDat[0]&BindBit)&&(!keyState(SW_Trainer)))  dsmDat[0]&=~BindBit;		//clear bind bit if trainer not pulled
-// 	if ((!(dsmDat[0]&BindBit))&& (pxxFlag & PXX_RANGE_CHECK)) dsmDat[0]|=RangeCheckBit;   //range check function
-// 	else dsmDat[0]&=~RangeCheckBit;
- 	dsmDat[1] = g_model.xPxxRxNum ;  //DSM2 Header second byte for model match
-  for( uint8_t i = 0 ; i<channels; i += 1 )
-  {
-		uint16_t pulse = limit(0, ((g_chans512[g_model.xstartChannel+i]*13)>>5)+512,1023);
- 		dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
-  	dsmDat[3+2*i] = pulse & 0xff;
-  }
-
-  for (int i=0; i<14; i++)
+#ifdef ASSAN
+	if ( g_model.xprotocol == PROTO_ASSAN )
 	{
-    sendByteDsm2(dsmDat[i]) ;
-  }
-  putDsm2Flush();
+//		AssanDebug1 += 1 ;
+		uint8_t channels = g_model.xppmNCH ;
+		uint8_t flags = g_model.dsmMode ;
+	  AssanStreamPtr = (uint8_t *)dsm2Stream ;
+		DsmChecksum = 0 ;
 
+		if ( (dsmDat[0]&BindBit) && (!keyState(SW_SH2) ) )
+		{
+			dsmDat[0] &= ~BindBit	;
+		}
+		uint8_t startChan = g_model.xstartChannel ;
+
+		if ( (pxxFlag_x & PXX_BIND) || (dsmDat[0]&BindBit) )
+		{
+//				flags |= ORTX_AUTO_MODE | ORTX_BIND_FLAG ;
+			flags = ORTX_BIND_FLAG | ORTX_USE_11mS | ORTX_USE_11bit ;
+			if ( pxxFlag_x & PXX_DSMX )
+			{
+				flags |= ORTX_USE_DSMX ;
+			}
+			pass_x = 0 ;
+//				| ORTX_USE_DSMX | ORTX_USE_11mS | ORTX_USE_11bit | ORTX_USE_TM ;
+		}
+		// Need to choose dsmx/dsm2 as well
+//putProtocolDebug( '>' ) ;
+
+  	sendByteDsm2( flags ) ;
+//putProtocolDebug( flags ) ;
+//  		sendByteDsm2( 0x80 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;		// 
+//putProtocolDebug( 0x80 | ( (pxxFlag & PXX_RANGE_CHECK) ? 4: 7 ) ) ;
+  	sendByteDsm2( 0 | ( (pxxFlag_x & PXX_RANGE_CHECK) ? 4: 7 ) ) ;		// 
+//putProtocolDebug( 0 | ( (pxxFlag_x & PXX_RANGE_CHECK) ? 4: 7 ) ) ;
+  	sendByteDsm2( 0 ) ;
+//putProtocolDebug( 0 ) ;
+  	sendByteDsm2( 1 ) ;	//P Model number
+//putProtocolDebug( 1 ) ;
+		pass_x &= 0x80 ;
+		if ( pass_x )
+		{
+			startChan += 7 ;
+		}
+		for(uint8_t i=0 ; i<7 ; i += 1 )
+		{
+			uint16_t pulse ;
+			int16_t value = g_chans512[startChan] ;
+			if ( ( flags & ORTX_USE_11bit ) == 0 )
+			{
+				pulse = limit(0, ((value*13)>>5)+512,1023) | (startChan << 10) ;
+			}
+			else
+			{
+				pulse = limit(0, ((value*349)>>9)+1024,2047) | (startChan << 11) ;
+			}
+			startChan += 1 ;
+			if ( startChan <= channels )
+			{
+//if ( i < 3 )
+//{
+//putProtocolDebug( ( pulse >> 8 ) | pass_x ) ;
+//}
+  		  sendByteDsm2( ( pulse >> 8 ) | pass_x ) ;
+    		sendByteDsm2( pulse & 0xff ) ;
+			}
+			else
+			{
+    		sendByteDsm2( 0xff ) ;
+    		sendByteDsm2( 0xff ) ;
+			}
+		}
+		uint16_t csum = DsmChecksum ;
+    sendByteDsm2( csum >> 8 ) ;
+    sendByteDsm2( csum ) ;
+		if ( pass_x )
+		{
+			pass_x = 0 ;
+		}
+		else
+		{
+			pass_x = ( channels > 7 ) ? 0x80 : 0 ;
+		}
+		 
+	}
+	else
+#endif
+	{
+		dsm2Value = 0;
+  	dsm2Index = 1;
+ 		dsm2StreamPtr = dsm2Stream ;
+  	dsm2Value = 100;
+  	*dsm2StreamPtr++ = dsm2Value;
+
+  	switch(g_model.sub_protocol)
+  	{
+  		case LPXDSM2:
+  		  dsmDat[0]= 0x00;
+  		break;
+  		case DSM2only:
+  		  dsmDat[0]=0x10;
+  		break;
+  		default:
+  		  dsmDat[0]=0x18;  //dsmx, bind mode
+  		break;
+  	}
+  
+	// 	if((dsmDat[0]&BindBit)&&(!keyState(SW_Trainer)))  dsmDat[0]&=~BindBit;		//clear bind bit if trainer not pulled
+	// 	if ((!(dsmDat[0]&BindBit))&& (pxxFlag & PXX_RANGE_CHECK)) dsmDat[0]|=RangeCheckBit;   //range check function
+	// 	else dsmDat[0]&=~RangeCheckBit;
+ 		dsmDat[1] = g_model.xPxxRxNum ;  //DSM2 Header second byte for model match
+  	for( uint8_t i = 0 ; i<channels; i += 1 )
+  	{
+			uint16_t pulse = limit(0, ((g_chans512[g_model.xstartChannel+i]*13)>>5)+512,1023);
+ 			dsmDat[2+2*i] = (i<<2) | ((pulse>>8)&0x03);
+  		dsmDat[3+2*i] = pulse & 0xff;
+  	}
+
+  	for (int i=0; i<14; i++)
+		{
+  	  sendByteDsm2(dsmDat[i]) ;
+  	}
+  	putDsm2Flush();
+	}
 }
 
 #endif

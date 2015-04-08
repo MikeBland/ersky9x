@@ -10,6 +10,21 @@ description here
 ====================================================================================
 
 ******************************************
+CHANGELOG: 08-Apr-2015  MPB (r215)
+Start to new DSM Tx module
+Fix reboot problem when WAV file has single sample
+X9D turn soft power on earlier
+Fix minor bugs in restore function
+Make LONG EXIT return to main screen
+Increase debug console baudrate to 115200
+Add GVAR adjusters
+Split GVARs, Scalers and Adjusters to separate menus
+Support for 6-pos switch on X9D
+X9E support
+SKY, PRO increase clock to 54 MHz
+
+
+******************************************
 CHANGELOG: 02-Feb-2015  MPB (r214)
 Complete Model index menu
 Add second custom telemetry screen

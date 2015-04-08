@@ -120,6 +120,11 @@ __attribute__ ((section(".bootrodata"), used))
 
 void _bootStart()
 {
+	// turn soft power on now
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
+	GPIOD->BSRRL = 1 ;
+	GPIOD->MODER = (GPIOD->MODER & 0xFFFFFFFC ) | 1 ;
+	
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN ; 		// Enable portC clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN ; 		// Enable portE clock
 	

@@ -72,6 +72,7 @@
 #endif
 
 
+
 void uputs( register char *string ) ;
 void crlf( void ) ;
 void p8hex( uint32_t value ) ;
@@ -222,6 +223,8 @@ extern uint8_t tab_1024[1024];
 *                  -1: Timeout
 *******************************************************************************/
 extern struct t_fifo32 Console_fifo ;
+
+struct t_fifo64 HexStreamFifo ;
 
 extern uint16_t Sine_values[] ;
 uint32_t PlayVoice ;
@@ -562,7 +565,18 @@ extern void initWatchdog( void ) ;
 			txmit( 'z' ) ;
 			wdt_reset() ;
 		}
-		
+
+		if ( rxchar == 'y' )
+		{
+			// Watchdog test
+			txmit( 'y' ) ;
+			__disable_irq() ;
+			for(;;)
+			{
+				// Cause a watchdog reset.
+			}
+		}
+		 
 		if ( rxchar == 'P' )
 		{
 			txmit( 'p' ) ;
@@ -661,6 +675,56 @@ void generalDefault() ;
 			eeReadAll() ;
 		}
 
+#ifdef REV9E
+//extern void ht1621WrData( uint8_t data, uint8_t count ) ;
+//extern void ht1621WrAllData( uint8_t *pData, uint8_t chip  ) ;
+extern void initTopLcd( void ) ;
+static uint8_t Ht1621Data[16] = {	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff } ;
+		if ( rxchar == 'a' )
+		{
+			txmit( 'a' ) ;
+			initTopLcd() ;			
+		}
+
+		if ( rxchar == 'b' )
+		{
+			txmit( 'b' ) ;
+//			ht1621WrAllData( Ht1621Data, 0 ) ;
+//			ht1621WrAllData( Ht1621Data, 1 ) ;
+			uint32_t i ;
+			uint8_t j = 0 ;
+			uint8_t k = 0 ;
+			for ( i = 0 ; i < 16 ; i += 1 )
+			{
+				if ( j )
+				{
+					Ht1621Data[i] = j ;
+					j = 0 ;
+				}
+				else
+				{
+					if ( Ht1621Data[i] == 1 )
+					{
+						j = 0x80 ;
+					}
+					else
+					{
+						j = 0 ;
+					}
+					Ht1621Data[i] >>= 1 ;
+				}
+				k |= Ht1621Data[i] ;
+			}
+			if ( ( k == 0 ) || ( k == 0xFF ) )
+			{
+				Ht1621Data[0] = 0x80 ;
+			}
+			p2hex( Ht1621Data[0] ) ;
+			p2hex( Ht1621Data[1] ) ;
+			p2hex( Ht1621Data[2] ) ;
+		}
+#endif
+
 //extern int8_t EeFsck() ;
 //extern bool eeLoadGeneral() ;
 //extern bool EeFsOpen() ;
@@ -724,19 +788,89 @@ void generalDefault() ;
 		}
 #endif
 
-	//	if ( rxchar == 'A' )
-	//	{
-	//		if ( Permenu_action )
-	//		{
-	//			Permenu_action = 0 ;			
-	//		}
-	//		else
-	//		{
-	//			Permenu_action = 1 ;
-	//		}
-		
-	//	}
+#ifdef ASSAN
+		if ( rxchar == 'H' )
+		{
+			uint32_t x ;
+			int32_t y ;
+			x = 0 ;
+			crlf() ;
+			for(;;)
+			{
+				while ( (y = get_fifo64(&HexStreamFifo)) != -1 )
+				{
+					p2hex( y ) ;
+					txmit( ' ' ) ;
+					x += 1 ;
+					if ( x > 15 )
+					{
+						crlf() ;
+						x = 0 ;
+					}
+				}
+				CoTickDelay(1) ;					// 2mS
 
+				if ( ( rxchar = rxuart() ) != 0xFFFF )
+				{
+					if ( rxchar == 'X' )
+					{
+						break ;
+					}
+				}
+			}
+		}
+#endif
+
+//#ifdef ASSAN
+//extern uint8_t ProtocolDebug[16384] ;
+//extern uint32_t ProtocolCount ;
+//extern uint32_t ProtocolIn ;
+
+
+//		if ( rxchar == 'A' )
+//		{
+//			uint32_t start ;
+//			int32_t count ;
+//			uint32_t i ;
+//			uint32_t hold ;
+
+//			hold = ProtocolCount ;
+//			ProtocolCount = 0xFFFFFFFF ;
+
+//			start = 0 ;
+//			if ( hold >= 16384 )
+//			{
+//				start = ProtocolIn ;
+//			}
+//			count = hold ;
+//			start &= 0xFFFFFFF8 ;
+//			count &= 0xFFFFFFF8 ;
+//			p8hex( start ) ;
+//			crlf() ;
+//			p8hex( count ) ;
+//			crlf() ;
+//			p8hex( ProtocolIn ) ;
+//			crlf() ;
+//			p8hex( hold ) ;
+//			crlf() ;
+
+//			while ( count > 0 )
+//			{
+//				txmit( ProtocolDebug[start++] ) ;
+//				for ( i = 0 ; i < 7 ; i += 1 )
+//				{
+//					txmit( ' ' ) ;
+//					p2hex( ProtocolDebug[start++] ) ;
+//				}
+//				crlf() ;
+//				start &= 16383 ;
+//				count -= 8 ;
+//			}
+//			ProtocolCount = hold ;
+			
+			
+//		}
+//#endif
 //		if ( rxchar == 'B' )
 //		{
 //			register Adc *padc ;
@@ -1170,110 +1304,110 @@ extern uint8_t I2Cdebug ;
 			crlf() ;
 		}
 
-extern uint16_t SerTimes[] ;
-extern uint16_t SerValues[] ;
-extern uint16_t SerBitStates[] ;
-extern uint16_t SerBitCounts[] ;
-extern uint16_t SerBitInputs[] ;
-extern uint32_t SerIndex ;
+//extern uint16_t SerTimes[] ;
+//extern uint16_t SerValues[] ;
+//extern uint16_t SerBitStates[] ;
+//extern uint16_t SerBitCounts[] ;
+//extern uint16_t SerBitInputs[] ;
+//extern uint32_t SerIndex ;
 
-		if ( rxchar == 't' )
-		{
-			txmit( 'r' ) ;
-			crlf() ;
-			uint32_t i ;
-			uint32_t j ;
-			j = SerIndex ;
-			for ( i = 0 ; i < 64 ; i += 1 )
-			{
-				p4hex( SerTimes[j] ) ;
-				txmit( ' ' ) ;
-				p2hex( SerValues[j] ) ;
-				txmit( ' ' ) ;
-				p2hex( SerBitStates[j] ) ;
-				txmit( ' ' ) ;
-				p2hex( SerBitCounts[j] ) ;
-				txmit( ' ' ) ;
-				p2hex( SerBitInputs[j] ) ;
-				crlf() ;
-				j += 1 ;
-				if ( j > 63 )
-				{
-					j = 0 ;
-				}
-			}
-		}
-
-		if ( rxchar == 'm' )
-		{
-			register uint8_t *p ;
-			register uint32_t x ;
-			
-			txmit( 'm' ) ;
-			p = Dbg_Spi_rx_buf ;
-			*(p) = 1 ;
-			*(p+1) = 2 ;
-			*(p+2) = 3 ;
-			*(p+3) = 4 ;
-
-			eeprom_write_enable() ;
-
-			p = Dbg_Spi_tx_buf ;
-			*p = 2 ;		// Write command
-			*(p+1) = 0 ;
-			*(p+2) = 0 ;
-			*(p+3) = 0 ;
-
-			spi_PDC_action( p, Dbg_Spi_rx_buf, 0, 4, 4 ) ;
-
-			for ( x = 0 ; x < 100000 ; x += 1  )
-			{
-//				if ( Spi_complete )
+//		if ( rxchar == 't' )
+//		{
+//			txmit( 'r' ) ;
+//			crlf() ;
+//			uint32_t i ;
+//			uint32_t j ;
+//			j = SerIndex ;
+//			for ( i = 0 ; i < 64 ; i += 1 )
+//			{
+//				p4hex( SerTimes[j] ) ;
+//				txmit( ' ' ) ;
+//				p2hex( SerValues[j] ) ;
+//				txmit( ' ' ) ;
+//				p2hex( SerBitStates[j] ) ;
+//				txmit( ' ' ) ;
+//				p2hex( SerBitCounts[j] ) ;
+//				txmit( ' ' ) ;
+//				p2hex( SerBitInputs[j] ) ;
+//				crlf() ;
+//				j += 1 ;
+//				if ( j > 63 )
 //				{
-//					break ;				
+//					j = 0 ;
 //				}
-				asm("") ;
-			}
+//			}
+//		}
+
+//		if ( rxchar == 'm' )
+//		{
+//			register uint8_t *p ;
+//			register uint32_t x ;
+			
+//			txmit( 'm' ) ;
+//			p = Dbg_Spi_rx_buf ;
+//			*(p) = 1 ;
+//			*(p+1) = 2 ;
+//			*(p+2) = 3 ;
+//			*(p+3) = 4 ;
+
+//			eeprom_write_enable() ;
+
+//			p = Dbg_Spi_tx_buf ;
+//			*p = 2 ;		// Write command
+//			*(p+1) = 0 ;
+//			*(p+2) = 0 ;
+//			*(p+3) = 0 ;
+
+//			spi_PDC_action( p, Dbg_Spi_rx_buf, 0, 4, 4 ) ;
+
+//			for ( x = 0 ; x < 100000 ; x += 1  )
+//			{
+////				if ( Spi_complete )
+////				{
+////					break ;				
+////				}
+//				asm("") ;
+//			}
 
 			
-		}
+//		}
 
-		if ( rxchar == 'o' )
-		{
-			register uint8_t *p ;
-			register uint32_t x ;
+//		if ( rxchar == 'o' )
+//		{
+//			register uint8_t *p ;
+//			register uint32_t x ;
 
-			txmit( 'o' ) ;
-			p = Dbg_Spi_rx_buf ;
-			*(p) = 0 ;
-			*(p+1) = 0 ;
-			*(p+2) = 0 ;
-			*(p+3) = 0 ;
+//			txmit( 'o' ) ;
+//			p = Dbg_Spi_rx_buf ;
+//			*(p) = 0 ;
+//			*(p+1) = 0 ;
+//			*(p+2) = 0 ;
+//			*(p+3) = 0 ;
 
-			p = Dbg_Spi_tx_buf ;
-			*p = 3 ;		// Read command
-			*(p+1) = 0 ;
-			*(p+2) = 0 ;
-			*(p+3) = 0 ;
-			spi_PDC_action( p, 0, Dbg_Spi_rx_buf, 4, 24 ) ;
-			for ( x = 0 ; x < 100000 ; x += 1  )
-			{
-//				if ( Spi_complete )
-//				{
-//					break ;				
-//				}
-				asm("") ;
-			}
+//			p = Dbg_Spi_tx_buf ;
+//			*p = 3 ;		// Read command
+//			*(p+1) = 0 ;
+//			*(p+2) = 0 ;
+//			*(p+3) = 0 ;
+//			spi_PDC_action( p, 0, Dbg_Spi_rx_buf, 4, 24 ) ;
+//			for ( x = 0 ; x < 100000 ; x += 1  )
+//			{
+////				if ( Spi_complete )
+////				{
+////					break ;				
+////				}
+//				asm("") ;
+//			}
 
-			p8hex( x ) ;
-			txmit( ' ' ) ;
-			p = Dbg_Spi_rx_buf ;
-			p2hex( *p ) ;
-			p2hex( *(p+1) ) ;
-			p2hex( *(p+2) ) ;
-			p2hex( *(p+3) ) ;
-			crlf() ;
-		}
+//			p8hex( x ) ;
+//			txmit( ' ' ) ;
+//			p = Dbg_Spi_rx_buf ;
+//			p2hex( *p ) ;
+//			p2hex( *(p+1) ) ;
+//			p2hex( *(p+2) ) ;
+//			p2hex( *(p+3) ) ;
+//			crlf() ;
+//		}
 
 //		if ( rxchar == 'F' )
 //		{

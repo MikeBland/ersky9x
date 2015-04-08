@@ -36,6 +36,7 @@
 #include "logicio.h"
 #include "lcd.h"
 #include "debug.h"
+#include "frsky.h"
 #ifndef SIMU
 #include "CoOS.h"
 #endif
@@ -135,8 +136,6 @@ void init_adc( void ) ;
 void init_ssc( uint16_t baudrate ) ;
 void disable_ssc( void ) ;
 
-/** Console baudrate 9600. */
-#define CONSOLE_BAUDRATE    9600
 /** Usart Hw interface used by the console (UART0). */
 #define CONSOLE_USART       UART0
 /** Usart Hw ID used by the console (UART0). */
@@ -1121,8 +1120,8 @@ extern "C" void USART0_IRQHandler()
 	  		pUsart->US_MR =  0x000202C0 ;  // NORMAL, Odd Parity, 9 bit
   			pUsart->US_BRGR = (Master_frequency / 9600) / 16;
 	  		pUsart->US_IDR = 0xFFFFFFFF ;
-  			pUsart->US_CR = US_CR_RXEN ;
 				(void) pUsart->US_RHR ;
+  			pUsart->US_CR = US_CR_RXEN ;
 	  		pUsart->US_IER = US_IER_RXRDY ;
 				NVIC_EnableIRQ(USART0_IRQn) ;
 //				pUsart->US_PTCR = US_PTCR_RXTEN ;
@@ -1166,6 +1165,7 @@ extern "C" void USART0_IRQHandler()
 			PIOA->PIO_CODR = 0x02000000L ;	// Set bit A25 OFF
 #endif
 			pUsart->US_IDR = US_IDR_TXEMPTY ;
+			(void) pUsart->US_RHR ;	// Flush receiver
 			pUsart->US_CR = US_CR_RXEN ;
 		}
 	}
@@ -1326,7 +1326,7 @@ uint32_t txPdcUsart( uint8_t *buffer, uint32_t size )
 		pUsart->US_TNCR = size ;
 		pUsart->US_PTCR = US_PTCR_TXTEN ;
 		pUsart->US_IER = US_IER_ENDTX ;
-		NVIC_SetPriority( USART0_IRQn, 4 ) ; // Lower priority interrupt
+		NVIC_SetPriority( USART0_IRQn, 2 ) ; // Quite high priority interrupt
 		NVIC_EnableIRQ(USART0_IRQn) ;
 		return 1 ;
 	}
@@ -1869,13 +1869,13 @@ uint8_t BitCount ;
 uint8_t Byte ;
 uint8_t Tc5Count ;
 
-uint16_t SerTimes[64] ;
-uint16_t SerValues[64] ;
-uint16_t SerBitStates[64] ;
-uint16_t SerBitCounts[64] ;
-uint16_t SerBitInputs[64] ;
+//uint16_t SerTimes[64] ;
+//uint16_t SerValues[64] ;
+//uint16_t SerBitStates[64] ;
+//uint16_t SerBitCounts[64] ;
+//uint16_t SerBitInputs[64] ;
 
-uint32_t SerIndex ;
+//uint32_t SerIndex ;
 
 
 
@@ -1891,21 +1891,21 @@ void putCaptureTime( uint16_t time, uint32_t value )
 //		SerIndex = 0 ;
 //	}
 	
-	SerTimes[SerIndex] = time ;
-	SerValues[SerIndex] = value ;
+//	SerTimes[SerIndex] = time ;
+//	SerValues[SerIndex] = value ;
 	
 	time += BitTime/2 ;
 	time /= BitTime ;		// Now number of bits
 
-	SerBitStates[SerIndex] = BitState ;
-	SerBitCounts[SerIndex] = BitCount ;
-	SerBitInputs[SerIndex] = time ;
+//	SerBitStates[SerIndex] = BitState ;
+//	SerBitCounts[SerIndex] = BitCount ;
+//	SerBitInputs[SerIndex] = time ;
 	
-	SerIndex += 1 ;
-	if ( SerIndex > 63 )
-	{
-		SerIndex = 0 ;
-	}
+//	SerIndex += 1 ;
+//	if ( SerIndex > 63 )
+//	{
+//		SerIndex = 0 ;
+//	}
 	 
 	if ( value == 3 )
 	{
@@ -2200,13 +2200,28 @@ void init_ssc( uint16_t baudrate )
 //  pioptr->PIO_PDR = 0x00020000 ;					// Assign to peripheral
 	
 	sscptr = SSC ;
+#ifdef ASSAN
+	if ( g_model.protocol == PROTO_ASSAN )
+	{
+		sscptr->SSC_THR = 0 ;		// Make the output low.
+		sscptr->SSC_TFMR = 0x00000007 ; 	//  0000 0000 0000 0000 0000 0000 0000 0111 (8 bit data, lsb)
+		NVIC_SetPriority( SSC_IRQn, 7 ) ; // Lower priority interrupt
+		NVIC_EnableIRQ(SSC_IRQn) ;
+	}
+	else
+	{
+		sscptr->SSC_THR = 0xFF ;		// Make the output high.
+		sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
+	}
+#else
 	sscptr->SSC_THR = 0xFF ;		// Make the output high.
+	sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
+#endif
 	sscptr->SSC_CMR = Master_frequency / ( baudrate ? (115200*2) : (125000*2) ) ;		// 8uS per bit
 	sscptr->SSC_TCMR = 0 ;  	//  0000 0000 0000 0000 0000 0000 0000 0000
-	sscptr->SSC_TFMR = 0x00000027 ; 	//  0000 0000 0000 0000 0000 0000 1010 0111 (8 bit data, lsb)
 	sscptr->SSC_CR = SSC_CR_TXEN ;
 
-	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA | PIN_PULLUP ) ;
+	configure_pins( PIO_PA17, PIN_PERIPHERAL | PIN_INPUT | PIN_PER_A | PIN_PORTA ) ;
 #ifdef REVX
 	if ( baudrate )
 	{
@@ -2232,6 +2247,27 @@ void disable_ssc()
 	
 	sscptr = SSC ;
 	sscptr->SSC_CR = SSC_CR_TXDIS ;
+}
+
+//uint16_t SSCdebug ;
+
+extern "C" void SSC_IRQHandler()
+{
+//	SSCdebug += 1 ;
+	if ( SSC->SSC_IMR & SSC_IMR_TXBUFE )
+	{
+		SSC->SSC_IDR = SSC_IDR_TXBUFE ;	// Stop interrupt
+		SSC->SSC_IER = SSC_IER_TXEMPTY ;
+	}
+	else
+	{
+		SSC->SSC_IDR = SSC_IDR_TXEMPTY ;	// Stop interrupt
+		PIOA->PIO_PER = PIO_PA17 ;				// Assign A17 to PIO
+  	SECOND_USART->US_CR = US_CR_RXEN ;
+		dsmTelemetryStartReceive() ;
+//		PIOA->PIO_PDR = PIO_PA5 ;					// Assign A5 to Peripheral
+	}
+//	configure_pins( PIO_PA17, PIN_INPUT | PIN_PORTA | PIN_PULLUP ) ;
 }
 
 #endif
@@ -2267,8 +2303,8 @@ void disable_ssc()
 //  /* Write to USART BRR register */
 //  USARTx->BRR = (uint16_t)tmpreg;
 
-extern uint32_t Peri1_frequency ;
-extern uint32_t Peri2_frequency ;
+//extern uint32_t Peri1_frequency ;
+//extern uint32_t Peri2_frequency ;
 
 void USART6_Sbus_configure()
 {
@@ -2277,7 +2313,7 @@ void USART6_Sbus_configure()
 //	GPIOC->MODER = (GPIOC->MODER & 0xFFFFBFFF ) | 0x00008000 ;	// Alternate func.
 //	GPIOC->AFR[0] = (GPIOC->AFR[0] & 0x0FFFFFFF ) | 0x80000000 ;	// Alternate func.
 	configure_pins( 0x0080, PIN_PERIPHERAL | PIN_PORTC | PIN_PER_8 ) ;
-	USART6->BRR = Peri2_frequency / 100000 ;
+	USART6->BRR = PeripheralSpeeds.Peri2_frequency / 100000 ;
 	USART6->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_M | USART_CR1_PCE ;
 	USART6->CR2 = 0 ;
 	USART6->CR3 = 0 ;
@@ -2299,13 +2335,13 @@ extern "C" void USART6_IRQHandler()
 
 void UART_Sbus_configure( uint32_t masterClock )
 {
-	USART3->BRR = Peri1_frequency / 100000 ;
+	USART3->BRR = PeripheralSpeeds.Peri1_frequency / 100000 ;
 	USART3->CR1 |= USART_CR1_M | USART_CR1_PCE ;
 }
 
 void UART_Sbus57600_configure( uint32_t masterClock )
 {
-	USART3->BRR = Peri1_frequency / 57600 ;
+	USART3->BRR = PeripheralSpeeds.Peri1_frequency / 57600 ;
 	USART3->CR1 |= USART_CR1_M | USART_CR1_PCE ;
 }
 
@@ -2317,7 +2353,7 @@ void x9dConsoleInit()
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN ; 		// Enable portB clock
 	GPIOB->MODER = (GPIOB->MODER & 0xFF0FFFFF ) | 0x00A00000 ;	// Alternate func.
 	GPIOB->AFR[1] = (GPIOB->AFR[1] & 0xFFFF00FF ) | 0x00007700 ;	// Alternate func.
-	USART3->BRR = Peri1_frequency / 9600 ;		// 97.625 divider => 9600 baud
+	USART3->BRR = PeripheralSpeeds.Peri1_frequency / CONSOLE_BAUDRATE ;		// 97.625 divider => 19200 baud
 	USART3->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART3->CR2 = 0 ;
 	USART3->CR3 = 0 ;
@@ -2328,23 +2364,32 @@ void x9dConsoleInit()
 void x9dSPortInit( uint32_t baudRate )
 {
 	// Serial configure  
+
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN ;		// Enable clock
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN ; 		// Enable portD clock
 	GPIOD->BSRRH = 0x0010 ;		// output disable
 	configure_pins( 0x00000010, PIN_OUTPUT | PIN_PUSHPULL | PIN_OS25 | PIN_PORTD ) ;
 	GPIOD->MODER = (GPIOD->MODER & 0xFFFFC0FF ) | 0x00002900 ;	// Alternate func.
 	GPIOD->AFR[0] = (GPIOD->AFR[0] & 0xF00FFFFF ) | 0x07700000 ;	// Alternate func.
-	if ( baudRate == 0 )
+	if ( baudRate > 10 )
 	{
-		USART2->BRR = Peri1_frequency / 57600 ;		// 16.25 divider => 57600 baud
+		USART2->BRR = PeripheralSpeeds.Peri1_frequency / baudRate ;
+	}
+	else if ( baudRate == 0 )
+	{
+		USART2->BRR = PeripheralSpeeds.Peri1_frequency / 57600 ;		// 16.25 divider => 57600 baud
 	}
 	else
 	{
-		USART2->BRR = Peri1_frequency / 9600 ;		// 97.625 divider => 9600 baud
+		USART2->BRR = PeripheralSpeeds.Peri1_frequency / 9600 ;		// 97.625 divider => 9600 baud
 	}
 	USART2->CR1 = USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE ;
 	USART2->CR2 = 0 ;
 	USART2->CR3 = 0 ;
+	if ( baudRate == 115200 )		// ASSAN DSM
+	{
+		GPIOD->BSRRL = 0x0010 ;		// output enable
+	}
 	NVIC_SetPriority( USART2_IRQn, 4 ) ; // Lower priority interrupt
   NVIC_EnableIRQ(USART2_IRQn);
 }
@@ -2355,13 +2400,14 @@ void x9dSPortTxStart( uint8_t *buffer, uint32_t count )
 	SportTx.ptr = buffer ;
 	SportTx.count = count ;
 	GPIOD->BSRRL = 0x0010 ;		// output enable
-//	USART2->SR = ~USART_SR_TC ;
+	USART2->CR1 &= ~USART_CR1_RE ;
 	USART2->CR1 |= USART_CR1_TXEIE ;
 }
 
 #if !defined(SIMU)
 
-#define USART_FLAG_ERRORS (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE)
+//#define USART_FLAG_ERRORS (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE)
+#define USART_FLAG_ERRORS (USART_FLAG_ORE | USART_FLAG_FE | USART_FLAG_PE)
 
 uint32_t USART_ERRORS ;
 uint32_t USART_ORE ;
@@ -2388,18 +2434,22 @@ extern "C" void USART2_IRQHandler()
 			}
 		}
 	}
-	
-	if ( USART2->SR & USART_SR_TC )
+
+	if ( ( status & USART_SR_TC ) && (USART2->CR1 & USART_CR1_TCIE ) )
 	{
 		USART2->CR1 &= ~USART_CR1_TCIE ;	// Stop Complete interrupt
-		GPIOD->BSRRH = 0x0010 ;		// output disable
+		if ( g_model.xprotocol != PROTO_ASSAN )
+		{
+			GPIOD->BSRRH = 0x0010 ;		// output disable
+			USART2->CR1 |= USART_CR1_RE ;
+		}
 	}
 
   while (status & (USART_FLAG_RXNE | USART_FLAG_ERRORS))
 	{
-
     data = USART2->DR;
 
+//			put_fifo64( &Telemetry_fifo, data ) ;
     if (!(status & USART_FLAG_ERRORS))
 		{
 			put_fifo64( &Telemetry_fifo, data ) ;
@@ -2435,7 +2485,7 @@ void start_2Mhz_timer()
 	RCC->APB1ENR |= RCC_APB1ENR_TIM7EN ;		// Enable clock
 	
 	TIM7->PSC = 0 ;													// Max speed
-	TIM7->ARR = (Peri1_frequency*Timer_mult1) / 2000000 - 1 ;	// 0.5 uS, 2 MHz
+	TIM7->ARR = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 2000000 - 1 ;	// 0.5 uS, 2 MHz
 	TIM7->CR2 = 0 ;
 	TIM7->CR2 = 0x20 ;
 	TIM7->CR1 = TIM_CR1_CEN ;

@@ -627,10 +627,10 @@ void ee32LoadModel(uint8_t id)
 			{
 				g_model.numBlades = g_model.xnumBlades + 2 ;				
 			}
-			if ( g_model.protocol == PROTO_PPM16 )			// PPM16 ?
-			{
-				g_model.protocol = PROTO_PPM ;
-			}
+//			if ( g_model.protocol == PROTO_PPM16 )			// PPM16 ?
+//			{
+//				g_model.protocol = PROTO_PPM ;
+//			}
 
 #ifdef FIX_MODE
 
@@ -1314,9 +1314,9 @@ FRESULT writeXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *tota
 		if ( --size )
 		{
  			fragment |= data[1] >> 4 ;
-			bytes[i++] = base64digits[fragment];
 		}
-		bytes[i++] = ( size == 2 ) ? base64digits[(data[1] << 2) & 0x3c] : '=' ;
+		bytes[i++] = base64digits[fragment];
+		bytes[i++] = ( size == 1 ) ? base64digits[(data[1] << 2) & 0x3c] : '=' ;
 		bytes[i++] = '=' ;
 	}
 	if ( i )
@@ -1423,10 +1423,18 @@ int32_t readXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *total
 		{
 		  *data++ = ( stream[0] << 2) | (stream[1] >> 4) ;
 			size -= 1 ;
+			if ( size == 0 )
+			{
+				break ;
+			}
 			if ( stream[2] != 255 )
 			{
 		  	*data++ = ((stream[1] << 4) & 0xf0) | (stream[2] >> 2);
 				size -= 1 ;
+				if ( size == 0 )
+				{
+					break ;
+				}
 			}
 			if ( stream[3] != 255 )
 			{
@@ -1435,6 +1443,11 @@ int32_t readXMLfile( FIL *archiveFile, uint8_t *data, uint32_t size, UINT *total
 			}
 			j = 0 ;
 		}
+	}
+	while ( size )
+	{
+		*data++ = 0 ;
+		size -= 1 ;
 	}
 	*totalRead = total ;
 	return result ; 

@@ -154,7 +154,7 @@ void set_frequency( uint32_t frequency )
 {
 	register uint32_t timer ;
 
-	timer = (Peri1_frequency*Timer_mult1) / frequency - 1 ;		// MCK/8 and 100 000 Hz
+	timer = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / frequency - 1 ;		// MCK/8 and 100 000 Hz
 	if ( timer > 65535 )
 	{
 		timer = 65535 ;		
@@ -212,7 +212,7 @@ void start_dactimer()
 	RCC->APB1ENR |= RCC_APB1ENR_TIM6EN ;		// Enable clock
 	
 	TIM6->PSC = 0 ;													// Max speed
-	TIM6->ARR = (Peri1_frequency*Timer_mult1) / 100000 - 1 ;	// 10 uS, 100 kHz
+	TIM6->ARR = (PeripheralSpeeds.Peri1_frequency*PeripheralSpeeds.Timer_mult1) / 100000 - 1 ;	// 10 uS, 100 kHz
 	TIM6->CR2 = 0 ;
 	TIM6->CR2 = 0x20 ;
 	TIM6->CR1 = TIM_CR1_CEN ;
@@ -244,8 +244,8 @@ void init_dac()
 	DAC->DHR12R1 = 2010 ;
 	DAC->SR = DAC_SR_DMAUDR1 ;		// Write 1 to clear flag
 	DAC->CR = DAC_CR_TEN1 | DAC_CR_EN1 ;			// Enable DAC
-	NVIC_SetPriority( DMA1_Stream5_IRQn, 2 ) ; // Lower priority interrupt
-	NVIC_SetPriority( TIM6_DAC_IRQn, 2 ) ; // Lower priority interrupt
+	NVIC_SetPriority( DMA1_Stream5_IRQn, 3 ) ; // Lower priority interrupt
+	NVIC_SetPriority( TIM6_DAC_IRQn, 3 ) ; // Lower priority interrupt
 	NVIC_EnableIRQ(TIM6_DAC_IRQn) ;
 	NVIC_EnableIRQ(DMA1_Stream5_IRQn) ;
 }
@@ -535,19 +535,19 @@ void appendVoice( uint32_t index )		// index of next buffer
 	}
 }
 
-#ifdef REV9E
-static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
-{
-	 0,  1,  2,   3,   4,  5,  6,  8,  10,  12,  14,  16,
-	18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 35 	
-} ;
-#else
+//#ifdef REV9E
+//static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
+//{
+//	 0,  1,  2,   3,   4,  5,  6,  8,  10,  12,  14,  16,
+//	18, 20, 22, 24, 26, 28, 30, 31, 32, 33, 34, 35 	
+//} ;
+//#else
 static const uint8_t Volume_scale[NUM_VOL_LEVELS] = 
 {
 	 0,  2,  4,   6,   8,  10,  13,  17,  22,  27,  33,  40,
 	64, 82, 96, 105, 112, 117, 120, 122, 124, 125, 126, 127 	
 } ;
-#endif	// REV9E
+//#endif	// REV9E
 
 uint8_t ExternalBits ;
 //uint8_t I2CsendBuffer[2] ;
@@ -628,5 +628,90 @@ void hapticOn( uint32_t pwmPercent )
 {
 	GPIOHAPTIC->BSRRL = GPIO_Pin_HAPTIC ;
 }
+#endif
+
+
+
+// Code to file a tone buffer at 32kHz
+#if 0
+
+static uint8_t toneIndex ;
+static uint16_t toneTime ;
+
+void beginTineFill()
+{
+	toneIndex = 0 ;
+}
+
+// returns non-zero when finished
+uint32_t toneFill( uint16_t *buffer, uint32_t frequency, uint32_t timeMs )
+{
+	int32_t x = 13115 / frequency ;
+	uint32_t y = 100 ;
+	uint32_t i = 0 ;
+	int32_t step = 0 ;
+	timeMs *= 32 ;
+
+	while ( i < 256 )
+	{
+		step += 1250 ;
+		while ( step > 0 )
+		{
+			step -= x ;
+			y += 1 ;
+		}
+		if ( y > 99 )
+		{
+			y -= 100 ;
+		}
+		*buffer++ = Sine_values[y] ;
+		i += 1 ;
+		timeMs -= 1 ;
+		if ( timeMs == 0 )
+		{
+			break ;
+		}
+	}
+	if ( i )
+	{ // We have reached the time, but not filled the buffer
+		// or ended the sine wave at 0 necessarily
+		while ( i < 256 )
+		{
+			step += 1250 ;
+			while ( step > 0 )
+			{
+				step -= x ;
+				y += 1 ;
+			}
+			if ( y > 99 )
+			{
+				y -= 100 ;
+				*buffer++ = 2048 ;
+				break ;
+			}
+			else
+			{
+				*buffer++ = Sine_values[y] ;
+			}
+			i += 1 ;
+		}
+	}
+	else
+	{
+		toneIndex = y ;
+		toneTime = timeMs ;
+		return 0 ;
+	}
+	if ( i )
+	{ // sine finished, but not buffer
+		
+	}
+	else
+	{ // buffer finished, maybe not sine
+		
+	}
+}
+
+
 #endif
 

@@ -85,7 +85,7 @@ extern "C" {
 __attribute__ ((section(".version"), used))
 const uint8_t Version[] =
 {
-	'B', 'O', 'O', 'T', '1', '4'
+	'B', 'O', 'O', 'T', '1', '5'
 } ;
 
 __attribute__ ((section(".text"), used))
@@ -1053,6 +1053,11 @@ extern uint8_t OptrexDisplay ;
 					}
 					{
 						uint8_t event = getEvent() ;
+//	lcd_outhex4( 100, FH, event ) ;
+						if ( event == EVT_KEY_REPT( KEY_TRN ) )
+						{
+							killEvents( event ) ;
+						}
 						if ( event == EVT_KEY_FIRST( KEY_TRN ) )
 						{
 							SDcardDisabled = SDcardDisabled ? 0 : 1;

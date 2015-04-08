@@ -25,6 +25,8 @@
 
 #define FIX_MODE		1
 
+#define ASSAN		1
+
 //#ifdef PCBSKY
 // #ifdef REVX
 //  #define DISABLE_PXX_SPORT	1
@@ -536,11 +538,11 @@ uint8_t CS_STATE( uint8_t x) ;
 #else
  #ifdef REVPLUS
 #define	NUM_EXTRA_POTS 2
-#else
+ #else
 #define	NUM_EXTRA_POTS 1
-#endif	// REVPLUS
+ #endif	// REVPLUS
 #endif	// REV9E
-#endif
+#endif	// PCBX9D
 
 #define EXTRA_POTS_START	120
 
@@ -603,16 +605,25 @@ extern uint8_t Ee_lock ;
 #define TMRMODE_ABS      1
 #define TMRMODE_THR      2
 #define TMRMODE_THR_REL  3
-#define MAX_ALERT_TIME   60
+#define MAX_ALERT_TIME   20
 
 #define PROTO_PPM        0
 #define PROTO_PXX        1
 #define PROTO_DSM2       2
+#define PROTO_ASSAN      3
+ #ifdef ASSAN
+#define PROT_MAX         3
+ #else
 #define PROT_MAX         2
+ #endif
 #define PROTO_PPM16			 3		// No longer needed
 #define PROTO_OFF		     15		// For X9D
 #define PROT_STR_LEN     6
+#ifdef ASSAN
+#define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX9XR-DSM  Assan    "
+#else
 #define DSM2_STR "\011LP4/LP5  DSM2only DSM2/DSMX9XR-DSM  "
+#endif
 #define DSM2_STR_LEN   9
 #define LPXDSM2          0
 #define DSM2only         1
@@ -623,10 +634,12 @@ extern uint8_t Ee_lock ;
 #define PXX_BIND			     0x01
 #define PXX_SEND_FAILSAFE  0x10
 #define PXX_RANGE_CHECK		 0x20
+#define PXX_DSMX			     0x02
 
 #define POWER_OFF			0
 #define POWER_ON			1
 #define POWER_TRAINER	2
+#define POWER_X9E_STOP	3
 
 
 extern uint8_t pxxFlag;
@@ -870,6 +883,7 @@ extern void putsMomentDrSwitches(uint8_t x,uint8_t y,int8_t idx1,uint8_t att) ;
 extern void putsTmrMode(uint8_t x, uint8_t y, uint8_t attr, uint8_t timer, uint8_t type ) ;
 extern const char *get_switches_string( void ) ;
 void putsDblSizeName( uint8_t y ) ;
+void clearKeyEvents( void ) ;
 
 extern void interrupt5ms() ;
 extern uint16_t getTmr2MHz( void ) ;
@@ -1060,9 +1074,27 @@ extern uint8_t AlertType ;
 #ifdef PCBX9D
 #define COM2_FUNC_CPPMTRAIN		3
 #endif
+/** Console baudrate 9600. */
+#define CONSOLE_BAUDRATE    115200
 
 extern uint8_t TmOK ;
 
 uint8_t throttleReversed( void ) ;
+
+
+
+#ifdef PCBX9D
+struct t_PeripheralSpeeds
+{
+	uint32_t Peri1_frequency ;
+	uint32_t Peri2_frequency ;
+	uint32_t Timer_mult1 ;
+	uint32_t Timer_mult2 ;
+} ;
+
+extern struct t_PeripheralSpeeds PeripheralSpeeds ;
+
+#endif
+
 
 #endif

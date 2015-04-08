@@ -121,9 +121,9 @@ void putsTime(uint8_t x,uint8_t y,int16_t tme,uint8_t att,uint8_t att2)
 
 	lcd_putcAtt(x, y, ':',att&att2);
 	qr = div( tme, 60 ) ;
-	lcd_outdezNAtt(x/*+ ((att&DBLSIZE) ? 2 : 0)*/, y, (uint16_t)qr.quot, LEADING0|att,2);
+	lcd_2_digits( x, y, (uint16_t)qr.quot, att ) ;
 	x += (att&DBLSIZE) ? FWNUM*6-4 : FW*3-4 ;
-	lcd_outdezNAtt(x, y, (uint16_t)qr.rem, LEADING0|att2,2);
+	lcd_2_digits( x, y, (uint16_t)qr.rem, att2 ) ;
 }
 
 void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att)
@@ -135,7 +135,9 @@ void putsVolts(uint8_t x,uint8_t y, uint8_t volts, uint8_t att)
 
 void putsVBat(uint8_t x,uint8_t y,uint8_t att)
 {
+#ifndef MINIMISE_CODE    
   att |= g_vbat100mV < g_eeGeneral.vBatWarn ? BLINK : 0;
+#endif
 	putsVolts(x, y, g_vbat100mV, att);
 }
 
@@ -168,18 +170,25 @@ void lcd_img( uint8_t i_x, uint8_t i_y, PROGMEM *imgdat, uint8_t idx, uint8_t mo
   }
 }
 
-
-/// invers: 0 no 1=yes 2=blink
 uint8_t lcd_putc(uint8_t x,uint8_t y,const char c )
 {
   return lcd_putcAtt(x,y,c,0);
+}
+
+static uint8_t *dispBufAddress( uint8_t x, uint8_t y )
+{
+#if (DISPLAY_W==128)
+  return &DISPLAY_START[ (y & 0xF8) * 16 + x ];
+#else  
+	return &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+#endif
 }
 
 // invers: 0 no 1=yes 2=blink
 uint8_t lcd_putcAtt(uint8_t x,uint8_t y,const char c,uint8_t mode)
 {
 	register int32_t i ;
-	register uint8_t *p    = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+	register uint8_t *p    = dispBufAddress( x, y ) ;
 #if PCBX9D
 	if ( x > 211-X9D_OFFSET )
 	{
@@ -336,6 +345,12 @@ void lcd_putsAttIdx(uint8_t x,uint8_t y,const char * s,uint8_t idx,uint8_t att)
   lcd_putsnAtt(x,y,s+length*idx,length,att) ;
 }
 
+//void lcd_putsAttIdx_right( uint8_t y,const prog_char * s,uint8_t idx,uint8_t att)
+//{
+//	uint8_t x = 20 - pgm_read_byte(s) ;
+//	lcd_putsAttIdx( x, y, s, idx, att ) ;
+//}
+
 void lcd_putsnAtt(uint8_t x,uint8_t y, const char * s,uint8_t len,uint8_t mode)
 {
 	register char c ;
@@ -448,6 +463,11 @@ void lcd_outdez( uint8_t x, uint8_t y, int16_t val )
 void lcd_outdezAtt( uint8_t x, uint8_t y, int16_t val, uint8_t mode )
 {
   lcd_outdezNAtt( x,y,val,mode,5);
+}
+
+void lcd_2_digits( uint8_t x, uint8_t y, uint8_t value, uint8_t attr )
+{
+	lcd_outdezNAtt( x, y, value, attr + LEADING0, 2 ) ;
 }
 
 #define PREC(n) ((n&0x20) ? ((n&0x10) ? 2 : 1) : 0)
@@ -611,11 +631,12 @@ void lcd_plot( register uint8_t x, register uint8_t y )
   //  if(y>=64)  return;
   //  if(x>=128) return;
   //  displayBuf[ y / 8 * DISPLAY_W + x ] ^= BITMASK(y%8);
-#ifdef GREY_SCALE
-  register uint8_t *p   = &DISPLAY_START[ y / 2 * DISPLAY_W + x ];
-#else
-  register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
-#endif
+	uint8_t *p = dispBufAddress( x, y ) ;
+//#ifdef GREY_SCALE
+//  register uint8_t *p   = &DISPLAY_START[ y / 2 * DISPLAY_W + x ];
+//#else
+//  register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+//#endif
 #ifdef GREY_SCALE
 	lcd_write_bits( p, (y&1) ? 0xF0 : 0x0F ) ;
 #else
@@ -630,7 +651,7 @@ void lcd_hlineStip( unsigned char x, unsigned char y, signed char w, uint8_t pat
   register uint8_t *p = &DISPLAY_START[ y / 2 * DISPLAY_W + x ] ;
 	register uint8_t msk = (y&1) ? 0xF0 : 0x0F ;
 #else
-  register uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ] ;
+	uint8_t *p = dispBufAddress( x, y ) ;
 	register uint8_t msk = BITMASK(y%8) ;
 #endif  
   while(w)
@@ -685,11 +706,12 @@ void lcd_char_inverse( uint8_t x, uint8_t y, uint8_t w, uint8_t blink )
 		return ;
 	}
 	uint8_t end = x + w ;
-#ifdef GREY_SCALE
-  register uint8_t *p = &DISPLAY_START[ y / 2 * DISPLAY_W + x ] ;
-#else
-  register uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ] ;
-#endif  
+	uint8_t *p = dispBufAddress( x, y ) ;
+//#ifdef GREY_SCALE
+//  register uint8_t *p = &DISPLAY_START[ y / 2 * DISPLAY_W + x ] ;
+//#else
+//  register uint8_t *p = &DISPLAY_START[ y / 8 * DISPLAY_W + x ] ;
+//#endif  
 
 	while ( x < end )
 	{
@@ -754,7 +776,7 @@ void lcd_vline( uint8_t x, uint8_t y, int8_t h )
   	lcd_write_bits( p, 0xF0 ) ;
 	}
 #else
-  register uint8_t *p   = &DISPLAY_START[ y / 8 * DISPLAY_W + x ];
+	uint8_t *p = dispBufAddress( x, y ) ;
   y &= 0x07 ;
 	if ( y )
 	{
@@ -815,7 +837,6 @@ uint8_t speaker[] = {
 
 void lcd_clear()
 {
-  //for(unsigned i=0; i<sizeof(displayBuf); i++) displayBuf[i]=0;
   memset( DisplayBuf, 0, sizeof( DisplayBuf) ) ;
 #if PCBX9D
 #ifndef REV9E
@@ -827,8 +848,26 @@ void lcd_clear()
 extern uint8_t CurrentVolume ;
 	lcd_hbar( 135, 2*FH+1, 24, 6, CurrentVolume*100/23 ) ;
 
-//	lcd_outhex4( 212-X9D_OFFSET+12, 0, GPIOA->IDR ) ;
-//	lcd_outhex4( 212-X9D_OFFSET+12, 8, GPIOB->IDR ) ;
+//extern uint16_t AssanDebug1 ;
+//extern uint16_t AssanDebug2 ;
+//extern uint8_t FrskyTelemetryType ;
+
+//	lcd_outhex4( 212-X9D_OFFSET+12, 0, FrskyTelemetryType ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 8, AssanDebug2 ) ;
+
+//extern uint16_t dsm2Stream[] ;
+//extern uint32_t USART_ERRORS ;
+
+//	lcd_outhex4( 212-X9D_OFFSET+12, 16, AssanDebug1 ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 24, dsm2Stream[0] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 32, dsm2Stream[1] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 40, dsm2Stream[2] ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 48, USART_ERRORS ) ;
+//	lcd_outhex4( 212-X9D_OFFSET+12, 56, USART2->CR1 ) ;
+
+
+
+
 //	lcd_outhex4( 212-X9D_OFFSET+12, 16, GPIOC->IDR ) ;
 //	lcd_outhex4( 212-X9D_OFFSET+12, 24, GPIOD->IDR ) ;
 //	lcd_outhex4( 212-X9D_OFFSET+12, 32, GPIOE->IDR ) ;
@@ -871,7 +910,7 @@ extern uint8_t CurrentVolume ;
 
 
 uint8_t LcdLock ;
-uint8_t LcdInputs ;
+uint16_t LcdInputs ;
 
 
 
@@ -1043,12 +1082,12 @@ void lcdSetRefVolt(uint8_t val)
   lcdSendCtl(val);
 	
 #ifdef REVB
-	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003AL ;		// Set bits 1, 3, 4, 5 with pullups
+	pioptr->PIO_ODR = 0x000000FEL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x000000FEL ;		// Set bits 1, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 #else
-	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
-	pioptr->PIO_PUER = 0x0000003CL ;		// Set bits 2, 3, 4, 5 with pullups
+	pioptr->PIO_ODR = 0x000000FEL ;		// Set bits 2, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x000000FEL ;		// Set bits 2, 3, 4, 5 with pullups
 	pioptr->PIO_ODSR = 0 ;							// Drive D0 low
 #endif // REVB
 #endif // SIMU
@@ -1114,6 +1153,10 @@ void refreshDisplay()
 	register uint32_t x ;
 	register uint32_t z ;
 	register uint32_t ebit ;
+
+//extern uint32_t ProtocolCount ;
+//lcd_outhex4 (0, 0, ProtocolCount ) ;
+
 #ifdef REVB
 #else
   register uint8_t *lookup ;
@@ -1190,11 +1233,11 @@ void refreshDisplay()
   }
 	pioptr->PIO_ODSR = 0xFF ;					// Drive lines high
 #ifdef REVB
-	pioptr->PIO_PUER = 0x0000003AL ;	// Set bits 1, 3, 4, 5 with pullups
-	pioptr->PIO_ODR = 0x0000003AL ;		// Set bits 1, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x000000FEL ;	// Set bits 1, 3, 4, 5 with pullups
+	pioptr->PIO_ODR = 0x000000FEL ;		// Set bits 1, 3, 4, 5 input
 #else
-	pioptr->PIO_PUER = 0x0000003CL ;	// Set bits 2, 3, 4, 5 with pullups
-	pioptr->PIO_ODR = 0x0000003CL ;		// Set bits 2, 3, 4, 5 input
+	pioptr->PIO_PUER = 0x000000FEL ;	// Set bits 2, 3, 4, 5 with pullups
+	pioptr->PIO_ODR = 0x000000FEL ;		// Set bits 2, 3, 4, 5 input
 #endif // REVB
 	pioptr->PIO_ODSR = 0xFE ;					// Drive D0 low
 

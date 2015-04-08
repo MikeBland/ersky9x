@@ -43,6 +43,8 @@
 #define	NUM_VOICE		8
 #define NUM_VOICE_ALARMS	24
 
+#define NUM_GVAR_ADJUST	8
+
 //OBSOLETE - USE ONLY MDVERS NOW
 //#define GENERAL_MYVER_r261 3
 //#define GENERAL_MYVER_r365 4
@@ -179,6 +181,7 @@ PACK(typedef struct t_EEGeneral {
   int16_t   xcalibSpanNeg[3]; 	// X9E
   int16_t   xcalibSpanPos[3]; 	// X9E
 	uint8_t		analogMapping ;			// X9D / X9DP
+	int8_t		inactivityVolume ;
 }) EEGeneral;
 
 
@@ -496,6 +499,14 @@ typedef struct t_voiceAlarm
 	} file ;
 } VoiceAlarmData ;
 
+typedef struct t_gvarAdjust
+{
+	uint8_t function:4 ;
+	uint8_t gvarIndex:4 ;
+	int8_t swtch ;
+	int8_t switch_value ;
+} GvarAdjust ;
+
 
 PACK(typedef struct te_ModelData {
   char      name[MODEL_NAME_LEN];             // 10 must be first for eeLoadModelName
@@ -614,6 +625,8 @@ PACK(typedef struct te_ModelData {
   uint16_t xmodelswitchWarningStates ;	// Enough bits for Taranis X9E
   uint8_t ymodelswitchWarningStates ;	// Enough bits for Taranis X9E
 	uint8_t customDisplay2Index[6] ;
+	GvarAdjust gvarAdjuster[NUM_GVAR_ADJUST] ;
+	uint8_t forExpansion[20] ;	// Allows for extra items not yet handled
 }) SKYModelData;
 
 

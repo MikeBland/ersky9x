@@ -22,6 +22,18 @@
 #define PIN_BUTTON_PAGE                 GPIO_Pin_3      //SW6 PD.03
 #endif // REV9E
 
+#ifdef REV9E
+//#define GPIOENCODER             GPIOE
+//#define PIN_ENC1				        GPIO_Pin_5      //  PE.05
+//#define PIN_ENC6				        GPIO_Pin_6      //  PE.06
+
+// X9E rev0.2
+#define GPIOENCODER             GPIOD
+#define PIN_ENC1				        GPIO_Pin_12      //  PD.12
+#define PIN_ENC2				        GPIO_Pin_13      //  PD.13
+
+#endif // REV9E
+
 // Trims
 #define	PIN_TRIM1_UP		        GPIO_Pin_3	//PC.03
 #define	PIN_TRIM1_DN	                GPIO_Pin_2	//PC.02
@@ -74,10 +86,27 @@
 #endif
 
 #ifdef REV9E
-#define	PIN_SW_I_L		        GPIO_Pin_1	//PF.01
-#define	PIN_SW_I_H		        GPIO_Pin_2	//PF.02
-#define	PIN_SW_J_L		        GPIO_Pin_3	//PF.03
-#define	PIN_SW_J_H		        GPIO_Pin_4	//PF.04
+#define	PIN_SW_I_L		        GPIO_Pin_2	//PF.02
+#define	PIN_SW_I_H		        GPIO_Pin_1	//PF.01
+#define	PIN_SW_J_L		        GPIO_Pin_4	//PF.04
+#define	PIN_SW_J_H		        GPIO_Pin_3	//PF.03
+#define	PIN_SW_K_L		        GPIO_Pin_6	//PF.06
+#define	PIN_SW_K_H		        GPIO_Pin_5	//PF.05
+#define	PIN_SW_L_L		        GPIO_Pin_10	//PE.10
+#define	PIN_SW_L_H		        GPIO_Pin_7	//PF.07
+#define	PIN_SW_M_L		        GPIO_Pin_12	//PF.12
+#define	PIN_SW_M_H		        GPIO_Pin_11	//PF.11
+#define	PIN_SW_N_L		        GPIO_Pin_14	//PF.14
+#define	PIN_SW_N_H		        GPIO_Pin_13	//PF.13
+#define	PIN_SW_O_L		        GPIO_Pin_12	//PG.12
+#define	PIN_SW_O_H		        GPIO_Pin_13	//PG.13
+#define	PIN_SW_P_L		        GPIO_Pin_10	//PG.10
+#define	PIN_SW_P_H		        GPIO_Pin_11	//PG.11
+#define	PIN_SW_Q_L		        GPIO_Pin_12	//PE.12
+#define	PIN_SW_Q_H		        GPIO_Pin_11	//PE.11
+#define	PIN_SW_R_L		        GPIO_Pin_8	//PG.08
+#define	PIN_SW_R_H		        GPIO_Pin_7	//PG.07
+
 #endif	// REV9E
 
 
@@ -175,6 +204,20 @@
 #define GPIOHAPTIC                      GPIOB
 #define GPIO_PinSource_HAPTIC           GPIO_PinSource8
 
+#ifdef REV9E
+// BackLight BLUE PE06
+#define RCC_AHB1Periph_GPIOBL           RCC_AHB1Periph_GPIOE
+#define GPIO_Pin_BL                     GPIO_Pin_6  //PE.06
+#define GPIOBL                          GPIOE
+#define GPIO_PinSource_BL               GPIO_PinSource6
+
+// BackLight WHITE PE05
+#define RCC_AHB1Periph_GPIOBLW          RCC_AHB1Periph_GPIOE
+#define GPIO_Pin_BLW                    GPIO_Pin_5  //PE.05
+#define GPIOBLW                         GPIOE
+#define GPIO_PinSource_BLW              GPIO_PinSource5
+
+#else
 // BackLight BLUE PD13
 #define RCC_AHB1Periph_GPIOBL           RCC_AHB1Periph_GPIOD
 #define GPIO_Pin_BL                     GPIO_Pin_15  //PD.15
@@ -186,8 +229,7 @@
 #define GPIO_Pin_BLW                    GPIO_Pin_13  //PD.13
 #define GPIOBLW                         GPIOD
 #define GPIO_PinSource_BLW              GPIO_PinSource13
-
-
+#endif
 
 #else
 
@@ -219,6 +261,7 @@
 #define PIN_LCD_NCS                     GPIO_Pin_15 //PA.15
 #define PIN_LCD_A0                      GPIO_Pin_11 //PC.11
 #define PIN_LCD_RST                     GPIO_Pin_12  //pd12 test //RESET occurs when powered up,but should delay before initialize
+//#define PIN_LCD_RST                     GPIO_Pin_15  //pd12 test //RESET occurs when powered up,but should delay before initialize
 
 #else
 
@@ -231,6 +274,17 @@
 #define PIN_LCD_A0                      GPIO_Pin_13 //PD.13
 #define PIN_LCD_RST                     GPIO_Pin_12  //pd12 test //RESET occurs when powered up,but should delay before initialize
 
+#endif
+
+#ifdef REV9E
+// TOP LCD
+#define RCC_AHB1Periph_TOPLCD            RCC_AHB1Periph_GPIOG
+#define GPIO_TOPLCD                      GPIOG
+#define PIN_TOPLCD_LED                   GPIO_Pin_2 //PG.02
+#define PIN_TOPLCD_CS1                   GPIO_Pin_3 //PG.03
+#define PIN_TOPLCD_CS2                   GPIO_Pin_15 //PG.15
+#define PIN_TOPLCD_WR		                 GPIO_Pin_4 //PG.04
+#define PIN_TOPLCD_DATA                  GPIO_Pin_5 //PG.05
 #endif
 
 // Audio----I2S3

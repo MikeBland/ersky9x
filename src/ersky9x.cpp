@@ -251,6 +251,8 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level) ;
 void init_soft_power( void ) ;
 uint32_t check_soft_power( void ) ;
 void soft_power_off( void ) ;
+int8_t getGvarSourceValue( uint8_t src ) ;
+static void	processAdjusters( void ) ;
 
 #ifdef PCBSKY
 #if defined(SIMU)
@@ -275,6 +277,7 @@ uint32_t Master_frequency ;
 //volatile uint32_t Timer2_count ;		// Modified in interrupt routine
 volatile uint32_t Tenms ;						// Modified in interrupt routine
 volatile uint8_t tick10ms = 0 ;
+volatile uint8_t tick5ms = 0 ;
 uint16_t g_LightOffCounter ;
 uint8_t  stickMoved = 0 ;
 
@@ -417,9 +420,41 @@ uint32_t ResetReason ;
 //uint8_t Timer2_pre = 0 ;
 //uint16_t Timer2 = 0 ;
 
+//#ifdef REV9E
+//#define X9D_OFFSET		42
+//uint16_t ProgressCounter ;
+//extern uint8_t PowerState ;
+//void progress( uint32_t x )
+//{
+//  wdt_reset();
+//	g_LightOffCounter = 2000 ;
+//	lcd_clear() ;
+//	lcd_outhex4( 212-X9D_OFFSET, 0, x ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, FH, ++ProgressCounter ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 2*FH, PowerState ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 3*FH, check_soft_power() ) ;
+//extern uint16_t SuCount ;
+//	lcd_outhex4( 212-X9D_OFFSET, 4*FH, SuCount ) ;
+
+//	lcd_outhex4( 50, 1*FH, GPIOD->MODER ) ;
+//	lcd_outhex4( 50, 2*FH, GPIOD->IDR ) ;
+//	lcd_outhex4( 50, 3*FH, GPIOD->ODR ) ;
+
+//	lcd_outhex4( 90, 1*FH, DAC->CR ) ;
+//	lcd_outhex4( 90, 2*FH, DMA1_Stream5->M0AR ) ;
+//	lcd_outhex4( 90, 3*FH, TIM6->CNT ) ;
+//	lcd_outhex4( 90, 4*FH, TIM6->ARR ) ;
+
+//	lcd_outhex4( 212-X9D_OFFSET, 6*FH, GPIOE->MODER ) ;
+//	lcd_outhex4( 212-X9D_OFFSET, 7*FH, GPIOE->AFR[0]>>16 ) ;
+
+//	refreshDisplay() ;
+//}
+//#endif
+
 
 #ifdef PCBX9D
-const char Switches_Str[] = "SA0SA1SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF2SG0SG1SG2SH0SH2" ;
+//const char Switches_Str[] = "SA0SA1SA2SB0SB1SB2SC0SC1SC2SD0SD1SD2SE0SE1SE2SF0SF2SG0SG1SG2SH0SH2" ;
 // Needs to be in pulses_driver.h
 extern void init_no_pulses(uint32_t port) ;
 extern void init_pxx(uint32_t port) ;
@@ -791,7 +826,7 @@ int main( void )
 	PMC->PMC_SCER |= 0x0400 ;								// PCK2 enabled
 	PMC->PMC_PCK[2] = 2 ;										// PCK2 is PLLA
 
-	UART_Configure( 9600, Master_frequency ) ;
+	UART_Configure( CONSOLE_BAUDRATE, Master_frequency ) ;
 #endif
 
 	init5msTimer() ;
@@ -917,7 +952,8 @@ int main( void )
 	telemetry_init( decodeTelemetryType( g_model.telemetryProtocol ) ) ;
 #endif
 #ifdef PCBX9D
-	telemetry_init( TEL_FRSKY_SPORT ) ;
+	telemetry_init( decodeTelemetryType( g_model.telemetryProtocol ) ) ;
+//	telemetry_init( TEL_FRSKY_SPORT ) ;
 #endif
 #endif
 
@@ -1002,7 +1038,15 @@ int main( void )
 #ifdef	DEBUG
 	DebugTask = CoCreateTaskEx( handle_serial,NULL,18,&debug_stk[DEBUG_STACK_SIZE-1],DEBUG_STACK_SIZE, 1, FALSE );
 #endif 
-	
+
+#ifdef REV9E
+void initTopLcd() ;
+	initTopLcd() ;
+
+
+#endif 
+
+	 
 	Main_running = 1 ;
 
 	CoStartOS();
@@ -1671,6 +1715,7 @@ void main_loop(void* pdata)
 	}
 	VoiceCheckFlag |= 2 ;// Set switch current states
 
+
 // Preload battery voltage
 #ifdef PCBSKY
   int32_t ab = anaIn(7);
@@ -1735,7 +1780,13 @@ void main_loop(void* pdata)
 	{
 
 #if defined(REVB) || defined(PCBX9D)
+		
+#ifdef REV9E
+		uint32_t powerState = check_soft_power() ;
+		if ( ( powerState == POWER_X9E_STOP ) || ( powerState == POWER_OFF ) )		// power now off
+#else
 		if ( ( check_soft_power() == POWER_OFF ) )		// power now off
+#endif
 		{
 			// Time to switch off
 			lcd_clear() ;
@@ -1776,7 +1827,7 @@ void main_loop(void* pdata)
   		uint16_t tgtime = get_tmr10ms() ;
 	  	while( (uint16_t)(get_tmr10ms() - tgtime ) < 50 ) // 50 - Half second
   		{
-				if ( check_soft_power() )
+				if ( check_soft_power() == POWER_ON )
 				{
 #ifdef PCBSKY
 					if ( MaintenanceRunning == 0)
@@ -1812,6 +1863,15 @@ void main_loop(void* pdata)
 				lcd_putsn_P( 6*FW, 3*FH, "POWER OFF", 9 ) ;
 				refreshDisplay() ;
 			  lcdSetRefVolt(0);
+				
+//#ifdef REV9E
+//	  		tgtime = get_tmr10ms() ;
+//		  	while( (uint16_t)(get_tmr10ms() - tgtime ) < 300 ) // 50 - Half second
+//  			{
+//					wdt_reset() ;
+//				}	
+//#endif
+				
 				soft_power_off() ;		// Only turn power off if necessary
 				for(;;)
 				{
@@ -2143,7 +2203,16 @@ static void processVoiceAlarms()
 				}
 				else if ( pvad->fnameType == 2 )	// Number
 				{
-					putVoiceQueue( pvad->file.vfile +( play - 1 ) ) ;
+					uint16_t value = pvad->file.vfile ;
+					if ( value > 507 )
+					{
+						value = calc_scaler( value-508, 0, 0 ) ;
+					}
+					else if ( value > 500 )
+					{
+						value = g_model.gvars[value-501].gvar ;
+					}
+					putVoiceQueue( value + ( play - 1 ) ) ;
 				}
 				else
 				{ // Audio
@@ -2259,6 +2328,9 @@ void mainSequence( uint32_t no_menu )
     wdt_reset();
     heartbeat = 0;
   }
+#ifdef REV9E
+  wdt_reset() ;
+#endif
 
 #ifdef PCBX9D
 	checkTrainerSource() ;
@@ -2275,6 +2347,7 @@ void mainSequence( uint32_t no_menu )
 
 	if ( Tenms )
 	{
+		
 		Tenms = 0 ;
 #ifdef PCBSKY
 		ee32_process() ;
@@ -2336,10 +2409,11 @@ void mainSequence( uint32_t no_menu )
 	rtc_gettime( &Time ) ;
 #endif
 	}
+	processAdjusters() ;
 
 	t0 = getTmr2MHz() - t0;
   if ( t0 > g_timeMain ) g_timeMain = t0 ;
-  if ( AlarmCheckFlag > 1 )		// Every 2 seconds
+  if ( AlarmCheckFlag > 1 )		// Every 1 second
   {
     AlarmCheckFlag = 0 ;
     // Check for alarms here
@@ -2509,6 +2583,22 @@ void mainSequence( uint32_t no_menu )
 				}
 			}
 		}
+#ifdef REV9E
+void updateTopLCD( uint32_t time, uint32_t batteryState ) ;
+void setTopRssi( uint32_t rssi ) ;
+void setTopVoltage( uint32_t volts ) ;
+void setTopOpTime( uint32_t hours, uint32_t mins, uint32_t secs ) ;
+
+static uint8_t RssiTestCount ;
+		setTopRssi( RssiTestCount ) ;
+		setTopVoltage( RssiTestCount ) ;
+		setTopOpTime( RssiTestCount%100, RssiTestCount%100, RssiTestCount%100 ) ;
+		if ( ++RssiTestCount > 149 )
+		{
+			RssiTestCount = 0 ;
+		}
+		updateTopLCD( Time.hour*60+Time.minute, RssiTestCount%6 ) ;
+#endif
   }
 	// New switch voices
 	// New entries, Switch, (on/off/both), voice file index
@@ -2543,7 +2633,24 @@ void mainSequence( uint32_t no_menu )
 			{
 				if ( g_model.enRssiRed == 0 )
 				{
+#ifdef ASSAN
+					int8_t offset ;
+#ifdef PCBX9D
+					if ( g_model.xprotocol == PROTO_ASSAN )
+#else
+					if ( g_model.protocol == PROTO_ASSAN )
+#endif // PCBX9D
+					{
+						offset = 18 ;
+					}
+					else
+					{
+						offset = 42 ;
+					}
+					if ( rssiValue && rssiValue < g_model.rssiRed + offset )
+#else // ASSAN
 					if ( rssiValue && rssiValue < g_model.rssiRed + 42 )
+#endif // ASSAN
 					{
 						// Alarm
 						redAlert = 1 ;
@@ -2565,7 +2672,24 @@ void mainSequence( uint32_t no_menu )
 				}
 				if ( ( redAlert == 0 ) && ( g_model.enRssiOrange == 0 ) )
 				{
+#ifdef ASSAN
+					int8_t offset ;
+#ifdef PCBX9D
+					if ( g_model.xprotocol == PROTO_ASSAN )
+#else
+					if ( g_model.protocol == PROTO_ASSAN )
+#endif // PCBX9D
+					{
+						offset = 20 ;
+					}
+					else
+					{
+						offset = 45 ;
+					}
+					if ( rssiValue && rssiValue < g_model.rssiOrange + offset )
+#else // ASSAN
 					if ( rssiValue && rssiValue < g_model.rssiOrange + 45 )
+#endif // ASSAN
 					{
 						// Alarm
 						if ( ++orangeCounter > 3 )
@@ -3108,6 +3232,9 @@ uint32_t check_power_or_usb()
 
 void check_backlight()
 {
+//#ifdef REV9E
+//		BACKLIGHT_ON ;
+//#else
   if(getSwitch00(g_eeGeneral.lightSw) || getSwitch00(g_model.mlightSw ) || g_LightOffCounter)
 	{
 		BACKLIGHT_ON ;
@@ -3116,9 +3243,10 @@ void check_backlight()
 	{
     BACKLIGHT_OFF ;
 	}
+//#endif
 }
 
-uint16_t SplashDebug[9] ;
+//uint16_t SplashDebug[9] ;
 
 uint16_t stickMoveValue()
 {
@@ -3126,7 +3254,7 @@ uint16_t stickMoveValue()
     uint16_t sum = 0;
     for(uint8_t i=0; i<4; i++)
 		{
-			SplashDebug[i] = anaIn(i) ;
+//			SplashDebug[i] = anaIn(i) ;
         sum += anaIn(i)/INAC_DEVISOR;
 		}
     return sum ;
@@ -3138,7 +3266,7 @@ void doSplash()
 	uint32_t i ;
 	uint32_t j ;
 
-	SplashDebug[8] = 0 ;
+//	SplashDebug[8] = 0 ;
 
 	if(!g_eeGeneral.disableSplashScreen)
   {
@@ -3155,8 +3283,8 @@ void doSplash()
 
   	uint16_t inacSum = stickMoveValue();
 
-  	for( i=0; i<4 ; i++)
-			SplashDebug[i+4] = SplashDebug[i] ;
+//  	for( i=0; i<4 ; i++)
+//			SplashDebug[i+4] = SplashDebug[i] ;
 
   	uint16_t tgtime = get_tmr10ms() + SPLASH_TIMEOUT;  
   	uint16_t scrtime = get_tmr10ms() ;
@@ -3210,13 +3338,13 @@ void doSplash()
 			uint8_t xxx ;
 			if ( ( xxx = keyDown() ) )
 			{
-				SplashDebug[8] = xxx ;
+//				SplashDebug[8] = xxx ;
 				return ;  //wait for key release
 			}
 				  
 			if (tsum!=inacSum)
 			{
-				SplashDebug[8] = 0xF000 ;
+//				SplashDebug[8] = 0xF000 ;
 		   return ;  //wait for key release
 			}
 //			if(keyDown() || (tsum!=inacSum))   return;  //wait for key release
@@ -3454,6 +3582,117 @@ bool usbPlugged(void)
 #endif
 
 
+static void	processAdjusters()
+{
+static uint8_t GvAdjLastSw[NUM_GVAR_ADJUST][2] ;
+	for ( uint32_t i = 0 ; i < NUM_GVAR_ADJUST ; i += 1 )
+	{
+		GvarAdjust *pgvaradj ;
+		pgvaradj = &g_model.gvarAdjuster[i] ;
+		uint32_t idx = pgvaradj->gvarIndex ;
+	
+		int8_t sw0 = pgvaradj->swtch ;
+		int8_t sw1 = 0 ;
+		uint32_t switchedON = 0 ;
+		int32_t value = g_model.gvars[idx].gvar ;
+		if ( sw0 )
+		{
+			sw0 = getSwitch00(sw0) ;
+			if ( !GvAdjLastSw[i][0] && sw0 )
+			{
+    		switchedON = 1 ;
+			}
+			GvAdjLastSw[i][0] = sw0 ;
+		}
+		if ( pgvaradj->function > 3 )
+		{
+			sw1 = pgvaradj->switch_value ;
+			if ( sw1 )
+			{
+				sw1 = getSwitch00(sw1) ;
+				if ( !GvAdjLastSw[i][1] && sw1 )
+				{
+    			switchedON |= 2 ;
+				}
+				GvAdjLastSw[i][1] = sw1 ;
+			}
+		}
+
+		switch ( pgvaradj->function )
+		{
+			case 1 :	// Add
+				if ( switchedON & 1 )
+				{
+     			value += pgvaradj->switch_value ;
+				}
+			break ;
+
+			case 2 :
+				if ( switchedON & 1 )
+				{
+     			value = pgvaradj->switch_value ;
+				}
+			break ;
+
+			case 3 :
+				if ( switchedON & 1 )
+				{
+					if ( pgvaradj->switch_value == 5 )	// REN
+					{
+						value = RotaryControl ;	// Adjusted elsewhere
+					}
+					else
+					{
+						value = getGvarSourceValue( pgvaradj->switch_value ) ;
+					}
+				}
+			break ;
+
+			case 4 :
+				if ( switchedON & 1 )
+				{
+     			value += 1 ;
+				}
+				if ( switchedON & 2 )
+				{
+     			value -= 1 ;
+				}
+			break ;
+			
+			case 5 :
+				if ( switchedON & 1 )
+				{
+     			value += 1 ;
+				}
+				if ( switchedON & 2 )
+				{
+     			value = 0 ;
+				}
+			break ;
+
+			case 6 :
+				if ( switchedON & 1 )
+				{
+     			value -= 1 ;
+				}
+				if ( switchedON & 2 )
+				{
+     			value = 0 ;
+				}
+			break ;
+		}
+  	if(value > 125)
+		{
+			value = 125 ;
+		}	
+  	if(value < -125 )
+		{
+			value = -125 ;
+		}	
+		g_model.gvars[idx].gvar = value ;
+	}
+}
+
 uint8_t AnaEncSw = 0 ;
 
 void valueprocessAnalogEncoder( uint32_t x )
@@ -3535,7 +3774,105 @@ void processAnaEncoder()
 }
 #endif
 
+uint8_t GvarSource[4] ;
 
+int8_t getGvarSourceValue( uint8_t src )
+{
+	int16_t value ;
+	
+	if ( src <= 4 )
+	{
+#ifdef FIX_MODE
+		value = getTrimValue( CurrentPhase, src - 1 ) ;
+#else
+		value = getTrimValue( CurrentPhase, convert_mode_helper(src) - 1 ) ;
+#endif
+		GvarSource[src-1] = 1 ;
+//				g_model.gvars[i].gvar = *TrimPtr[ convert_mode_helper(g_model.gvars[i].gvsource) - 1 ] ;
+	}
+	else if ( src == 5 )	// REN
+	{
+		value = 0 ;
+	}
+	else if ( src <= 9 )	// Stick
+	{
+#ifdef FIX_MODE
+		value = calibratedStick[ src-5 - 1 ] / 8 ;
+#else
+		value = calibratedStick[ convert_mode_helper( src-5) - 1 ] / 8 ;
+#endif
+//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ convert_mode_helper(g_model.gvars[i].gvsource-5) - 1 ] / 8, 125 ) ;
+	}
+#ifdef PCBSKY
+	else if ( src <= 12 )	// Pot
+#endif
+#ifdef PCBX9D
+	else if ( src <= 13 )	// Pot
+#endif
+	{
+		value = calibratedStick[ ( src-6)] / 8 ;
+//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
+	}
+#ifdef PCBSKY
+	else if ( src <= 36 )	// Chans
+#endif
+#ifdef PCBX9D
+	else if ( src <= 37 )	// Pot
+#endif
+	{
+#ifdef PCBSKY
+		value = ex_chans[src-13] * 100 / 1024 ;
+#endif
+#ifdef PCBX9D
+		value = ex_chans[src-14] * 100 / 1024 ;
+#endif
+//				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
+	}
+#ifdef PCBSKY
+	else if ( src <= 44 )	// Scalers
+#endif
+#ifdef PCBX9D
+	else if ( src <= 45 )	// Scalers
+#endif
+	{
+#ifdef PCBSKY
+		value = calc_scaler( src-37, 0, 0 ) ;
+#endif
+#ifdef PCBX9D
+		value = calc_scaler( src-38, 0, 0 ) ;
+#endif
+	}
+#ifdef PCBSKY
+	else if ( src <= 68 )	// Scalers
+#endif
+#ifdef PCBX9D
+	else if ( src <= 69 )	// Scalers
+#endif
+	{ // Outputs
+		int32_t x ;
+#ifdef PCBSKY
+		x = g_chans512[src-45] ;
+#endif
+#ifdef PCBX9D
+		x = g_chans512[src-46] ;
+#endif
+		x *= 100 ;
+		value = x / 1024 ;
+	}
+	else
+	{
+		value = 0 ;
+	}
+	if ( value > 125 )
+	{
+		value = 125 ;
+	}
+	if ( value < -125 )
+	{
+		value = -125 ;
+	}
+ 	return value ;
+}
 
 void perMain( uint32_t no_menu )
 {
@@ -3554,6 +3891,12 @@ void perMain( uint32_t no_menu )
 		perOutPhase(g_chans512, 0);
 		t1 = getTmr2MHz() - t1 ;
 		g_timeMixer = t1 ;
+	}
+
+	if(tick5ms)
+	{
+		check_frsky( 1 ) ;
+		tick5ms = 0 ;
 	}
 
 	if(!tick10ms) return ; //make sure the rest happen only every 10ms.
@@ -3679,6 +4022,7 @@ void perMain( uint32_t no_menu )
 		}
 	}
 
+
 	if ( g_eeGeneral.disablePotScroll || option )
 	{			 
 		if ( g_model.anaVolume )	// Only check if on main screen
@@ -3796,6 +4140,10 @@ void perMain( uint32_t no_menu )
 	StickScrollAllowed = 3 ;
 
 #if GVARS
+	GvarSource[0] = 0 ;
+	GvarSource[1] = 0 ;
+	GvarSource[2] = 0 ;
+	GvarSource[3] = 0 ;
 	for( uint8_t i = 0 ; i < MAX_GVARS ; i += 1 )
 	{
 		// ToDo, test for trim inputs here
@@ -3810,86 +4158,45 @@ void perMain( uint32_t no_menu )
 					continue ;
 				}
 			}
-			if ( src <= 4 )
-			{
-#ifdef FIX_MODE
-				value = getTrimValue( CurrentPhase, src - 1 ) ;
-#else
-				value = getTrimValue( CurrentPhase, convert_mode_helper(src) - 1 ) ;
-#endif
-//				g_model.gvars[i].gvar = *TrimPtr[ convert_mode_helper(g_model.gvars[i].gvsource) - 1 ] ;
-			}
-			else if ( src == 5 )	// REN
+			
+			if ( src == 5 )	// REN
 			{
 				value = g_model.gvars[i].gvar ;	// Adjusted elsewhere
 			}
-			else if ( src <= 9 )	// Stick
-			{
-#ifdef FIX_MODE
-				value = calibratedStick[ src-5 - 1 ] / 8 ;
-#else
-				value = calibratedStick[ convert_mode_helper( src-5) - 1 ] / 8 ;
-#endif
-//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ convert_mode_helper(g_model.gvars[i].gvsource-5) - 1 ] / 8, 125 ) ;
-			}
-#ifdef PCBSKY
-			else if ( src <= 12 )	// Pot
-#endif
-#ifdef PCBX9D
-			else if ( src <= 13 )	// Pot
-#endif
-			{
-				value = calibratedStick[ ( src-6)] / 8 ;
-//				g_model.gvars[i].gvar = limit( -125, calibratedStick[ (g_model.gvars[i].gvsource-6)] / 8, 125 ) ;
-			}
-#ifdef PCBSKY
-			else if ( src <= 36 )	// Chans
-#endif
-#ifdef PCBX9D
-			else if ( src <= 37 )	// Pot
-#endif
-			{
-#ifdef PCBSKY
-				value = ex_chans[src-13] * 100 / 1024 ;
-#endif
-#ifdef PCBX9D
-				value = ex_chans[src-14] * 100 / 1024 ;
-#endif
-//				g_model.gvars[i].gvar = limit( -125, ex_chans[g_model.gvars[i].gvsource-13] / 10, 125 ) ;
-			}
-#ifdef PCBSKY
-			else if ( src <= 44 )	// Scalers
-#endif
-#ifdef PCBX9D
-			else if ( src <= 45 )	// Scalers
-#endif
-			{
-#ifdef PCBSKY
-				value = calc_scaler( src-37, 0, 0 ) ;
-#endif
-#ifdef PCBX9D
-				value = calc_scaler( src-38, 0, 0 ) ;
-#endif
-			}
 			else
-			{ // Outputs
-				int32_t x ;
-#ifdef PCBSKY
-				x = g_chans512[src-45] ;
-#endif
-#ifdef PCBX9D
-				x = g_chans512[src-46] ;
-#endif
-				x *= 100 ;
-				value = x / 1024 ;
+			{
+				value = getGvarSourceValue( src ) ;
 			}
+
+//			else
+//			{
+//static uint8_t GvLastSw[12] ;
+//#ifdef PCBSKY
+//				uint8_t j = ( src - 69 ) * 2 ;
+//#endif
+//#ifdef PCBX9D
+//				uint8_t j = ( src - 70 ) * 2 ;
+//#endif
+//				uint8_t sw0 = getSwitch00(DSW_SW1+j) ;
+//				value = g_model.gvars[i].gvar ;
+//				if ( !GvLastSw[j] && sw0 )
+//				{
+//      		value += 1 ;
+//				}
+//				GvLastSw[j] = sw0 ;
+//				sw0 = getSwitch00(DSW_SW2+j) ;
+//				if ( sw0 )
+//				{
+//      		value = 0 ;
+//				}
+//			}
 			g_model.gvars[i].gvar = limit( (int16_t)-125, value, (int16_t)125 ) ;
 		}
 	}
 #endif
 
 #ifdef FRSKY
-	check_frsky() ;
+	check_frsky( 0 ) ;
 #endif
 
 // Here, if waiting for EEPROM response, don't action menus
@@ -4011,7 +4318,8 @@ void perMain( uint32_t no_menu )
 #ifdef REV9E
 static void init_rotary_encoder()
 {
-	configure_pins( 0x0060, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
+//	configure_pins( 0x0060, PIN_INPUT | PIN_PULLUP | PIN_PORTE ) ;
+	configure_pins( 0x3000, PIN_INPUT | PIN_PULLUP | PIN_PORTD ) ;
 	g_eeGeneral.rotaryDivisor = 2 ;
 }
 
@@ -4019,18 +4327,21 @@ void checkRotaryEncoder()
 {
   register uint32_t dummy ;
 	
-	dummy = GPIOE->IDR ;	// Read Rotary encoder ( PE6, PE5 )
-	dummy >>= 5 ;
+	dummy = GPIOENCODER->IDR ;	// Read Rotary encoder ( PE6, PE5 )
+//	dummy >>= 5 ;
+	dummy >>= 12 ;
 	dummy &= 0x03 ;			// pick out the two bits
 	if ( dummy != ( Rotary_position & 0x03 ) )
 	{
 		if ( ( Rotary_position & 0x01 ) ^ ( ( dummy & 0x02) >> 1 ) )
 		{
-			Rotary_count += 1 ;
+			Rotary_count -= 1 ;
+//			Rotary_count += 1 ;
 		}
 		else
 		{
-			Rotary_count -= 1 ;
+			Rotary_count += 1 ;
+//			Rotary_count -= 1 ;
 		}
 		Rotary_position &= ~0x03 ;
 		Rotary_position |= dummy ;
@@ -4106,6 +4417,8 @@ void interrupt5ms()
 	checkRotaryEncoder() ;
 #endif // REV9E
 
+	tick5ms = 1 ;
+	
 	if ( ++pre_scale >= 2 )
 	{
 		Tenms |= 1 ;			// 10 mS has passed
@@ -4258,6 +4571,9 @@ void getADC_single()
 //#define OSMP_TOTAL		32768
 //#define OSMP_SHIFT		4
 #endif
+
+//uint16_t AdcDebug[OSMP_SAMPLES] ;
+
 void getADC_osmp()
 {
 	register uint32_t x ;
@@ -4279,6 +4595,10 @@ void getADC_osmp()
 		for( x = 0 ; x < NUMBER_ANALOG+NUM_EXTRA_ANALOG ; x += 1 )
 		{
 			temp[x] += Analog_values[x] ;
+//			if ( x == 3 )
+//			{
+//				AdcDebug[y] = Analog_values[x] ;
+//			}
 		}
 	}
 #ifdef PCBX9D
@@ -4455,6 +4775,12 @@ static uint8_t checkTrim(uint8_t event)
 #endif
 		bool thro = (thrChan && (g_model.thrTrim));
     if(thro) v = 2; // if throttle trim and trim trottle then step=2
+
+		if ( GvarSource[idx] )
+		{
+			v = 1 ;
+		}
+
     if(thrChan && throttleReversed()) v = -v;  // throttle reversed = trim reversed
     int16_t x = (k&1) ? tm + v : tm - v;   // positive = k&1
 
@@ -5047,10 +5373,14 @@ const char *get_switches_string()
 
 int16_t getValue(uint8_t i)
 {
-#ifdef PCBX9D
-  if(i<8) return calibratedStick[i];//-512..512
-#else
   if(i<7) return calibratedStick[i];//-512..512
+#ifdef PCBX9D
+ #if NUM_EXTRA_POTS
+	if ( i >= EXTRA_POTS_START-1 )
+	{
+		return calibratedStick[i-EXTRA_POTS_START+8] ;
+	}
+ #endif
 #endif
   if(i<PPM_BASE) return 0 ;
 	else if(i<CHOUT_BASE)
@@ -5179,7 +5509,7 @@ bool getSwitch(int8_t swtch, bool nc, uint8_t level)
   {
       x = getValue(cs.v1-1);
 #ifdef FRSKY
-      if (cs.v1 > CHOUT_BASE+NUM_SKYCHNOUT)
+      if ( (cs.v1 > CHOUT_BASE+NUM_SKYCHNOUT) && ( cs.v1 < EXTRA_POTS_START ) )
 			{
         y = convertTelemConstant( cs.v1-CHOUT_BASE-NUM_SKYCHNOUT-1, cs.v2 ) ;
 #ifndef TELEMETRY_LOST
@@ -5539,11 +5869,17 @@ int8_t getMovedSwitch()
       if (i<5)
         result = 1+(3*i)+next;
       else if (i==5)
-        result = 1+(3*5)+(next!=0);
+			{
+        result = 1+(3*5) ;
+				if (next!=0) result = -result ;
+			}
       else if (i==6)
-        result = 1+(3*5)+2+next;
+        result = 1+(3*5)+1+next;
       else
-        result = 1+(3*5)+2+3+(next!=0);
+			{
+        result = 1+(3*5)+1+3 ;
+				if (next!=0) result = -result ;
+			}
     }
   }
 #endif // REV9E
