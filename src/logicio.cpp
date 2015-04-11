@@ -365,9 +365,29 @@ uint32_t read_keys()
 	{
 		y |= 0x00000008 ;			// DOWN
 	}
-	x >>= 1 ;
 	x = ~x ;
-	x &= 0xC2 ;
+	if ( x & 8 )
+	{
+		x |= 0x40 ;
+	}
+	x >>= 6 ;
+	x &= 7 ;
+#ifndef REVX
+extern uint8_t Co_proc_status[] ;
+	uint8_t temp = (uint8_t)Co_proc_status[9] ;
+	if ( (temp & 0x40) == 0 )
+	{
+		x |= 0x20 ;
+	}
+	if ( (temp & 0x08) == 0 )
+	{
+		x |= 0x10 ;
+	}
+	if ( (temp & 0x02) == 0 )
+	{
+		x |= 0x08 ;
+	}
+#endif
 	ExtraInputs = x ;
 #else	
 	y = x & 0x00000060 ;
@@ -379,14 +399,27 @@ uint32_t read_keys()
 	{
 		y |= 0x00000008 ;
 	}
-	x >>= 1 ;
-	x &= ~2 ;
-	if ( x & 4 )
-	{
-		x |= 2 ;
-	}
 	x = ~x ;
-	x &= 0xC2 ;
+	if ( x & 8 )
+	{
+		x |= 0x40 ;
+	}
+	x >>= 6 ;
+	x &= 7 ;
+extern uint8_t Co_proc_status[] ;
+	uint8_t temp = (uint8_t)Co_proc_status[9] ;
+	if ( (temp & 0x40) == 0 )
+	{
+		x |= 0x20 ;
+	}
+	if ( (temp & 0x08) == 0 )
+	{
+		x |= 0x10 ;
+	}
+	if ( (temp & 0x02) == 0 )
+	{
+		x |= 0x08 ;
+	}
 	ExtraInputs = x ;
 #endif
 #ifdef REVB
@@ -507,6 +540,29 @@ uint32_t read_trims()
 
 #ifdef PCBSKY
 
+uint32_t readKeyUpgradeBit( uint8_t index )
+{
+  CPU_UINT xxx = 0 ;
+	uint32_t t = 1 << (index-1) ;
+	if ( t == 16 )
+	{
+		xxx = (PIOB->PIO_PDSR & 0x00004000) ;	// DAC1
+	}
+	else if ( t == 32 )
+	{
+		xxx = ~PIOC->PIO_PDSR & 0x80000000 ;	// ELE_DR   PC31	
+	}
+	else
+	{
+		if ( t > 32 )
+		{
+			t >>= 2 ;
+		}
+		xxx = ExtraInputs & t ;
+	}
+	return xxx ;
+}
+
 uint32_t hwKeyState( uint8_t key )
 {
 	register uint32_t a ;
@@ -562,16 +618,42 @@ uint32_t hwKeyState( uint8_t key )
 //    case HSW_Trainer: xxx = c & 0x00000100 ;	// SW-TRAIN    PC8
 //    break ;
 		
+		case HSW_Thr3pos0 :
+    	xxx = ~c & 0x00100000 ;	// SW_TCUT     PC20
+    break ;
+		
+		case HSW_Thr3pos1 :
+			xxx = (c & 0x00100000) ; if ( xxx ) xxx = !readKeyUpgradeBit( g_eeGeneral.thrsource ) ;
+    break ;
+
+		case HSW_Thr3pos2 :
+			xxx = readKeyUpgradeBit( g_eeGeneral.thrsource ) ;
+    break ;
+			 
 		case HSW_Ele3pos0 :
-			xxx = av9 < 490 ;
+			xxx = ( g_eeGeneral.elesource == 5 ) ? av9 < 490 : ~c & 0x80000000 ;	// ELE_DR   PC31
     break ;
 
 		case HSW_Ele3pos1 :
-			xxx = av9 > 1500 ;
-    break ;
+			if ( g_eeGeneral.elesource == 5 )
+			{
+				xxx = av9 > 1500 ;
+			}
+      else
+			{
+				xxx = c & 0x80000000 ; if ( xxx ) xxx = !readKeyUpgradeBit( g_eeGeneral.elesource ) ;
+			}
+		break ;
 
 		case HSW_Ele3pos2 :
-			xxx = ( av9 <= 1500 ) && ( av9 >= 490 ) ;
+			if ( g_eeGeneral.elesource == 5 )
+			{
+				xxx = ( av9 <= 1500 ) && ( av9 >= 490 ) ;
+			}
+      else
+			{
+				xxx = readKeyUpgradeBit( g_eeGeneral.elesource ) ;
+			}
     break ;
 
 		case HSW_Rud3pos0 :
@@ -579,11 +661,13 @@ uint32_t hwKeyState( uint8_t key )
     break ;
 
 		case HSW_Rud3pos1 :
-			xxx = (a & 0x00008000) ; if ( xxx ) xxx = (c & 0x80000000) ;
+			xxx = (a & 0x00008000) ; if ( xxx ) xxx = !readKeyUpgradeBit( g_eeGeneral.rudsource ) ;
+//			xxx = (a & 0x00008000) ; if ( xxx ) xxx = (c & 0x80000000) ;
     break ;
 
 		case HSW_Rud3pos2 :
-			xxx = ~c & 0x80000000 ;	// ELE_DR   PC31
+			xxx = readKeyUpgradeBit( g_eeGeneral.rudsource ) ;
+//			xxx = ~c & 0x80000000 ;	// ELE_DR   PC31
     break ;
 
 		case HSW_Ail3pos0 :
@@ -591,11 +675,13 @@ uint32_t hwKeyState( uint8_t key )
     break ;
 
 		case HSW_Ail3pos1 :
-			xxx = (a & 0x00000004) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
-    break ;
+//			xxx = (a & 0x00000004) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
+			xxx = (a & 0x00000004) ; if ( xxx ) xxx = !readKeyUpgradeBit( g_eeGeneral.ailsource ) ;
+    break ;                               
 
 		case HSW_Ail3pos2 :
-			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
+//			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
+			xxx = readKeyUpgradeBit( g_eeGeneral.ailsource ) ;
     break ;
 
 		case HSW_Gear3pos0 :
@@ -603,11 +689,13 @@ uint32_t hwKeyState( uint8_t key )
     break ;
 
 		case HSW_Gear3pos1 :
-			xxx = (c & 0x00010000) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
+//			xxx = (c & 0x00010000) ; if ( xxx ) xxx = (PIOB->PIO_PDSR & 0x00004000) ;
+			xxx = (c & 0x00010000) ; if ( xxx ) xxx = !readKeyUpgradeBit( g_eeGeneral.geasource ) ;
     break ;
 
 		case HSW_Gear3pos2 :
-			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
+			xxx = readKeyUpgradeBit( g_eeGeneral.geasource ) ;
+//			xxx = ~PIOB->PIO_PDSR & 0x00004000 ;
     break ;
 
 		case HSW_Ele6pos0 :
@@ -675,7 +763,14 @@ uint32_t hwKeyState( uint8_t key )
 				xxx = av9 < 0x070 ;
 			}
     break ;
-			
+
+		case HSW_Pb1 :
+			xxx = readKeyUpgradeBit( g_eeGeneral.pb1source ) ;
+    break ;
+			 
+		case HSW_Pb2 :
+			xxx = readKeyUpgradeBit( g_eeGeneral.pb2source ) ;
+    break ;
 
     default:
     break ;

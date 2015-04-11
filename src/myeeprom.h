@@ -169,8 +169,8 @@ PACK(typedef struct t_EEGeneral {
   int16_t   x9dPcalibMid ;			// X9D for PLUS
   int16_t   x9dPcalibSpanNeg ;	// X9D for PLUS
   int16_t   x9dPcalibSpanPos ;	// X9D for PLUS
-	uint8_t		switchMapping ;			// 'PRO / SKY
-	int8_t		spare10 ;						// was switchTest
+	uint16_t		switchMapping ;			// 'PRO / SKY
+// used for switch mapping	int8_t		spare10 ;						// was switchTest
 	exTrainerMix exTrainer[4] ;
 	uint16_t totalElapsedTime ;
 	uint16_t sparetotalElapsedTime ;	// In case we need 32 bits
@@ -182,6 +182,13 @@ PACK(typedef struct t_EEGeneral {
   int16_t   xcalibSpanPos[3]; 	// X9E
 	uint8_t		analogMapping ;			// X9D / X9DP
 	int8_t		inactivityVolume ;
+	uint8_t		pb1source ;
+	uint8_t		pb2source ;
+	uint8_t		ailsource ;
+	uint8_t		rudsource ;
+	uint8_t		geasource ;
+	uint8_t		thrsource ;
+	uint8_t		elesource ;
 }) EEGeneral;
 
 

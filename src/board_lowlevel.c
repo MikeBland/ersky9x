@@ -292,7 +292,7 @@ uint32_t SystemInit (void)
 #ifdef USE_54_MHZ
     /** Set 3 cycle (2 WS) for Embedded Flash Access */
 		// Max clock is 64 MHz (1.8V VVDCORE)
-   EFC->EEFC_FMR = (2 << 8) ;
+   EFC->EEFC_FMR = (3 << 8) ;
 #else
  #ifdef USE_64_MHZ
    EFC->EEFC_FMR = (3 << 8) ;

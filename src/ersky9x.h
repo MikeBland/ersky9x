@@ -246,7 +246,9 @@ enum EnumKeys {
 #define HSW_Ele6pos3	63
 #define HSW_Ele6pos4	64
 #define HSW_Ele6pos5	65
-#define HSW_MAX				65
+#define HSW_Pb1				66
+#define HSW_Pb2				67
+#define HSW_MAX				67
 
 #define HSW_OFFSET ( HSW_Thr3pos0 - ( HSW_Trainer + NUM_SKYCSW + 1 ) )
 
@@ -259,6 +261,8 @@ enum EnumKeys {
 #define	USE_AIL_3POS	0x10
 #define	USE_GEA_3POS	0x20
 #define	USE_ELE_6PSB	0x40
+#define	USE_PB1				0x80
+#define	USE_PB2				0x100
 
 //extern uint8_t switchMap[] ;
 //extern uint8_t switchUnMap[] ;
@@ -612,7 +616,7 @@ extern uint8_t Ee_lock ;
 #define PROTO_DSM2       2
 #define PROTO_ASSAN      3
  #ifdef ASSAN
-#define PROT_MAX         3
+#define PROT_MAX         4
  #else
 #define PROT_MAX         2
  #endif

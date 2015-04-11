@@ -121,6 +121,10 @@ FrskyData frskyTelemetry[4];
 uint8_t frskyRSSIlevel[2] ;
 uint8_t frskyRSSItype[2] ;
 
+#ifdef ASSAN
+uint8_t RssiTimer ;
+#endif
+
 struct FrskyAlarm {
   uint8_t level;    // The alarm's 'urgency' level. 0=disabled, 1=yellow, 2=orange, 3=red
   uint8_t greater;  // 1 = 'if greater than'. 0 = 'if less than'
@@ -705,9 +709,9 @@ void processFrskyPacket(uint8_t *packet)
 //8[08] Unknown
 //9[09] Unknown
 //10[0A] Unknown
-//11[0B] Unknown	// Assan when 7E type is Rx RSSI
+//11[0B] Unknown
 //12[0C] Unknown
-//13[0D] Unknown
+//13[0D] Unknown	// Assan when 7E type is Rx RSSI
 //14[0E] Unknown
 //15[0F] Unknown
 
@@ -948,9 +952,9 @@ extern struct t_fifo64 HexStreamFifo ;
 		// Telemetry
 #ifdef ASSAN
 #ifdef PCBSKY
-		if ( g_model.protocol == PROTO_ASSAN )
+		if ( ( g_model.protocol == PROTO_ASSAN ) && ( RssiTimer ) )
 		{
-    	frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
+   		frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
 		}
 		else
 		{
@@ -958,9 +962,9 @@ extern struct t_fifo64 HexStreamFifo ;
 		}
 #endif
 #ifdef PCBX9D
-		if ( g_model.xprotocol == PROTO_ASSAN )
+		if ( ( g_model.xprotocol == PROTO_ASSAN ) && ( RssiTimer ) )
 		{
-    	frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
+   		frskyTelemetry[3].set(type, FR_TXRSI_COPY );	// RSSI
 		}
 		else
 		{
@@ -1046,6 +1050,9 @@ extern struct t_fifo64 HexStreamFifo ;
 						ivalue = (int16_t) packet[11] ;	// Rx RSSI
 						FrskyHubData[FR_TEMP2] = ivalue ;	// Put here for now					
     				frskyTelemetry[2].set(ivalue, FR_RXRSI_COPY ) ;	// RSSI
+#ifdef ASSAN
+						RssiTimer = 200 ;
+#endif
 					}
 				}	
 			break ;
@@ -1218,6 +1225,30 @@ void processSportPacket()
     		  
 				case 5 : // SWR
 					frskyTelemetry[3].set(value, FR_TXRSI_COPY ); //FrskyHubData[] =  frskyTelemetry[3].value ;
+				break ;
+				case 6 : // XJT VERSION
+//#define IS_VALID_XJT_VERSION() (frskyData.xjtVersion != 0 && frskyData.xjtVersion != 0xff)
+//#if defined(PCBTARANIS) && defined(REVPLUS)
+//      if (appId == XJT_VERSION_ID) {
+//        frskyData.xjtVersion = HUB_DATA_U16(packet);
+//        if (!IS_VALID_XJT_VERSION()) {
+//          frskyData.swr.set(0xff);
+//        }
+//      } 
+//      else if (appId == SWR_ID) {
+//        if (IS_VALID_XJT_VERSION())
+//          frskyData.swr.set(SPORT_DATA_U8(packet));
+//        else
+//          frskyData.swr.set(0xff);
+//      }
+//#else
+//      if (appId == XJT_VERSION_ID) {
+//        frskyData.xjtVersion = HUB_DATA_U16(packet);
+//      }
+//      else if (appId == SWR_ID) {
+//        frskyData.swr.set(SPORT_DATA_U8(packet));
+//      }
+//#endif
 				break ;
 			}
 		}
@@ -2271,7 +2302,14 @@ void check_frsky( uint32_t fivems )
 		frskyUsrStreaming--;
 	}
 	TmOK = lTmOK ;
-	
+
+#ifdef ASSAN
+	if ( RssiTimer )
+	{
+		RssiTimer -= 1 ;
+	}
+#endif
+	 
   if ( FrskyAlarmSendState )
   {
     FRSKY10mspoll() ;

@@ -59,6 +59,7 @@ union t_xmem Xmem ;
 
 extern int32_t Rotary_diff ;
 extern int16_t AltOffset ;
+extern uint8_t ExtraInputs ;
 
 static uint8_t s_currIdx;
 static uint8_t RestoreIndex ;
@@ -6103,8 +6104,22 @@ void menuRangeBind(uint8_t event)
 		{
 			if ( BindRequest == 2 )
 			{
-				binding = 2 ;		// Select DSM2/DSMX
-				mode = 0 ;
+#ifdef PCBX9D
+				if ( g_model.xcountry != 2 )
+#else
+				if ( g_model.country != 2 )
+#endif // PCBX9D
+				{
+					binding = 2 ;		// Select DSM2/DSMX
+					mode = 0 ;
+				}
+				else
+				{
+					mode = PXX_DSMX ;
+					*ptrFlag |= PXX_BIND | mode ;
+					binding = 1 ;
+					return ;
+				}
 			}
 		}
 #endif // ASSAN
@@ -6175,6 +6190,7 @@ void menuRangeBind(uint8_t event)
 		{
 			dsmDisplayABLRFH() ;
 		}
+#endif // ASSAN
 	}
 //#ifdef PCBX9D
 //	else if ( g_model.xprotocol == PROTO_ASSAN )
@@ -6194,7 +6210,6 @@ void menuRangeBind(uint8_t event)
 ////extern uint16_t SSCdebug ;
 ////lcd_outhex4( 90, 7*FH, SSCdebug ) ;
 //	}
-#endif // ASSAN
 #endif // FRSKY
 	if ( --timer == 0 )
 	{
@@ -6250,7 +6265,7 @@ static void editTimer( uint8_t sub, uint8_t event )
     	if(sub==subN)
 			{
    			attr = blink ;
-    	  CHECK_INCDEC_MODELSWITCH( ptm->tmrModeA, 0, 1+2+24);
+				CHECK_INCDEC_H_MODELVAR_0( ptm->tmrModeA, 1+2+24 ) ;
 			}
     	putsTmrMode(10*FW,y,attr, timer, 1 ) ;
 			y += FH ;
@@ -6353,7 +6368,7 @@ void menuProcModel(uint8_t event)
 	}
 	if (g_model.protocol == PROTO_ASSAN)
 	{
-//		dataItems += 1 ;
+		dataItems += 1 ;
 		need_bind_range = 1 ;
 	}
 #ifdef PCBX9D
@@ -6376,7 +6391,7 @@ void menuProcModel(uint8_t event)
 	}
 	if (g_model.xprotocol == PROTO_ASSAN)
 	{
-//		dataItems += 1 ;
+		dataItems += 1 ;
 		need_bind_range |= 2 ;
 	}
 	if ( g_model.protocol == PROTO_OFF )
@@ -6805,7 +6820,7 @@ uint8_t blink = InverseBlink ;
   	  {
 		    lcd_puts_Pleft( y, XPSTR("\013Chans") );
  	      lcd_outdezAtt(  21*FW, y,  g_model.ppmNCH, (sub==subN && subSub==1 ? blink:0));
- 	      lcd_outhex4( 17*FW, y+2*FH, g_model.dsmMode ) ;
+// 	      lcd_outhex4( 17*FW, y+2*FH, g_model.dsmMode ) ;
 			}
 
 		  if(sub==subN)
@@ -6959,7 +6974,15 @@ uint8_t blink = InverseBlink ;
 			 
 //#ifndef DISABLE_PXX_SPORT
 //#ifndef REVX
+#ifdef PCBSKY
+ #ifdef ASSAN
+		if ( (protocol == PROTO_PXX) || ( protocol == PROTO_ASSAN) )
+ #else
 		if (protocol == PROTO_PXX)
+ #endif
+#else
+		if (protocol == PROTO_PXX)
+#endif
 		{
 			if(t_pgOfs<=subN)
 			{
@@ -7303,7 +7326,11 @@ uint8_t blink = InverseBlink ;
 			} subN += 1 ;
 		}
 			 
+ #ifdef ASSAN
+		if ( (protocol == PROTO_PXX) || ( protocol == PROTO_ASSAN) )
+ #else
 		if (protocol == PROTO_PXX)
+ #endif
 		{
 			if(t_pgOfs<=subN)
 			{
@@ -8209,6 +8236,11 @@ void menuProcDiagAna(uint8_t event)
 //	lcd_outhex4( 0, 4*FH, aDebugCopy[3] ) ;
 }
 
+void putc_0_1( uint8_t x, uint8_t y, uint8_t value )
+{
+  lcd_putcAtt( x, y, value+'0', value ? INVERS : 0 ) ;
+}
+
 
 void menuProcDiagKeys(uint8_t event)
 {
@@ -8350,6 +8382,20 @@ void menuProcDiagKeys(uint8_t event)
     lcd_putcAtt(x+FW*4,  y, tm+'0',tm ? INVERS : 0);
     lcd_putcAtt(x+FW*6,  y, tp+'0',tp ? INVERS : 0);
   }
+	
+#ifdef PCBSKY
+	if ( g_eeGeneral.switchMapping & USE_PB1 )
+	{
+	  lcd_puts_Pleft(1*FH,XPSTR("\017PB1") ) ;
+		putc_0_1( FW*20, 1*FH, getSwitch00(HSW_Pb1) ) ;
+	}
+	if ( g_eeGeneral.switchMapping & USE_PB2 )
+	{
+	  lcd_puts_Pleft(2*FH,XPSTR("\017PB2") ) ;
+		putc_0_1( FW*20, 2*FH, getSwitch00(HSW_Pb2) ) ;
+	}
+#endif
+
 }
 
 void menuProcDiagVers(uint8_t event)
@@ -10323,10 +10369,10 @@ void menuProcDate(uint8_t event)
 extern uint8_t Co_proc_status[] ;
 		lcd_outdezAtt( 21*FW, 7*FH, (uint8_t)Co_proc_status[8], 0 ) ;		// Co-Proc temperature
 
-		uint8_t temp = (uint8_t)Co_proc_status[9] ; 
-    lcd_putc( 18*FW, 6*FH, temp & 0x40 ? '1' : '0' ) ;
-    lcd_putc( 19*FW, 6*FH, temp & 0x08 ? '1' : '0' ) ;
-    lcd_putc( 20*FW, 6*FH, temp & 0x02 ? '1' : '0' ) ;
+		uint8_t temp = ExtraInputs ;
+    lcd_putc( 18*FW, 6*FH, temp & 0x20 ? '1' : '0' ) ;
+    lcd_putc( 19*FW, 6*FH, temp & 0x10 ? '1' : '0' ) ;
+    lcd_putc( 20*FW, 6*FH, temp & 0x08 ? '1' : '0' ) ;
 #endif
 #endif
     int8_t  sub    = mstate2.m_posVert;
@@ -10896,6 +10942,16 @@ void switchDisplay( uint8_t j, uint8_t a )
 	for(uint8_t i=a; i<b; y += FH, i += 1 )
 	{
 //#if REVX		
+		if ( i == 0 )	// THR
+		{
+			if ( g_eeGeneral.switchMapping & USE_THR_3POS )
+			{
+				uint8_t k = HSW_Thr3pos0 ;
+				k += switchPosition(k) ;
+				lcd_putsAttIdx((2+j*15)*FW-2, y, PSTR(SWITCHES_STR), k-HSW_OFFSET, 0) ;
+				continue ;
+			}
+		}
 		if ( i == 2 )	// ELE
 		{
 			if ( g_eeGeneral.switchMapping & USE_ELE_3POS )
@@ -13540,6 +13596,26 @@ static uint8_t indexProcess( uint8_t event, MState2 *pmstate, uint8_t extra )
 	return event ;
 }
 
+uint8_t edit3posSwitchSource( uint8_t y, uint8_t value, uint16_t mask, uint8_t condition )
+{
+	uint16_t sm = g_eeGeneral.switchMapping ;
+#ifdef REVX
+	value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, condition ) ;
+#else
+	value = checkIndexed( y, XPSTR(FWx17"\010\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, condition ) ;
+#endif
+	g_eeGeneral.switchMapping = sm & ~(mask) ;
+	if ( value )
+	{
+		g_eeGeneral.switchMapping |= mask ;
+	} 
+	if ( sm != g_eeGeneral.switchMapping )
+	{
+		createSwitchMapping() ;
+	}
+	return value ;
+}
+
 void menuProcIndex(uint8_t event)
 {
 	static MState2 mstate;
@@ -14110,20 +14186,20 @@ Str_DiagAna
 //			uint8_t y = 1*FH;
 			uint8_t subN = 0 ;
 #ifdef PCBSKY
-			uint8_t sm = g_eeGeneral.switchMapping ;
-			uint8_t num = 7 + 2 ;
-			if ( sm & ( USE_ELE_3POS | USE_ELE_6POS ) )
-			{
-				num += 2 ;
-				if ( sm & ( USE_THR_3POS | USE_RUD_3POS ) )
-				{
-					num -= 1 ;
-				}
-			}	 
-			if ( sm & ( USE_AIL_3POS | USE_GEA_3POS ) )
-			{
-				num -= 1 ;
-			}
+//			uint16_t sm = g_eeGeneral.switchMapping ;
+			uint8_t num = 9 + 2 + 2 ;
+//			if ( sm & ( USE_ELE_3POS | USE_ELE_6POS ) )
+//			{
+//				num += 2 ;
+//				if ( sm & ( USE_THR_3POS | USE_RUD_3POS ) )
+//				{
+//					num -= 1 ;
+//				}
+//			}	 
+//			if ( sm & ( USE_AIL_3POS | USE_GEA_3POS ) )
+//			{
+//				num -= 1 ;
+//			}
 			IlinesCount = num ;
 #else
 			IlinesCount = 4 ;
@@ -14240,142 +14316,357 @@ Str_DiagAna
 			else
 			{
 				subN = 6 ;
+//ELE NONE EXT1, EXT2, EXT3, DAC1, ANA, EXT4, EXT5, EXT6
+//AIL NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+//GEA NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+//RUD NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+//THR NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+//PB1 NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+//PB1 NONE EXT1, EXT2, EXT3, DAC1, ELE, EXT4, EXT5, EXT6
+
+//ELE has extra option if ANA of ANA3, AN6A, AN6B
+
+
+
 				if ( sub >= IlinesCount )
 				{
 					sub = mstate.m_posVert = IlinesCount-1 ;
 				}
   			lcd_puts_Pleft( y, XPSTR("ELE  switch"));
-				uint8_t type = 0 ;
-				if ( sm & USE_ELE_3POS )
+				uint16_t sm = g_eeGeneral.switchMapping ;
+				uint8_t value = g_eeGeneral.elesource ;
+				if ( value > 5 )
 				{
-					type = 1 ;
+					value += 2 ;
 				}
-				if ( sm & USE_ELE_6POS )
+				if ( value >101 )
 				{
-					type = ( sm & USE_ELE_6PSB ) ? 3 : 2 ;
+					value -= 102-6 ;
 				}
-  			lcd_putsAttIdx(  12*FW, y, XPSTR("\0052POS 3POS 6POSA6POSB"), type, (sub==subN ? BLINK:0));
-  			if(sub==subN)
+#ifdef REVX
+				value = checkIndexed( y, XPSTR(FWx17"\007\004NONEEXT1EXT2EXT3DAC1ANA 6PSA6PSB"), value, (sub==subN) ) ;
+#else
+				value = checkIndexed( y, XPSTR(FWx17"\012\004NONEEXT1EXT2EXT3DAC1ANA 6PSA6PSBEXT4EXT5EXT6"), value, (sub==subN) ) ;
+#endif
+				if ( value > 5 )
 				{
-					CHECK_INCDEC_H_GENVAR_0( type, 3 ) ;
-					g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_ELE_3POS | USE_ELE_6POS | USE_ELE_6PSB ) ;
-					if ( type == 0 )
+					value -= 2 ;
+					if ( value < 6 )
 					{
-						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_THR_3POS | USE_RUD_3POS) ;
+						value += 102-6 ;
+					}
+				}
+				g_eeGeneral.elesource = value ;
+				g_eeGeneral.switchMapping = sm & ~(USE_ELE_3POS | USE_ELE_6POS | USE_ELE_6PSB ) ;
+				if ( value )
+				{
+					uint16_t mask = USE_ELE_3POS ;
+					if ( value == 100 )
+					{
+						mask = USE_ELE_6POS ;
+					}
+					else if ( value == 101 )
+					{
+						mask = USE_ELE_6PSB ;
+					}
+					g_eeGeneral.switchMapping |= mask ;
+				} 
+				if ( sm != g_eeGeneral.switchMapping )
+				{
+					createSwitchMapping() ;
+					sm = g_eeGeneral.switchMapping ;
+				}
 				
-					}
-					else if ( type == 1 )
-					{
-						g_eeGeneral.switchMapping |= USE_ELE_3POS ;
-					}
-					else
-					{
-						g_eeGeneral.switchMapping |= USE_ELE_6POS ;
-						if ( type == 3 )
-						{
-							g_eeGeneral.switchMapping |= USE_ELE_6PSB ;
-						}
-					}
-					if ( sm != g_eeGeneral.switchMapping )
-					{
-						createSwitchMapping() ;
-					}
-				}
+				
+				
+//				uint8_t type = 0 ;
+//				if ( sm & USE_ELE_3POS )
+//				{
+//					type = 1 ;
+//				}
+//				if ( sm & USE_ELE_6POS )
+//				{
+//					type = ( sm & USE_ELE_6PSB ) ? 3 : 2 ;
+//				}
+//  			lcd_putsAttIdx(  12*FW, y, XPSTR("\0052POS 3POS 6POSA6POSB"), type, (sub==subN ? BLINK:0));
+//  			if(sub==subN)
+//				{
+//					CHECK_INCDEC_H_GENVAR_0( type, 3 ) ;
+//					g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_ELE_3POS | USE_ELE_6POS | USE_ELE_6PSB ) ;
+//					if ( type == 0 )
+//					{
+//						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_THR_3POS | USE_RUD_3POS) ;
+				
+//					}
+//					else if ( type == 1 )
+//					{
+//						g_eeGeneral.switchMapping |= USE_ELE_3POS ;
+//					}
+//					else
+//					{
+//						g_eeGeneral.switchMapping |= USE_ELE_6POS ;
+//						if ( type == 3 )
+//						{
+//							g_eeGeneral.switchMapping |= USE_ELE_6PSB ;
+//						}
+//					}
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//					}
+//				}
  				y += FH ;
 				subN++;
 
-				if ( sm & ( USE_ELE_3POS | USE_ELE_6POS ) )
 				{
-					if ( ( sm & USE_RUD_3POS ) == 0 )
-					{
-						type = (sm & USE_THR_3POS )!=0 ;
-				
-				  	lcd_puts_Pleft( y, XPSTR("THR  switch"));
-				  	lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
-				  	if(sub==subN)
-						{
-							CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
-							g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_THR_3POS) ;
-							if ( type )
-							{
-								g_eeGeneral.switchMapping |= USE_THR_3POS ;
-							}
-						}
-						if ( sm != g_eeGeneral.switchMapping )
-						{
-							createSwitchMapping() ;
-						}
-		 				y += FH ;
-						subN++;
-					}
-					if ( ( sm & USE_THR_3POS ) == 0 )
-					{
-						type = (sm & USE_RUD_3POS )!=0 ;
-				
-				  	lcd_puts_Pleft( y, XPSTR("RUD  switch"));
-				  	lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
-				  	if(sub==subN)
-						{
-							CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
-							g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_RUD_3POS) ;
-							if ( type )
-							{
-								g_eeGeneral.switchMapping |= USE_RUD_3POS ;
-							}
-						}
-						if ( sm != g_eeGeneral.switchMapping )
-						{
-							createSwitchMapping() ;
-						}
- 						y += FH ;
-						subN++;
-					}
-				}
+				  lcd_puts_Pleft( y, XPSTR("THR switch"));
+					g_eeGeneral.thrsource = edit3posSwitchSource( y, g_eeGeneral.thrsource, USE_THR_3POS, (sub==subN) ) ;
+//					uint8_t value ;
+//					uint16_t mask ;
+//					mask = USE_THR_3POS ;
+//					value = g_eeGeneral.thrsource ;
+//#ifdef REVX
+//					value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, (sub==subN) ) ;
+//#else
+//					value = checkIndexed( y, XPSTR(FWx17"\008\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, (sub==subN) ) ;
+//#endif
+//					g_eeGeneral.switchMapping = sm & ~(mask) ;
+//					if ( value )
+//					{
+//						g_eeGeneral.switchMapping |= mask ;
+//					} 
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//						sm = g_eeGeneral.switchMapping ;
+//					}
+//					g_eeGeneral.thrsource = value ;
+				}	
+ 				y += FH ;
+				subN++;
 
-				if ( ( sm & USE_GEA_3POS ) == 0 )
-				{
-					type = (sm & USE_AIL_3POS )!=0 ;
+//				if ( sm & ( USE_ELE_3POS | USE_ELE_6POS ) )
+//				{
+//					if ( ( sm & USE_RUD_3POS ) == 0 )
+//					{
+//						type = (sm & USE_THR_3POS )!=0 ;
 				
-				  lcd_puts_Pleft( y, XPSTR("AIL  switch"));
-				  lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
-				  if(sub==subN)
-					{
-						CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
-						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_AIL_3POS) ;
-						if ( type )
-						{
-							g_eeGeneral.switchMapping |= USE_AIL_3POS ;
-						}
-					}
-					if ( sm != g_eeGeneral.switchMapping )
-					{
-						createSwitchMapping() ;
-					}
+//				  	lcd_puts_Pleft( y, XPSTR("THR  switch"));
+//				  	lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
+//				  	if(sub==subN)
+//						{
+//							CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
+//							g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_THR_3POS) ;
+//							if ( type )
+//							{
+//								g_eeGeneral.switchMapping |= USE_THR_3POS ;
+//							}
+//						}
+//						if ( sm != g_eeGeneral.switchMapping )
+//						{
+//							createSwitchMapping() ;
+//						}
+//		 				y += FH ;
+//						subN++;
+//					}
+//				}
+					
+					
+				{
+				  lcd_puts_Pleft( y, XPSTR("RUD switch"));
+					g_eeGeneral.rudsource = edit3posSwitchSource( y, g_eeGeneral.rudsource, USE_RUD_3POS, (sub==subN) ) ;
+//					uint8_t value ;
+//					uint16_t mask ;
+//					mask = USE_RUD_3POS ;
+//					value = g_eeGeneral.rudsource ;
+//#ifdef REVX
+//					value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, (sub==subN) ) ;
+//#else
+//					value = checkIndexed( y, XPSTR(FWx17"\008\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, (sub==subN) ) ;
+//#endif
+//					g_eeGeneral.switchMapping = sm & ~(mask) ;
+//					if ( value )
+//					{
+//						g_eeGeneral.switchMapping |= mask ;
+//					} 
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//						sm = g_eeGeneral.switchMapping ;
+//					}
+//					g_eeGeneral.rudsource = value ;
+				}	
+ 				y += FH ;
+				subN++;
+					
+					
+//					if ( ( sm & USE_THR_3POS ) == 0 )
+//					{
+//						type = (sm & USE_RUD_3POS )!=0 ;
+				
+//				  	lcd_puts_Pleft( y, XPSTR("RUD  switch"));
+//				  	lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
+//				  	if(sub==subN)
+//						{
+//							CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
+//							g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_RUD_3POS) ;
+//							if ( type )
+//							{
+//								g_eeGeneral.switchMapping |= USE_RUD_3POS ;
+//							}
+//						}
+//						if ( sm != g_eeGeneral.switchMapping )
+//						{
+//							createSwitchMapping() ;
+//						}
+// 						y += FH ;
+//						subN++;
+//					}
+
+//				if ( ( sm & USE_GEA_3POS ) == 0 )
+//				{
+//					type = (sm & USE_AIL_3POS )!=0 ;
+				{
+				  lcd_puts_Pleft( y, XPSTR("AIL switch"));
+					g_eeGeneral.ailsource = edit3posSwitchSource( y, g_eeGeneral.ailsource, USE_AIL_3POS, (sub==subN) ) ;
+//					uint8_t value ;
+//					uint16_t mask ;
+//					mask = USE_AIL_3POS ;
+//					value = g_eeGeneral.ailsource ;
+//#ifdef REVX
+//					value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, (sub==subN) ) ;
+//#else
+//					value = checkIndexed( y, XPSTR(FWx17"\008\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, (sub==subN) ) ;
+//#endif
+//					g_eeGeneral.switchMapping = sm & ~(mask) ;
+//					if ( value )
+//					{
+//						g_eeGeneral.switchMapping |= mask ;
+//					} 
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//						sm = g_eeGeneral.switchMapping ;
+//					}
+//					g_eeGeneral.ailsource = value ;
+				}	
+ 				y += FH ;
+				subN++;
+					
+				{
+				  lcd_puts_Pleft( y, XPSTR("GEA switch"));
+					g_eeGeneral.geasource = edit3posSwitchSource( y, g_eeGeneral.geasource, USE_GEA_3POS, (sub==subN) ) ;
+//					uint8_t value ;
+//					uint16_t mask ;
+//					mask = USE_GEA_3POS ;
+//					value = g_eeGeneral.geasource ;
+//#ifdef REVX
+//					value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, (sub==subN) ) ;
+//#else
+//					value = checkIndexed( y, XPSTR(FWx17"\008\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, (sub==subN) ) ;
+//#endif
+//					g_eeGeneral.switchMapping = sm & ~(mask) ;
+//					if ( value )
+//					{
+//						g_eeGeneral.switchMapping |= mask ;
+//					} 
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//						sm = g_eeGeneral.switchMapping ;
+//					}
+//					g_eeGeneral.geasource = value ;
+				}	
+					
+//					lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
+//				  if(sub==subN)
+//					{
+//						CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
+//						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_AIL_3POS) ;
+//						if ( type )
+//						{
+//							g_eeGeneral.switchMapping |= USE_AIL_3POS ;
+//						}
+//					}
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//					}
 	 				y += FH ;
 					subN++;
-				}
-				if ( ( sm & USE_AIL_3POS ) == 0 )
-				{
-					type = (sm & USE_GEA_3POS )!=0 ;
+//				}
 				
-				  lcd_puts_Pleft( y, XPSTR("GEAR switch"));
-				  lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
-				  if(sub==subN)
-					{
-						CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
-						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_GEA_3POS) ;
-						if ( type )
-						{
-							g_eeGeneral.switchMapping |= USE_GEA_3POS ;
-						}
-					}
-					if ( sm != g_eeGeneral.switchMapping )
-					{
-						createSwitchMapping() ;
-					}
- 					y += FH ;
-					subN++;
-				}
+				
+//				if ( ( sm & USE_AIL_3POS ) == 0 )
+//				{
+//					type = (sm & USE_GEA_3POS )!=0 ;
+				
+//				  lcd_puts_Pleft( y, XPSTR("GEAR switch"));
+//				  lcd_putsAttIdx(  12*FW, y, XPSTR("\0042POS3POS"), type, (sub==subN ? BLINK:0));
+//				  if(sub==subN)
+//					{
+//						CHECK_INCDEC_H_GENVAR_0( type, 1 ) ;
+//						g_eeGeneral.switchMapping = g_eeGeneral.switchMapping & ~(USE_GEA_3POS) ;
+//						if ( type )
+//						{
+//							g_eeGeneral.switchMapping |= USE_GEA_3POS ;
+//						}
+//					}
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//					}
+// 					y += FH ;
+//					subN++;
+//				}
+  			lcd_puts_Pleft( y, XPSTR("PB1 switch\037PB2 switch"));
+				g_eeGeneral.pb1source = edit3posSwitchSource( y, g_eeGeneral.pb1source, USE_PB1, (sub==subN) ) ;
+				y += FH ;
+				subN += 1 ;
+				g_eeGeneral.pb2source = edit3posSwitchSource( y, g_eeGeneral.pb2source, USE_PB2, (sub==subN) ) ;
+//				uint8_t i ;
+//				for ( i = 0 ; i < 2 ; i += 1 )
+//				{
+//					uint16_t sm = g_eeGeneral.switchMapping ;
+//					uint16_t mask ;
+//					uint8_t value ;
+//					switch ( i )
+//					{
+//						case 1 :
+//							mask = USE_PB2 ;
+//							value = g_eeGeneral.pb2source ;
+//						break ;
+//						default :    
+//							mask = USE_PB1 ;
+//							value = g_eeGeneral.pb1source ;
+//						break ;
+//					}
+//#ifdef REVX
+//					value = checkIndexed( y, XPSTR(FWx17"\005\004NONEEXT1EXT2EXT3DAC1ELE "), value, (sub==subN) ) ;
+//#else
+//					value = checkIndexed( y, XPSTR(FWx17"\008\004NONEEXT1EXT2EXT3DAC1ELE EXT4EXT5EXT6"), value, (sub==subN) ) ;
+//#endif
+//					g_eeGeneral.switchMapping = sm & ~(mask) ;
+//					if ( value )
+//					{
+//						g_eeGeneral.switchMapping |= mask ;
+//					} 
+//					if ( sm != g_eeGeneral.switchMapping )
+//					{
+//						createSwitchMapping() ;
+//					}
+//					switch ( i )
+//					{
+//						case 1 :
+//							g_eeGeneral.pb2source = value ;
+//						break ;
+//						default :    
+//							g_eeGeneral.pb1source = value ;
+//						break ;
+//					}
+//					y += FH ;
+//					subN += 1 ;
+//				}
 			}
 #endif // PCBSKY
 		}			 

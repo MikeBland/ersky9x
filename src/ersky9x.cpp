@@ -2380,9 +2380,9 @@ void mainSequence( uint32_t no_menu )
 #endif
 
  #ifdef PCBSKY
-		if ( ++coProTimer > 24 )
+		if ( ++coProTimer > 9 )
 		{
-			coProTimer -= 25 ;
+			coProTimer -= 10 ;
 			
 #ifndef REVX
 			if ( CoProcAlerted == 0 )
@@ -4939,7 +4939,7 @@ uint8_t Sw3PosCount[8] ;
 void createSwitchMapping()
 {
 	uint8_t *p = switchMapTable ;
-	uint8_t map = g_eeGeneral.switchMapping ;
+	uint16_t map = g_eeGeneral.switchMapping ;
 	*p++ = 0 ;
 	if ( map & USE_THR_3POS )
 	{
@@ -5008,6 +5008,14 @@ void createSwitchMapping()
 		*p++ = HSW_Gear ;
 	}
 	*p++ = HSW_Trainer ;
+	if ( map & USE_PB1 )
+	{
+		*p++ = HSW_Pb1 ;
+	}
+	if ( map & USE_PB2 )
+	{
+		*p++ = HSW_Pb2 ;
+	}
 	for ( uint32_t i = 10 ; i <=33 ; i += 1  )
 	{
 		*p++ = i ;	// Custom switches
@@ -5682,7 +5690,7 @@ int8_t getMovedSwitch()
 
 #ifdef PCBSKY
   uint16_t mask = 0xC000 ;
-	uint8_t map = g_eeGeneral.switchMapping ;
+	uint16_t map = g_eeGeneral.switchMapping ;
 	
 	for ( uint8_t i=8 ; i>0 ; i-- )
 	{
@@ -5808,11 +5816,44 @@ int8_t getMovedSwitch()
 	if ( result == 0 )
 	{
 		mask = getSwitch00( 9 ) ;
-		if ( mask && ( trainer_state  == 0 ) )
+		if ( ( mask ^ trainer_state ) & 1 )
 		{
-			result = 9 ;
+			if ( mask )
+			{
+				result = 9 ;
+			}
+			trainer_state ^= 1 ;
 		}
-		trainer_state = mask ;
+	}
+	if ( map & USE_PB1 )
+	{
+		if ( result == 0 )
+		{
+			mask = getSwitch00( HSW_Pb1 ) << 1 ;
+			if ( ( mask ^ trainer_state ) & 2 )
+			{
+				if ( mask )
+				{
+					result = HSW_Pb1 ;
+				}
+				trainer_state ^= 2 ;
+			}
+		}
+	}
+	if ( map & USE_PB2 )
+	{
+		if ( result == 0 )
+		{
+			mask = getSwitch00( HSW_Pb2 ) << 2 ;
+			if ( ( mask ^ trainer_state ) & 4 )
+			{
+				if ( mask )
+				{
+					result = HSW_Pb2 ;
+				}
+				trainer_state ^= 4 ;
+			}
+		}
 	}
 #endif
 #ifdef PCBX9D

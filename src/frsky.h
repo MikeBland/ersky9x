@@ -159,6 +159,7 @@ DataID Meaning       Unit   Range   Note
 #define ADC2_ID            0xf103
 #define BATT_ID            0xf104
 #define SWR_ID             0xf105
+#define XJT_VERSION_ID     0xf106
 
 // Special
 #define UART_FIRST_ID      0xFD00
