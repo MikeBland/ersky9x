@@ -544,17 +544,17 @@ uint32_t readKeyUpgradeBit( uint8_t index )
 {
   CPU_UINT xxx = 0 ;
 	uint32_t t = 1 << (index-1) ;
-	if ( t == 16 )
+	if ( t == 8 )
 	{
-		xxx = (PIOB->PIO_PDSR & 0x00004000) ;	// DAC1
+		xxx = (~PIOB->PIO_PDSR & 0x00004000) ;	// DAC1
 	}
-	else if ( t == 32 )
+	else if ( t == 16 )
 	{
 		xxx = ~PIOC->PIO_PDSR & 0x80000000 ;	// ELE_DR   PC31	
 	}
 	else
 	{
-		if ( t > 32 )
+		if ( t > 16 )
 		{
 			t >>= 2 ;
 		}
